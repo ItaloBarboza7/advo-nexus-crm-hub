@@ -210,29 +210,29 @@ export function DashboardContent() {
           <div className="space-y-4">
             <div className="bg-gray-50 p-4 rounded-lg">
               <div className="text-center mb-4">
-                <p className="text-3xl font-bold text-blue-600">{conversionData.overallConversion}</p>
+                <p className="text-3xl font-bold text-blue-600">{conversionData[0].overallConversion}</p>
                 <p className="text-sm text-gray-600">Taxa Geral de Conversão</p>
               </div>
               
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Total de Leads</span>
-                  <span className="font-medium">{conversionData.totalLeads}</span>
+                  <span className="font-medium">{conversionData[0].totalLeads}</span>
                 </div>
                 
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Propostas Geradas</span>
                   <div className="text-right">
-                    <span className="font-medium">{conversionData.proposals}</span>
-                    <span className="text-xs text-orange-600 ml-2">({conversionData.proposalRate})</span>
+                    <span className="font-medium">{conversionData[0].proposals}</span>
+                    <span className="text-xs text-orange-600 ml-2">({conversionData[0].proposalRate})</span>
                   </div>
                 </div>
                 
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Vendas Realizadas</span>
                   <div className="text-right">
-                    <span className="font-medium">{conversionData.sales}</span>
-                    <span className="text-xs text-green-600 ml-2">({conversionData.salesRate})</span>
+                    <span className="font-medium">{conversionData[0].sales}</span>
+                    <span className="text-xs text-green-600 ml-2">({conversionData[0].salesRate})</span>
                   </div>
                 </div>
               </div>
@@ -241,11 +241,11 @@ export function DashboardContent() {
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div 
                     className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                    style={{ width: conversionData.overallConversion }}
+                    style={{ width: conversionData[0].overallConversion }}
                   ></div>
                 </div>
                 <p className="text-xs text-gray-500 mt-1 text-center">
-                  Meta: 75% | Atual: {conversionData.overallConversion}
+                  Meta: 75% | Atual: {conversionData[0].overallConversion}
                 </p>
               </div>
             </div>
