@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,25 +9,7 @@ import { LeadDetailsDialog } from "@/components/LeadDetailsDialog";
 import { StatusChangeForm } from "@/components/StatusChangeForm";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-
-interface Lead {
-  id: string;
-  name: string;
-  email: string | null;
-  phone: string;
-  company?: string;
-  source: string | null;
-  status: string;
-  interest?: string;
-  value?: number | null;
-  lastContact?: string;
-  avatar?: string;
-  description: string | null;
-  state: string | null;
-  action_type: string | null;
-  created_at: string;
-  updated_at: string;
-}
+import { Lead } from "@/types/lead";
 
 const LEAD_STATUSES = [
   { id: "Novo", title: "Novo", color: "bg-blue-100 text-blue-800" },

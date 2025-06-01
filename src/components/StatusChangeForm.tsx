@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,13 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-
-interface Lead {
-  id: string;
-  name: string;
-  status: string;
-  value: number | null;
-}
+import { Lead } from "@/types/lead";
 
 interface StatusChangeFormProps {
   lead: Lead | null;

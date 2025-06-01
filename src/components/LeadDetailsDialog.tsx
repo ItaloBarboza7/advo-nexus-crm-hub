@@ -1,27 +1,8 @@
-
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Mail, Phone, MapPin, Calendar, User, FileText, Tag, DollarSign } from "lucide-react";
-
-interface Lead {
-  id: string;
-  name: string;
-  email: string | null;
-  phone: string;
-  company?: string;
-  source: string | null;
-  status: string;
-  interest?: string;
-  value?: number | null;
-  lastContact?: string;
-  avatar?: string;
-  description: string | null;
-  state: string | null;
-  action_type: string | null;
-  created_at: string;
-  updated_at: string;
-}
+import { Lead } from "@/types/lead";
 
 interface LeadDetailsDialogProps {
   lead: Lead | null;
