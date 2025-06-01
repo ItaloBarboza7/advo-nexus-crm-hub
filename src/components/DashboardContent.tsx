@@ -1,5 +1,3 @@
-
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserPlus, UserX, DollarSign, TrendingUp, Target, BarChart3 } from "lucide-react";
@@ -261,15 +259,15 @@ export function DashboardContent() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="h-64 pt-12">
+            <div className="h-52 pt-4">
               <ChartContainer config={chartConfig}>
-                <BarChart data={weeklyConversionData} margin={{ top: 0, right: 5, left: 5, bottom: 25 }}>
+                <BarChart data={weeklyConversionData} margin={{ top: 0, right: 5, left: 5, bottom: 20 }}>
                   <XAxis 
                     dataKey="day" 
                     tick={{ fontSize: 12 }}
                     angle={-45}
                     textAnchor="end"
-                    height={40}
+                    height={35}
                   />
                   <YAxis 
                     tick={{ fontSize: 12 }}
@@ -308,15 +306,15 @@ export function DashboardContent() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="h-64">
+            <div className="h-52">
               <ChartContainer config={chartConfig}>
-                <BarChart data={weeklyLeadsData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+                <BarChart data={weeklyLeadsData} margin={{ top: 10, right: 10, left: 10, bottom: 35 }}>
                   <XAxis 
                     dataKey="day" 
                     tick={{ fontSize: 12 }}
                     angle={-45}
                     textAnchor="end"
-                    height={60}
+                    height={45}
                   />
                   <YAxis 
                     tick={{ fontSize: 12 }}
@@ -351,15 +349,15 @@ export function DashboardContent() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="h-64">
+            <div className="h-52">
               <ChartContainer config={chartConfig}>
-                <BarChart data={weeklyProposalsData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+                <BarChart data={weeklyProposalsData} margin={{ top: 10, right: 10, left: 10, bottom: 35 }}>
                   <XAxis 
                     dataKey="day" 
                     tick={{ fontSize: 12 }}
                     angle={-45}
                     textAnchor="end"
-                    height={60}
+                    height={45}
                   />
                   <YAxis 
                     tick={{ fontSize: 12 }}
@@ -388,4 +386,3 @@ export function DashboardContent() {
     </div>
   );
 }
-
