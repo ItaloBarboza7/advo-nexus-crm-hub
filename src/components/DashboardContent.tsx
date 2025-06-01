@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserPlus, UserX, DollarSign, TrendingUp, Target, BarChart3 } from "lucide-react";
@@ -259,19 +260,19 @@ export function DashboardContent() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="h-32">
+            <div className="h-24">
               <ChartContainer config={chartConfig}>
-                <BarChart data={weeklyConversionData} margin={{ top: 5, right: 5, left: 5, bottom: 20 }}>
+                <BarChart data={weeklyConversionData} margin={{ top: 5, right: 5, left: 5, bottom: 15 }}>
                   <XAxis 
                     dataKey="day" 
-                    tick={{ fontSize: 10 }}
+                    tick={{ fontSize: 9 }}
                     angle={-45}
                     textAnchor="end"
-                    height={25}
+                    height={20}
                   />
                   <YAxis 
-                    tick={{ fontSize: 10 }}
-                    width={25}
+                    tick={{ fontSize: 9 }}
+                    width={20}
                   />
                   <ChartTooltip 
                     content={<ChartTooltipContent />}
@@ -281,12 +282,12 @@ export function DashboardContent() {
                   <Bar 
                     dataKey="conversion" 
                     fill="var(--color-conversion)"
-                    radius={[2, 2, 0, 0]}
+                    radius={[1, 1, 0, 0]}
                   />
                 </BarChart>
               </ChartContainer>
             </div>
-            <div className="mt-3 text-sm text-gray-600">
+            <div className="mt-2 text-sm text-gray-600">
               <p className="text-center">
                 Melhor dia: <span className="font-medium text-blue-600">Quarta-feira (23.1%)</span>
               </p>
@@ -306,19 +307,19 @@ export function DashboardContent() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="h-32">
+            <div className="h-24">
               <ChartContainer config={chartConfig}>
-                <BarChart data={weeklyLeadsData} margin={{ top: 5, right: 5, left: 5, bottom: 20 }}>
+                <BarChart data={weeklyLeadsData} margin={{ top: 5, right: 5, left: 5, bottom: 15 }}>
                   <XAxis 
                     dataKey="day" 
-                    tick={{ fontSize: 10 }}
+                    tick={{ fontSize: 9 }}
                     angle={-45}
                     textAnchor="end"
-                    height={25}
+                    height={20}
                   />
                   <YAxis 
-                    tick={{ fontSize: 10 }}
-                    width={25}
+                    tick={{ fontSize: 9 }}
+                    width={20}
                   />
                   <ChartTooltip 
                     content={<ChartTooltipContent />}
@@ -328,12 +329,12 @@ export function DashboardContent() {
                   <Bar 
                     dataKey="leads" 
                     fill="var(--color-leads)"
-                    radius={[2, 2, 0, 0]}
+                    radius={[1, 1, 0, 0]}
                   />
                 </BarChart>
               </ChartContainer>
             </div>
-            <div className="mt-3 text-sm text-gray-600">
+            <div className="mt-2 text-sm text-gray-600">
               <p className="text-center">
                 Melhor dia: <span className="font-medium text-green-600">Quarta-feira (65 leads)</span>
               </p>
@@ -350,19 +351,19 @@ export function DashboardContent() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="h-32">
+            <div className="h-24">
               <ChartContainer config={chartConfig}>
-                <BarChart data={weeklyProposalsData} margin={{ top: 5, right: 5, left: 5, bottom: 20 }}>
+                <BarChart data={weeklyProposalsData} margin={{ top: 5, right: 5, left: 5, bottom: 15 }}>
                   <XAxis 
                     dataKey="day" 
-                    tick={{ fontSize: 10 }}
+                    tick={{ fontSize: 9 }}
                     angle={-45}
                     textAnchor="end"
-                    height={25}
+                    height={20}
                   />
                   <YAxis 
-                    tick={{ fontSize: 10 }}
-                    width={25}
+                    tick={{ fontSize: 9 }}
+                    width={20}
                   />
                   <ChartTooltip 
                     content={<ChartTooltipContent />}
@@ -372,12 +373,12 @@ export function DashboardContent() {
                   <Bar 
                     dataKey="proposals" 
                     fill="var(--color-proposals)"
-                    radius={[2, 2, 0, 0]}
+                    radius={[1, 1, 0, 0]}
                   />
                 </BarChart>
               </ChartContainer>
             </div>
-            <div className="mt-3 text-sm text-gray-600">
+            <div className="mt-2 text-sm text-gray-600">
               <p className="text-center">
                 Melhor dia: <span className="font-medium text-orange-600">Quarta-feira (18 propostas)</span>
               </p>
