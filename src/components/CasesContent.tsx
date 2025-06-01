@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,11 +7,49 @@ import { Badge } from "@/components/ui/badge";
 import { Search, Filter, TrendingUp, Users, UserCheck, UserX, Target } from "lucide-react";
 import { DateRange } from "react-day-picker";
 import { DateFilter } from "@/components/DateFilter";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+
+interface LossReason {
+  id: string;
+  reason: string;
+}
 
 export function CasesContent() {
   const [searchTerm, setSearchTerm] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [lossReasons, setLossReasons] = useState<LossReason[]>([]);
+  const [selectedLossReason, setSelectedLossReason] = useState<string>("all");
+  const { toast } = useToast();
+
+  const fetchLossReasons = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('loss_reasons')
+        .select('*')
+        .order('reason', { ascending: true });
+
+      if (error) {
+        console.error('Erro ao buscar motivos de perda:', error);
+        return;
+      }
+
+      setLossReasons(data || []);
+    } catch (error) {
+      console.error('Erro inesperado ao buscar motivos de perda:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchLossReasons();
+  }, []);
 
   const analysisStats = [
     {
@@ -51,6 +89,7 @@ export function CasesContent() {
       value: "R$ 15.000",
       date: "2024-05-28",
       category: "contratos",
+      lossReason: null,
     },
     {
       id: 2,
@@ -62,6 +101,7 @@ export function CasesContent() {
       value: "R$ 25.000",
       date: "2024-05-27",
       category: "oportunidades",
+      lossReason: null,
     },
     {
       id: 3,
@@ -73,6 +113,7 @@ export function CasesContent() {
       value: "R$ 8.000",
       date: "2024-05-25",
       category: "perdas",
+      lossReason: "Preço muito alto",
     },
   ];
 
@@ -96,8 +137,17 @@ export function CasesContent() {
     
     const matchesCategory = selectedCategory === "all" || lead.category === selectedCategory;
     
-    return matchesSearch && matchesCategory;
+    const matchesLossReason = selectedCategory !== "perdas" || 
+      selectedLossReason === "all" || 
+      lead.lossReason === selectedLossReason;
+    
+    return matchesSearch && matchesCategory && matchesLossReason;
   });
+
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategory(category);
+    setSelectedLossReason("all"); // Reset loss reason filter when changing category
+  };
 
   return (
     <div className="space-y-6">
@@ -113,7 +163,7 @@ export function CasesContent() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {analysisStats.map((stat, index) => (
           <Card key={index} className="p-6 hover:shadow-lg transition-shadow cursor-pointer"
-                onClick={() => setSelectedCategory(stat.title.toLowerCase().replace(" ", "").replace("novos", "").replace("contratos", "contratos").replace("oportunidades", "oportunidades").replace("perdas", "perdas"))}>
+                onClick={() => handleCategoryChange(stat.title.toLowerCase().replace(" ", "").replace("novos", "").replace("contratos", "contratos").replace("oportunidades", "oportunidades").replace("perdas", "perdas"))}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">{stat.title}</p>
@@ -142,25 +192,25 @@ export function CasesContent() {
       <div className="flex gap-2 flex-wrap">
         <Button
           variant={selectedCategory === "all" ? "default" : "outline"}
-          onClick={() => setSelectedCategory("all")}
+          onClick={() => handleCategoryChange("all")}
         >
           Todos
         </Button>
         <Button
           variant={selectedCategory === "contratos" ? "default" : "outline"}
-          onClick={() => setSelectedCategory("contratos")}
+          onClick={() => handleCategoryChange("contratos")}
         >
           Novos Contratos
         </Button>
         <Button
           variant={selectedCategory === "oportunidades" ? "default" : "outline"}
-          onClick={() => setSelectedCategory("oportunidades")}
+          onClick={() => handleCategoryChange("oportunidades")}
         >
           Oportunidades
         </Button>
         <Button
           variant={selectedCategory === "perdas" ? "default" : "outline"}
-          onClick={() => setSelectedCategory("perdas")}
+          onClick={() => handleCategoryChange("perdas")}
         >
           Perdas
         </Button>
@@ -178,10 +228,46 @@ export function CasesContent() {
               className="pl-10"
             />
           </div>
-          <Button variant="outline">
-            <Filter className="h-4 w-4 mr-2" />
-            Filtros Avançados
-          </Button>
+          
+          {selectedCategory === "all" && (
+            <Button variant="outline">
+              <Filter className="h-4 w-4 mr-2" />
+              Filtros Avançados
+            </Button>
+          )}
+
+          {selectedCategory === "perdas" && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Filter className="h-4 w-4 mr-2" />
+                  Motivos das Perdas
+                  {selectedLossReason !== "all" && (
+                    <Badge className="ml-2 bg-red-100 text-red-800">
+                      1
+                    </Badge>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56 bg-white border border-gray-200 shadow-lg z-50">
+                <DropdownMenuItem 
+                  onClick={() => setSelectedLossReason("all")}
+                  className={selectedLossReason === "all" ? "bg-gray-100" : ""}
+                >
+                  Todos os motivos
+                </DropdownMenuItem>
+                {lossReasons.map((reason) => (
+                  <DropdownMenuItem 
+                    key={reason.id} 
+                    onClick={() => setSelectedLossReason(reason.reason)}
+                    className={selectedLossReason === reason.reason ? "bg-gray-100" : ""}
+                  >
+                    {reason.reason}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </Card>
 
@@ -196,6 +282,11 @@ export function CasesContent() {
                   <Badge className={getStatusColor(lead.status)}>
                     {lead.status}
                   </Badge>
+                  {lead.lossReason && (
+                    <Badge className="bg-gray-100 text-gray-800">
+                      {lead.lossReason}
+                    </Badge>
+                  )}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
                   <div>
