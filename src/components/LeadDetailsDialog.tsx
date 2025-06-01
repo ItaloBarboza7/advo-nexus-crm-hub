@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Mail, Phone, MapPin, Calendar, User, FileText, Tag, DollarSign, Clock } from "lucide-react";
+import { Mail, Phone, MapPin, User, FileText, Tag, DollarSign, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Lead } from "@/types/lead";
 import { LeadStatusHistory } from "@/types/leadStatusHistory";
@@ -92,6 +92,29 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
       onOpenChange(false);
     }
   };
+
+  // Combinar histórico de status com a criação do lead
+  const getCompleteHistory = () => {
+    const history = [...statusHistory];
+    
+    // Adicionar a criação do lead ao histórico se não houver histórico ou se o mais antigo não for a criação
+    const hasCreationEntry = history.some(h => h.old_status === null);
+    
+    if (!hasCreationEntry) {
+      history.push({
+        id: `creation-${lead.id}`,
+        lead_id: lead.id,
+        old_status: null,
+        new_status: lead.status,
+        changed_at: lead.created_at,
+        created_at: lead.created_at
+      });
+    }
+    
+    return history.sort((a, b) => new Date(b.changed_at).getTime() - new Date(a.changed_at).getTime());
+  };
+
+  const completeHistory = getCompleteHistory();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -200,19 +223,19 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
             </div>
           )}
 
-          {/* Histórico de Status */}
-          {statusHistory.length > 0 && (
+          {/* Histórico de Status Completo */}
+          {completeHistory.length > 0 && (
             <div className="bg-gray-50 p-4 rounded-lg">
               <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                 <Clock className="h-4 w-4" />
                 Histórico de Status
               </h3>
               <div className="space-y-3">
-                {statusHistory.map((history) => (
+                {completeHistory.map((history) => (
                   <div key={history.id} className="flex items-center justify-between text-sm border-l-2 border-blue-200 pl-3">
                     <div>
                       <span className="text-gray-600">
-                        {history.old_status ? `${history.old_status} → ` : 'Criado como '}
+                        {history.old_status ? `${history.old_status} → ` : 'Lead criado como '}
                       </span>
                       <Badge className={getStatusColor(history.new_status)} variant="outline">
                         {history.new_status}
@@ -224,24 +247,6 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
               </div>
             </div>
           )}
-
-          {/* Datas */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              Histórico
-            </h3>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">Criado em:</span>
-                <span className="font-medium">{formatDate(lead.created_at)}</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">Última atualização:</span>
-                <span className="font-medium">{formatDate(lead.updated_at)}</span>
-              </div>
-            </div>
-          </div>
         </div>
 
         <div className="flex gap-2 mt-6">

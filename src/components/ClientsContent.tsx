@@ -1,13 +1,15 @@
+
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Phone, Mail, MapPin, Filter, Users, LayoutGrid, List, Trash2, Edit, DollarSign } from "lucide-react";
+import { Plus, Search, Phone, Mail, MapPin, LayoutGrid, List, Trash2, Edit, DollarSign, Users } from "lucide-react";
 import { KanbanView } from "@/components/KanbanView";
 import { NewLeadForm } from "@/components/NewLeadForm";
 import { LeadDetailsDialog } from "@/components/LeadDetailsDialog";
 import { StatusChangeForm } from "@/components/StatusChangeForm";
 import { EditLeadForm } from "@/components/EditLeadForm";
+import { LeadFilters, FilterOptions } from "@/components/LeadFilters";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
@@ -31,6 +33,13 @@ export function ClientsContent() {
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [filters, setFilters] = useState<FilterOptions>({
+    status: [],
+    source: [],
+    valueRange: { min: null, max: null },
+    state: [],
+    actionType: []
+  });
   const { toast } = useToast();
 
   const fetchLeads = async () => {
@@ -122,11 +131,30 @@ export function ClientsContent() {
     fetchLeads();
   }, []);
 
-  const filteredLeads = leads.filter(lead =>
-    lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (lead.email && lead.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (lead.description && lead.description.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  // Aplicar filtros e busca
+  const filteredLeads = leads.filter(lead => {
+    // Filtro de busca por texto
+    const matchesSearch = searchTerm === "" || 
+      lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (lead.email && lead.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (lead.phone && lead.phone.includes(searchTerm)) ||
+      (lead.description && lead.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (lead.company && lead.company.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (lead.state && lead.state.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    // Filtros específicos
+    const matchesStatus = filters.status.length === 0 || filters.status.includes(lead.status);
+    const matchesSource = filters.source.length === 0 || (lead.source && filters.source.includes(lead.source));
+    const matchesState = filters.state.length === 0 || (lead.state && filters.state.includes(lead.state));
+    const matchesActionType = filters.actionType.length === 0 || (lead.action_type && filters.actionType.includes(lead.action_type));
+    
+    // Filtro de faixa de valor
+    const leadValue = lead.value || 0;
+    const matchesValueMin = filters.valueRange.min === null || leadValue >= filters.valueRange.min;
+    const matchesValueMax = filters.valueRange.max === null || leadValue <= filters.valueRange.max;
+
+    return matchesSearch && matchesStatus && matchesSource && matchesState && matchesActionType && matchesValueMin && matchesValueMax;
+  });
 
   const getStatusColor = (status: string) => {
     const statusConfig = LEAD_STATUSES.find(s => s.id === status);
@@ -176,7 +204,14 @@ export function ClientsContent() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Leads</h1>
-          <p className="text-gray-600">Gerencie seus leads e oportunidades de vendas</p>
+          <p className="text-gray-600">
+            Gerencie seus leads e oportunidades de vendas
+            {filteredLeads.length !== leads.length && (
+              <span className="ml-2 text-blue-600 font-medium">
+                ({filteredLeads.length} de {leads.length} leads)
+              </span>
+            )}
+          </p>
         </div>
         <Button 
           className="bg-blue-600 hover:bg-blue-700"
@@ -192,16 +227,16 @@ export function ClientsContent() {
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <Input
-              placeholder="Buscar leads..."
+              placeholder="Buscar por nome, email, telefone, estado..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
             />
           </div>
-          <Button variant="outline">
-            <Filter className="h-4 w-4 mr-2" />
-            Filtros
-          </Button>
+          <LeadFilters
+            onFiltersChange={setFilters}
+            activeFilters={filters}
+          />
           <div className="flex gap-2">
             <Button
               variant={viewMode === "list" ? "default" : "outline"}
@@ -335,7 +370,7 @@ export function ClientsContent() {
             <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
             <h3 className="text-lg font-medium mb-2">Nenhum lead encontrado</h3>
             <p>
-              {searchTerm 
+              {searchTerm || filters.status.length > 0 || filters.source.length > 0 || filters.state.length > 0 || filters.actionType.length > 0 || filters.valueRange.min !== null || filters.valueRange.max !== null
                 ? "Tente ajustar os filtros de busca." 
                 : "Comece criando seu primeiro lead."
               }
