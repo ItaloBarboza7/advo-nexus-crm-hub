@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserPlus, UserX, DollarSign, TrendingUp, Target, BarChart3 } from "lucide-react";
@@ -289,8 +290,8 @@ export function DashboardContent() {
               </ChartContainer>
             </div>
           </CardContent>
-          <div className="mt-2 text-sm text-gray-600">
-            <p className="text-center">
+          <div className="mt-4 pt-2 border-t border-gray-200">
+            <p className="text-sm text-gray-600 text-center">
               Melhor dia: <span className="font-medium text-blue-600">Quarta-feira (23.1%)</span>
             </p>
           </div>
@@ -336,8 +337,8 @@ export function DashboardContent() {
               </ChartContainer>
             </div>
           </CardContent>
-          <div className="mt-2 text-sm text-gray-600">
-            <p className="text-center">
+          <div className="mt-4 pt-2 border-t border-gray-200">
+            <p className="text-sm text-gray-600 text-center">
               Melhor dia: <span className="font-medium text-green-600">Quarta-feira (65 leads)</span>
             </p>
           </div>
@@ -380,8 +381,8 @@ export function DashboardContent() {
               </ChartContainer>
             </div>
           </CardContent>
-          <div className="mt-2 text-sm text-gray-600">
-            <p className="text-center">
+          <div className="mt-4 pt-2 border-t border-gray-200">
+            <p className="text-sm text-gray-600 text-center">
               Melhor dia: <span className="font-medium text-orange-600">Quarta-feira (18 propostas)</span>
             </p>
           </div>
