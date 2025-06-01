@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -235,7 +234,7 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
                   <div key={history.id} className="flex items-center justify-between text-sm border-l-2 border-blue-200 pl-3">
                     <div>
                       <span className="text-gray-600">
-                        {history.old_status ? `${history.old_status} → ` : 'Lead criado como '}
+                        {history.old_status ? `${history.old_status} → ` : 'Lead criado em '}
                       </span>
                       <Badge className={getStatusColor(history.new_status)} variant="outline">
                         {history.new_status}
