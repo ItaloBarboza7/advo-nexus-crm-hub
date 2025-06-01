@@ -166,6 +166,8 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
   const handleFieldCancel = () => {
     setEditingField(null);
     setTempValue("");
+    setShowNewOptionInput(null);
+    setNewOptionValue("");
   };
 
   const handleAddNewOption = async (field: string) => {
@@ -236,64 +238,66 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
     const isShowingNewOption = showNewOptionInput === field;
 
     return (
-      <div className="flex items-center gap-2 text-sm text-gray-600">
-        <span className="font-medium">{label}:</span>
-        {isEditing ? (
-          <div className="flex items-center gap-2 flex-1">
-            {options ? (
-              <Select value={tempValue} onValueChange={setTempValue}>
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue placeholder={`Selecione ${label.toLowerCase()}`} />
-                </SelectTrigger>
-                <SelectContent>
-                  {options.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <Input
-                value={tempValue}
-                onChange={(e) => setTempValue(e.target.value)}
-                className="h-8 text-sm flex-1"
-              />
-            )}
-            <Button size="sm" variant="ghost" onClick={handleFieldSave} className="h-6 w-6 p-0">
-              <Check className="h-3 w-3" />
-            </Button>
-            <Button size="sm" variant="ghost" onClick={handleFieldCancel} className="h-6 w-6 p-0">
-              <X className="h-3 w-3" />
-            </Button>
-            {options && (
+      <div className="relative">
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <span className="font-medium">{label}:</span>
+          {isEditing ? (
+            <div className="flex items-center gap-2 flex-1">
+              {options ? (
+                <Select value={tempValue} onValueChange={setTempValue}>
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue placeholder={`Selecione ${label.toLowerCase()}`} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {options.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  value={tempValue}
+                  onChange={(e) => setTempValue(e.target.value)}
+                  className="h-8 text-sm flex-1"
+                />
+              )}
+              <Button size="sm" variant="ghost" onClick={handleFieldSave} className="h-6 w-6 p-0">
+                <Check className="h-3 w-3" />
+              </Button>
+              <Button size="sm" variant="ghost" onClick={handleFieldCancel} className="h-6 w-6 p-0">
+                <X className="h-3 w-3" />
+              </Button>
+              {options && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowNewOptionInput(field)}
+                  className="h-6 w-6 p-0"
+                  title="Adicionar nova opção"
+                >
+                  <Plus className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 flex-1">
+              <span className="flex-1">{value || 'Não informado'}</span>
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => setShowNewOptionInput(field)}
-                className="h-6 w-6 p-0"
-                title="Adicionar nova opção"
+                onClick={() => handleFieldEdit(field)}
+                className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
               >
-                <Plus className="h-3 w-3" />
+                <Edit2 className="h-3 w-3" />
               </Button>
-            )}
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 flex-1">
-            <span className="flex-1">{value || 'Não informado'}</span>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => handleFieldEdit(field)}
-              className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <Edit2 className="h-3 w-3" />
-            </Button>
-          </div>
-        )}
+            </div>
+          )}
+        </div>
         
         {isShowingNewOption && (
-          <div className="absolute top-full left-0 right-0 mt-2 p-3 bg-white border rounded-lg shadow-lg z-10">
+          <div className="absolute top-full left-0 right-0 mt-2 p-3 bg-white border rounded-lg shadow-lg z-50">
             <div className="space-y-3">
               <Input
                 placeholder={`Nova opção para ${label.toLowerCase()}...`}
