@@ -4,10 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Search, Phone, Mail, MapPin, Filter, Users, TrendingUp, LayoutGrid, List } from "lucide-react";
 import { KanbanView } from "@/components/KanbanView";
+import { NewLeadForm } from "@/components/NewLeadForm";
 
 export function ClientsContent() {
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
+  const [isNewLeadFormOpen, setIsNewLeadFormOpen] = useState(false);
 
   const leads = [
     {
@@ -77,7 +79,10 @@ export function ClientsContent() {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Leads</h1>
           <p className="text-gray-600">Gerencie seus leads e oportunidades de vendas</p>
         </div>
-        <Button className="bg-blue-600 hover:bg-blue-700">
+        <Button 
+          className="bg-blue-600 hover:bg-blue-700"
+          onClick={() => setIsNewLeadFormOpen(true)}
+        >
           <Plus className="h-4 w-4 mr-2" />
           Novo Lead
         </Button>
@@ -192,6 +197,11 @@ export function ClientsContent() {
           </div>
         </Card>
       )}
+
+      <NewLeadForm 
+        open={isNewLeadFormOpen} 
+        onOpenChange={setIsNewLeadFormOpen} 
+      />
     </div>
   );
 }
