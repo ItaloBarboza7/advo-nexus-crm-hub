@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -255,7 +254,7 @@ export function GroupedLeadsList({ leads, selectedCategory }: GroupedLeadsListPr
       {selectedLead && (
         <LeadDetailsDialog
           lead={selectedLead}
-          isOpen={isDialogOpen}
+          open={isDialogOpen}
           onClose={() => {
             setIsDialogOpen(false);
             setSelectedLead(null);
