@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserPlus, UserX, DollarSign, TrendingUp, Target, BarChart3 } from "lucide-react";
@@ -48,7 +47,7 @@ export function DashboardContent() {
       leads: 45,
       proposals: 12,
       sales: 8,
-      conversion: "18%",
+      score: "85",
     },
     {
       id: 2,
@@ -56,7 +55,7 @@ export function DashboardContent() {
       leads: 38,
       proposals: 15,
       sales: 11,
-      conversion: "29%",
+      score: "92",
     },
     {
       id: 3,
@@ -64,16 +63,16 @@ export function DashboardContent() {
       leads: 52,
       proposals: 18,
       sales: 14,
-      conversion: "27%",
+      score: "88",
     },
   ];
 
   const conversionData = [
     {
       totalLeads: 347,
-      proposals: 89,
+      opportunities: 89,
       sales: 65,
-      proposalRate: "25.6%",
+      opportunityRate: "25.6%",
       salesRate: "18.7%",
       overallConversion: "73.0%",
     },
@@ -109,6 +108,14 @@ export function DashboardContent() {
     { day: "Domingo", proposals: 4 },
   ];
 
+  const actionGroupData = [
+    { group: "Marketing Digital", opportunities: 45, closures: 28 },
+    { group: "Vendas Diretas", opportunities: 38, closures: 22 },
+    { group: "Parcerias", opportunities: 32, closures: 18 },
+    { group: "Referências", opportunities: 28, closures: 15 },
+    { group: "Cold Calling", opportunities: 22, closures: 8 },
+  ];
+
   const chartConfig = {
     conversion: {
       label: "Taxa de Conversão (%)",
@@ -121,6 +128,14 @@ export function DashboardContent() {
     proposals: {
       label: "Propostas",
       color: "#f59e0b",
+    },
+    opportunities: {
+      label: "Oportunidades",
+      color: "#8b5cf6",
+    },
+    closures: {
+      label: "Fechamentos",
+      color: "#ef4444",
     },
   };
 
@@ -191,8 +206,8 @@ export function DashboardContent() {
                         <p className="text-xs">Vendas</p>
                       </div>
                       <div>
-                        <span className="font-medium text-purple-600">{member.conversion}</span>
-                        <p className="text-xs">Conversão</p>
+                        <span className="font-medium text-purple-600">{member.score}</span>
+                        <p className="text-xs">Pontuação</p>
                       </div>
                     </div>
                   </div>
@@ -222,10 +237,10 @@ export function DashboardContent() {
                 </div>
                 
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Propostas Geradas</span>
+                  <span className="text-sm text-gray-600">Oportunidades Geradas</span>
                   <div className="text-right">
-                    <span className="font-medium">{conversionData[0].proposals}</span>
-                    <span className="text-xs text-orange-600 ml-2">({conversionData[0].proposalRate})</span>
+                    <span className="font-medium">{conversionData[0].opportunities}</span>
+                    <span className="text-xs text-orange-600 ml-2">({conversionData[0].opportunityRate})</span>
                   </div>
                 </div>
                 
@@ -302,6 +317,56 @@ export function DashboardContent() {
 
       {/* Weekly Charts Row - Changed to 3 columns */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Action Group Chart - New chart in the bottom left */}
+        <Card className="p-6 flex flex-col">
+          <CardHeader className="p-0 mb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <BarChart3 className="h-5 w-5 text-purple-600" />
+              Oportunidades e Fechamento por Grupo de Ação
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0 flex-1 flex flex-col">
+            <div className="h-48 flex-1">
+              <ChartContainer config={chartConfig} className="h-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={actionGroupData} margin={{ top: 5, right: 5, left: 5, bottom: 25 }}>
+                    <XAxis 
+                      dataKey="group" 
+                      tick={{ fontSize: 8 }}
+                      angle={-45}
+                      textAnchor="end"
+                      height={40}
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 9 }}
+                      width={25}
+                    />
+                    <ChartTooltip 
+                      content={<ChartTooltipContent />}
+                      formatter={(value, name) => [value, name === 'opportunities' ? 'Oportunidades' : 'Fechamentos']}
+                    />
+                    <Bar 
+                      dataKey="opportunities" 
+                      fill="var(--color-opportunities)"
+                      radius={[1, 1, 0, 0]}
+                    />
+                    <Bar 
+                      dataKey="closures" 
+                      fill="var(--color-closures)"
+                      radius={[1, 1, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </div>
+            <div className="mt-3 pt-2 border-t border-gray-200">
+              <p className="text-sm text-gray-600 text-center">
+                Melhor grupo: <span className="font-medium text-purple-600">Marketing Digital (62% taxa)</span>
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Weekly Leads Chart */}
         <Card className="p-6 flex flex-col">
           <CardHeader className="p-0 mb-3">
@@ -393,9 +458,6 @@ export function DashboardContent() {
             </div>
           </CardContent>
         </Card>
-
-        {/* Empty third column to maintain the 3-column layout */}
-        <div></div>
       </div>
     </div>
   );
