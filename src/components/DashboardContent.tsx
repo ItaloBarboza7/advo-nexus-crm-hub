@@ -12,6 +12,7 @@ export function DashboardContent() {
   const [conversionView, setConversionView] = useState<'weekly' | 'monthly'>('weekly');
   const [leadsView, setLeadsView] = useState<'weekly' | 'monthly'>('weekly');
   const [proposalsView, setProposalsView] = useState<'weekly' | 'monthly'>('weekly');
+  const [actionView, setActionView] = useState<'type' | 'group'>('type');
 
   const stats = [
     {
@@ -165,26 +166,34 @@ export function DashboardContent() {
     { type: "Cold Calling", opportunities: 22, closures: 8 },
   ];
 
+  const actionGroupData = [
+    { group: "Inbound", opportunities: 65, closures: 43 },
+    { group: "Outbound", opportunities: 48, closures: 28 },
+    { group: "Referral", opportunities: 35, closures: 22 },
+    { group: "Partnership", opportunities: 28, closures: 15 },
+    { group: "Events", opportunities: 19, closures: 7 },
+  ];
+
   const chartConfig = {
     conversion: {
       label: "Taxa de Conversão (%)",
-      color: "#3b82f6",
+      color: "hsl(220, 98%, 61%)",
     },
     leads: {
       label: "Leads",
-      color: "#10b981",
+      color: "hsl(142, 76%, 36%)",
     },
     proposals: {
       label: "Propostas",
-      color: "#f59e0b",
+      color: "hsl(38, 92%, 50%)",
     },
     opportunities: {
       label: "Oportunidades",
-      color: "#8b5cf6",
+      color: "hsl(262, 83%, 58%)",
     },
     closures: {
       label: "Fechamentos",
-      color: "#ef4444",
+      color: "hsl(0, 84%, 60%)",
     },
   };
 
@@ -200,6 +209,10 @@ export function DashboardContent() {
     return proposalsView === 'weekly' ? weeklyProposalsData : monthlyProposalsData;
   };
 
+  const getActionData = () => {
+    return actionView === 'type' ? actionTypeData : actionGroupData;
+  };
+
   const getConversionDataKey = () => {
     return conversionView === 'weekly' ? 'day' : 'month';
   };
@@ -210,6 +223,10 @@ export function DashboardContent() {
 
   const getProposalsDataKey = () => {
     return proposalsView === 'weekly' ? 'day' : 'month';
+  };
+
+  const getActionDataKey = () => {
+    return actionView === 'type' ? 'type' : 'group';
   };
 
   const getBestConversionPeriod = () => {
@@ -243,6 +260,17 @@ export function DashboardContent() {
     const periodValue = best[periodKey as keyof typeof best];
     const suffix = proposalsView === 'weekly' ? '-feira' : '';
     return `${periodValue}${suffix} (${best.proposals} propostas)`;
+  };
+
+  const getBestActionPeriod = () => {
+    const data = getActionData();
+    const best = data.reduce((prev, current) => 
+      current.opportunities > prev.opportunities ? current : prev
+    );
+    const dataKey = actionView === 'type' ? 'type' : 'group';
+    const value = best[dataKey as keyof typeof best];
+    const conversionRate = ((best.closures / best.opportunities) * 100).toFixed(1);
+    return `${value} (${conversionRate}% taxa)`;
   };
 
   return (
@@ -375,15 +403,15 @@ export function DashboardContent() {
         </Card>
 
         {/* Weekly Conversion Chart */}
-        <Card className="p-6 flex flex-col">
+        <Card className="p-6 flex flex-col bg-gradient-to-br from-slate-800 to-slate-900 text-white">
           <CardHeader className="p-0 mb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <BarChart3 className="h-5 w-5 text-blue-600" />
+              <CardTitle className="flex items-center gap-2 text-lg text-white">
+                <BarChart3 className="h-5 w-5 text-blue-400" />
                 Conversão por {conversionView === 'weekly' ? 'Dia da Semana' : 'Mês'}
               </CardTitle>
               <Select value={conversionView} onValueChange={(value: 'weekly' | 'monthly') => setConversionView(value)}>
-                <SelectTrigger className="w-[120px]">
+                <SelectTrigger className="w-[120px] bg-slate-700 border-slate-600 text-white">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -398,102 +426,137 @@ export function DashboardContent() {
               <ChartContainer config={chartConfig} className="h-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={getConversionData()} margin={{ top: 5, right: 5, left: 5, bottom: 25 }}>
+                    <defs>
+                      <linearGradient id="conversionGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.8}/>
+                        <stop offset="100%" stopColor="#1e40af" stopOpacity={0.3}/>
+                      </linearGradient>
+                    </defs>
                     <XAxis 
                       dataKey={getConversionDataKey()}
-                      tick={{ fontSize: 9 }}
+                      tick={{ fontSize: 9, fill: '#e2e8f0' }}
                       angle={-45}
                       textAnchor="end"
                       height={25}
+                      axisLine={false}
+                      tickLine={false}
                     />
                     <YAxis 
-                      tick={{ fontSize: 9 }}
+                      tick={{ fontSize: 9, fill: '#e2e8f0' }}
                       width={20}
+                      axisLine={false}
+                      tickLine={false}
                     />
                     <ChartTooltip 
-                      content={<ChartTooltipContent />}
+                      content={<ChartTooltipContent className="bg-slate-800 border-slate-600" />}
                       formatter={(value, name) => [`${value}%`, 'Taxa de Conversão']}
                       labelFormatter={(label) => conversionView === 'weekly' ? `${label}-feira` : label}
                     />
                     <Bar 
                       dataKey="conversion" 
-                      fill="var(--color-conversion)"
-                      radius={[1, 1, 0, 0]}
+                      fill="url(#conversionGradient)"
+                      radius={[4, 4, 0, 0]}
                     />
                   </BarChart>
                 </ResponsiveContainer>
               </ChartContainer>
             </div>
-            <div className="mt-3 pt-2 border-t border-gray-200">
-              <p className="text-sm text-gray-600 text-center">
-                Melhor período: <span className="font-medium text-blue-600">{getBestConversionPeriod()}</span>
+            <div className="mt-3 pt-2 border-t border-slate-700">
+              <p className="text-sm text-slate-300 text-center">
+                Melhor período: <span className="font-medium text-blue-400">{getBestConversionPeriod()}</span>
               </p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Weekly Charts Row - Changed to 3 columns */}
+      {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Action Type Chart - Updated from Action Group */}
-        <Card className="p-6 flex flex-col">
+        {/* Action Chart with toggle */}
+        <Card className="p-6 flex flex-col bg-gradient-to-br from-slate-800 to-slate-900 text-white">
           <CardHeader className="p-0 mb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <BarChart3 className="h-5 w-5 text-purple-600" />
-              Oportunidades e Fechamento por Tipo de Ação
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-lg text-white">
+                <BarChart3 className="h-5 w-5 text-purple-400" />
+                Oportunidades por {actionView === 'type' ? 'Tipo de Ação' : 'Grupo de Ação'}
+              </CardTitle>
+              <Select value={actionView} onValueChange={(value: 'type' | 'group') => setActionView(value)}>
+                <SelectTrigger className="w-[130px] bg-slate-700 border-slate-600 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="type">Tipo de Ação</SelectItem>
+                  <SelectItem value="group">Grupo de Ação</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </CardHeader>
           <CardContent className="p-0 flex-1 flex flex-col">
             <div className="h-48 flex-1">
               <ChartContainer config={chartConfig} className="h-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={actionTypeData} margin={{ top: 5, right: 5, left: 5, bottom: 25 }}>
+                  <BarChart data={getActionData()} margin={{ top: 5, right: 5, left: 5, bottom: 25 }}>
+                    <defs>
+                      <linearGradient id="opportunitiesGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.8}/>
+                        <stop offset="100%" stopColor="#6d28d9" stopOpacity={0.3}/>
+                      </linearGradient>
+                      <linearGradient id="closuresGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#ef4444" stopOpacity={0.8}/>
+                        <stop offset="100%" stopColor="#dc2626" stopOpacity={0.3}/>
+                      </linearGradient>
+                    </defs>
                     <XAxis 
-                      dataKey="type" 
-                      tick={{ fontSize: 8 }}
+                      dataKey={getActionDataKey()}
+                      tick={{ fontSize: 8, fill: '#e2e8f0' }}
                       angle={-45}
                       textAnchor="end"
                       height={40}
+                      axisLine={false}
+                      tickLine={false}
                     />
                     <YAxis 
-                      tick={{ fontSize: 9 }}
+                      tick={{ fontSize: 9, fill: '#e2e8f0' }}
                       width={25}
+                      axisLine={false}
+                      tickLine={false}
                     />
                     <ChartTooltip 
-                      content={<ChartTooltipContent />}
+                      content={<ChartTooltipContent className="bg-slate-800 border-slate-600" />}
                       formatter={(value, name) => [value, name === 'opportunities' ? 'Oportunidades' : 'Fechamentos']}
                     />
                     <Bar 
                       dataKey="opportunities" 
-                      fill="var(--color-opportunities)"
-                      radius={[1, 1, 0, 0]}
+                      fill="url(#opportunitiesGradient)"
+                      radius={[2, 2, 0, 0]}
                     />
                     <Bar 
                       dataKey="closures" 
-                      fill="var(--color-closures)"
-                      radius={[1, 1, 0, 0]}
+                      fill="url(#closuresGradient)"
+                      radius={[2, 2, 0, 0]}
                     />
                   </BarChart>
                 </ResponsiveContainer>
               </ChartContainer>
             </div>
-            <div className="mt-3 pt-2 border-t border-gray-200">
-              <p className="text-sm text-gray-600 text-center">
-                Melhor tipo: <span className="font-medium text-purple-600">Marketing Digital (62% taxa)</span>
+            <div className="mt-3 pt-2 border-t border-slate-700">
+              <p className="text-sm text-slate-300 text-center">
+                Melhor {actionView === 'type' ? 'tipo' : 'grupo'}: <span className="font-medium text-purple-400">{getBestActionPeriod()}</span>
               </p>
             </div>
           </CardContent>
         </Card>
 
-        {/* Weekly Leads Chart - Updated title */}
-        <Card className="p-6 flex flex-col">
+        {/* Weekly Leads Chart */}
+        <Card className="p-6 flex flex-col bg-gradient-to-br from-slate-800 to-slate-900 text-white">
           <CardHeader className="p-0 mb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Users className="h-5 w-5 text-green-600" />
+              <CardTitle className="flex items-center gap-2 text-lg text-white">
+                <Users className="h-5 w-5 text-green-400" />
                 Leads Novos por {leadsView === 'weekly' ? 'Dia da Semana' : 'Mês'}
               </CardTitle>
               <Select value={leadsView} onValueChange={(value: 'weekly' | 'monthly') => setLeadsView(value)}>
-                <SelectTrigger className="w-[120px]">
+                <SelectTrigger className="w-[120px] bg-slate-700 border-slate-600 text-white">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -508,49 +571,59 @@ export function DashboardContent() {
               <ChartContainer config={chartConfig} className="h-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={getLeadsData()} margin={{ top: 5, right: 5, left: 5, bottom: 25 }}>
+                    <defs>
+                      <linearGradient id="leadsGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#10b981" stopOpacity={0.8}/>
+                        <stop offset="100%" stopColor="#059669" stopOpacity={0.3}/>
+                      </linearGradient>
+                    </defs>
                     <XAxis 
                       dataKey={getLeadsDataKey()}
-                      tick={{ fontSize: 9 }}
+                      tick={{ fontSize: 9, fill: '#e2e8f0' }}
                       angle={-45}
                       textAnchor="end"
                       height={25}
+                      axisLine={false}
+                      tickLine={false}
                     />
                     <YAxis 
-                      tick={{ fontSize: 9 }}
+                      tick={{ fontSize: 9, fill: '#e2e8f0' }}
                       width={20}
+                      axisLine={false}
+                      tickLine={false}
                     />
                     <ChartTooltip 
-                      content={<ChartTooltipContent />}
+                      content={<ChartTooltipContent className="bg-slate-800 border-slate-600" />}
                       formatter={(value, name) => [value, 'Leads']}
                       labelFormatter={(label) => leadsView === 'weekly' ? `${label}-feira` : label}
                     />
                     <Bar 
                       dataKey="leads" 
-                      fill="var(--color-leads)"
-                      radius={[1, 1, 0, 0]}
+                      fill="url(#leadsGradient)"
+                      radius={[4, 4, 0, 0]}
                     />
                   </BarChart>
                 </ResponsiveContainer>
               </ChartContainer>
             </div>
-            <div className="mt-3 pt-2 border-t border-gray-200">
-              <p className="text-sm text-gray-600 text-center">
-                Melhor período: <span className="font-medium text-green-600">{getBestLeadsPeriod()}</span>
+            <div className="mt-3 pt-2 border-t border-slate-700">
+              <p className="text-sm text-slate-300 text-center">
+                Melhor período: <span className="font-medium text-green-400">{getBestLeadsPeriod()}</span>
               </p>
             </div>
           </CardContent>
         </Card>
 
         {/* Weekly Proposals Chart */}
-        <Card className="p-6 flex flex-col">
+        <Card className="p-6 flex flex-col bg-gradient-to-br from-slate-800 to-slate-900 text-white">
           <CardHeader className="p-0 mb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <UserPlus className="h-5 w-5 text-orange-600" />
+              <CardTitle className="flex items-center gap-2 text-lg text-white">
+                <UserPlus className="h-5 w-5 text-orange-400" />
                 Propostas/Reuniões por {proposalsView === 'weekly' ? 'Dia da Semana' : 'Mês'}
               </CardTitle>
               <Select value={proposalsView} onValueChange={(value: 'weekly' | 'monthly') => setProposalsView(value)}>
-                <SelectTrigger className="w-[120px]">
+                <SelectTrigger className="w-[120px] bg-slate-700 border-slate-600 text-white">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -565,34 +638,44 @@ export function DashboardContent() {
               <ChartContainer config={chartConfig} className="h-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={getProposalsData()} margin={{ top: 5, right: 5, left: 5, bottom: 25 }}>
+                    <defs>
+                      <linearGradient id="proposalsGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.8}/>
+                        <stop offset="100%" stopColor="#d97706" stopOpacity={0.3}/>
+                      </linearGradient>
+                    </defs>
                     <XAxis 
                       dataKey={getProposalsDataKey()}
-                      tick={{ fontSize: 9 }}
+                      tick={{ fontSize: 9, fill: '#e2e8f0' }}
                       angle={-45}
                       textAnchor="end"
                       height={25}
+                      axisLine={false}
+                      tickLine={false}
                     />
                     <YAxis 
-                      tick={{ fontSize: 9 }}
+                      tick={{ fontSize: 9, fill: '#e2e8f0' }}
                       width={20}
+                      axisLine={false}
+                      tickLine={false}
                     />
                     <ChartTooltip 
-                      content={<ChartTooltipContent />}
+                      content={<ChartTooltipContent className="bg-slate-800 border-slate-600" />}
                       formatter={(value, name) => [value, 'Propostas']}
                       labelFormatter={(label) => proposalsView === 'weekly' ? `${label}-feira` : label}
                     />
                     <Bar 
                       dataKey="proposals" 
-                      fill="var(--color-proposals)"
-                      radius={[1, 1, 0, 0]}
+                      fill="url(#proposalsGradient)"
+                      radius={[4, 4, 0, 0]}
                     />
                   </BarChart>
                 </ResponsiveContainer>
               </ChartContainer>
             </div>
-            <div className="mt-3 pt-2 border-t border-gray-200">
-              <p className="text-sm text-gray-600 text-center">
-                Melhor período: <span className="font-medium text-orange-600">{getBestProposalsPeriod()}</span>
+            <div className="mt-3 pt-2 border-t border-slate-700">
+              <p className="text-sm text-slate-300 text-center">
+                Melhor período: <span className="font-medium text-orange-400">{getBestProposalsPeriod()}</span>
               </p>
             </div>
           </CardContent>
