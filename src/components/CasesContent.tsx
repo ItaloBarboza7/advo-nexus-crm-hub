@@ -8,6 +8,8 @@ import { Search, Filter, TrendingUp, Users, UserCheck, UserX, Target } from "luc
 import { DateRange } from "react-day-picker";
 import { DateFilter } from "@/components/DateFilter";
 import { LossReasonsChart } from "@/components/LossReasonsChart";
+import { ActionTypesChart } from "@/components/ActionTypesChart";
+import { GroupedLeadsList } from "@/components/GroupedLeadsList";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -17,6 +19,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
+import { useLeadStatusHistory } from "@/hooks/useLeadStatusHistory";
 
 interface LossReason {
   id: string;
@@ -32,6 +35,7 @@ export function CasesContent() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const { statusHistory, hasLeadPassedThroughStatus } = useLeadStatusHistory();
 
   const fetchLossReasons = async () => {
     try {
@@ -115,32 +119,37 @@ export function CasesContent() {
     },
   ];
 
-  // Transformar dados dos leads para o formato do gráfico
-  const transformedLeadsData = leads.map(lead => ({
-    id: parseInt(lead.id.replace(/-/g, '').slice(0, 8), 16),
-    status: lead.status === "Perdido" ? "Perda" : 
-            lead.status === "Contrato Fechado" ? "Novo Contrato" :
-            "Oportunidade",
-    lossReason: lead.loss_reason,
-    category: lead.status === "Perdido" ? "perdas" : 
-              lead.status === "Contrato Fechado" ? "contratos" : 
-              "oportunidades"
-  }));
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Contrato Fechado':
-        return 'bg-green-100 text-green-800';
-      case 'Novo':
-      case 'Proposta':
-      case 'Reunião':
-        return 'bg-blue-100 text-blue-800';
-      case 'Perdido':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+  // Transformar dados dos leads para o formato dos gráficos
+  const transformedLeadsData = leads.map(lead => {
+    let status = "";
+    let category = "";
+    
+    if (lead.status === "Perdido") {
+      status = "Perda";
+      category = "perdas";
+    } else if (lead.status === "Contrato Fechado") {
+      status = "Novo Contrato";
+      category = "contratos";
+    } else {
+      // Para oportunidades, verificar se passou por Reunião ou Proposta
+      const passedThroughMeeting = hasLeadPassedThroughStatus(lead.id, ["Reunião", "Proposta"]);
+      if (passedThroughMeeting || ["Reunião", "Proposta"].includes(lead.status)) {
+        status = "Oportunidade";
+        category = "oportunidades";
+      } else {
+        status = "Oportunidade";
+        category = "oportunidades";
+      }
     }
-  };
+
+    return {
+      id: parseInt(lead.id.replace(/-/g, '').slice(0, 8), 16),
+      status,
+      lossReason: lead.loss_reason,
+      action_type: lead.action_type,
+      category
+    };
+  });
 
   const filteredLeads = leads.filter(lead => {
     const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -164,16 +173,16 @@ export function CasesContent() {
     setSelectedLossReason("all");
   };
 
-  const formatCurrency = (value: number | null) => {
-    if (!value) return 'R$ 0,00';
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
+  const shouldShowChart = () => {
+    return selectedCategory !== "all";
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR');
+  const shouldShowLossReasonsChart = () => {
+    return selectedCategory === "perdas";
+  };
+
+  const shouldShowActionTypesChart = () => {
+    return selectedCategory === "contratos" || selectedCategory === "oportunidades";
   };
 
   return (
@@ -298,14 +307,27 @@ export function CasesContent() {
         </div>
       </Card>
 
-      {/* Gráfico de Motivos de Perda */}
-      <LossReasonsChart 
-        leadsData={transformedLeadsData}
-        lossReasons={lossReasons}
-        selectedCategory={selectedCategory}
-      />
+      {/* Gráficos */}
+      {shouldShowChart() && (
+        <>
+          {shouldShowLossReasonsChart() && (
+            <LossReasonsChart 
+              leadsData={transformedLeadsData}
+              lossReasons={lossReasons}
+              selectedCategory={selectedCategory}
+            />
+          )}
+          
+          {shouldShowActionTypesChart() && (
+            <ActionTypesChart 
+              leadsData={transformedLeadsData}
+              selectedCategory={selectedCategory}
+            />
+          )}
+        </>
+      )}
 
-      {/* Leads List */}
+      {/* Lista de Leads Agrupada */}
       {isLoading ? (
         <Card className="p-12 text-center">
           <div className="text-gray-500">
@@ -313,52 +335,10 @@ export function CasesContent() {
           </div>
         </Card>
       ) : (
-        <div className="space-y-4">
-          {filteredLeads.map((lead) => (
-            <Card key={lead.id} className="p-6 hover:shadow-lg transition-shadow">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900">{lead.name}</h3>
-                    <Badge className={getStatusColor(lead.status)}>
-                      {lead.status}
-                    </Badge>
-                    {lead.loss_reason && (
-                      <Badge className="bg-gray-100 text-gray-800">
-                        {lead.loss_reason}
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
-                    <div>
-                      <strong>Email:</strong> {lead.email || 'Não informado'}
-                    </div>
-                    <div>
-                      <strong>Telefone:</strong> {lead.phone}
-                    </div>
-                    <div>
-                      <strong>Empresa:</strong> {lead.company || 'Não informado'}
-                    </div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-lg font-bold text-green-600">{formatCurrency(lead.value)}</div>
-                  <div className="text-sm text-gray-500">{formatDate(lead.created_at)}</div>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {filteredLeads.length === 0 && !isLoading && (
-        <Card className="p-12 text-center">
-          <div className="text-gray-500">
-            <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <h3 className="text-lg font-medium mb-2">Nenhum lead encontrado</h3>
-            <p>Tente ajustar os filtros ou categoria selecionada.</p>
-          </div>
-        </Card>
+        <GroupedLeadsList 
+          leads={filteredLeads}
+          selectedCategory={selectedCategory}
+        />
       )}
     </div>
   );

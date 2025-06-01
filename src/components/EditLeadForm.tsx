@@ -44,6 +44,11 @@ const DEFAULT_ACTION_TYPES = [
   "tributario", "civil", "criminal", "outros"
 ];
 
+interface LossReason {
+  id: string;
+  reason: string;
+}
+
 export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLeadFormProps) {
   const [formData, setFormData] = useState({
     name: "",
@@ -62,7 +67,26 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
   const [newOptionValue, setNewOptionValue] = useState("");
   const [customSources, setCustomSources] = useState<string[]>([]);
   const [customActionTypes, setCustomActionTypes] = useState<string[]>([]);
+  const [lossReasons, setLossReasons] = useState<LossReason[]>([]);
   const { toast } = useToast();
+
+  const fetchLossReasons = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('loss_reasons')
+        .select('*')
+        .order('reason', { ascending: true });
+
+      if (error) {
+        console.error('Erro ao buscar motivos de perda:', error);
+        return;
+      }
+
+      setLossReasons(data || []);
+    } catch (error) {
+      console.error('Erro inesperado ao buscar motivos de perda:', error);
+    }
+  };
 
   // Update form data when lead changes
   useEffect(() => {
@@ -81,6 +105,12 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
       });
     }
   }, [lead, open]);
+
+  useEffect(() => {
+    if (open) {
+      fetchLossReasons();
+    }
+  }, [open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -140,23 +170,51 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
     }));
   };
 
-  const handleAddNewOption = (field: string) => {
+  const handleAddNewOption = async (field: string) => {
     if (!newOptionValue.trim()) return;
 
     if (field === 'source') {
       setCustomSources(prev => [...prev, newOptionValue.trim()]);
+      handleInputChange(field, newOptionValue.trim());
     } else if (field === 'action_type') {
       setCustomActionTypes(prev => [...prev, newOptionValue.trim()]);
+      handleInputChange(field, newOptionValue.trim());
+    } else if (field === 'loss_reason') {
+      try {
+        const { error } = await supabase
+          .from('loss_reasons')
+          .insert({ reason: newOptionValue.trim() });
+
+        if (error) {
+          console.error('Erro ao adicionar motivo de perda:', error);
+          toast({
+            title: "Erro",
+            description: "Não foi possível adicionar o novo motivo.",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        await fetchLossReasons();
+        handleInputChange(field, newOptionValue.trim());
+        
+        toast({
+          title: "Sucesso",
+          description: "Novo motivo de perda adicionado com sucesso.",
+        });
+      } catch (error) {
+        console.error('Erro inesperado ao adicionar motivo:', error);
+        toast({
+          title: "Erro",
+          description: "Ocorreu um erro inesperado.",
+          variant: "destructive"
+        });
+        return;
+      }
     }
 
-    handleInputChange(field, newOptionValue.trim());
     setNewOptionValue("");
     setShowNewOptionInput(null);
-    
-    toast({
-      title: "Opção adicionada!",
-      description: `"${newOptionValue}" foi adicionado às opções.`,
-    });
   };
 
   const getSourceOptions = () => {
@@ -412,14 +470,66 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
           </div>
 
           {formData.status === "Perdido" && (
-            <div className="space-y-2">
+            <div className="space-y-2 relative">
               <Label htmlFor="loss_reason">Motivo da Perda</Label>
-              <Input
-                id="loss_reason"
-                value={formData.loss_reason}
-                onChange={(e) => handleInputChange('loss_reason', e.target.value)}
-                placeholder="Motivo da perda do lead"
-              />
+              <div className="flex gap-2">
+                <Select value={formData.loss_reason} onValueChange={(value) => handleInputChange('loss_reason', value)}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Selecione o motivo da perda" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border shadow-lg max-h-60 overflow-y-auto z-50">
+                    {lossReasons.map((reason) => (
+                      <SelectItem key={reason.id} value={reason.reason}>
+                        {reason.reason}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowNewOptionInput('loss_reason')}
+                  className="px-2"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              {showNewOptionInput === 'loss_reason' && (
+                <div className="absolute top-full left-0 right-0 mt-2 p-3 bg-white border rounded-lg shadow-lg z-50">
+                  <div className="space-y-3">
+                    <Input
+                      placeholder="Novo motivo da perda..."
+                      value={newOptionValue}
+                      onChange={(e) => setNewOptionValue(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleAddNewOption('loss_reason')}
+                      className="text-sm"
+                    />
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setShowNewOptionInput(null);
+                          setNewOptionValue("");
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleAddNewOption('loss_reason')}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        Adicionar
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
