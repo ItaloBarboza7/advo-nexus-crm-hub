@@ -1,8 +1,12 @@
-
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Users, UserPlus, UserX, DollarSign, TrendingUp, Target } from "lucide-react";
+import { DateRange } from "react-day-picker";
+import { DateFilter } from "@/components/DateFilter";
 
 export function DashboardContent() {
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+
   const stats = [
     {
       title: "Leads",
@@ -72,9 +76,12 @@ export function DashboardContent() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
-        <p className="text-gray-600">Análise de leads e performance de vendas</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
+          <p className="text-gray-600">Análise de leads e performance de vendas</p>
+        </div>
+        <DateFilter date={dateRange} setDate={setDateRange} />
       </div>
 
       {/* Stats Cards */}

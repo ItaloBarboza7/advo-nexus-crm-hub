@@ -1,5 +1,5 @@
 
-import { Home, Users, Target, TrendingUp, Scale } from "lucide-react";
+import { Home, Users, Target, TrendingUp, Scale, Settings } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -38,6 +38,11 @@ const menuItems = [
     title: "Metas",
     icon: Target,
     view: "calendar" as ActiveView,
+  },
+  {
+    title: "Configurações",
+    icon: Settings,
+    view: "settings" as ActiveView,
   },
 ];
 

@@ -1,12 +1,13 @@
-
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Phone, Mail, MapPin, Filter, Users, TrendingUp } from "lucide-react";
+import { Plus, Search, Phone, Mail, MapPin, Filter, Users, TrendingUp, LayoutGrid, List } from "lucide-react";
+import { KanbanView } from "@/components/KanbanView";
 
 export function ClientsContent() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
 
   const leads = [
     {
@@ -97,68 +98,90 @@ export function ClientsContent() {
             <Filter className="h-4 w-4 mr-2" />
             Filtros
           </Button>
+          <div className="flex gap-2">
+            <Button
+              variant={viewMode === "list" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setViewMode("list")}
+            >
+              <List className="h-4 w-4 mr-2" />
+              Lista
+            </Button>
+            <Button
+              variant={viewMode === "kanban" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setViewMode("kanban")}
+            >
+              <LayoutGrid className="h-4 w-4 mr-2" />
+              Kanban
+            </Button>
+          </div>
         </div>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredLeads.map((lead) => (
-          <Card key={lead.id} className="p-6 hover:shadow-lg transition-shadow cursor-pointer">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="bg-blue-600 text-white w-12 h-12 rounded-full flex items-center justify-center font-semibold">
-                  {lead.avatar}
+      {viewMode === "kanban" ? (
+        <KanbanView leads={filteredLeads} />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredLeads.map((lead) => (
+            <Card key={lead.id} className="p-6 hover:shadow-lg transition-shadow cursor-pointer">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-blue-600 text-white w-12 h-12 rounded-full flex items-center justify-center font-semibold">
+                    {lead.avatar}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">{lead.name}</h3>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      lead.status === 'Novo' ? 'bg-blue-100 text-blue-800' :
+                      lead.status === 'Qualificado' ? 'bg-yellow-100 text-yellow-800' :
+                      lead.status === 'Proposta' ? 'bg-green-100 text-green-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {lead.status}
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">{lead.name}</h3>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    lead.status === 'Novo' ? 'bg-blue-100 text-blue-800' :
-                    lead.status === 'Qualificado' ? 'bg-yellow-100 text-yellow-800' :
-                    lead.status === 'Proposta' ? 'bg-green-100 text-green-800' :
-                    'bg-red-100 text-red-800'
-                  }`}>
-                    {lead.status}
-                  </span>
+                <div className="text-right">
+                  <p className="text-sm font-medium text-green-600">{lead.value}</p>
+                  <p className="text-xs text-gray-500">{lead.source}</p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-sm font-medium text-green-600">{lead.value}</p>
-                <p className="text-xs text-gray-500">{lead.source}</p>
-              </div>
-            </div>
 
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Mail className="h-4 w-4" />
-                <span>{lead.email}</span>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Mail className="h-4 w-4" />
+                  <span>{lead.email}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Phone className="h-4 w-4" />
+                  <span>{lead.phone}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <MapPin className="h-4 w-4" />
+                  <span>{lead.company}</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Phone className="h-4 w-4" />
-                <span>{lead.phone}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <MapPin className="h-4 w-4" />
-                <span>{lead.company}</span>
-              </div>
-            </div>
 
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-500">Interesse: {lead.interest}</span>
-                <span className="text-gray-500">Último contato: {lead.lastContact}</span>
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-500">Interesse: {lead.interest}</span>
+                  <span className="text-gray-500">Último contato: {lead.lastContact}</span>
+                </div>
               </div>
-            </div>
 
-            <div className="mt-4 flex gap-2">
-              <Button variant="outline" size="sm" className="flex-1">
-                Ver Detalhes
-              </Button>
-              <Button size="sm" className="flex-1 bg-blue-600 hover:bg-blue-700">
-                Contatar
-              </Button>
-            </div>
-          </Card>
-        ))}
-      </div>
+              <div className="mt-4 flex gap-2">
+                <Button variant="outline" size="sm" className="flex-1">
+                  Ver Detalhes
+                </Button>
+                <Button size="sm" className="flex-1 bg-blue-600 hover:bg-blue-700">
+                  Contatar
+                </Button>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {filteredLeads.length === 0 && (
         <Card className="p-12 text-center">

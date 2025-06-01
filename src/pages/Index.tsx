@@ -6,9 +6,10 @@ import { DashboardContent } from "@/components/DashboardContent";
 import { ClientsContent } from "@/components/ClientsContent";
 import { CasesContent } from "@/components/CasesContent";
 import { CalendarContent } from "@/components/CalendarContent";
+import { SettingsContent } from "@/components/SettingsContent";
 import { Header } from "@/components/Header";
 
-export type ActiveView = 'dashboard' | 'clients' | 'cases' | 'calendar';
+export type ActiveView = 'dashboard' | 'clients' | 'cases' | 'calendar' | 'settings';
 
 const Index = () => {
   const [activeView, setActiveView] = useState<ActiveView>('dashboard');
@@ -23,6 +24,8 @@ const Index = () => {
         return <CasesContent />;
       case 'calendar':
         return <CalendarContent />;
+      case 'settings':
+        return <SettingsContent />;
       default:
         return <DashboardContent />;
     }
