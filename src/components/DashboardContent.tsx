@@ -5,9 +5,13 @@ import { DateRange } from "react-day-picker";
 import { DateFilter } from "@/components/DateFilter";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function DashboardContent() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [conversionView, setConversionView] = useState<'weekly' | 'monthly'>('weekly');
+  const [leadsView, setLeadsView] = useState<'weekly' | 'monthly'>('weekly');
+  const [proposalsView, setProposalsView] = useState<'weekly' | 'monthly'>('weekly');
 
   const stats = [
     {
@@ -88,6 +92,21 @@ export function DashboardContent() {
     { day: "Domingo", sales: 4, conversion: 6.1 },
   ];
 
+  const monthlyConversionData = [
+    { month: "Jan", sales: 95, conversion: 18.2 },
+    { month: "Fev", sales: 87, conversion: 16.8 },
+    { month: "Mar", sales: 102, conversion: 19.4 },
+    { month: "Abr", sales: 78, conversion: 15.1 },
+    { month: "Mai", sales: 118, conversion: 22.3 },
+    { month: "Jun", sales: 92, conversion: 17.9 },
+    { month: "Jul", sales: 105, conversion: 20.1 },
+    { month: "Ago", sales: 88, conversion: 16.7 },
+    { month: "Set", sales: 97, conversion: 18.6 },
+    { month: "Out", sales: 112, conversion: 21.4 },
+    { month: "Nov", sales: 89, conversion: 17.2 },
+    { month: "Dez", sales: 94, conversion: 18.8 },
+  ];
+
   const weeklyLeadsData = [
     { day: "Segunda", leads: 52 },
     { day: "Terça", leads: 48 },
@@ -96,6 +115,21 @@ export function DashboardContent() {
     { day: "Sexta", leads: 38 },
     { day: "Sábado", leads: 28 },
     { day: "Domingo", leads: 15 },
+  ];
+
+  const monthlyLeadsData = [
+    { month: "Jan", leads: 285 },
+    { month: "Fev", leads: 267 },
+    { month: "Mar", leads: 312 },
+    { month: "Abr", leads: 241 },
+    { month: "Mai", leads: 389 },
+    { month: "Jun", leads: 298 },
+    { month: "Jul", leads: 325 },
+    { month: "Ago", leads: 276 },
+    { month: "Set", leads: 301 },
+    { month: "Out", leads: 342 },
+    { month: "Nov", leads: 287 },
+    { month: "Dez", leads: 295 },
   ];
 
   const weeklyProposalsData = [
@@ -108,12 +142,27 @@ export function DashboardContent() {
     { day: "Domingo", proposals: 4 },
   ];
 
-  const actionGroupData = [
-    { group: "Marketing Digital", opportunities: 45, closures: 28 },
-    { group: "Vendas Diretas", opportunities: 38, closures: 22 },
-    { group: "Parcerias", opportunities: 32, closures: 18 },
-    { group: "Referências", opportunities: 28, closures: 15 },
-    { group: "Cold Calling", opportunities: 22, closures: 8 },
+  const monthlyProposalsData = [
+    { month: "Jan", proposals: 73 },
+    { month: "Fev", proposals: 68 },
+    { month: "Mar", proposals: 82 },
+    { month: "Abr", proposals: 59 },
+    { month: "Mai", proposals: 95 },
+    { month: "Jun", proposals: 76 },
+    { month: "Jul", proposals: 84 },
+    { month: "Ago", proposals: 71 },
+    { month: "Set", proposals: 78 },
+    { month: "Out", proposals: 89 },
+    { month: "Nov", proposals: 74 },
+    { month: "Dez", proposals: 77 },
+  ];
+
+  const actionTypeData = [
+    { type: "Marketing Digital", opportunities: 45, closures: 28 },
+    { type: "Vendas Diretas", opportunities: 38, closures: 22 },
+    { type: "Parcerias", opportunities: 32, closures: 18 },
+    { type: "Referências", opportunities: 28, closures: 15 },
+    { type: "Cold Calling", opportunities: 22, closures: 8 },
   ];
 
   const chartConfig = {
@@ -137,6 +186,63 @@ export function DashboardContent() {
       label: "Fechamentos",
       color: "#ef4444",
     },
+  };
+
+  const getConversionData = () => {
+    return conversionView === 'weekly' ? weeklyConversionData : monthlyConversionData;
+  };
+
+  const getLeadsData = () => {
+    return leadsView === 'weekly' ? weeklyLeadsData : monthlyLeadsData;
+  };
+
+  const getProposalsData = () => {
+    return proposalsView === 'weekly' ? weeklyProposalsData : monthlyProposalsData;
+  };
+
+  const getConversionDataKey = () => {
+    return conversionView === 'weekly' ? 'day' : 'month';
+  };
+
+  const getLeadsDataKey = () => {
+    return leadsView === 'weekly' ? 'day' : 'month';
+  };
+
+  const getProposalsDataKey = () => {
+    return proposalsView === 'weekly' ? 'day' : 'month';
+  };
+
+  const getBestConversionPeriod = () => {
+    const data = getConversionData();
+    const best = data.reduce((prev, current) => 
+      current.conversion > prev.conversion ? current : prev
+    );
+    const periodKey = conversionView === 'weekly' ? 'day' : 'month';
+    const periodValue = best[periodKey as keyof typeof best];
+    const suffix = conversionView === 'weekly' ? '-feira' : '';
+    return `${periodValue}${suffix} (${best.conversion}%)`;
+  };
+
+  const getBestLeadsPeriod = () => {
+    const data = getLeadsData();
+    const best = data.reduce((prev, current) => 
+      current.leads > prev.leads ? current : prev
+    );
+    const periodKey = leadsView === 'weekly' ? 'day' : 'month';
+    const periodValue = best[periodKey as keyof typeof best];
+    const suffix = leadsView === 'weekly' ? '-feira' : '';
+    return `${periodValue}${suffix} (${best.leads} leads)`;
+  };
+
+  const getBestProposalsPeriod = () => {
+    const data = getProposalsData();
+    const best = data.reduce((prev, current) => 
+      current.proposals > prev.proposals ? current : prev
+    );
+    const periodKey = proposalsView === 'weekly' ? 'day' : 'month';
+    const periodValue = best[periodKey as keyof typeof best];
+    const suffix = proposalsView === 'weekly' ? '-feira' : '';
+    return `${periodValue}${suffix} (${best.proposals} propostas)`;
   };
 
   return (
@@ -271,18 +377,29 @@ export function DashboardContent() {
         {/* Weekly Conversion Chart */}
         <Card className="p-6 flex flex-col">
           <CardHeader className="p-0 mb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <BarChart3 className="h-5 w-5 text-blue-600" />
-              Conversão por Dia da Semana
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <BarChart3 className="h-5 w-5 text-blue-600" />
+                Conversão por {conversionView === 'weekly' ? 'Dia da Semana' : 'Mês'}
+              </CardTitle>
+              <Select value={conversionView} onValueChange={(value: 'weekly' | 'monthly') => setConversionView(value)}>
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="weekly">Semanal</SelectItem>
+                  <SelectItem value="monthly">Mensal</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </CardHeader>
           <CardContent className="p-0 flex-1 flex flex-col">
             <div className="h-48 flex-1">
               <ChartContainer config={chartConfig} className="h-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={weeklyConversionData} margin={{ top: 5, right: 5, left: 5, bottom: 25 }}>
+                  <BarChart data={getConversionData()} margin={{ top: 5, right: 5, left: 5, bottom: 25 }}>
                     <XAxis 
-                      dataKey="day" 
+                      dataKey={getConversionDataKey()}
                       tick={{ fontSize: 9 }}
                       angle={-45}
                       textAnchor="end"
@@ -295,7 +412,7 @@ export function DashboardContent() {
                     <ChartTooltip 
                       content={<ChartTooltipContent />}
                       formatter={(value, name) => [`${value}%`, 'Taxa de Conversão']}
-                      labelFormatter={(label) => `${label}-feira`}
+                      labelFormatter={(label) => conversionView === 'weekly' ? `${label}-feira` : label}
                     />
                     <Bar 
                       dataKey="conversion" 
@@ -308,7 +425,7 @@ export function DashboardContent() {
             </div>
             <div className="mt-3 pt-2 border-t border-gray-200">
               <p className="text-sm text-gray-600 text-center">
-                Melhor dia: <span className="font-medium text-blue-600">Quarta-feira (23.1%)</span>
+                Melhor período: <span className="font-medium text-blue-600">{getBestConversionPeriod()}</span>
               </p>
             </div>
           </CardContent>
@@ -317,21 +434,21 @@ export function DashboardContent() {
 
       {/* Weekly Charts Row - Changed to 3 columns */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Action Group Chart - New chart in the bottom left */}
+        {/* Action Type Chart - Updated from Action Group */}
         <Card className="p-6 flex flex-col">
           <CardHeader className="p-0 mb-3">
             <CardTitle className="flex items-center gap-2 text-lg">
               <BarChart3 className="h-5 w-5 text-purple-600" />
-              Oportunidades e Fechamento por Grupo de Ação
+              Oportunidades e Fechamento por Tipo de Ação
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0 flex-1 flex flex-col">
             <div className="h-48 flex-1">
               <ChartContainer config={chartConfig} className="h-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={actionGroupData} margin={{ top: 5, right: 5, left: 5, bottom: 25 }}>
+                  <BarChart data={actionTypeData} margin={{ top: 5, right: 5, left: 5, bottom: 25 }}>
                     <XAxis 
-                      dataKey="group" 
+                      dataKey="type" 
                       tick={{ fontSize: 8 }}
                       angle={-45}
                       textAnchor="end"
@@ -361,27 +478,38 @@ export function DashboardContent() {
             </div>
             <div className="mt-3 pt-2 border-t border-gray-200">
               <p className="text-sm text-gray-600 text-center">
-                Melhor grupo: <span className="font-medium text-purple-600">Marketing Digital (62% taxa)</span>
+                Melhor tipo: <span className="font-medium text-purple-600">Marketing Digital (62% taxa)</span>
               </p>
             </div>
           </CardContent>
         </Card>
 
-        {/* Weekly Leads Chart */}
+        {/* Weekly Leads Chart - Updated title */}
         <Card className="p-6 flex flex-col">
           <CardHeader className="p-0 mb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Users className="h-5 w-5 text-green-600" />
-              Leads Cadastrados por Dia da Semana
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Users className="h-5 w-5 text-green-600" />
+                Leads Novos por {leadsView === 'weekly' ? 'Dia da Semana' : 'Mês'}
+              </CardTitle>
+              <Select value={leadsView} onValueChange={(value: 'weekly' | 'monthly') => setLeadsView(value)}>
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="weekly">Semanal</SelectItem>
+                  <SelectItem value="monthly">Mensal</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </CardHeader>
           <CardContent className="p-0 flex-1 flex flex-col">
             <div className="h-48 flex-1">
               <ChartContainer config={chartConfig} className="h-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={weeklyLeadsData} margin={{ top: 5, right: 5, left: 5, bottom: 25 }}>
+                  <BarChart data={getLeadsData()} margin={{ top: 5, right: 5, left: 5, bottom: 25 }}>
                     <XAxis 
-                      dataKey="day" 
+                      dataKey={getLeadsDataKey()}
                       tick={{ fontSize: 9 }}
                       angle={-45}
                       textAnchor="end"
@@ -394,7 +522,7 @@ export function DashboardContent() {
                     <ChartTooltip 
                       content={<ChartTooltipContent />}
                       formatter={(value, name) => [value, 'Leads']}
-                      labelFormatter={(label) => `${label}-feira`}
+                      labelFormatter={(label) => leadsView === 'weekly' ? `${label}-feira` : label}
                     />
                     <Bar 
                       dataKey="leads" 
@@ -407,7 +535,7 @@ export function DashboardContent() {
             </div>
             <div className="mt-3 pt-2 border-t border-gray-200">
               <p className="text-sm text-gray-600 text-center">
-                Melhor dia: <span className="font-medium text-green-600">Quarta-feira (65 leads)</span>
+                Melhor período: <span className="font-medium text-green-600">{getBestLeadsPeriod()}</span>
               </p>
             </div>
           </CardContent>
@@ -416,18 +544,29 @@ export function DashboardContent() {
         {/* Weekly Proposals Chart */}
         <Card className="p-6 flex flex-col">
           <CardHeader className="p-0 mb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <UserPlus className="h-5 w-5 text-orange-600" />
-              Propostas/Reuniões por Dia da Semana
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <UserPlus className="h-5 w-5 text-orange-600" />
+                Propostas/Reuniões por {proposalsView === 'weekly' ? 'Dia da Semana' : 'Mês'}
+              </CardTitle>
+              <Select value={proposalsView} onValueChange={(value: 'weekly' | 'monthly') => setProposalsView(value)}>
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="weekly">Semanal</SelectItem>
+                  <SelectItem value="monthly">Mensal</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </CardHeader>
           <CardContent className="p-0 flex-1 flex flex-col">
             <div className="h-48 flex-1">
               <ChartContainer config={chartConfig} className="h-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={weeklyProposalsData} margin={{ top: 5, right: 5, left: 5, bottom: 25 }}>
+                  <BarChart data={getProposalsData()} margin={{ top: 5, right: 5, left: 5, bottom: 25 }}>
                     <XAxis 
-                      dataKey="day" 
+                      dataKey={getProposalsDataKey()}
                       tick={{ fontSize: 9 }}
                       angle={-45}
                       textAnchor="end"
@@ -440,7 +579,7 @@ export function DashboardContent() {
                     <ChartTooltip 
                       content={<ChartTooltipContent />}
                       formatter={(value, name) => [value, 'Propostas']}
-                      labelFormatter={(label) => `${label}-feira`}
+                      labelFormatter={(label) => proposalsView === 'weekly' ? `${label}-feira` : label}
                     />
                     <Bar 
                       dataKey="proposals" 
@@ -453,7 +592,7 @@ export function DashboardContent() {
             </div>
             <div className="mt-3 pt-2 border-t border-gray-200">
               <p className="text-sm text-gray-600 text-center">
-                Melhor dia: <span className="font-medium text-orange-600">Quarta-feira (18 propostas)</span>
+                Melhor período: <span className="font-medium text-orange-600">{getBestProposalsPeriod()}</span>
               </p>
             </div>
           </CardContent>
