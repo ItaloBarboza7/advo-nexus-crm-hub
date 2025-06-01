@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserPlus, UserX, DollarSign, TrendingUp, Target, BarChart3 } from "lucide-react";
@@ -306,15 +307,15 @@ export function DashboardContent() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="h-40">
+            <div className="h-28">
               <ChartContainer config={chartConfig}>
-                <BarChart data={weeklyLeadsData} margin={{ top: 10, right: 10, left: 10, bottom: 25 }}>
+                <BarChart data={weeklyLeadsData} margin={{ top: 10, right: 10, left: 10, bottom: 20 }}>
                   <XAxis 
                     dataKey="day" 
                     tick={{ fontSize: 12 }}
                     angle={-45}
                     textAnchor="end"
-                    height={35}
+                    height={30}
                   />
                   <YAxis 
                     tick={{ fontSize: 12 }}
@@ -332,7 +333,7 @@ export function DashboardContent() {
                 </BarChart>
               </ChartContainer>
             </div>
-            <div className="mt-6 text-sm text-gray-600">
+            <div className="mt-10 text-sm text-gray-600">
               <p className="text-center">
                 Melhor dia: <span className="font-medium text-green-600">Quarta-feira (65 leads)</span>
               </p>
@@ -349,15 +350,15 @@ export function DashboardContent() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="h-40">
+            <div className="h-28">
               <ChartContainer config={chartConfig}>
-                <BarChart data={weeklyProposalsData} margin={{ top: 10, right: 10, left: 10, bottom: 25 }}>
+                <BarChart data={weeklyProposalsData} margin={{ top: 10, right: 10, left: 10, bottom: 20 }}>
                   <XAxis 
                     dataKey="day" 
                     tick={{ fontSize: 12 }}
                     angle={-45}
                     textAnchor="end"
-                    height={35}
+                    height={30}
                   />
                   <YAxis 
                     tick={{ fontSize: 12 }}
@@ -375,7 +376,7 @@ export function DashboardContent() {
                 </BarChart>
               </ChartContainer>
             </div>
-            <div className="mt-6 text-sm text-gray-600">
+            <div className="mt-10 text-sm text-gray-600">
               <p className="text-center">
                 Melhor dia: <span className="font-medium text-orange-600">Quarta-feira (18 propostas)</span>
               </p>
