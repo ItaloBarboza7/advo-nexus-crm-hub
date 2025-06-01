@@ -38,6 +38,7 @@ export function CasesContent() {
     status: [],
     source: [],
     actionType: [],
+    state: [],
     valueRange: { min: null, max: null }
   });
   const { toast } = useToast();
@@ -125,38 +126,6 @@ export function CasesContent() {
     },
   ];
 
-  // Transformar dados dos leads para o formato dos gráficos
-  const transformedLeadsData = leads.map(lead => {
-    let status = "";
-    let category = "";
-    
-    if (lead.status === "Perdido") {
-      status = "Perda";
-      category = "perdas";
-    } else if (lead.status === "Contrato Fechado") {
-      status = "Contrato Fechado";
-      category = "contratos";
-    } else {
-      // Para oportunidades, verificar se passou por Reunião ou Proposta
-      const passedThroughMeeting = hasLeadPassedThroughStatus(lead.id, ["Reunião", "Proposta"]);
-      if (passedThroughMeeting || ["Reunião", "Proposta"].includes(lead.status)) {
-        status = "Oportunidade";
-        category = "oportunidades";
-      } else {
-        status = "Oportunidade";
-        category = "oportunidades";
-      }
-    }
-
-    return {
-      id: parseInt(lead.id.replace(/-/g, '').slice(0, 8), 16),
-      status,
-      lossReason: lead.loss_reason,
-      action_type: lead.action_type,
-      category
-    };
-  });
-
   // Filter leads for charts based on category
   const getLeadsForChart = () => {
     if (selectedCategory === "perdas") {
@@ -187,7 +156,8 @@ export function CasesContent() {
     const matchesAdvancedFilters = selectedCategory !== "all" || (
       (advancedFilters.status.length === 0 || advancedFilters.status.includes(lead.status)) &&
       (advancedFilters.source.length === 0 || !lead.source || advancedFilters.source.includes(lead.source)) &&
-      (advancedFilters.actionType.length === 0 || !lead.action_type || advancedFilters.actionType.includes(lead.action_type))
+      (advancedFilters.actionType.length === 0 || !lead.action_type || advancedFilters.actionType.includes(lead.action_type)) &&
+      (advancedFilters.state.length === 0 || !lead.state || advancedFilters.state.includes(lead.state))
     );
     
     return matchesSearch && matchesCategory && matchesLossReason && matchesAdvancedFilters;
@@ -201,6 +171,7 @@ export function CasesContent() {
       status: [],
       source: [],
       actionType: [],
+      state: [],
       valueRange: { min: null, max: null }
     });
   };

@@ -21,6 +21,7 @@ export interface FilterOptions {
   status: string[];
   source: string[];
   actionType: string[];
+  state: string[];
   valueRange: { min: number | null; max: number | null };
 }
 
@@ -55,6 +56,21 @@ export function AdvancedFilters({ onFiltersChange, activeFilters }: AdvancedFilt
     { value: "outros", label: "Outros" }
   ];
 
+  const stateOptions = [
+    { value: "São Paulo", label: "São Paulo" },
+    { value: "Rio de Janeiro", label: "Rio de Janeiro" },
+    { value: "Minas Gerais", label: "Minas Gerais" },
+    { value: "Espírito Santo", label: "Espírito Santo" },
+    { value: "Paraná", label: "Paraná" },
+    { value: "Santa Catarina", label: "Santa Catarina" },
+    { value: "Rio Grande do Sul", label: "Rio Grande do Sul" },
+    { value: "Bahia", label: "Bahia" },
+    { value: "Pernambuco", label: "Pernambuco" },
+    { value: "Ceará", label: "Ceará" },
+    { value: "Goiás", label: "Goiás" },
+    { value: "Distrito Federal", label: "Distrito Federal" }
+  ];
+
   const handleStatusChange = (status: string, checked: boolean) => {
     const newStatus = checked
       ? [...activeFilters.status, status]
@@ -79,11 +95,20 @@ export function AdvancedFilters({ onFiltersChange, activeFilters }: AdvancedFilt
     onFiltersChange({ ...activeFilters, actionType: newActionType });
   };
 
+  const handleStateChange = (state: string, checked: boolean) => {
+    const newState = checked
+      ? [...activeFilters.state, state]
+      : activeFilters.state.filter(s => s !== state);
+    
+    onFiltersChange({ ...activeFilters, state: newState });
+  };
+
   const clearAllFilters = () => {
     onFiltersChange({
       status: [],
       source: [],
       actionType: [],
+      state: [],
       valueRange: { min: null, max: null }
     });
   };
@@ -91,7 +116,8 @@ export function AdvancedFilters({ onFiltersChange, activeFilters }: AdvancedFilt
   const getActiveFiltersCount = () => {
     return activeFilters.status.length + 
            activeFilters.source.length + 
-           activeFilters.actionType.length;
+           activeFilters.actionType.length +
+           activeFilters.state.length;
   };
 
   const activeFiltersCount = getActiveFiltersCount();
@@ -109,7 +135,12 @@ export function AdvancedFilters({ onFiltersChange, activeFilters }: AdvancedFilt
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-80 p-4 bg-white border border-gray-200 shadow-lg">
+      <DropdownMenuContent 
+        className="w-80 p-4 bg-white border border-gray-200 shadow-lg" 
+        side="bottom" 
+        align="start"
+        sideOffset={5}
+      >
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-gray-900">Filtros Avançados</h3>
@@ -190,6 +221,32 @@ export function AdvancedFilters({ onFiltersChange, activeFilters }: AdvancedFilt
                   />
                   <label 
                     htmlFor={`action-${option.value}`} 
+                    className="text-sm text-gray-600 cursor-pointer"
+                  >
+                    {option.label}
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* State Filter */}
+          <div className="space-y-2">
+            <h4 className="text-sm font-medium text-gray-700">Estado</h4>
+            <div className="space-y-2 max-h-32 overflow-y-auto">
+              {stateOptions.map((option) => (
+                <div key={option.value} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`state-${option.value}`}
+                    checked={activeFilters.state.includes(option.value)}
+                    onCheckedChange={(checked) => 
+                      handleStateChange(option.value, checked as boolean)
+                    }
+                  />
+                  <label 
+                    htmlFor={`state-${option.value}`} 
                     className="text-sm text-gray-600 cursor-pointer"
                   >
                     {option.label}

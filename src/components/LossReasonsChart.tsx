@@ -1,37 +1,15 @@
+
 import { useMemo } from "react";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from "recharts";
-import { BarChart3, PieChart as PieChartIcon } from "lucide-react";
-import { useChartPreferences } from "@/hooks/useChartPreferences";
+import { Badge } from "@/components/ui/badge";
+import { TrendingDown, Users } from "lucide-react";
 import { Lead } from "@/types/lead";
 
 interface LossReasonsChartProps {
   leads: Lead[];
 }
 
-const chartConfig = {
-  count: {
-    label: "Quantidade",
-    color: "hsl(var(--chart-1))",
-  },
-};
-
-const COLORS = [
-  "hsl(220, 76%, 60%)",
-  "hsl(340, 75%, 55%)",
-  "hsl(40, 84%, 55%)",
-  "hsl(120, 60%, 50%)",
-  "hsl(280, 65%, 60%)",
-  "hsl(200, 80%, 50%)",
-  "hsl(15, 85%, 55%)",
-  "hsl(300, 70%, 55%)"
-];
-
 export function LossReasonsChart({ leads }: LossReasonsChartProps) {
-  const { chartType, updateChartType } = useChartPreferences('loss-reasons');
-
   const chartData = useMemo(() => {
     if (!leads || !Array.isArray(leads)) {
       return [];
@@ -47,7 +25,7 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
       .map(([reason, count]) => ({
         reason,
         count,
-        fill: COLORS[Math.abs(reason.split('').reduce((a, b) => a + b.charCodeAt(0), 0)) % COLORS.length]
+        percentage: leads.length > 0 ? (count / leads.length) * 100 : 0
       }))
       .sort((a, b) => b.count - a.count);
   }, [leads]);
@@ -58,7 +36,10 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
     return (
       <Card className="p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Motivos de Perda</h3>
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <TrendingDown className="h-5 w-5 text-red-500" />
+            Motivos de Perda
+          </h3>
         </div>
         <div className="text-center text-gray-500 py-8">
           <p>Nenhum lead perdido encontrado.</p>
@@ -67,82 +48,48 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
     );
   }
 
-  const renderBarChart = () => (
-    <ChartContainer config={chartConfig} className="h-80 w-full">
-      <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis 
-          dataKey="reason" 
-          angle={-45}
-          textAnchor="end"
-          height={80}
-          interval={0}
-          fontSize={12}
-        />
-        <YAxis />
-        <ChartTooltip content={<ChartTooltipContent />} />
-        <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-          {chartData.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={entry.fill} />
-          ))}
-        </Bar>
-      </BarChart>
-    </ChartContainer>
-  );
-
-  const renderPieChart = () => (
-    <ChartContainer config={chartConfig} className="h-80 w-full">
-      <PieChart margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-        <Pie
-          data={chartData}
-          cx="50%"
-          cy="50%"
-          labelLine={false}
-          label={({ reason, percent }) => `${reason}: ${(percent * 100).toFixed(0)}%`}
-          outerRadius={100}
-          fill="#8884d8"
-          dataKey="count"
-        >
-          {chartData.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={entry.fill} />
-          ))}
-        </Pie>
-        <ChartTooltip content={<ChartTooltipContent />} />
-      </PieChart>
-    </ChartContainer>
-  );
-
   return (
     <Card className="p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Motivos de Perda</h3>
-        <div className="flex gap-2">
-          <Button
-            variant={chartType === 'bar' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => updateChartType('bar')}
-            className="flex items-center gap-2"
-          >
-            <BarChart3 className="h-4 w-4" />
-            Barras
-          </Button>
-          <Button
-            variant={chartType === 'pie' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => updateChartType('pie')}
-            className="flex items-center gap-2"
-          >
-            <PieChartIcon className="h-4 w-4" />
-            Pizza
-          </Button>
+        <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <TrendingDown className="h-5 w-5 text-red-500" />
+          Motivos de Perda
+        </h3>
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <Users className="h-4 w-4" />
+          <span>{totalLeads} leads perdidos</span>
         </div>
       </div>
 
-      {chartType === 'bar' ? renderBarChart() : renderPieChart()}
+      <div className="space-y-4">
+        {chartData.map((item, index) => (
+          <div key={item.reason} className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-gray-700">{item.reason}</span>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="text-xs">
+                  {item.count} leads
+                </Badge>
+                <span className="text-sm text-gray-500">
+                  {item.percentage.toFixed(1)}%
+                </span>
+              </div>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-red-500 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${item.percentage}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
 
-      <div className="mt-4 flex justify-between text-sm text-gray-600">
-        <span>Total de leads perdidos: {totalLeads}</span>
-        <span>Principais motivos: {chartData.slice(0, 3).map(d => d.reason).join(', ')}</span>
+      <div className="mt-6 pt-4 border-t border-gray-200">
+        <div className="flex justify-between text-sm text-gray-600">
+          <span>Total de leads perdidos: {totalLeads}</span>
+          <span>Principal motivo: {chartData[0]?.reason || 'N/A'}</span>
+        </div>
       </div>
     </Card>
   );
