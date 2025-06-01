@@ -20,8 +20,14 @@ interface ActionTypesChartProps {
   selectedCategory: string;
 }
 
+interface ActionTypeData {
+  actionType: string;
+  count: number;
+  percentage: number;
+}
+
 // Move getActionTypeLabel outside the component to avoid initialization issues
-const getActionTypeLabel = (actionType: string) => {
+const getActionTypeLabel = (actionType: string): string => {
   const labels: Record<string, string> = {
     "consultoria": "Consultoria Jurídica",
     "contratos": "Contratos",
@@ -38,7 +44,7 @@ const getActionTypeLabel = (actionType: string) => {
 export function ActionTypesChart({ leadsData, selectedCategory }: ActionTypesChartProps) {
   const [chartType, setChartType] = useState<"bar" | "pie">("bar");
 
-  const actionTypeData = useMemo(() => {
+  const actionTypeData = useMemo((): ActionTypeData[] => {
     let filteredLeads = [];
 
     if (selectedCategory === "contratos") {
@@ -57,20 +63,20 @@ export function ActionTypesChart({ leadsData, selectedCategory }: ActionTypesCha
     if (leadsWithActionType.length === 0) return [];
 
     // Contar ocorrências de cada tipo de ação
-    const actionTypeCounts = leadsWithActionType.reduce((acc, lead) => {
+    const actionTypeCounts = leadsWithActionType.reduce((acc: Record<string, number>, lead) => {
       if (lead.action_type) {
         acc[lead.action_type] = (acc[lead.action_type] || 0) + 1;
       }
       return acc;
-    }, {} as Record<string, number>);
+    }, {});
 
     // Calcular porcentagens e ordenar por frequência
     const totalActions = leadsWithActionType.length;
     return Object.entries(actionTypeCounts)
       .map(([actionType, count]) => ({
         actionType: getActionTypeLabel(actionType),
-        count,
-        percentage: Math.round((count / totalActions) * 100)
+        count: count as number,
+        percentage: Math.round(((count as number) / totalActions) * 100)
       }))
       .sort((a, b) => b.count - a.count);
   }, [leadsData, selectedCategory]);
@@ -79,7 +85,7 @@ export function ActionTypesChart({ leadsData, selectedCategory }: ActionTypesCha
   if (actionTypeData.length === 0) return null;
 
   // Cores modernas para as barras
-  const getBarColor = (index: number) => {
+  const getBarColor = (index: number): string => {
     const colors = [
       "bg-gradient-to-r from-blue-500 to-blue-600",
       "bg-gradient-to-r from-green-500 to-green-600", 
@@ -91,14 +97,14 @@ export function ActionTypesChart({ leadsData, selectedCategory }: ActionTypesCha
     return colors[index % colors.length];
   };
 
-  const getPieColor = (index: number) => {
+  const getPieColor = (index: number): string => {
     const colors = [
       "#3b82f6", "#10b981", "#8b5cf6", "#f97316", "#ec4899", "#14b8a6"
     ];
     return colors[index % colors.length];
   };
 
-  const getTitle = () => {
+  const getTitle = (): string => {
     if (selectedCategory === "contratos") {
       return "Tipos de Ação - Novos Contratos";
     } else if (selectedCategory === "oportunidades") {
@@ -107,7 +113,7 @@ export function ActionTypesChart({ leadsData, selectedCategory }: ActionTypesCha
     return "Tipos de Ação";
   };
 
-  const getDescription = () => {
+  const getDescription = (): string => {
     if (selectedCategory === "contratos") {
       return "Distribuição dos tipos de ação para leads com contratos fechados";
     } else if (selectedCategory === "oportunidades") {
@@ -173,7 +179,7 @@ export function ActionTypesChart({ leadsData, selectedCategory }: ActionTypesCha
   );
 
   const renderPieChart = () => {
-    const total = actionTypeData.reduce((sum, item) => sum + item.count, 0);
+    const total = actionTypeData.reduce((sum: number, item) => sum + item.count, 0);
     let currentAngle = 0;
 
     return (
@@ -293,7 +299,7 @@ export function ActionTypesChart({ leadsData, selectedCategory }: ActionTypesCha
         <div className="grid grid-cols-2 gap-4 text-center">
           <div className="bg-white rounded-lg p-3 shadow-sm">
             <div className="text-2xl font-bold text-blue-600">
-              {actionTypeData.reduce((sum, item) => sum + item.count, 0)}
+              {actionTypeData.reduce((sum: number, item) => sum + item.count, 0)}
             </div>
             <div className="text-xs text-gray-600">
               {selectedCategory === "contratos" ? "Contratos" : "Oportunidades"}
