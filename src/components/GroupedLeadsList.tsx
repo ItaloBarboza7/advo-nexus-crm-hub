@@ -134,13 +134,13 @@ export function GroupedLeadsList({ leads, selectedCategory }: GroupedLeadsListPr
           return groupLeads.map((lead) => (
             <Card 
               key={lead.id} 
-              className="p-6 hover:shadow-lg transition-shadow cursor-pointer"
+              className="p-4 hover:shadow-lg transition-shadow cursor-pointer"
               onClick={() => handleLeadClick(lead)}
             >
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900">{lead.name}</h3>
+                    <h3 className="text-base font-semibold text-gray-900">{lead.name}</h3>
                     <Badge className={getStatusColor(lead.status)}>
                       {lead.status}
                     </Badge>
@@ -198,34 +198,34 @@ export function GroupedLeadsList({ leads, selectedCategory }: GroupedLeadsListPr
               </div>
             </Card>
 
-            {/* Leads do grupo (mostrados quando expandido) */}
+            {/* Leads do grupo (mostrados quando expandido) - tamanho reduzido */}
             {isExpanded && (
-              <div className="ml-8 space-y-4">
+              <div className="ml-8 space-y-3">
                 {groupLeads.map((lead) => (
                   <Card 
                     key={lead.id} 
-                    className="p-6 hover:shadow-lg transition-shadow cursor-pointer border-l-4 border-l-blue-500"
+                    className="p-4 hover:shadow-lg transition-shadow cursor-pointer border-l-4 border-l-blue-500"
                     onClick={() => handleLeadClick(lead)}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900">{lead.name}</h3>
-                          <Badge className={getStatusColor(lead.status)}>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="text-base font-semibold text-gray-900">{lead.name}</h3>
+                          <Badge className={`text-xs ${getStatusColor(lead.status)}`}>
                             {lead.status}
                           </Badge>
                           {lead.loss_reason && selectedCategory === "perdas" && (
-                            <Badge className="bg-gray-100 text-gray-800">
+                            <Badge className="bg-gray-100 text-gray-800 text-xs">
                               {lead.loss_reason}
                             </Badge>
                           )}
                           {lead.action_type && (selectedCategory === "contratos" || selectedCategory === "oportunidades") && (
-                            <Badge className="bg-purple-100 text-purple-800">
+                            <Badge className="bg-purple-100 text-purple-800 text-xs">
                               {getActionTypeLabel(lead.action_type)}
                             </Badge>
                           )}
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-gray-600">
                           <div>
                             <strong>Email:</strong> {lead.email || 'Não informado'}
                           </div>
@@ -238,8 +238,8 @@ export function GroupedLeadsList({ leads, selectedCategory }: GroupedLeadsListPr
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-lg font-bold text-green-600">{formatCurrency(lead.value)}</div>
-                        <div className="text-sm text-gray-500">{formatDate(lead.created_at)}</div>
+                        <div className="text-base font-bold text-green-600">{formatCurrency(lead.value)}</div>
+                        <div className="text-xs text-gray-500">{formatDate(lead.created_at)}</div>
                       </div>
                     </div>
                   </Card>
@@ -250,15 +250,12 @@ export function GroupedLeadsList({ leads, selectedCategory }: GroupedLeadsListPr
         );
       })}
 
-      {/* Dialog de detalhes do lead */}
+      {/* Dialog de detalhes do lead - corrigido */}
       {selectedLead && (
         <LeadDetailsDialog
           lead={selectedLead}
           open={isDialogOpen}
-          onClose={() => {
-            setIsDialogOpen(false);
-            setSelectedLead(null);
-          }}
+          onOpenChange={setIsDialogOpen}
         />
       )}
     </div>
