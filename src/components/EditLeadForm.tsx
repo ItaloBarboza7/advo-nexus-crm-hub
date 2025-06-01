@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,22 +28,23 @@ const LEAD_STATUSES = [
 
 export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLeadFormProps) {
   const [formData, setFormData] = useState({
-    name: lead?.name || "",
-    email: lead?.email || "",
-    phone: lead?.phone || "",
-    state: lead?.state || "",
-    source: lead?.source || "",
-    status: lead?.status || "",
-    action_type: lead?.action_type || "",
-    value: lead?.value?.toString() || "",
-    description: lead?.description || "",
+    name: "",
+    email: "",
+    phone: "",
+    state: "",
+    source: "",
+    status: "",
+    action_type: "",
+    value: "",
+    description: "",
+    loss_reason: "",
   });
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   // Update form data when lead changes
-  useState(() => {
-    if (lead) {
+  useEffect(() => {
+    if (lead && open) {
       setFormData({
         name: lead.name || "",
         email: lead.email || "",
@@ -54,9 +55,10 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
         action_type: lead.action_type || "",
         value: lead.value?.toString() || "",
         description: lead.description || "",
+        loss_reason: lead.loss_reason || "",
       });
     }
-  });
+  }, [lead, open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,6 +78,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
           action_type: formData.action_type || null,
           value: formData.value ? parseFloat(formData.value) : null,
           description: formData.description || null,
+          loss_reason: formData.loss_reason || null,
         })
         .eq('id', lead.id);
 
@@ -211,6 +214,18 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
               />
             </div>
           </div>
+
+          {formData.status === "Perdido" && (
+            <div className="space-y-2">
+              <Label htmlFor="loss_reason">Motivo da Perda</Label>
+              <Input
+                id="loss_reason"
+                value={formData.loss_reason}
+                onChange={(e) => handleInputChange('loss_reason', e.target.value)}
+                placeholder="Motivo da perda do lead"
+              />
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="description">Descrição</Label>

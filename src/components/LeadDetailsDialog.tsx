@@ -1,9 +1,12 @@
 
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Mail, Phone, MapPin, Calendar, User, FileText, Tag, DollarSign } from "lucide-react";
+import { Mail, Phone, MapPin, Calendar, User, FileText, Tag, DollarSign, Clock } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { Lead } from "@/types/lead";
+import { LeadStatusHistory } from "@/types/leadStatusHistory";
 
 interface LeadDetailsDialogProps {
   lead: Lead | null;
@@ -22,6 +25,33 @@ const LEAD_STATUSES = [
 ];
 
 export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: LeadDetailsDialogProps) {
+  const [statusHistory, setStatusHistory] = useState<LeadStatusHistory[]>([]);
+
+  const fetchStatusHistory = async (leadId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('lead_status_history')
+        .select('*')
+        .eq('lead_id', leadId)
+        .order('changed_at', { ascending: false });
+
+      if (error) {
+        console.error('Erro ao buscar histórico de status:', error);
+        return;
+      }
+
+      setStatusHistory(data || []);
+    } catch (error) {
+      console.error('Erro inesperado ao buscar histórico:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (lead && open) {
+      fetchStatusHistory(lead.id);
+    }
+  }, [lead, open]);
+
   if (!lead) return null;
 
   const getStatusColor = (status: string) => {
@@ -59,6 +89,7 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
   const handleEditClick = () => {
     if (onEditLead && lead) {
       onEditLead(lead);
+      onOpenChange(false);
     }
   };
 
@@ -129,6 +160,12 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
                   {lead.status}
                 </Badge>
               </div>
+              {lead.loss_reason && (
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <span className="font-medium">Motivo da Perda:</span>
+                  <span className="text-red-600">{lead.loss_reason}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -160,6 +197,31 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
                 Descrição
               </h3>
               <p className="text-sm text-gray-600 whitespace-pre-wrap">{lead.description}</p>
+            </div>
+          )}
+
+          {/* Histórico de Status */}
+          {statusHistory.length > 0 && (
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Histórico de Status
+              </h3>
+              <div className="space-y-3">
+                {statusHistory.map((history) => (
+                  <div key={history.id} className="flex items-center justify-between text-sm border-l-2 border-blue-200 pl-3">
+                    <div>
+                      <span className="text-gray-600">
+                        {history.old_status ? `${history.old_status} → ` : 'Criado como '}
+                      </span>
+                      <Badge className={getStatusColor(history.new_status)} variant="outline">
+                        {history.new_status}
+                      </Badge>
+                    </div>
+                    <span className="text-gray-400">{formatDate(history.changed_at)}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

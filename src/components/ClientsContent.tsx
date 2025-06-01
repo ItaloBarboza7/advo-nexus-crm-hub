@@ -167,7 +167,8 @@ export function ClientsContent() {
     value: formatCurrency(lead.value),
     lastContact: formatDate(lead.created_at),
     avatar: getInitials(lead.name),
-    originalId: lead.id
+    originalId: lead.id,
+    numericValue: lead.value || 0
   }));
 
   return (

@@ -9,6 +9,41 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      lead_status_history: {
+        Row: {
+          changed_at: string
+          created_at: string
+          id: string
+          lead_id: string
+          new_status: string
+          old_status: string | null
+        }
+        Insert: {
+          changed_at?: string
+          created_at?: string
+          id?: string
+          lead_id: string
+          new_status: string
+          old_status?: string | null
+        }
+        Update: {
+          changed_at?: string
+          created_at?: string
+          id?: string
+          lead_id?: string
+          new_status?: string
+          old_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_status_history_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           action_type: string | null
@@ -16,6 +51,7 @@ export type Database = {
           description: string | null
           email: string | null
           id: string
+          loss_reason: string | null
           name: string
           phone: string
           source: string | null
@@ -30,6 +66,7 @@ export type Database = {
           description?: string | null
           email?: string | null
           id?: string
+          loss_reason?: string | null
           name: string
           phone: string
           source?: string | null
@@ -44,6 +81,7 @@ export type Database = {
           description?: string | null
           email?: string | null
           id?: string
+          loss_reason?: string | null
           name?: string
           phone?: string
           source?: string | null
@@ -51,6 +89,24 @@ export type Database = {
           status?: string
           updated_at?: string
           value?: number | null
+        }
+        Relationships: []
+      }
+      loss_reasons: {
+        Row: {
+          created_at: string
+          id: string
+          reason: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reason: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reason?: string
         }
         Relationships: []
       }

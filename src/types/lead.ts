@@ -14,6 +14,7 @@ export interface Lead {
   description: string | null;
   state: string | null;
   action_type: string | null;
+  loss_reason: string | null;
   created_at: string;
   updated_at: string;
 }
