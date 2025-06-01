@@ -1,10 +1,12 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Mail, Phone, MapPin, User, FileText, Tag, DollarSign, Clock } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Mail, Phone, MapPin, User, FileText, Tag, DollarSign, Clock, Plus, Edit2, Check, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
 import { LeadStatusHistory } from "@/types/leadStatusHistory";
 
@@ -24,8 +26,32 @@ const LEAD_STATUSES = [
   { id: "Finalizado", title: "Finalizado", color: "bg-gray-100 text-gray-800" },
 ];
 
+const BRAZILIAN_STATES = [
+  "Acre", "Alagoas", "Amapá", "Amazonas", "Bahia", "Ceará", "Distrito Federal",
+  "Espírito Santo", "Goiás", "Maranhão", "Mato Grosso", "Mato Grosso do Sul",
+  "Minas Gerais", "Pará", "Paraíba", "Paraná", "Pernambuco", "Piauí",
+  "Rio de Janeiro", "Rio Grande do Norte", "Rio Grande do Sul", "Rondônia",
+  "Roraima", "Santa Catarina", "São Paulo", "Sergipe", "Tocantins"
+];
+
+const DEFAULT_SOURCES = [
+  "website", "google-ads", "facebook", "linkedin", "indicacao", "evento", "telefone", "outros"
+];
+
+const DEFAULT_ACTION_TYPES = [
+  "consultoria", "contratos", "trabalhista", "compliance", 
+  "tributario", "civil", "criminal", "outros"
+];
+
 export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: LeadDetailsDialogProps) {
   const [statusHistory, setStatusHistory] = useState<LeadStatusHistory[]>([]);
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [tempValue, setTempValue] = useState("");
+  const [newOptionValue, setNewOptionValue] = useState("");
+  const [showNewOptionInput, setShowNewOptionInput] = useState<string | null>(null);
+  const [customSources, setCustomSources] = useState<string[]>([]);
+  const [customActionTypes, setCustomActionTypes] = useState<string[]>([]);
+  const { toast } = useToast();
 
   const fetchStatusHistory = async (leadId: string) => {
     try {
@@ -86,6 +112,222 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
     }).format(value);
   };
 
+  const updateLeadField = async (field: string, value: string) => {
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .update({ [field]: value })
+        .eq('id', lead.id);
+
+      if (error) {
+        console.error('Erro ao atualizar campo:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível atualizar o campo.",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      toast({
+        title: "Sucesso",
+        description: "Campo atualizado com sucesso.",
+      });
+      
+      // Atualizar o lead localmente
+      Object.assign(lead, { [field]: value });
+      return true;
+    } catch (error) {
+      console.error('Erro inesperado:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado.",
+        variant: "destructive"
+      });
+      return false;
+    }
+  };
+
+  const handleFieldEdit = (field: string) => {
+    setEditingField(field);
+    setTempValue(lead[field as keyof Lead] as string || "");
+  };
+
+  const handleFieldSave = async () => {
+    if (!editingField) return;
+    
+    const success = await updateLeadField(editingField, tempValue);
+    if (success) {
+      setEditingField(null);
+      setTempValue("");
+    }
+  };
+
+  const handleFieldCancel = () => {
+    setEditingField(null);
+    setTempValue("");
+  };
+
+  const handleAddNewOption = async (field: string) => {
+    if (!newOptionValue.trim()) return;
+
+    if (field === 'source') {
+      setCustomSources(prev => [...prev, newOptionValue.trim()]);
+    } else if (field === 'action_type') {
+      setCustomActionTypes(prev => [...prev, newOptionValue.trim()]);
+    }
+
+    setTempValue(newOptionValue.trim());
+    const success = await updateLeadField(field, newOptionValue.trim());
+    
+    if (success) {
+      setNewOptionValue("");
+      setShowNewOptionInput(null);
+      setEditingField(null);
+      toast({
+        title: "Opção adicionada!",
+        description: `"${newOptionValue}" foi adicionado às opções.`,
+      });
+    }
+  };
+
+  const getSourceOptions = () => {
+    const defaultOptions = DEFAULT_SOURCES.map(source => ({
+      value: source,
+      label: source === "website" ? "Website" : 
+             source === "google-ads" ? "Google Ads" :
+             source === "facebook" ? "Facebook" :
+             source === "linkedin" ? "LinkedIn" :
+             source === "indicacao" ? "Indicação" :
+             source === "evento" ? "Evento" :
+             source === "telefone" ? "Telefone" : "Outros"
+    }));
+    
+    const customOptions = customSources.map(source => ({
+      value: source,
+      label: source
+    }));
+    
+    return [...defaultOptions, ...customOptions];
+  };
+
+  const getActionTypeOptions = () => {
+    const defaultOptions = DEFAULT_ACTION_TYPES.map(type => ({
+      value: type,
+      label: type === "consultoria" ? "Consultoria Jurídica" :
+             type === "contratos" ? "Contratos" :
+             type === "trabalhista" ? "Trabalhista" :
+             type === "compliance" ? "Compliance" :
+             type === "tributario" ? "Tributário" :
+             type === "civil" ? "Civil" :
+             type === "criminal" ? "Criminal" : "Outros"
+    }));
+    
+    const customOptions = customActionTypes.map(type => ({
+      value: type,
+      label: type
+    }));
+    
+    return [...defaultOptions, ...customOptions];
+  };
+
+  const renderEditableField = (field: string, label: string, value: string, options?: Array<{value: string, label: string}>) => {
+    const isEditing = editingField === field;
+    const isShowingNewOption = showNewOptionInput === field;
+
+    return (
+      <div className="flex items-center gap-2 text-sm text-gray-600">
+        <span className="font-medium">{label}:</span>
+        {isEditing ? (
+          <div className="flex items-center gap-2 flex-1">
+            {options ? (
+              <Select value={tempValue} onValueChange={setTempValue}>
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue placeholder={`Selecione ${label.toLowerCase()}`} />
+                </SelectTrigger>
+                <SelectContent>
+                  {options.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input
+                value={tempValue}
+                onChange={(e) => setTempValue(e.target.value)}
+                className="h-8 text-sm flex-1"
+              />
+            )}
+            <Button size="sm" variant="ghost" onClick={handleFieldSave} className="h-6 w-6 p-0">
+              <Check className="h-3 w-3" />
+            </Button>
+            <Button size="sm" variant="ghost" onClick={handleFieldCancel} className="h-6 w-6 p-0">
+              <X className="h-3 w-3" />
+            </Button>
+            {options && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setShowNewOptionInput(field)}
+                className="h-6 w-6 p-0"
+                title="Adicionar nova opção"
+              >
+                <Plus className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 flex-1">
+            <span className="flex-1">{value || 'Não informado'}</span>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => handleFieldEdit(field)}
+              className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <Edit2 className="h-3 w-3" />
+            </Button>
+          </div>
+        )}
+        
+        {isShowingNewOption && (
+          <div className="absolute top-full left-0 right-0 mt-2 p-3 bg-white border rounded-lg shadow-lg z-10">
+            <div className="space-y-3">
+              <Input
+                placeholder={`Nova opção para ${label.toLowerCase()}...`}
+                value={newOptionValue}
+                onChange={(e) => setNewOptionValue(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleAddNewOption(field)}
+                className="text-sm"
+              />
+              <div className="flex gap-2 justify-end">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setShowNewOptionInput(null);
+                    setNewOptionValue("");
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => handleAddNewOption(field)}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  Adicionar
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const handleEditClick = () => {
     if (onEditLead && lead) {
       onEditLead(lead);
@@ -93,7 +335,6 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
     }
   };
 
-  // Combinar histórico de status com a criação do lead
   const getCompleteHistory = () => {
     const history = [...statusHistory];
     
@@ -157,12 +398,11 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
                 <Phone className="h-4 w-4" />
                 <span>{lead.phone}</span>
               </div>
-              {lead.state && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <MapPin className="h-4 w-4" />
-                  <span>{lead.state}</span>
-                </div>
-              )}
+              {/* Estado editável */}
+              <div className="group relative">
+                <MapPin className="h-4 w-4 inline mr-2" />
+                {renderEditableField('state', 'Estado', lead.state || '', BRAZILIAN_STATES.map(state => ({ value: state, label: state })))}
+              </div>
             </div>
           </div>
 
@@ -199,16 +439,15 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
               Informações Adicionais
             </h3>
             <div className="space-y-3">
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <span className="font-medium">Fonte:</span>
-                <span>{lead.source || 'Não informado'}</span>
+              {/* Fonte editável */}
+              <div className="group relative">
+                {renderEditableField('source', 'Fonte', lead.source || '', getSourceOptions())}
               </div>
-              {lead.action_type && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <span className="font-medium">Tipo de Ação:</span>
-                  <span>{lead.action_type}</span>
-                </div>
-              )}
+              
+              {/* Tipo de Ação editável */}
+              <div className="group relative">
+                {renderEditableField('action_type', 'Tipo de Ação', lead.action_type || '', getActionTypeOptions())}
+              </div>
             </div>
           </div>
 
