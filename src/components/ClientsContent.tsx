@@ -1,11 +1,11 @@
-
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Phone, Mail, MapPin, Filter, Users, LayoutGrid, List } from "lucide-react";
+import { Plus, Search, Phone, Mail, MapPin, Filter, Users, LayoutGrid, List, Trash2 } from "lucide-react";
 import { KanbanView } from "@/components/KanbanView";
 import { NewLeadForm } from "@/components/NewLeadForm";
+import { LeadDetailsDialog } from "@/components/LeadDetailsDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -28,10 +28,9 @@ interface Lead {
   updated_at: string;
 }
 
-// Tags consistentes para lista e Kanban
+// Tags consistentes para lista e Kanban (removido "Qualificado")
 const LEAD_STATUSES = [
   { id: "Novo", title: "Novo", color: "bg-blue-100 text-blue-800" },
-  { id: "Qualificado", title: "Qualificado", color: "bg-yellow-100 text-yellow-800" },
   { id: "Proposta", title: "Proposta", color: "bg-purple-100 text-purple-800" },
   { id: "Reunião", title: "Reunião", color: "bg-orange-100 text-orange-800" },
   { id: "Contrato Fechado", title: "Contrato Fechado", color: "bg-green-100 text-green-800" },
@@ -43,6 +42,8 @@ export function ClientsContent() {
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
   const [isNewLeadFormOpen, setIsNewLeadFormOpen] = useState(false);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
@@ -75,6 +76,50 @@ export function ClientsContent() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const deleteLead = async (leadId: string) => {
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .delete()
+        .eq('id', leadId);
+
+      if (error) {
+        console.error('Erro ao excluir lead:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível excluir o lead.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      toast({
+        title: "Sucesso",
+        description: "Lead excluído com sucesso.",
+      });
+
+      fetchLeads(); // Recarrega a lista de leads
+    } catch (error) {
+      console.error('Erro inesperado ao excluir lead:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado ao excluir o lead.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleViewDetails = (lead: Lead) => {
+    setSelectedLead(lead);
+    setIsDetailsDialogOpen(true);
+  };
+
+  const handleDeleteLead = async (leadId: string, leadName: string) => {
+    if (window.confirm(`Tem certeza que deseja excluir o lead "${leadName}"?`)) {
+      await deleteLead(leadId);
     }
   };
 
@@ -184,7 +229,7 @@ export function ClientsContent() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredLeads.map((lead) => (
-            <Card key={lead.id} className="p-6 hover:shadow-lg transition-shadow cursor-pointer">
+            <Card key={lead.id} className="p-6 hover:shadow-lg transition-shadow">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div className="bg-blue-600 text-white w-12 h-12 rounded-full flex items-center justify-center font-semibold">
@@ -238,11 +283,22 @@ export function ClientsContent() {
               </div>
 
               <div className="mt-4 flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex-1"
+                  onClick={() => handleViewDetails(lead)}
+                >
                   Ver Detalhes
                 </Button>
-                <Button size="sm" className="flex-1 bg-blue-600 hover:bg-blue-700">
-                  Contatar
+                <Button 
+                  variant="destructive"
+                  size="sm" 
+                  className="flex-1"
+                  onClick={() => handleDeleteLead(lead.id, lead.name)}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Excluir
                 </Button>
               </div>
             </Card>
@@ -269,6 +325,12 @@ export function ClientsContent() {
         open={isNewLeadFormOpen} 
         onOpenChange={setIsNewLeadFormOpen}
         onLeadCreated={fetchLeads}
+      />
+
+      <LeadDetailsDialog
+        lead={selectedLead}
+        open={isDetailsDialogOpen}
+        onOpenChange={setIsDetailsDialogOpen}
       />
     </div>
   );
