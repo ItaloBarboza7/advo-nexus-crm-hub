@@ -7,11 +7,25 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { Plus } from "lucide-react";
 
 interface NewLeadFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
+
+const BRAZILIAN_STATES = [
+  "Acre", "Alagoas", "Amapá", "Amazonas", "Bahia", "Ceará", "Distrito Federal",
+  "Espírito Santo", "Goiás", "Maranhão", "Mato Grosso", "Mato Grosso do Sul",
+  "Minas Gerais", "Pará", "Paraíba", "Paraná", "Pernambuco", "Piauí",
+  "Rio de Janeiro", "Rio Grande do Norte", "Rio Grande do Sul", "Rondônia",
+  "Roraima", "Santa Catarina", "São Paulo", "Sergipe", "Tocantins"
+];
+
+const DEFAULT_ACTION_TYPES = [
+  "consultoria", "contratos", "trabalhista", "compliance", 
+  "tributario", "civil", "criminal", "outros"
+];
 
 export function NewLeadForm({ open, onOpenChange }: NewLeadFormProps) {
   const [formData, setFormData] = useState({
@@ -20,30 +34,40 @@ export function NewLeadForm({ open, onOpenChange }: NewLeadFormProps) {
     email: "",
     description: "",
     source: "",
-    status: "",
+    state: "",
     actionType: ""
   });
+
+  const [customActionTypes, setCustomActionTypes] = useState<string[]>([]);
+  const [newActionType, setNewActionType] = useState("");
+  const [showNewActionInput, setShowNewActionInput] = useState(false);
 
   const { toast } = useToast();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validação básica
-    if (!formData.name || !formData.email || !formData.phone) {
+    // Validação básica - email agora é opcional
+    if (!formData.name || !formData.phone) {
       toast({
         title: "Erro",
-        description: "Por favor, preencha todos os campos obrigatórios.",
+        description: "Por favor, preencha todos os campos obrigatórios (Nome e Telefone).",
         variant: "destructive"
       });
       return;
     }
 
-    console.log("Novo lead criado:", formData);
+    // Sempre criar com status "Novo"
+    const leadData = {
+      ...formData,
+      status: "Novo"
+    };
+
+    console.log("Novo lead criado:", leadData);
     
     toast({
       title: "Sucesso!",
-      description: "Lead criado com sucesso.",
+      description: "Lead criado com sucesso e adicionado à lista de leads novos.",
     });
 
     // Reset form
@@ -53,7 +77,7 @@ export function NewLeadForm({ open, onOpenChange }: NewLeadFormProps) {
       email: "",
       description: "",
       source: "",
-      status: "",
+      state: "",
       actionType: ""
     });
 
@@ -66,6 +90,24 @@ export function NewLeadForm({ open, onOpenChange }: NewLeadFormProps) {
       [field]: value
     }));
   };
+
+  const handleAddCustomAction = () => {
+    if (newActionType.trim() && !DEFAULT_ACTION_TYPES.includes(newActionType.toLowerCase()) && !customActionTypes.includes(newActionType)) {
+      setCustomActionTypes(prev => [...prev, newActionType.trim()]);
+      setFormData(prev => ({ ...prev, actionType: newActionType.trim() }));
+      setNewActionType("");
+      setShowNewActionInput(false);
+      toast({
+        title: "Ação adicionada!",
+        description: `"${newActionType}" foi adicionado às opções.`,
+      });
+    }
+  };
+
+  const allActionTypes = [
+    ...DEFAULT_ACTION_TYPES.map(type => ({ value: type, label: type === "consultoria" ? "Consultoria Jurídica" : type === "contratos" ? "Contratos" : type === "trabalhista" ? "Trabalhista" : type === "compliance" ? "Compliance" : type === "tributario" ? "Tributário" : type === "civil" ? "Civil" : type === "criminal" ? "Criminal" : "Outros" })),
+    ...customActionTypes.map(type => ({ value: type, label: type }))
+  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -100,14 +142,13 @@ export function NewLeadForm({ open, onOpenChange }: NewLeadFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email">Email *</Label>
+            <Label htmlFor="email">Email</Label>
             <Input
               id="email"
               type="email"
               value={formData.email}
               onChange={(e) => handleInputChange("email", e.target.value)}
-              placeholder="email@exemplo.com"
-              required
+              placeholder="email@exemplo.com (opcional)"
             />
           </div>
 
@@ -143,40 +184,72 @@ export function NewLeadForm({ open, onOpenChange }: NewLeadFormProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="status">Estado do Lead</Label>
-              <Select value={formData.status} onValueChange={(value) => handleInputChange("status", value)}>
+              <Label htmlFor="state">Estado</Label>
+              <Select value={formData.state} onValueChange={(value) => handleInputChange("state", value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o estado" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Novo">Novo</SelectItem>
-                  <SelectItem value="Qualificado">Qualificado</SelectItem>
-                  <SelectItem value="Proposta">Proposta</SelectItem>
-                  <SelectItem value="Reunião">Reunião</SelectItem>
-                  <SelectItem value="Contrato Fechado">Contrato Fechado</SelectItem>
-                  <SelectItem value="Perdido">Perdido</SelectItem>
-                  <SelectItem value="Finalizado">Finalizado</SelectItem>
+                  {BRAZILIAN_STATES.map((state) => (
+                    <SelectItem key={state} value={state}>{state}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="actionType">Tipo de Ação</Label>
-              <Select value={formData.actionType} onValueChange={(value) => handleInputChange("actionType", value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="consultoria">Consultoria Jurídica</SelectItem>
-                  <SelectItem value="contratos">Contratos</SelectItem>
-                  <SelectItem value="trabalhista">Trabalhista</SelectItem>
-                  <SelectItem value="compliance">Compliance</SelectItem>
-                  <SelectItem value="tributario">Tributário</SelectItem>
-                  <SelectItem value="civil">Civil</SelectItem>
-                  <SelectItem value="criminal">Criminal</SelectItem>
-                  <SelectItem value="outros">Outros</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <Select value={formData.actionType} onValueChange={(value) => handleInputChange("actionType", value)}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Selecione o tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allActionTypes.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowNewActionInput(true)}
+                  className="px-3"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              {showNewActionInput && (
+                <div className="flex gap-2 mt-2">
+                  <Input
+                    placeholder="Nova ação..."
+                    value={newActionType}
+                    onChange={(e) => setNewActionType(e.target.value)}
+                    className="flex-1"
+                    onKeyPress={(e) => e.key === 'Enter' && handleAddCustomAction()}
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleAddCustomAction}
+                    size="sm"
+                  >
+                    Adicionar
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setShowNewActionInput(false);
+                      setNewActionType("");
+                    }}
+                    size="sm"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
 

@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,6 +6,17 @@ import { Input } from "@/components/ui/input";
 import { Plus, Search, Phone, Mail, MapPin, Filter, Users, TrendingUp, LayoutGrid, List } from "lucide-react";
 import { KanbanView } from "@/components/KanbanView";
 import { NewLeadForm } from "@/components/NewLeadForm";
+
+// Tags consistentes para lista e Kanban
+const LEAD_STATUSES = [
+  { id: "Novo", title: "Novo", color: "bg-blue-100 text-blue-800" },
+  { id: "Qualificado", title: "Qualificado", color: "bg-yellow-100 text-yellow-800" },
+  { id: "Proposta", title: "Proposta", color: "bg-purple-100 text-purple-800" },
+  { id: "Reunião", title: "Reunião", color: "bg-orange-100 text-orange-800" },
+  { id: "Contrato Fechado", title: "Contrato Fechado", color: "bg-green-100 text-green-800" },
+  { id: "Perdido", title: "Perdido", color: "bg-red-100 text-red-800" },
+  { id: "Finalizado", title: "Finalizado", color: "bg-gray-100 text-gray-800" },
+];
 
 export function ClientsContent() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -72,6 +84,11 @@ export function ClientsContent() {
     lead.company.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const getStatusColor = (status: string) => {
+    const statusConfig = LEAD_STATUSES.find(s => s.id === status);
+    return statusConfig ? statusConfig.color : 'bg-gray-100 text-gray-800';
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -125,7 +142,7 @@ export function ClientsContent() {
       </Card>
 
       {viewMode === "kanban" ? (
-        <KanbanView leads={filteredLeads} />
+        <KanbanView leads={filteredLeads} statuses={LEAD_STATUSES} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredLeads.map((lead) => (
@@ -137,12 +154,7 @@ export function ClientsContent() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900">{lead.name}</h3>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      lead.status === 'Novo' ? 'bg-blue-100 text-blue-800' :
-                      lead.status === 'Qualificado' ? 'bg-yellow-100 text-yellow-800' :
-                      lead.status === 'Proposta' ? 'bg-green-100 text-green-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(lead.status)}`}>
                       {lead.status}
                     </span>
                   </div>

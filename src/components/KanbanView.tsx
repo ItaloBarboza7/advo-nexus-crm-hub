@@ -18,36 +18,34 @@ interface Lead {
   avatar: string;
 }
 
-interface KanbanViewProps {
-  leads: Lead[];
+interface StatusConfig {
+  id: string;
+  title: string;
+  color: string;
 }
 
-const kanbanColumns = [
-  { id: "Novo", title: "Novo", color: "bg-blue-100 text-blue-800" },
-  { id: "Proposta", title: "Proposta", color: "bg-yellow-100 text-yellow-800" },
-  { id: "Reunião", title: "Reunião", color: "bg-purple-100 text-purple-800" },
-  { id: "Contrato Fechado", title: "Contrato Fechado", color: "bg-green-100 text-green-800" },
-  { id: "Perdido", title: "Perdido", color: "bg-red-100 text-red-800" },
-  { id: "Finalizado", title: "Finalizado", color: "bg-gray-100 text-gray-800" },
-];
+interface KanbanViewProps {
+  leads: Lead[];
+  statuses: StatusConfig[];
+}
 
-export function KanbanView({ leads }: KanbanViewProps) {
+export function KanbanView({ leads, statuses }: KanbanViewProps) {
   const getLeadsByStatus = (status: string) => {
     return leads.filter(lead => lead.status === status);
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-      {kanbanColumns.map((column) => (
-        <div key={column.id} className="bg-gray-50 rounded-lg p-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
+      {statuses.map((status) => (
+        <div key={status.id} className="bg-gray-50 rounded-lg p-4">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900">{column.title}</h3>
-            <Badge className={column.color}>
-              {getLeadsByStatus(column.id).length}
+            <h3 className="font-semibold text-gray-900">{status.title}</h3>
+            <Badge className={status.color}>
+              {getLeadsByStatus(status.id).length}
             </Badge>
           </div>
           <div className="space-y-3">
-            {getLeadsByStatus(column.id).map((lead) => (
+            {getLeadsByStatus(status.id).map((lead) => (
               <Card key={lead.id} className="p-4 cursor-pointer hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold">
