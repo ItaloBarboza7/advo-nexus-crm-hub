@@ -260,9 +260,9 @@ export function DashboardContent() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="h-80">
+            <div className="h-64">
               <ChartContainer config={chartConfig}>
-                <BarChart data={weeklyConversionData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <BarChart data={weeklyConversionData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
                   <XAxis 
                     dataKey="day" 
                     tick={{ fontSize: 12 }}
@@ -308,7 +308,7 @@ export function DashboardContent() {
           <CardContent className="p-0">
             <div className="h-64">
               <ChartContainer config={chartConfig}>
-                <BarChart data={weeklyLeadsData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <BarChart data={weeklyLeadsData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
                   <XAxis 
                     dataKey="day" 
                     tick={{ fontSize: 12 }}
@@ -351,7 +351,7 @@ export function DashboardContent() {
           <CardContent className="p-0">
             <div className="h-64">
               <ChartContainer config={chartConfig}>
-                <BarChart data={weeklyProposalsData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <BarChart data={weeklyProposalsData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
                   <XAxis 
                     dataKey="day" 
                     tick={{ fontSize: 12 }}
