@@ -260,19 +260,19 @@ export function DashboardContent() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="h-52 pt-4">
+            <div className="h-10">
               <ChartContainer config={chartConfig}>
-                <BarChart data={weeklyConversionData} margin={{ top: 0, right: 5, left: 5, bottom: 20 }}>
+                <BarChart data={weeklyConversionData} margin={{ top: 2, right: 2, left: 2, bottom: 8 }}>
                   <XAxis 
                     dataKey="day" 
-                    tick={{ fontSize: 12 }}
+                    tick={{ fontSize: 8 }}
                     angle={-45}
                     textAnchor="end"
-                    height={35}
+                    height={15}
                   />
                   <YAxis 
-                    tick={{ fontSize: 12 }}
-                    width={35}
+                    tick={{ fontSize: 8 }}
+                    width={20}
                   />
                   <ChartTooltip 
                     content={<ChartTooltipContent />}
@@ -282,12 +282,12 @@ export function DashboardContent() {
                   <Bar 
                     dataKey="conversion" 
                     fill="var(--color-conversion)"
-                    radius={[4, 4, 0, 0]}
+                    radius={[1, 1, 0, 0]}
                   />
                 </BarChart>
               </ChartContainer>
             </div>
-            <div className="mt-4 text-sm text-gray-600">
+            <div className="mt-3 text-sm text-gray-600">
               <p className="text-center">
                 Melhor dia: <span className="font-medium text-blue-600">Quarta-feira (23.1%)</span>
               </p>
