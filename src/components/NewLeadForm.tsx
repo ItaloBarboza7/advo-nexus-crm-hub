@@ -8,10 +8,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Plus } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface NewLeadFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onLeadCreated?: () => void;
 }
 
 const BRAZILIAN_STATES = [
@@ -27,7 +29,7 @@ const DEFAULT_ACTION_TYPES = [
   "tributario", "civil", "criminal", "outros"
 ];
 
-export function NewLeadForm({ open, onOpenChange }: NewLeadFormProps) {
+export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormProps) {
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
@@ -41,10 +43,11 @@ export function NewLeadForm({ open, onOpenChange }: NewLeadFormProps) {
   const [customActionTypes, setCustomActionTypes] = useState<string[]>([]);
   const [newActionType, setNewActionType] = useState("");
   const [showNewActionInput, setShowNewActionInput] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validação básica - email agora é opcional
@@ -57,31 +60,62 @@ export function NewLeadForm({ open, onOpenChange }: NewLeadFormProps) {
       return;
     }
 
-    // Sempre criar com status "Novo"
-    const leadData = {
-      ...formData,
-      status: "Novo"
-    };
+    setIsSubmitting(true);
 
-    console.log("Novo lead criado:", leadData);
-    
-    toast({
-      title: "Sucesso!",
-      description: "Lead criado com sucesso. NOTA: Para que os leads apareçam na lista, será necessário conectar um banco de dados via Supabase.",
-    });
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .insert([
+          {
+            name: formData.name,
+            phone: formData.phone,
+            email: formData.email || null,
+            description: formData.description || null,
+            source: formData.source || null,
+            state: formData.state || null,
+            action_type: formData.actionType || null,
+            status: "Novo"
+          }
+        ]);
 
-    // Reset form
-    setFormData({
-      name: "",
-      phone: "",
-      email: "",
-      description: "",
-      source: "",
-      state: "",
-      actionType: ""
-    });
+      if (error) {
+        console.error('Erro ao criar lead:', error);
+        toast({
+          title: "Erro",
+          description: "Ocorreu um erro ao criar o lead. Tente novamente.",
+          variant: "destructive"
+        });
+        return;
+      }
 
-    onOpenChange(false);
+      toast({
+        title: "Sucesso!",
+        description: "Lead criado com sucesso!",
+      });
+
+      // Reset form
+      setFormData({
+        name: "",
+        phone: "",
+        email: "",
+        description: "",
+        source: "",
+        state: "",
+        actionType: ""
+      });
+
+      onOpenChange(false);
+      onLeadCreated?.();
+    } catch (error) {
+      console.error('Erro inesperado:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado. Tente novamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -126,6 +160,7 @@ export function NewLeadForm({ open, onOpenChange }: NewLeadFormProps) {
                 onChange={(e) => handleInputChange("name", e.target.value)}
                 placeholder="Nome completo"
                 required
+                disabled={isSubmitting}
               />
             </div>
 
@@ -137,6 +172,7 @@ export function NewLeadForm({ open, onOpenChange }: NewLeadFormProps) {
                 onChange={(e) => handleInputChange("phone", e.target.value)}
                 placeholder="(11) 99999-9999"
                 required
+                disabled={isSubmitting}
               />
             </div>
           </div>
@@ -149,6 +185,7 @@ export function NewLeadForm({ open, onOpenChange }: NewLeadFormProps) {
               value={formData.email}
               onChange={(e) => handleInputChange("email", e.target.value)}
               placeholder="email@exemplo.com (opcional)"
+              disabled={isSubmitting}
             />
           </div>
 
@@ -160,13 +197,14 @@ export function NewLeadForm({ open, onOpenChange }: NewLeadFormProps) {
               onChange={(e) => handleInputChange("description", e.target.value)}
               placeholder="Descreva as necessidades do lead..."
               rows={3}
+              disabled={isSubmitting}
             />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="source">Origem do Lead</Label>
-              <Select value={formData.source} onValueChange={(value) => handleInputChange("source", value)}>
+              <Select value={formData.source} onValueChange={(value) => handleInputChange("source", value)} disabled={isSubmitting}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione a origem" />
                 </SelectTrigger>
@@ -185,7 +223,7 @@ export function NewLeadForm({ open, onOpenChange }: NewLeadFormProps) {
 
             <div className="space-y-2">
               <Label htmlFor="state">Estado</Label>
-              <Select value={formData.state} onValueChange={(value) => handleInputChange("state", value)}>
+              <Select value={formData.state} onValueChange={(value) => handleInputChange("state", value)} disabled={isSubmitting}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o estado" />
                 </SelectTrigger>
@@ -200,7 +238,7 @@ export function NewLeadForm({ open, onOpenChange }: NewLeadFormProps) {
             <div className="space-y-2">
               <Label htmlFor="actionType">Tipo de Ação</Label>
               <div className="flex gap-2">
-                <Select value={formData.actionType} onValueChange={(value) => handleInputChange("actionType", value)}>
+                <Select value={formData.actionType} onValueChange={(value) => handleInputChange("actionType", value)} disabled={isSubmitting}>
                   <SelectTrigger className="flex-1">
                     <SelectValue placeholder="Selecione o tipo" />
                   </SelectTrigger>
@@ -216,6 +254,7 @@ export function NewLeadForm({ open, onOpenChange }: NewLeadFormProps) {
                   size="sm"
                   onClick={() => setShowNewActionInput(true)}
                   className="px-3"
+                  disabled={isSubmitting}
                 >
                   <Plus className="h-4 w-4" />
                 </Button>
@@ -234,6 +273,7 @@ export function NewLeadForm({ open, onOpenChange }: NewLeadFormProps) {
                   onChange={(e) => setNewActionType(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleAddCustomAction()}
                   className="w-full"
+                  disabled={isSubmitting}
                 />
                 <div className="flex gap-2 justify-end">
                   <Button
@@ -244,6 +284,7 @@ export function NewLeadForm({ open, onOpenChange }: NewLeadFormProps) {
                       setNewActionType("");
                     }}
                     size="sm"
+                    disabled={isSubmitting}
                   >
                     Cancelar
                   </Button>
@@ -252,6 +293,7 @@ export function NewLeadForm({ open, onOpenChange }: NewLeadFormProps) {
                     onClick={handleAddCustomAction}
                     size="sm"
                     className="bg-blue-600 hover:bg-blue-700"
+                    disabled={isSubmitting}
                   >
                     Adicionar
                   </Button>
@@ -261,11 +303,11 @@ export function NewLeadForm({ open, onOpenChange }: NewLeadFormProps) {
           )}
 
           <DialogFooter className="gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
               Cancelar
             </Button>
-            <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-              Criar Lead
+            <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={isSubmitting}>
+              {isSubmitting ? "Criando..." : "Criar Lead"}
             </Button>
           </DialogFooter>
         </form>
