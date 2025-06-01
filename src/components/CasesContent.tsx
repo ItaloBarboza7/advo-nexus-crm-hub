@@ -1,15 +1,15 @@
-
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, TrendingUp, Users, UserCheck, UserX, Target } from "lucide-react";
+import { Search, TrendingUp, Users, UserCheck, UserX, Target } from "lucide-react";
 import { DateRange } from "react-day-picker";
 import { DateFilter } from "@/components/DateFilter";
 import { LossReasonsChart } from "@/components/LossReasonsChart";
 import { ActionTypesChart } from "@/components/ActionTypesChart";
 import { GroupedLeadsList } from "@/components/GroupedLeadsList";
+import { AdvancedFilters, FilterOptions } from "@/components/AdvancedFilters";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -34,6 +34,12 @@ export function CasesContent() {
   const [selectedLossReason, setSelectedLossReason] = useState<string>("all");
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [advancedFilters, setAdvancedFilters] = useState<FilterOptions>({
+    status: [],
+    source: [],
+    actionType: [],
+    valueRange: { min: null, max: null }
+  });
   const { toast } = useToast();
   const { statusHistory, hasLeadPassedThroughStatus } = useLeadStatusHistory();
 
@@ -128,7 +134,7 @@ export function CasesContent() {
       status = "Perda";
       category = "perdas";
     } else if (lead.status === "Contrato Fechado") {
-      status = "Novo Contrato";
+      status = "Contrato Fechado";
       category = "contratos";
     } else {
       // Para oportunidades, verificar se passou por Reunião ou Proposta
@@ -164,13 +170,27 @@ export function CasesContent() {
     const matchesLossReason = selectedCategory !== "perdas" || 
       selectedLossReason === "all" || 
       lead.loss_reason === selectedLossReason;
+
+    // Aplicar filtros avançados apenas quando categoria é "all"
+    const matchesAdvancedFilters = selectedCategory !== "all" || (
+      (advancedFilters.status.length === 0 || advancedFilters.status.includes(lead.status)) &&
+      (advancedFilters.source.length === 0 || !lead.source || advancedFilters.source.includes(lead.source)) &&
+      (advancedFilters.actionType.length === 0 || !lead.action_type || advancedFilters.actionType.includes(lead.action_type))
+    );
     
-    return matchesSearch && matchesCategory && matchesLossReason;
+    return matchesSearch && matchesCategory && matchesLossReason && matchesAdvancedFilters;
   });
 
   const handleCategoryChange = (category: string) => {
     setSelectedCategory(category);
     setSelectedLossReason("all");
+    // Limpar filtros avançados quando mudar de categoria
+    setAdvancedFilters({
+      status: [],
+      source: [],
+      actionType: [],
+      valueRange: { min: null, max: null }
+    });
   };
 
   const shouldShowChart = () => {
@@ -266,17 +286,17 @@ export function CasesContent() {
           </div>
           
           {selectedCategory === "all" && (
-            <Button variant="outline">
-              <Filter className="h-4 w-4 mr-2" />
-              Filtros Avançados
-            </Button>
+            <AdvancedFilters 
+              onFiltersChange={setAdvancedFilters}
+              activeFilters={advancedFilters}
+            />
           )}
 
           {selectedCategory === "perdas" && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline">
-                  <Filter className="h-4 w-4 mr-2" />
+                  <Search className="h-4 w-4 mr-2" />
                   Motivos das Perdas
                   {selectedLossReason !== "all" && (
                     <Badge className="ml-2 bg-red-100 text-red-800">

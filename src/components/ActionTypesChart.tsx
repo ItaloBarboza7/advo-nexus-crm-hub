@@ -1,5 +1,5 @@
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Target, Briefcase, BarChart3, PieChart } from "lucide-react";
@@ -9,6 +9,7 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
+import { useChartPreferences } from "@/hooks/useChartPreferences";
 
 interface ActionTypesChartProps {
   leadsData: Array<{
@@ -42,14 +43,14 @@ const getActionTypeLabel = (actionType: string): string => {
 };
 
 export function ActionTypesChart({ leadsData, selectedCategory }: ActionTypesChartProps) {
-  const [chartType, setChartType] = useState<"bar" | "pie">("bar");
+  const { chartType, updateChartType } = useChartPreferences('action-types');
 
   const actionTypeData = useMemo((): ActionTypeData[] => {
     let filteredLeads = [];
 
     if (selectedCategory === "contratos") {
-      // Leads com status "Contrato Fechado"
-      filteredLeads = leadsData.filter(lead => lead.status === "Novo Contrato");
+      // Corrigir: usar "Contrato Fechado" em vez de "Novo Contrato"
+      filteredLeads = leadsData.filter(lead => lead.status === "Contrato Fechado");
     } else if (selectedCategory === "oportunidades") {
       // Leads que passaram por "Reunião" ou "Proposta" - para simplificar, vamos usar leads com status "Oportunidade"
       filteredLeads = leadsData.filter(lead => lead.status === "Oportunidade");
@@ -84,22 +85,22 @@ export function ActionTypesChart({ leadsData, selectedCategory }: ActionTypesCha
   // Só mostrar o gráfico se há dados para exibir
   if (actionTypeData.length === 0) return null;
 
-  // Cores modernas para as barras
+  // Cores modernas inspiradas na imagem (tons de roxo/violeta)
   const getBarColor = (index: number): string => {
-    const colors = [
-      "bg-gradient-to-r from-blue-500 to-blue-600",
-      "bg-gradient-to-r from-green-500 to-green-600", 
-      "bg-gradient-to-r from-purple-500 to-purple-600",
-      "bg-gradient-to-r from-orange-500 to-orange-600",
-      "bg-gradient-to-r from-pink-500 to-pink-600",
-      "bg-gradient-to-r from-teal-500 to-teal-600",
+    const gradients = [
+      "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+      "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)", 
+      "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+      "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
+      "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+      "linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)",
     ];
-    return colors[index % colors.length];
+    return gradients[index % gradients.length];
   };
 
   const getPieColor = (index: number): string => {
     const colors = [
-      "#3b82f6", "#10b981", "#8b5cf6", "#f97316", "#ec4899", "#14b8a6"
+      "#667eea", "#f093fb", "#4facfe", "#43e97b", "#fa709a", "#a8edea"
     ];
     return colors[index % colors.length];
   };
@@ -123,53 +124,53 @@ export function ActionTypesChart({ leadsData, selectedCategory }: ActionTypesCha
   };
 
   const renderBarChart = () => (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {actionTypeData.map((item, index) => (
-        <div key={item.actionType} className="space-y-2">
+        <div key={item.actionType} className="space-y-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Briefcase className="h-4 w-4 text-gray-500" />
-              <span className="text-sm font-medium text-gray-700">
+            <div className="flex items-center gap-3">
+              <div 
+                className="w-4 h-4 rounded-full shadow-md"
+                style={{ background: getBarColor(index) }}
+              />
+              <span className="text-sm font-semibold text-gray-800">
                 {item.actionType}
               </span>
             </div>
             <div className="text-right">
-              <span className="text-sm font-bold text-gray-900">
+              <span className="text-lg font-bold text-gray-900">
                 {item.percentage}%
               </span>
-              <span className="text-xs text-gray-500 ml-1">
-                ({item.count} leads)
+              <span className="text-xs text-gray-500 ml-2 block">
+                {item.count} leads
               </span>
             </div>
           </div>
           
-          <div className="relative">
-            <div className="w-full bg-gray-200 rounded-full h-3 shadow-inner">
-              <div
-                className={`h-3 rounded-full transition-all duration-700 ease-out ${getBarColor(index)} shadow-sm`}
+          <div className="relative h-4 bg-gray-100 rounded-full overflow-hidden shadow-inner">
+            <div
+              className="h-full rounded-full transition-all duration-1000 ease-out shadow-lg relative overflow-hidden"
+              style={{ 
+                width: `${item.percentage}%`,
+                background: getBarColor(index)
+              }}
+            >
+              {/* Efeito de brilho animado */}
+              <div 
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30 animate-pulse"
                 style={{ 
-                  width: `${item.percentage}%`,
-                  background: index === 0 
-                    ? "linear-gradient(90deg, #3b82f6, #2563eb)" 
-                    : index === 1 
-                    ? "linear-gradient(90deg, #10b981, #059669)"
-                    : index === 2
-                    ? "linear-gradient(90deg, #8b5cf6, #7c3aed)"
-                    : index === 3
-                    ? "linear-gradient(90deg, #f97316, #ea580c)"
-                    : index === 4
-                    ? "linear-gradient(90deg, #ec4899, #db2777)"
-                    : "linear-gradient(90deg, #14b8a6, #0d9488)"
+                  transform: "skewX(-20deg)",
+                  animation: "shimmer 2s infinite"
                 }}
               />
             </div>
             
-            {/* Efeito de brilho */}
+            {/* Indicador de progresso */}
             <div 
-              className="absolute top-0 left-0 h-3 rounded-full opacity-30 bg-white"
+              className="absolute top-0 right-0 h-full w-1 bg-white rounded-full shadow-md transition-all duration-1000"
               style={{ 
-                width: `${Math.min(item.percentage * 0.6, 100)}%`,
-                background: "linear-gradient(90deg, rgba(255,255,255,0.8), rgba(255,255,255,0))"
+                right: `${100 - item.percentage}%`,
+                opacity: item.percentage > 5 ? 1 : 0
               }}
             />
           </div>
@@ -181,17 +182,28 @@ export function ActionTypesChart({ leadsData, selectedCategory }: ActionTypesCha
   const renderPieChart = () => {
     const total = actionTypeData.reduce((sum: number, item) => sum + item.count, 0);
     let currentAngle = 0;
+    const radius = 90;
+    const innerRadius = 35;
 
     return (
-      <div className="flex items-center justify-center">
-        <div className="relative">
-          <svg width="200" height="200" className="transform -rotate-90">
+      <div className="flex flex-col items-center justify-center">
+        <div className="relative mb-6">
+          <svg width="240" height="240" className="transform -rotate-90 drop-shadow-lg">
+            {/* Fundo circular */}
+            <circle
+              cx="120"
+              cy="120"
+              r={radius}
+              fill="none"
+              stroke="#f3f4f6"
+              strokeWidth="2"
+            />
+            
             {actionTypeData.map((item, index) => {
               const percentage = item.count / total;
               const angle = percentage * 360;
-              const radius = 80;
-              const centerX = 100;
-              const centerY = 100;
+              const centerX = 120;
+              const centerY = 120;
               
               const startAngle = currentAngle;
               const endAngle = currentAngle + angle;
@@ -217,46 +229,66 @@ export function ActionTypesChart({ leadsData, selectedCategory }: ActionTypesCha
                   key={item.actionType}
                   d={pathData}
                   fill={getPieColor(index)}
-                  className="hover:opacity-80 transition-opacity cursor-pointer"
+                  className="hover:opacity-80 transition-all duration-300 cursor-pointer hover:scale-105"
+                  style={{
+                    filter: "drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1))"
+                  }}
                 />
               );
             })}
+            
+            {/* Círculo interno para efeito donut */}
+            <circle
+              cx="120"
+              cy="120"
+              r={innerRadius}
+              fill="white"
+              className="drop-shadow-md"
+            />
           </svg>
           
-          {/* Legend */}
-          <div className="mt-4 space-y-2">
-            {actionTypeData.map((item, index) => (
-              <div key={item.actionType} className="flex items-center gap-2 text-sm">
-                <div 
-                  className="w-3 h-3 rounded-sm"
-                  style={{ backgroundColor: getPieColor(index) }}
-                />
-                <span className="text-gray-700">{item.actionType}</span>
-                <span className="text-gray-500">({item.percentage}%)</span>
-              </div>
-            ))}
+          {/* Texto central */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-2xl font-bold text-gray-900">{total}</span>
+            <span className="text-xs text-gray-500">Total</span>
           </div>
+        </div>
+        
+        {/* Legend modernizada */}
+        <div className="grid grid-cols-2 gap-3 w-full max-w-md">
+          {actionTypeData.map((item, index) => (
+            <div key={item.actionType} className="flex items-center gap-3 p-2 bg-white rounded-lg shadow-sm border border-gray-100">
+              <div 
+                className="w-4 h-4 rounded-full shadow-md flex-shrink-0"
+                style={{ backgroundColor: getPieColor(index) }}
+              />
+              <div className="flex-1 min-w-0">
+                <span className="text-xs font-medium text-gray-700 truncate block">{item.actionType}</span>
+                <span className="text-xs text-gray-500">{item.percentage}%</span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
   };
 
   return (
-    <Card className="p-6 bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200 shadow-lg">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-blue-100">
+    <Card className="p-8 bg-gradient-to-br from-white via-purple-50 to-blue-50 border-purple-100 shadow-xl">
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-4">
+          <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 shadow-lg">
             {selectedCategory === "contratos" ? (
-              <Briefcase className="h-5 w-5 text-blue-600" />
+              <Briefcase className="h-6 w-6 text-white" />
             ) : (
-              <Target className="h-5 w-5 text-blue-600" />
+              <Target className="h-6 w-6 text-white" />
             )}
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-xl font-bold text-gray-900">
               {getTitle()}
             </h3>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 mt-1">
               {getDescription()}
             </p>
           </div>
@@ -265,7 +297,7 @@ export function ActionTypesChart({ leadsData, selectedCategory }: ActionTypesCha
         {/* Dropdown para trocar tipo de gráfico */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className="shadow-md hover:shadow-lg transition-shadow">
               {chartType === "bar" ? (
                 <BarChart3 className="h-4 w-4" />
               ) : (
@@ -273,17 +305,17 @@ export function ActionTypesChart({ leadsData, selectedCategory }: ActionTypesCha
               )}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="bg-white border border-gray-200 shadow-xl">
             <DropdownMenuItem 
-              onClick={() => setChartType("bar")}
-              className={chartType === "bar" ? "bg-gray-100" : ""}
+              onClick={() => updateChartType("bar")}
+              className={chartType === "bar" ? "bg-purple-50 text-purple-700" : ""}
             >
               <BarChart3 className="h-4 w-4 mr-2" />
               Gráfico de Barras
             </DropdownMenuItem>
             <DropdownMenuItem 
-              onClick={() => setChartType("pie")}
-              className={chartType === "pie" ? "bg-gray-100" : ""}
+              onClick={() => updateChartType("pie")}
+              className={chartType === "pie" ? "bg-purple-50 text-purple-700" : ""}
             >
               <PieChart className="h-4 w-4 mr-2" />
               Gráfico de Pizza
@@ -294,25 +326,32 @@ export function ActionTypesChart({ leadsData, selectedCategory }: ActionTypesCha
 
       {chartType === "bar" ? renderBarChart() : renderPieChart()}
 
-      {/* Resumo estatístico */}
-      <div className="mt-6 pt-4 border-t border-gray-200">
-        <div className="grid grid-cols-2 gap-4 text-center">
-          <div className="bg-white rounded-lg p-3 shadow-sm">
-            <div className="text-2xl font-bold text-blue-600">
+      {/* Resumo estatístico modernizado */}
+      <div className="mt-8 pt-6 border-t border-purple-100">
+        <div className="grid grid-cols-2 gap-6 text-center">
+          <div className="bg-gradient-to-br from-white to-purple-50 rounded-xl p-4 shadow-md border border-purple-100">
+            <div className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
               {actionTypeData.reduce((sum: number, item) => sum + item.count, 0)}
             </div>
-            <div className="text-xs text-gray-600">
+            <div className="text-xs text-gray-600 mt-1">
               {selectedCategory === "contratos" ? "Contratos" : "Oportunidades"}
             </div>
           </div>
-          <div className="bg-white rounded-lg p-3 shadow-sm">
-            <div className="text-2xl font-bold text-green-600">
+          <div className="bg-gradient-to-br from-white to-blue-50 rounded-xl p-4 shadow-md border border-blue-100">
+            <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               {actionTypeData.length}
             </div>
-            <div className="text-xs text-gray-600">Tipos Diferentes</div>
+            <div className="text-xs text-gray-600 mt-1">Tipos Diferentes</div>
           </div>
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes shimmer {
+          0% { transform: translateX(-100%) skewX(-20deg); }
+          100% { transform: translateX(200%) skewX(-20deg); }
+        }
+      `}</style>
     </Card>
   );
 }
