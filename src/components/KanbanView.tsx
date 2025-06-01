@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
 import { LossReasonDialog } from "@/components/LossReasonDialog";
+import { useLeadStatusHistory } from "@/hooks/useLeadStatusHistory";
 
 interface TransformedLead {
   id: number;
@@ -43,6 +44,7 @@ export function KanbanView({ leads, statuses, onLeadUpdated, onViewDetails, orig
   const { toast } = useToast();
   const [pendingStatusChange, setPendingStatusChange] = useState<{leadId: string, newStatus: string} | null>(null);
   const [isLossReasonDialogOpen, setIsLossReasonDialogOpen] = useState(false);
+  const { hasLeadPassedThroughStatus } = useLeadStatusHistory();
 
   const getLeadsByStatus = (status: string) => {
     return leads.filter(lead => lead.status === status);
@@ -55,6 +57,13 @@ export function KanbanView({ leads, statuses, onLeadUpdated, onViewDetails, orig
       style: 'currency',
       currency: 'BRL'
     }).format(total);
+  };
+
+  // Status que não devem mostrar o valor total
+  const statusesWithoutTotal = ["Novo", "Contrato Fechado", "Finalizado"];
+
+  const shouldShowTotal = (status: string) => {
+    return !statusesWithoutTotal.includes(status);
   };
 
   const updateLeadStatus = async (leadId: string, newStatus: string, lossReason?: string) => {
@@ -152,6 +161,20 @@ export function KanbanView({ leads, statuses, onLeadUpdated, onViewDetails, orig
     const currentStatus = e.dataTransfer.getData('currentStatus');
 
     if (leadId && currentStatus !== newStatus) {
+      // Verificar se está tentando mover para "Finalizado" um lead que passou por "Proposta" ou "Reunião"
+      if (newStatus === "Finalizado") {
+        const hasPassedThroughRestrictedStatuses = hasLeadPassedThroughStatus(leadId, ["Proposta", "Reunião"]);
+        
+        if (hasPassedThroughRestrictedStatuses) {
+          toast({
+            title: "Movimento não permitido",
+            description: "Leads que passaram por 'Proposta' ou 'Reunião' não podem ser movidos para 'Finalizado'.",
+            variant: "destructive"
+          });
+          return;
+        }
+      }
+
       if (newStatus === "Perdido") {
         setPendingStatusChange({ leadId, newStatus });
         setIsLossReasonDialogOpen(true);
@@ -189,9 +212,11 @@ export function KanbanView({ leads, statuses, onLeadUpdated, onViewDetails, orig
                   {getLeadsByStatus(status.id).length}
                 </Badge>
               </div>
-              <div className="text-sm font-medium text-green-600">
-                {getStatusTotal(status.id)}
-              </div>
+              {shouldShowTotal(status.id) && (
+                <div className="text-sm font-medium text-green-600">
+                  {getStatusTotal(status.id)}
+                </div>
+              )}
             </div>
             <div className="space-y-3">
               {getLeadsByStatus(status.id).map((lead) => (
