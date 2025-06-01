@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserPlus, UserX, DollarSign, TrendingUp, Target, BarChart3 } from "lucide-react";
@@ -87,10 +86,38 @@ export function DashboardContent() {
     { day: "Domingo", sales: 4, conversion: 6.1 },
   ];
 
+  const weeklyLeadsData = [
+    { day: "Segunda", leads: 52 },
+    { day: "Terça", leads: 48 },
+    { day: "Quarta", leads: 65 },
+    { day: "Quinta", leads: 43 },
+    { day: "Sexta", leads: 38 },
+    { day: "Sábado", leads: 28 },
+    { day: "Domingo", leads: 15 },
+  ];
+
+  const weeklyProposalsData = [
+    { day: "Segunda", proposals: 14 },
+    { day: "Terça", proposals: 12 },
+    { day: "Quarta", proposals: 18 },
+    { day: "Quinta", proposals: 11 },
+    { day: "Sexta", proposals: 9 },
+    { day: "Sábado", proposals: 7 },
+    { day: "Domingo", proposals: 4 },
+  ];
+
   const chartConfig = {
     conversion: {
       label: "Taxa de Conversão (%)",
       color: "#3b82f6",
+    },
+    leads: {
+      label: "Leads",
+      color: "#10b981",
+    },
+    proposals: {
+      label: "Propostas",
+      color: "#f59e0b",
     },
   };
 
@@ -244,7 +271,6 @@ export function DashboardContent() {
                   />
                   <YAxis 
                     tick={{ fontSize: 12 }}
-                    label={{ value: 'Taxa (%)', angle: -90, position: 'insideLeft' }}
                   />
                   <ChartTooltip 
                     content={<ChartTooltipContent />}
@@ -262,6 +288,95 @@ export function DashboardContent() {
             <div className="mt-4 text-sm text-gray-600">
               <p className="text-center">
                 Melhor dia: <span className="font-medium text-blue-600">Quarta-feira (23.1%)</span>
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Weekly Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Weekly Leads Chart */}
+        <Card className="p-6">
+          <CardHeader className="p-0 mb-4">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Users className="h-5 w-5 text-green-600" />
+              Leads Cadastrados por Dia da Semana
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="h-64">
+              <ChartContainer config={chartConfig}>
+                <BarChart data={weeklyLeadsData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <XAxis 
+                    dataKey="day" 
+                    tick={{ fontSize: 12 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  <YAxis 
+                    tick={{ fontSize: 12 }}
+                  />
+                  <ChartTooltip 
+                    content={<ChartTooltipContent />}
+                    formatter={(value, name) => [value, 'Leads']}
+                    labelFormatter={(label) => `${label}-feira`}
+                  />
+                  <Bar 
+                    dataKey="leads" 
+                    fill="var(--color-leads)"
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ChartContainer>
+            </div>
+            <div className="mt-4 text-sm text-gray-600">
+              <p className="text-center">
+                Melhor dia: <span className="font-medium text-green-600">Quarta-feira (65 leads)</span>
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Weekly Proposals Chart */}
+        <Card className="p-6">
+          <CardHeader className="p-0 mb-4">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <UserPlus className="h-5 w-5 text-orange-600" />
+              Propostas/Reuniões por Dia da Semana
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="h-64">
+              <ChartContainer config={chartConfig}>
+                <BarChart data={weeklyProposalsData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <XAxis 
+                    dataKey="day" 
+                    tick={{ fontSize: 12 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  <YAxis 
+                    tick={{ fontSize: 12 }}
+                  />
+                  <ChartTooltip 
+                    content={<ChartTooltipContent />}
+                    formatter={(value, name) => [value, 'Propostas']}
+                    labelFormatter={(label) => `${label}-feira`}
+                  />
+                  <Bar 
+                    dataKey="proposals" 
+                    fill="var(--color-proposals)"
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ChartContainer>
+            </div>
+            <div className="mt-4 text-sm text-gray-600">
+              <p className="text-center">
+                Melhor dia: <span className="font-medium text-orange-600">Quarta-feira (18 propostas)</span>
               </p>
             </div>
           </CardContent>
