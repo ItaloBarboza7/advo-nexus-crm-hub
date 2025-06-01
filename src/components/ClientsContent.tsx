@@ -7,6 +7,7 @@ import { KanbanView } from "@/components/KanbanView";
 import { NewLeadForm } from "@/components/NewLeadForm";
 import { LeadDetailsDialog } from "@/components/LeadDetailsDialog";
 import { StatusChangeForm } from "@/components/StatusChangeForm";
+import { EditLeadForm } from "@/components/EditLeadForm";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
@@ -27,6 +28,7 @@ export function ClientsContent() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [isStatusFormOpen, setIsStatusFormOpen] = useState(false);
+  const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
@@ -98,6 +100,11 @@ export function ClientsContent() {
   const handleViewDetails = (lead: Lead) => {
     setSelectedLead(lead);
     setIsDetailsDialogOpen(true);
+  };
+
+  const handleEditLead = (lead: Lead) => {
+    setSelectedLead(lead);
+    setIsEditFormOpen(true);
   };
 
   const handleEditStatus = (lead: Lead) => {
@@ -222,7 +229,13 @@ export function ClientsContent() {
           </div>
         </Card>
       ) : viewMode === "kanban" ? (
-        <KanbanView leads={transformedLeads} statuses={LEAD_STATUSES} onLeadUpdated={fetchLeads} />
+        <KanbanView 
+          leads={transformedLeads} 
+          statuses={LEAD_STATUSES} 
+          onLeadUpdated={fetchLeads}
+          onViewDetails={handleViewDetails}
+          originalLeads={filteredLeads}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredLeads.map((lead) => (
@@ -340,6 +353,7 @@ export function ClientsContent() {
         lead={selectedLead}
         open={isDetailsDialogOpen}
         onOpenChange={setIsDetailsDialogOpen}
+        onEditLead={handleEditLead}
       />
 
       <StatusChangeForm
@@ -347,6 +361,13 @@ export function ClientsContent() {
         open={isStatusFormOpen}
         onOpenChange={setIsStatusFormOpen}
         onStatusChanged={fetchLeads}
+      />
+
+      <EditLeadForm
+        lead={selectedLead}
+        open={isEditFormOpen}
+        onOpenChange={setIsEditFormOpen}
+        onLeadUpdated={fetchLeads}
       />
     </div>
   );

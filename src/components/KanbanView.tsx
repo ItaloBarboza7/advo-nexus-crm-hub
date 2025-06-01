@@ -2,11 +2,12 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Phone, Mail, MapPin, DollarSign } from "lucide-react";
+import { Phone, Mail, MapPin, DollarSign, Eye, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Lead } from "@/types/lead";
 
-interface Lead {
+interface TransformedLead {
   id: number;
   name: string;
   email: string;
@@ -28,12 +29,14 @@ interface StatusConfig {
 }
 
 interface KanbanViewProps {
-  leads: Lead[];
+  leads: TransformedLead[];
   statuses: StatusConfig[];
   onLeadUpdated: () => void;
+  onViewDetails: (lead: Lead) => void;
+  originalLeads: Lead[];
 }
 
-export function KanbanView({ leads, statuses, onLeadUpdated }: KanbanViewProps) {
+export function KanbanView({ leads, statuses, onLeadUpdated, onViewDetails, originalLeads }: KanbanViewProps) {
   const { toast } = useToast();
 
   const getLeadsByStatus = (status: string) => {
@@ -73,7 +76,49 @@ export function KanbanView({ leads, statuses, onLeadUpdated }: KanbanViewProps) 
     }
   };
 
-  const handleDragStart = (e: React.DragEvent, lead: Lead) => {
+  const deleteLead = async (leadId: string, leadName: string) => {
+    if (window.confirm(`Tem certeza que deseja excluir o lead "${leadName}"?`)) {
+      try {
+        const { error } = await supabase
+          .from('leads')
+          .delete()
+          .eq('id', leadId);
+
+        if (error) {
+          console.error('Erro ao excluir lead:', error);
+          toast({
+            title: "Erro",
+            description: "Não foi possível excluir o lead.",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        toast({
+          title: "Sucesso",
+          description: "Lead excluído com sucesso.",
+        });
+
+        onLeadUpdated();
+      } catch (error) {
+        console.error('Erro inesperado ao excluir lead:', error);
+        toast({
+          title: "Erro",
+          description: "Ocorreu um erro inesperado ao excluir o lead.",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
+  const handleViewDetails = (transformedLead: TransformedLead) => {
+    const originalLead = originalLeads.find(lead => lead.id === transformedLead.originalId);
+    if (originalLead) {
+      onViewDetails(originalLead);
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent, lead: TransformedLead) => {
     e.dataTransfer.setData('leadId', lead.originalId);
     e.dataTransfer.setData('currentStatus', lead.status);
   };
@@ -149,11 +194,23 @@ export function KanbanView({ leads, statuses, onLeadUpdated }: KanbanViewProps) 
                 </div>
 
                 <div className="mt-2 flex gap-1">
-                  <Button variant="outline" size="sm" className="flex-1 text-xs">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex-1 text-xs"
+                    onClick={() => handleViewDetails(lead)}
+                  >
+                    <Eye className="h-3 w-3 mr-1" />
                     Ver
                   </Button>
-                  <Button size="sm" className="flex-1 bg-blue-600 hover:bg-blue-700 text-xs">
-                    Editar
+                  <Button 
+                    variant="destructive"
+                    size="sm" 
+                    className="flex-1 text-xs"
+                    onClick={() => deleteLead(lead.originalId, lead.name)}
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" />
+                    Excluir
                   </Button>
                 </div>
               </Card>

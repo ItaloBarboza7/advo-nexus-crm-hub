@@ -1,3 +1,4 @@
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ interface LeadDetailsDialogProps {
   lead: Lead | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onEditLead?: (lead: Lead) => void;
 }
 
 const LEAD_STATUSES = [
@@ -19,7 +21,7 @@ const LEAD_STATUSES = [
   { id: "Finalizado", title: "Finalizado", color: "bg-gray-100 text-gray-800" },
 ];
 
-export function LeadDetailsDialog({ lead, open, onOpenChange }: LeadDetailsDialogProps) {
+export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: LeadDetailsDialogProps) {
   if (!lead) return null;
 
   const getStatusColor = (status: string) => {
@@ -52,6 +54,12 @@ export function LeadDetailsDialog({ lead, open, onOpenChange }: LeadDetailsDialo
       style: 'currency',
       currency: 'BRL'
     }).format(value);
+  };
+
+  const handleEditClick = () => {
+    if (onEditLead && lead) {
+      onEditLead(lead);
+    }
   };
 
   return (
@@ -178,7 +186,10 @@ export function LeadDetailsDialog({ lead, open, onOpenChange }: LeadDetailsDialo
           <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
             Fechar
           </Button>
-          <Button className="flex-1 bg-blue-600 hover:bg-blue-700">
+          <Button 
+            className="flex-1 bg-blue-600 hover:bg-blue-700"
+            onClick={handleEditClick}
+          >
             Editar Lead
           </Button>
         </div>
