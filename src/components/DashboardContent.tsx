@@ -296,8 +296,8 @@ export function DashboardContent() {
         </Card>
       </div>
 
-      {/* Weekly Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Weekly Charts Row - Changed to 3 columns */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Weekly Leads Chart */}
         <Card className="p-6">
           <CardHeader className="p-0 mb-4">
@@ -385,6 +385,9 @@ export function DashboardContent() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Empty third column to maintain the 3-column layout */}
+        <div></div>
       </div>
     </div>
   );
