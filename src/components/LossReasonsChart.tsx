@@ -1,10 +1,9 @@
-
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TrendingDown, Users, BarChart3, PieChart as PieChartIcon } from "lucide-react";
-import { PieChart, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { Lead } from "@/types/lead";
 
 interface LossReasonsChartProps {
@@ -121,8 +120,8 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
               </Bar>
             </BarChart>
           ) : (
-            <PieChart data={chartData} width={400} height={400}>
-              <PieChart
+            <PieChart>
+              <Pie
                 data={chartData}
                 cx="50%"
                 cy="50%"
@@ -134,7 +133,7 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
                 {chartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
-              </PieChart>
+              </Pie>
               <Tooltip 
                 contentStyle={{ 
                   backgroundColor: 'white', 
