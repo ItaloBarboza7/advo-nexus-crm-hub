@@ -1,4 +1,5 @@
 
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserPlus, UserX, DollarSign, TrendingUp, Target, BarChart3 } from "lucide-react";
@@ -260,15 +261,15 @@ export function DashboardContent() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="h-64 pt-6">
+            <div className="h-64 pt-12">
               <ChartContainer config={chartConfig}>
-                <BarChart data={weeklyConversionData} margin={{ top: 5, right: 5, left: 5, bottom: 35 }}>
+                <BarChart data={weeklyConversionData} margin={{ top: 0, right: 5, left: 5, bottom: 25 }}>
                   <XAxis 
                     dataKey="day" 
                     tick={{ fontSize: 12 }}
                     angle={-45}
                     textAnchor="end"
-                    height={50}
+                    height={40}
                   />
                   <YAxis 
                     tick={{ fontSize: 12 }}
@@ -387,3 +388,4 @@ export function DashboardContent() {
     </div>
   );
 }
+
