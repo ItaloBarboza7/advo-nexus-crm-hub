@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserPlus, UserX, DollarSign, TrendingUp, Target, BarChart3 } from "lucide-react";
@@ -428,8 +429,8 @@ export function DashboardContent() {
                   <BarChart data={getConversionData()} margin={{ top: 5, right: 5, left: 5, bottom: 25 }}>
                     <defs>
                       <linearGradient id="conversionGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                        <stop offset="100%" stopColor="#1e40af" stopOpacity={0.3}/>
+                        <stop offset="0%" stopColor="#3b82f6" stopOpacity={1}/>
+                        <stop offset="100%" stopColor="#1e40af" stopOpacity={1}/>
                       </linearGradient>
                     </defs>
                     <XAxis 
@@ -498,12 +499,12 @@ export function DashboardContent() {
                   <BarChart data={getActionData()} margin={{ top: 5, right: 5, left: 5, bottom: 25 }}>
                     <defs>
                       <linearGradient id="opportunitiesGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.8}/>
-                        <stop offset="100%" stopColor="#6d28d9" stopOpacity={0.3}/>
+                        <stop offset="0%" stopColor="#8b5cf6" stopOpacity={1}/>
+                        <stop offset="100%" stopColor="#6d28d9" stopOpacity={1}/>
                       </linearGradient>
                       <linearGradient id="closuresGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#ef4444" stopOpacity={0.8}/>
-                        <stop offset="100%" stopColor="#dc2626" stopOpacity={0.3}/>
+                        <stop offset="0%" stopColor="#ef4444" stopOpacity={1}/>
+                        <stop offset="100%" stopColor="#dc2626" stopOpacity={1}/>
                       </linearGradient>
                     </defs>
                     <XAxis 
@@ -573,8 +574,8 @@ export function DashboardContent() {
                   <BarChart data={getLeadsData()} margin={{ top: 5, right: 5, left: 5, bottom: 25 }}>
                     <defs>
                       <linearGradient id="leadsGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#10b981" stopOpacity={0.8}/>
-                        <stop offset="100%" stopColor="#059669" stopOpacity={0.3}/>
+                        <stop offset="0%" stopColor="#10b981" stopOpacity={1}/>
+                        <stop offset="100%" stopColor="#059669" stopOpacity={1}/>
                       </linearGradient>
                     </defs>
                     <XAxis 
@@ -640,8 +641,8 @@ export function DashboardContent() {
                   <BarChart data={getProposalsData()} margin={{ top: 5, right: 5, left: 5, bottom: 25 }}>
                     <defs>
                       <linearGradient id="proposalsGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.8}/>
-                        <stop offset="100%" stopColor="#d97706" stopOpacity={0.3}/>
+                        <stop offset="0%" stopColor="#f59e0b" stopOpacity={1}/>
+                        <stop offset="100%" stopColor="#d97706" stopOpacity={1}/>
                       </linearGradient>
                     </defs>
                     <XAxis 
