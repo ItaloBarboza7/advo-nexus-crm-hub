@@ -1,15 +1,21 @@
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingDown, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { TrendingDown, Users, BarChart3, PieChart } from "lucide-react";
+import { PieChart as RechartsPieChart, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { Lead } from "@/types/lead";
 
 interface LossReasonsChartProps {
   leads: Lead[];
 }
 
+const COLORS = ['#ef4444', '#f97316', '#eab308', '#84cc16', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6'];
+
 export function LossReasonsChart({ leads }: LossReasonsChartProps) {
+  const [viewType, setViewType] = useState<'bar' | 'pie'>('bar');
+
   const chartData = useMemo(() => {
     if (!leads || !Array.isArray(leads)) {
       return [];
@@ -22,10 +28,11 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
     }, {} as Record<string, number>);
 
     return Object.entries(lossReasons)
-      .map(([reason, count]) => ({
+      .map(([reason, count], index) => ({
         reason,
         count,
-        percentage: leads.length > 0 ? (count / leads.length) * 100 : 0
+        percentage: leads.length > 0 ? (count / leads.length) * 100 : 0,
+        color: COLORS[index % COLORS.length]
       }))
       .sort((a, b) => b.count - a.count);
   }, [leads]);
@@ -55,34 +62,103 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
           <TrendingDown className="h-5 w-5 text-red-500" />
           Motivos de Perda
         </h3>
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <Users className="h-4 w-4" />
-          <span>{totalLeads} leads perdidos</span>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 text-sm text-gray-600 mr-4">
+            <Users className="h-4 w-4" />
+            <span>{totalLeads} leads perdidos</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button
+              variant={viewType === 'bar' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewType('bar')}
+            >
+              <BarChart3 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewType === 'pie' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewType('pie')}
+            >
+              <PieChart className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
-      <div className="space-y-4">
-        {chartData.map((item, index) => (
-          <div key={item.reason} className="space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-gray-700">{item.reason}</span>
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="text-xs">
-                  {item.count} leads
-                </Badge>
-                <span className="text-sm text-gray-500">
-                  {item.percentage.toFixed(1)}%
-                </span>
-              </div>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div
-                className="bg-red-500 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${item.percentage}%` }}
+      <div className="h-80">
+        <ResponsiveContainer width="100%" height="100%">
+          {viewType === 'bar' ? (
+            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+              <XAxis 
+                dataKey="reason" 
+                fontSize={12}
+                tick={{ fill: '#6b7280' }}
+                angle={-45}
+                textAnchor="end"
+                height={80}
               />
-            </div>
-          </div>
-        ))}
+              <YAxis fontSize={12} tick={{ fill: '#6b7280' }} />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: 'white', 
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                }}
+                formatter={(value: number) => [`${value} leads`, 'Quantidade']}
+              />
+              <Legend />
+              <Bar 
+                dataKey="count" 
+                name="Leads Perdidos"
+                radius={[4, 4, 0, 0]}
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Bar>
+            </BarChart>
+          ) : (
+            <RechartsPieChart>
+              <PieChart
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                innerRadius={60}
+                outerRadius={120}
+                paddingAngle={2}
+                dataKey="count"
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </PieChart>
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: 'white', 
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                }}
+                formatter={(value: number, name: string, props: any) => [
+                  `${value} leads (${props.payload.percentage.toFixed(1)}%)`, 
+                  props.payload.reason
+                ]}
+              />
+              <Legend 
+                verticalAlign="bottom" 
+                height={36}
+                formatter={(value, entry) => (
+                  <span style={{ color: entry.color, fontSize: '12px' }}>
+                    {entry.payload.reason}
+                  </span>
+                )}
+              />
+            </RechartsPieChart>
+          )}
+        </ResponsiveContainer>
       </div>
 
       <div className="mt-6 pt-4 border-t border-gray-200">

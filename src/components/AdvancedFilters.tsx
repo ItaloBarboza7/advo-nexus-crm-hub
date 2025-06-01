@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Filter, X } from "lucide-react";
 import {
   DropdownMenu,
@@ -136,12 +137,12 @@ export function AdvancedFilters({ onFiltersChange, activeFilters }: AdvancedFilt
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent 
-        className="w-80 p-4 bg-white border border-gray-200 shadow-lg" 
+        className="w-80 p-0 bg-white border border-gray-200 shadow-lg" 
         side="bottom" 
         align="start"
         sideOffset={5}
       >
-        <div className="space-y-4">
+        <div className="p-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-gray-900">Filtros Avançados</h3>
             {activeFiltersCount > 0 && (
@@ -151,111 +152,113 @@ export function AdvancedFilters({ onFiltersChange, activeFilters }: AdvancedFilt
               </Button>
             )}
           </div>
-
-          <Separator />
-
-          {/* Status Filter */}
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium text-gray-700">Status</h4>
-            <div className="space-y-2">
-              {statusOptions.map((option) => (
-                <div key={option.value} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`status-${option.value}`}
-                    checked={activeFilters.status.includes(option.value)}
-                    onCheckedChange={(checked) => 
-                      handleStatusChange(option.value, checked as boolean)
-                    }
-                  />
-                  <label 
-                    htmlFor={`status-${option.value}`} 
-                    className="text-sm text-gray-600 cursor-pointer"
-                  >
-                    {option.label}
-                  </label>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Source Filter */}
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium text-gray-700">Fonte</h4>
-            <div className="space-y-2">
-              {sourceOptions.map((option) => (
-                <div key={option.value} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`source-${option.value}`}
-                    checked={activeFilters.source.includes(option.value)}
-                    onCheckedChange={(checked) => 
-                      handleSourceChange(option.value, checked as boolean)
-                    }
-                  />
-                  <label 
-                    htmlFor={`source-${option.value}`} 
-                    className="text-sm text-gray-600 cursor-pointer"
-                  >
-                    {option.label}
-                  </label>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Action Type Filter */}
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium text-gray-700">Tipo de Ação</h4>
-            <div className="space-y-2">
-              {actionTypeOptions.map((option) => (
-                <div key={option.value} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`action-${option.value}`}
-                    checked={activeFilters.actionType.includes(option.value)}
-                    onCheckedChange={(checked) => 
-                      handleActionTypeChange(option.value, checked as boolean)
-                    }
-                  />
-                  <label 
-                    htmlFor={`action-${option.value}`} 
-                    className="text-sm text-gray-600 cursor-pointer"
-                  >
-                    {option.label}
-                  </label>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* State Filter */}
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium text-gray-700">Estado</h4>
-            <div className="space-y-2 max-h-32 overflow-y-auto">
-              {stateOptions.map((option) => (
-                <div key={option.value} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`state-${option.value}`}
-                    checked={activeFilters.state.includes(option.value)}
-                    onCheckedChange={(checked) => 
-                      handleStateChange(option.value, checked as boolean)
-                    }
-                  />
-                  <label 
-                    htmlFor={`state-${option.value}`} 
-                    className="text-sm text-gray-600 cursor-pointer"
-                  >
-                    {option.label}
-                  </label>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
+
+        <ScrollArea className="h-96">
+          <div className="p-4 space-y-4">
+            {/* Status Filter */}
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium text-gray-700">Status</h4>
+              <div className="space-y-2">
+                {statusOptions.map((option) => (
+                  <div key={option.value} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`status-${option.value}`}
+                      checked={activeFilters.status.includes(option.value)}
+                      onCheckedChange={(checked) => 
+                        handleStatusChange(option.value, checked as boolean)
+                      }
+                    />
+                    <label 
+                      htmlFor={`status-${option.value}`} 
+                      className="text-sm text-gray-600 cursor-pointer"
+                    >
+                      {option.label}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Source Filter */}
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium text-gray-700">Fonte</h4>
+              <div className="space-y-2">
+                {sourceOptions.map((option) => (
+                  <div key={option.value} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`source-${option.value}`}
+                      checked={activeFilters.source.includes(option.value)}
+                      onCheckedChange={(checked) => 
+                        handleSourceChange(option.value, checked as boolean)
+                      }
+                    />
+                    <label 
+                      htmlFor={`source-${option.value}`} 
+                      className="text-sm text-gray-600 cursor-pointer"
+                    >
+                      {option.label}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Action Type Filter */}
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium text-gray-700">Tipo de Ação</h4>
+              <div className="space-y-2">
+                {actionTypeOptions.map((option) => (
+                  <div key={option.value} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`action-${option.value}`}
+                      checked={activeFilters.actionType.includes(option.value)}
+                      onCheckedChange={(checked) => 
+                        handleActionTypeChange(option.value, checked as boolean)
+                      }
+                    />
+                    <label 
+                      htmlFor={`action-${option.value}`} 
+                      className="text-sm text-gray-600 cursor-pointer"
+                    >
+                      {option.label}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* State Filter */}
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium text-gray-700">Estado</h4>
+              <div className="space-y-2">
+                {stateOptions.map((option) => (
+                  <div key={option.value} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`state-${option.value}`}
+                      checked={activeFilters.state.includes(option.value)}
+                      onCheckedChange={(checked) => 
+                        handleStateChange(option.value, checked as boolean)
+                      }
+                    />
+                    <label 
+                      htmlFor={`state-${option.value}`} 
+                      className="text-sm text-gray-600 cursor-pointer"
+                    >
+                      {option.label}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </ScrollArea>
       </DropdownMenuContent>
     </DropdownMenu>
   );
