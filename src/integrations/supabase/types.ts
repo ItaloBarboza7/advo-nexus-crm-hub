@@ -22,6 +22,7 @@ export type Database = {
           state: string | null
           status: string
           updated_at: string
+          value: number | null
         }
         Insert: {
           action_type?: string | null
@@ -35,6 +36,7 @@ export type Database = {
           state?: string | null
           status?: string
           updated_at?: string
+          value?: number | null
         }
         Update: {
           action_type?: string | null
@@ -48,6 +50,7 @@ export type Database = {
           state?: string | null
           status?: string
           updated_at?: string
+          value?: number | null
         }
         Relationships: []
       }

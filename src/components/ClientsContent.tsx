@@ -1,11 +1,13 @@
+
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Phone, Mail, MapPin, Filter, Users, LayoutGrid, List, Trash2 } from "lucide-react";
+import { Plus, Search, Phone, Mail, MapPin, Filter, Users, LayoutGrid, List, Trash2, Edit, DollarSign } from "lucide-react";
 import { KanbanView } from "@/components/KanbanView";
 import { NewLeadForm } from "@/components/NewLeadForm";
 import { LeadDetailsDialog } from "@/components/LeadDetailsDialog";
+import { StatusChangeForm } from "@/components/StatusChangeForm";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -18,7 +20,7 @@ interface Lead {
   source: string | null;
   status: string;
   interest?: string;
-  value?: string;
+  value?: number | null;
   lastContact?: string;
   avatar?: string;
   description: string | null;
@@ -28,7 +30,6 @@ interface Lead {
   updated_at: string;
 }
 
-// Tags consistentes para lista e Kanban (removido "Qualificado")
 const LEAD_STATUSES = [
   { id: "Novo", title: "Novo", color: "bg-blue-100 text-blue-800" },
   { id: "Proposta", title: "Proposta", color: "bg-purple-100 text-purple-800" },
@@ -44,6 +45,7 @@ export function ClientsContent() {
   const [isNewLeadFormOpen, setIsNewLeadFormOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [isStatusFormOpen, setIsStatusFormOpen] = useState(false);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
@@ -101,7 +103,7 @@ export function ClientsContent() {
         description: "Lead excluído com sucesso.",
       });
 
-      fetchLeads(); // Recarrega a lista de leads
+      fetchLeads();
     } catch (error) {
       console.error('Erro inesperado ao excluir lead:', error);
       toast({
@@ -115,6 +117,11 @@ export function ClientsContent() {
   const handleViewDetails = (lead: Lead) => {
     setSelectedLead(lead);
     setIsDetailsDialogOpen(true);
+  };
+
+  const handleEditStatus = (lead: Lead) => {
+    setSelectedLead(lead);
+    setIsStatusFormOpen(true);
   };
 
   const handleDeleteLead = async (leadId: string, leadName: string) => {
@@ -151,9 +158,17 @@ export function ClientsContent() {
     return new Date(dateString).toLocaleDateString('pt-BR');
   };
 
+  const formatCurrency = (value: number | null) => {
+    if (!value) return 'R$ 0,00';
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
+  };
+
   // Transform leads for KanbanView component
   const transformedLeads = filteredLeads.map(lead => ({
-    id: parseInt(lead.id.replace(/-/g, '').slice(0, 8), 16), // Convert UUID to number for compatibility
+    id: parseInt(lead.id.replace(/-/g, '').slice(0, 8), 16),
     name: lead.name,
     email: lead.email || '',
     phone: lead.phone,
@@ -161,9 +176,10 @@ export function ClientsContent() {
     source: lead.source || 'Não informado',
     status: lead.status,
     interest: lead.action_type || 'Não informado',
-    value: 'R$ 0',
+    value: formatCurrency(lead.value),
     lastContact: formatDate(lead.created_at),
-    avatar: getInitials(lead.name)
+    avatar: getInitials(lead.name),
+    originalId: lead.id
   }));
 
   return (
@@ -225,7 +241,7 @@ export function ClientsContent() {
           </div>
         </Card>
       ) : viewMode === "kanban" ? (
-        <KanbanView leads={transformedLeads} statuses={LEAD_STATUSES} />
+        <KanbanView leads={transformedLeads} statuses={LEAD_STATUSES} onLeadUpdated={fetchLeads} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredLeads.map((lead) => (
@@ -243,7 +259,10 @@ export function ClientsContent() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-medium text-green-600">R$ 0</p>
+                  <div className="flex items-center gap-1 text-sm font-medium text-green-600">
+                    <DollarSign className="h-4 w-4" />
+                    <span>{formatCurrency(lead.value)}</span>
+                  </div>
                   <p className="text-xs text-gray-500">{lead.source || 'Não informado'}</p>
                 </div>
               </div>
@@ -292,6 +311,15 @@ export function ClientsContent() {
                   Ver Detalhes
                 </Button>
                 <Button 
+                  variant="outline"
+                  size="sm" 
+                  className="flex-1"
+                  onClick={() => handleEditStatus(lead)}
+                >
+                  <Edit className="h-4 w-4 mr-1" />
+                  Status
+                </Button>
+                <Button 
                   variant="destructive"
                   size="sm" 
                   className="flex-1"
@@ -331,6 +359,13 @@ export function ClientsContent() {
         lead={selectedLead}
         open={isDetailsDialogOpen}
         onOpenChange={setIsDetailsDialogOpen}
+      />
+
+      <StatusChangeForm
+        lead={selectedLead}
+        open={isStatusFormOpen}
+        onOpenChange={setIsStatusFormOpen}
+        onStatusChanged={fetchLeads}
       />
     </div>
   );

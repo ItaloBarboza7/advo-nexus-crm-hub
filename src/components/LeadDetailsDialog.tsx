@@ -2,7 +2,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Mail, Phone, MapPin, Calendar, User, FileText, Tag } from "lucide-react";
+import { Mail, Phone, MapPin, Calendar, User, FileText, Tag, DollarSign } from "lucide-react";
 
 interface Lead {
   id: string;
@@ -13,7 +13,7 @@ interface Lead {
   source: string | null;
   status: string;
   interest?: string;
-  value?: string;
+  value?: number | null;
   lastContact?: string;
   avatar?: string;
   description: string | null;
@@ -65,6 +65,14 @@ export function LeadDetailsDialog({ lead, open, onOpenChange }: LeadDetailsDialo
     });
   };
 
+  const formatCurrency = (value: number | null) => {
+    if (!value) return 'R$ 0,00';
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -75,9 +83,15 @@ export function LeadDetailsDialog({ lead, open, onOpenChange }: LeadDetailsDialo
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900">{lead.name}</h2>
-              <Badge className={getStatusColor(lead.status)}>
-                {lead.status}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge className={getStatusColor(lead.status)}>
+                  {lead.status}
+                </Badge>
+                <div className="flex items-center gap-1 text-green-600 font-medium">
+                  <DollarSign className="h-4 w-4" />
+                  <span>{formatCurrency(lead.value)}</span>
+                </div>
+              </div>
             </div>
           </DialogTitle>
         </DialogHeader>
@@ -106,6 +120,26 @@ export function LeadDetailsDialog({ lead, open, onOpenChange }: LeadDetailsDialo
                   <span>{lead.state}</span>
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Informações Comerciais */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              Informações Comerciais
+            </h3>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <span className="font-medium">Valor Potencial:</span>
+                <span className="text-green-600 font-semibold">{formatCurrency(lead.value)}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <span className="font-medium">Status:</span>
+                <Badge className={getStatusColor(lead.status)} variant="outline">
+                  {lead.status}
+                </Badge>
+              </div>
             </div>
           </div>
 
