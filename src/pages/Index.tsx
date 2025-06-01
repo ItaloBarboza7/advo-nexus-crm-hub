@@ -1,13 +1,45 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import { useState } from "react";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/AppSidebar";
+import { DashboardContent } from "@/components/DashboardContent";
+import { ClientsContent } from "@/components/ClientsContent";
+import { CasesContent } from "@/components/CasesContent";
+import { CalendarContent } from "@/components/CalendarContent";
+import { Header } from "@/components/Header";
+
+export type ActiveView = 'dashboard' | 'clients' | 'cases' | 'calendar';
 
 const Index = () => {
+  const [activeView, setActiveView] = useState<ActiveView>('dashboard');
+
+  const renderContent = () => {
+    switch (activeView) {
+      case 'dashboard':
+        return <DashboardContent />;
+      case 'clients':
+        return <ClientsContent />;
+      case 'cases':
+        return <CasesContent />;
+      case 'calendar':
+        return <CalendarContent />;
+      default:
+        return <DashboardContent />;
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full bg-gray-50">
+        <AppSidebar activeView={activeView} setActiveView={setActiveView} />
+        <main className="flex-1 flex flex-col">
+          <Header />
+          <div className="flex-1 p-6">
+            {renderContent()}
+          </div>
+        </main>
       </div>
-    </div>
+    </SidebarProvider>
   );
 };
 
