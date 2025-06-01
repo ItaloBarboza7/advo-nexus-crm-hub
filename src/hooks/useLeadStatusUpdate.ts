@@ -19,15 +19,17 @@ export function useLeadStatusUpdate() {
       // Preparar os dados para atualização
       const updateData: any = { status: newStatus };
       
-      // Se está mudando para "Perdido", manter o motivo da perda
+      // Se está mudando para "Perdido", definir o motivo da perda
       if (newStatus === "Perdido" && lossReason) {
         updateData.loss_reason = lossReason;
       }
       
-      // Se está saindo de "Perdido", limpar o motivo da perda
+      // SEMPRE limpar o motivo da perda quando NÃO está indo para "Perdido"
       if (newStatus !== "Perdido") {
         updateData.loss_reason = null;
       }
+
+      console.log('Atualizando lead com dados:', updateData);
 
       const { error } = await supabase
         .from('leads')

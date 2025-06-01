@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -182,7 +183,7 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
                   {lead.status}
                 </Badge>
               </div>
-              {lead.loss_reason && (
+              {lead.loss_reason && lead.status === "Perdido" && (
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <span className="font-medium">Motivo da Perda:</span>
                   <span className="text-red-600">{lead.loss_reason}</span>
@@ -233,12 +234,16 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
                 {completeHistory.map((history) => (
                   <div key={history.id} className="flex items-center justify-between text-sm border-l-2 border-blue-200 pl-3">
                     <div>
-                      <span className="text-gray-600">
-                        {history.old_status ? `${history.old_status} → ` : 'Lead criado em '}
-                      </span>
-                      <Badge className={getStatusColor(history.new_status)} variant="outline">
-                        {history.new_status}
-                      </Badge>
+                      {history.old_status ? (
+                        <>
+                          <span className="text-gray-600">{history.old_status} → </span>
+                          <Badge className={getStatusColor(history.new_status)} variant="outline">
+                            {history.new_status}
+                          </Badge>
+                        </>
+                      ) : (
+                        <span className="text-gray-600">Lead criado em</span>
+                      )}
                     </div>
                     <span className="text-gray-400">{formatDate(history.changed_at)}</span>
                   </div>
