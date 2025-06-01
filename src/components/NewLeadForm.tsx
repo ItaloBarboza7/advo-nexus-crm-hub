@@ -67,7 +67,7 @@ export function NewLeadForm({ open, onOpenChange }: NewLeadFormProps) {
     
     toast({
       title: "Sucesso!",
-      description: "Lead criado com sucesso e adicionado à lista de leads novos.",
+      description: "Lead criado com sucesso. NOTA: Para que os leads apareçam na lista, será necessário conectar um banco de dados via Supabase.",
     });
 
     // Reset form
@@ -220,23 +220,22 @@ export function NewLeadForm({ open, onOpenChange }: NewLeadFormProps) {
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
-              
-              {showNewActionInput && (
-                <div className="flex gap-2 mt-2">
-                  <Input
-                    placeholder="Nova ação..."
-                    value={newActionType}
-                    onChange={(e) => setNewActionType(e.target.value)}
-                    className="flex-1"
-                    onKeyPress={(e) => e.key === 'Enter' && handleAddCustomAction()}
-                  />
-                  <Button
-                    type="button"
-                    onClick={handleAddCustomAction}
-                    size="sm"
-                  >
-                    Adicionar
-                  </Button>
+            </div>
+          </div>
+          
+          {showNewActionInput && (
+            <div className="space-y-2 p-4 border rounded-lg bg-gray-50">
+              <Label htmlFor="newActionType">Novo Tipo de Ação</Label>
+              <div className="space-y-3">
+                <Input
+                  id="newActionType"
+                  placeholder="Digite o novo tipo de ação..."
+                  value={newActionType}
+                  onChange={(e) => setNewActionType(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleAddCustomAction()}
+                  className="w-full"
+                />
+                <div className="flex gap-2 justify-end">
                   <Button
                     type="button"
                     variant="outline"
@@ -248,10 +247,18 @@ export function NewLeadForm({ open, onOpenChange }: NewLeadFormProps) {
                   >
                     Cancelar
                   </Button>
+                  <Button
+                    type="button"
+                    onClick={handleAddCustomAction}
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    Adicionar
+                  </Button>
                 </div>
-              )}
+              </div>
             </div>
-          </div>
+          )}
 
           <DialogFooter className="gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
