@@ -274,84 +274,88 @@ export function ActionTypesChart({ leadsData, selectedCategory }: ActionTypesCha
   };
 
   return (
-    <Card className="p-8 bg-gradient-to-br from-white via-purple-50 to-blue-50 border-purple-100 shadow-xl">
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-4">
-          <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 shadow-lg">
-            {selectedCategory === "contratos" ? (
-              <Briefcase className="h-6 w-6 text-white" />
-            ) : (
-              <Target className="h-6 w-6 text-white" />
-            )}
-          </div>
-          <div>
-            <h3 className="text-xl font-bold text-gray-900">
-              {getTitle()}
-            </h3>
-            <p className="text-sm text-gray-600 mt-1">
-              {getDescription()}
-            </p>
-          </div>
-        </div>
-
-        {/* Dropdown para trocar tipo de gráfico */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="shadow-md hover:shadow-lg transition-shadow">
-              {chartType === "bar" ? (
-                <BarChart3 className="h-4 w-4" />
+    <>
+      <Card className="p-8 bg-gradient-to-br from-white via-purple-50 to-blue-50 border-purple-100 shadow-xl">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 shadow-lg">
+              {selectedCategory === "contratos" ? (
+                <Briefcase className="h-6 w-6 text-white" />
               ) : (
-                <PieChart className="h-4 w-4" />
+                <Target className="h-6 w-6 text-white" />
               )}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="bg-white border border-gray-200 shadow-xl">
-            <DropdownMenuItem 
-              onClick={() => updateChartType("bar")}
-              className={chartType === "bar" ? "bg-purple-50 text-purple-700" : ""}
-            >
-              <BarChart3 className="h-4 w-4 mr-2" />
-              Gráfico de Barras
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={() => updateChartType("pie")}
-              className={chartType === "pie" ? "bg-purple-50 text-purple-700" : ""}
-            >
-              <PieChart className="h-4 w-4 mr-2" />
-              Gráfico de Pizza
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      {chartType === "bar" ? renderBarChart() : renderPieChart()}
-
-      {/* Resumo estatístico modernizado */}
-      <div className="mt-8 pt-6 border-t border-purple-100">
-        <div className="grid grid-cols-2 gap-6 text-center">
-          <div className="bg-gradient-to-br from-white to-purple-50 rounded-xl p-4 shadow-md border border-purple-100">
-            <div className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-              {actionTypeData.reduce((sum: number, item) => sum + item.count, 0)}
             </div>
-            <div className="text-xs text-gray-600 mt-1">
-              {selectedCategory === "contratos" ? "Contratos" : "Oportunidades"}
+            <div>
+              <h3 className="text-xl font-bold text-gray-900">
+                {getTitle()}
+              </h3>
+              <p className="text-sm text-gray-600 mt-1">
+                {getDescription()}
+              </p>
             </div>
           </div>
-          <div className="bg-gradient-to-br from-white to-blue-50 rounded-xl p-4 shadow-md border border-blue-100">
-            <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              {actionTypeData.length}
+
+          {/* Dropdown para trocar tipo de gráfico */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="shadow-md hover:shadow-lg transition-shadow">
+                {chartType === "bar" ? (
+                  <BarChart3 className="h-4 w-4" />
+                ) : (
+                  <PieChart className="h-4 w-4" />
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-white border border-gray-200 shadow-xl">
+              <DropdownMenuItem 
+                onClick={() => updateChartType("bar")}
+                className={chartType === "bar" ? "bg-purple-50 text-purple-700" : ""}
+              >
+                <BarChart3 className="h-4 w-4 mr-2" />
+                Gráfico de Barras
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => updateChartType("pie")}
+                className={chartType === "pie" ? "bg-purple-50 text-purple-700" : ""}
+              >
+                <PieChart className="h-4 w-4 mr-2" />
+                Gráfico de Pizza
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {chartType === "bar" ? renderBarChart() : renderPieChart()}
+
+        {/* Resumo estatístico modernizado */}
+        <div className="mt-8 pt-6 border-t border-purple-100">
+          <div className="grid grid-cols-2 gap-6 text-center">
+            <div className="bg-gradient-to-br from-white to-purple-50 rounded-xl p-4 shadow-md border border-purple-100">
+              <div className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                {actionTypeData.reduce((sum: number, item) => sum + item.count, 0)}
+              </div>
+              <div className="text-xs text-gray-600 mt-1">
+                {selectedCategory === "contratos" ? "Contratos" : "Oportunidades"}
+              </div>
             </div>
-            <div className="text-xs text-gray-600 mt-1">Tipos Diferentes</div>
+            <div className="bg-gradient-to-br from-white to-blue-50 rounded-xl p-4 shadow-md border border-blue-100">
+              <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                {actionTypeData.length}
+              </div>
+              <div className="text-xs text-gray-600 mt-1">Tipos Diferentes</div>
+            </div>
           </div>
         </div>
-      </div>
-
-      <style jsx>{`
-        @keyframes shimmer {
-          0% { transform: translateX(-100%) skewX(-20deg); }
-          100% { transform: translateX(200%) skewX(-20deg); }
-        }
-      `}</style>
-    </Card>
+      </Card>
+      
+      <style>
+        {`
+          @keyframes shimmer {
+            0% { transform: translateX(-100%) skewX(-20deg); }
+            100% { transform: translateX(200%) skewX(-20deg); }
+          }
+        `}
+      </style>
+    </>
   );
 }

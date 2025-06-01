@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronRight, Users } from "lucide-react";
 import { Lead } from "@/types/lead";
+import { LeadDetailsDialog } from "@/components/LeadDetailsDialog";
 
 interface GroupedLeadsListProps {
   leads: Lead[];
@@ -12,23 +13,65 @@ interface GroupedLeadsListProps {
 
 export function GroupedLeadsList({ leads, selectedCategory }: GroupedLeadsListProps) {
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  // Agrupar leads por motivo de perda quando a categoria for "perdas"
+  const handleLeadClick = (lead: Lead) => {
+    setSelectedLead(lead);
+    setIsDialogOpen(true);
+  };
+
+  // Função para agrupar leads baseado na categoria selecionada
   const groupedLeads = () => {
-    if (selectedCategory !== "perdas") {
+    if (selectedCategory === "perdas") {
+      const groups = leads.reduce((acc, lead) => {
+        const lossReason = lead.loss_reason || "Sem motivo especificado";
+        if (!acc[lossReason]) {
+          acc[lossReason] = [];
+        }
+        acc[lossReason].push(lead);
+        return acc;
+      }, {} as Record<string, Lead[]>);
+      return groups;
+    } else if (selectedCategory === "contratos") {
+      const groups = leads.reduce((acc, lead) => {
+        const actionType = lead.action_type || "Sem tipo especificado";
+        const groupName = getActionTypeLabel(actionType);
+        if (!acc[groupName]) {
+          acc[groupName] = [];
+        }
+        acc[groupName].push(lead);
+        return acc;
+      }, {} as Record<string, Lead[]>);
+      return groups;
+    } else if (selectedCategory === "oportunidades") {
+      const groups = leads.reduce((acc, lead) => {
+        const actionType = lead.action_type || "Sem tipo especificado";
+        const groupName = getActionTypeLabel(actionType);
+        if (!acc[groupName]) {
+          acc[groupName] = [];
+        }
+        acc[groupName].push(lead);
+        return acc;
+      }, {} as Record<string, Lead[]>);
+      return groups;
+    } else {
       return { "Todos os Leads": leads };
     }
+  };
 
-    const groups = leads.reduce((acc, lead) => {
-      const lossReason = lead.loss_reason || "Sem motivo especificado";
-      if (!acc[lossReason]) {
-        acc[lossReason] = [];
-      }
-      acc[lossReason].push(lead);
-      return acc;
-    }, {} as Record<string, Lead[]>);
-
-    return groups;
+  const getActionTypeLabel = (actionType: string): string => {
+    const labels: Record<string, string> = {
+      "consultoria": "Consultoria Jurídica",
+      "contratos": "Contratos",
+      "trabalhista": "Trabalhista",
+      "compliance": "Compliance",
+      "tributario": "Tributário",
+      "civil": "Civil",
+      "criminal": "Criminal",
+      "outros": "Outros"
+    };
+    return labels[actionType] || actionType;
   };
 
   const toggleGroup = (groupName: string) => {
@@ -67,6 +110,7 @@ export function GroupedLeadsList({ leads, selectedCategory }: GroupedLeadsListPr
 
   const groups = groupedLeads();
   const groupNames = Object.keys(groups);
+  const shouldShowGrouping = (selectedCategory === "perdas" || selectedCategory === "contratos" || selectedCategory === "oportunidades") && groupNames.length > 1;
 
   if (leads.length === 0) {
     return (
@@ -85,12 +129,15 @@ export function GroupedLeadsList({ leads, selectedCategory }: GroupedLeadsListPr
       {groupNames.map((groupName) => {
         const groupLeads = groups[groupName];
         const isExpanded = expandedGroups[groupName];
-        const showGrouping = selectedCategory === "perdas" && groupNames.length > 1;
 
-        if (!showGrouping) {
+        if (!shouldShowGrouping) {
           // Não mostrar agrupamento, apenas a lista normal
           return groupLeads.map((lead) => (
-            <Card key={lead.id} className="p-6 hover:shadow-lg transition-shadow">
+            <Card 
+              key={lead.id} 
+              className="p-6 hover:shadow-lg transition-shadow cursor-pointer"
+              onClick={() => handleLeadClick(lead)}
+            >
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
@@ -126,27 +173,27 @@ export function GroupedLeadsList({ leads, selectedCategory }: GroupedLeadsListPr
         }
 
         return (
-          <div key={groupName} className="space-y-2">
-            {/* Cabeçalho do grupo */}
+          <div key={groupName} className="space-y-3">
+            {/* Cabeçalho do grupo - caixa maior */}
             <Card 
-              className="p-4 cursor-pointer hover:shadow-md transition-shadow bg-gray-50 border-2 border-gray-200"
+              className="p-6 cursor-pointer hover:shadow-md transition-shadow bg-gradient-to-r from-gray-50 to-gray-100 border-2 border-gray-200 rounded-xl"
               onClick={() => toggleGroup(groupName)}
             >
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
                   {isExpanded ? (
-                    <ChevronDown className="h-5 w-5 text-gray-600" />
+                    <ChevronDown className="h-6 w-6 text-gray-600" />
                   ) : (
-                    <ChevronRight className="h-5 w-5 text-gray-600" />
+                    <ChevronRight className="h-6 w-6 text-gray-600" />
                   )}
-                  <h3 className="text-lg font-semibold text-gray-900">
+                  <h3 className="text-xl font-bold text-gray-900">
                     {groupName}
                   </h3>
-                  <Badge className="bg-blue-100 text-blue-800">
+                  <Badge className="bg-blue-100 text-blue-800 px-3 py-1 text-sm">
                     {groupLeads.length} lead{groupLeads.length !== 1 ? 's' : ''}
                   </Badge>
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-gray-600 font-medium">
                   {isExpanded ? 'Clique para ocultar' : 'Clique para expandir'}
                 </div>
               </div>
@@ -154,9 +201,13 @@ export function GroupedLeadsList({ leads, selectedCategory }: GroupedLeadsListPr
 
             {/* Leads do grupo (mostrados quando expandido) */}
             {isExpanded && (
-              <div className="ml-6 space-y-3">
+              <div className="ml-8 space-y-4">
                 {groupLeads.map((lead) => (
-                  <Card key={lead.id} className="p-6 hover:shadow-lg transition-shadow">
+                  <Card 
+                    key={lead.id} 
+                    className="p-6 hover:shadow-lg transition-shadow cursor-pointer border-l-4 border-l-blue-500"
+                    onClick={() => handleLeadClick(lead)}
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
@@ -164,6 +215,16 @@ export function GroupedLeadsList({ leads, selectedCategory }: GroupedLeadsListPr
                           <Badge className={getStatusColor(lead.status)}>
                             {lead.status}
                           </Badge>
+                          {lead.loss_reason && selectedCategory === "perdas" && (
+                            <Badge className="bg-gray-100 text-gray-800">
+                              {lead.loss_reason}
+                            </Badge>
+                          )}
+                          {lead.action_type && (selectedCategory === "contratos" || selectedCategory === "oportunidades") && (
+                            <Badge className="bg-purple-100 text-purple-800">
+                              {getActionTypeLabel(lead.action_type)}
+                            </Badge>
+                          )}
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
                           <div>
@@ -189,6 +250,18 @@ export function GroupedLeadsList({ leads, selectedCategory }: GroupedLeadsListPr
           </div>
         );
       })}
+
+      {/* Dialog de detalhes do lead */}
+      {selectedLead && (
+        <LeadDetailsDialog
+          lead={selectedLead}
+          isOpen={isDialogOpen}
+          onClose={() => {
+            setIsDialogOpen(false);
+            setSelectedLead(null);
+          }}
+        />
+      )}
     </div>
   );
 }
