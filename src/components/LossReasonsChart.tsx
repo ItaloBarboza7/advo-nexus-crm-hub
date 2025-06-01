@@ -1,8 +1,14 @@
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { TrendingDown, AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { TrendingDown, AlertTriangle, BarChart3, PieChart } from "lucide-react";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
 
 interface LossReason {
   id: string;
@@ -21,6 +27,8 @@ interface LossReasonsChartProps {
 }
 
 export function LossReasonsChart({ leadsData, lossReasons, selectedCategory }: LossReasonsChartProps) {
+  const [chartType, setChartType] = useState<"bar" | "pie">("bar");
+
   const lossData = useMemo(() => {
     // Filtrar apenas os leads de perda
     const lossLeads = leadsData.filter(lead => 
@@ -64,75 +72,180 @@ export function LossReasonsChart({ leadsData, lossReasons, selectedCategory }: L
     return colors[index % colors.length];
   };
 
-  return (
-    <Card className="p-6 bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200 shadow-lg">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="p-2 rounded-lg bg-red-100">
-          <TrendingDown className="h-5 w-5 text-red-600" />
-        </div>
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900">
-            Análise de Motivos de Perda
-          </h3>
-          <p className="text-sm text-gray-600">
-            Distribuição percentual dos motivos que levaram à perda de leads
-          </p>
-        </div>
-      </div>
+  const getPieColor = (index: number) => {
+    const colors = [
+      "#ef4444", "#f97316", "#eab308", "#3b82f6", "#8b5cf6", "#ec4899"
+    ];
+    return colors[index % colors.length];
+  };
 
-      <div className="space-y-4">
-        {lossData.map((item, index) => (
-          <div key={item.reason} className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-gray-500" />
-                <span className="text-sm font-medium text-gray-700">
-                  {item.reason}
-                </span>
-              </div>
-              <div className="text-right">
-                <span className="text-sm font-bold text-gray-900">
-                  {item.percentage}%
-                </span>
-                <span className="text-xs text-gray-500 ml-1">
-                  ({item.count} leads)
-                </span>
-              </div>
+  const renderBarChart = () => (
+    <div className="space-y-4">
+      {lossData.map((item, index) => (
+        <div key={item.reason} className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-gray-500" />
+              <span className="text-sm font-medium text-gray-700">
+                {item.reason}
+              </span>
             </div>
-            
-            <div className="relative">
-              <div className="w-full bg-gray-200 rounded-full h-3 shadow-inner">
-                <div
-                  className={`h-3 rounded-full transition-all duration-700 ease-out ${getBarColor(index)} shadow-sm`}
-                  style={{ 
-                    width: `${item.percentage}%`,
-                    background: index === 0 
-                      ? "linear-gradient(90deg, #ef4444, #dc2626)" 
-                      : index === 1 
-                      ? "linear-gradient(90deg, #f97316, #ea580c)"
-                      : index === 2
-                      ? "linear-gradient(90deg, #eab308, #ca8a04)"
-                      : index === 3
-                      ? "linear-gradient(90deg, #3b82f6, #2563eb)"
-                      : index === 4
-                      ? "linear-gradient(90deg, #8b5cf6, #7c3aed)"
-                      : "linear-gradient(90deg, #ec4899, #db2777)"
-                  }}
-                />
-              </div>
-              
-              {/* Efeito de brilho futurístico */}
-              <div 
-                className="absolute top-0 left-0 h-3 rounded-full opacity-30 bg-white"
+            <div className="text-right">
+              <span className="text-sm font-bold text-gray-900">
+                {item.percentage}%
+              </span>
+              <span className="text-xs text-gray-500 ml-1">
+                ({item.count} leads)
+              </span>
+            </div>
+          </div>
+          
+          <div className="relative">
+            <div className="w-full bg-gray-200 rounded-full h-3 shadow-inner">
+              <div
+                className={`h-3 rounded-full transition-all duration-700 ease-out ${getBarColor(index)} shadow-sm`}
                 style={{ 
-                  width: `${Math.min(item.percentage * 0.6, 100)}%`,
-                  background: "linear-gradient(90deg, rgba(255,255,255,0.8), rgba(255,255,255,0))"
+                  width: `${item.percentage}%`,
+                  background: index === 0 
+                    ? "linear-gradient(90deg, #ef4444, #dc2626)" 
+                    : index === 1 
+                    ? "linear-gradient(90deg, #f97316, #ea580c)"
+                    : index === 2
+                    ? "linear-gradient(90deg, #eab308, #ca8a04)"
+                    : index === 3
+                    ? "linear-gradient(90deg, #3b82f6, #2563eb)"
+                    : index === 4
+                    ? "linear-gradient(90deg, #8b5cf6, #7c3aed)"
+                    : "linear-gradient(90deg, #ec4899, #db2777)"
                 }}
               />
             </div>
+            
+            {/* Efeito de brilho futurístico */}
+            <div 
+              className="absolute top-0 left-0 h-3 rounded-full opacity-30 bg-white"
+              style={{ 
+                width: `${Math.min(item.percentage * 0.6, 100)}%`,
+                background: "linear-gradient(90deg, rgba(255,255,255,0.8), rgba(255,255,255,0))"
+              }}
+            />
           </div>
-        ))}
+        </div>
+      ))}
+    </div>
+  );
+
+  const renderPieChart = () => {
+    const total = lossData.reduce((sum, item) => sum + item.count, 0);
+    let currentAngle = 0;
+
+    return (
+      <div className="flex items-center justify-center">
+        <div className="relative">
+          <svg width="200" height="200" className="transform -rotate-90">
+            {lossData.map((item, index) => {
+              const percentage = item.count / total;
+              const angle = percentage * 360;
+              const radius = 80;
+              const centerX = 100;
+              const centerY = 100;
+              
+              const startAngle = currentAngle;
+              const endAngle = currentAngle + angle;
+              
+              const x1 = centerX + radius * Math.cos((startAngle * Math.PI) / 180);
+              const y1 = centerY + radius * Math.sin((startAngle * Math.PI) / 180);
+              const x2 = centerX + radius * Math.cos((endAngle * Math.PI) / 180);
+              const y2 = centerY + radius * Math.sin((endAngle * Math.PI) / 180);
+              
+              const largeArcFlag = angle > 180 ? 1 : 0;
+              
+              const pathData = [
+                `M ${centerX} ${centerY}`,
+                `L ${x1} ${y1}`,
+                `A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2}`,
+                'Z'
+              ].join(' ');
+              
+              currentAngle = endAngle;
+              
+              return (
+                <path
+                  key={item.reason}
+                  d={pathData}
+                  fill={getPieColor(index)}
+                  className="hover:opacity-80 transition-opacity cursor-pointer"
+                />
+              );
+            })}
+          </svg>
+          
+          {/* Legend */}
+          <div className="mt-4 space-y-2">
+            {lossData.map((item, index) => (
+              <div key={item.reason} className="flex items-center gap-2 text-sm">
+                <div 
+                  className="w-3 h-3 rounded-sm"
+                  style={{ backgroundColor: getPieColor(index) }}
+                />
+                <span className="text-gray-700">{item.reason}</span>
+                <span className="text-gray-500">({item.percentage}%)</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
+    );
+  };
+
+  return (
+    <Card className="p-6 bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200 shadow-lg">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-red-100">
+            <TrendingDown className="h-5 w-5 text-red-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Análise de Motivos de Perda
+            </h3>
+            <p className="text-sm text-gray-600">
+              Distribuição percentual dos motivos que levaram à perda de leads
+            </p>
+          </div>
+        </div>
+
+        {/* Dropdown para trocar tipo de gráfico */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm">
+              {chartType === "bar" ? (
+                <BarChart3 className="h-4 w-4" />
+              ) : (
+                <PieChart className="h-4 w-4" />
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem 
+              onClick={() => setChartType("bar")}
+              className={chartType === "bar" ? "bg-gray-100" : ""}
+            >
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Gráfico de Barras
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => setChartType("pie")}
+              className={chartType === "pie" ? "bg-gray-100" : ""}
+            >
+              <PieChart className="h-4 w-4 mr-2" />
+              Gráfico de Pizza
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {chartType === "bar" ? renderBarChart() : renderPieChart()}
 
       {/* Resumo estatístico */}
       <div className="mt-6 pt-4 border-t border-gray-200">
