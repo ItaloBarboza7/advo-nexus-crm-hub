@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserPlus, UserX, DollarSign, TrendingUp, Target, BarChart3 } from "lucide-react";
@@ -68,14 +67,16 @@ export function DashboardContent() {
     },
   ];
 
-  const conversionData = {
-    totalLeads: 347,
-    proposals: 89,
-    sales: 65,
-    proposalRate: "25.6%",
-    salesRate: "18.7%",
-    overallConversion: "73.0%",
-  };
+  const conversionData = [
+    {
+      totalLeads: 347,
+      proposals: 89,
+      sales: 65,
+      proposalRate: "25.6%",
+      salesRate: "18.7%",
+      overallConversion: "73.0%",
+    },
+  ];
 
   const weeklyConversionData = [
     { day: "Segunda", sales: 12, conversion: 18.5 },
@@ -287,12 +288,12 @@ export function DashboardContent() {
                 </BarChart>
               </ChartContainer>
             </div>
-            <div className="mt-2 text-sm text-gray-600">
-              <p className="text-center">
-                Melhor dia: <span className="font-medium text-blue-600">Quarta-feira (23.1%)</span>
-              </p>
-            </div>
           </CardContent>
+          <div className="mt-2 text-sm text-gray-600">
+            <p className="text-center">
+              Melhor dia: <span className="font-medium text-blue-600">Quarta-feira (23.1%)</span>
+            </p>
+          </div>
         </Card>
       </div>
 
@@ -334,12 +335,12 @@ export function DashboardContent() {
                 </BarChart>
               </ChartContainer>
             </div>
-            <div className="mt-2 text-sm text-gray-600">
-              <p className="text-center">
-                Melhor dia: <span className="font-medium text-green-600">Quarta-feira (65 leads)</span>
-              </p>
-            </div>
           </CardContent>
+          <div className="mt-2 text-sm text-gray-600">
+            <p className="text-center">
+              Melhor dia: <span className="font-medium text-green-600">Quarta-feira (65 leads)</span>
+            </p>
+          </div>
         </Card>
 
         {/* Weekly Proposals Chart */}
@@ -378,12 +379,12 @@ export function DashboardContent() {
                 </BarChart>
               </ChartContainer>
             </div>
-            <div className="mt-2 text-sm text-gray-600">
-              <p className="text-center">
-                Melhor dia: <span className="font-medium text-orange-600">Quarta-feira (18 propostas)</span>
-              </p>
-            </div>
           </CardContent>
+          <div className="mt-2 text-sm text-gray-600">
+            <p className="text-center">
+              Melhor dia: <span className="font-medium text-orange-600">Quarta-feira (18 propostas)</span>
+            </p>
+          </div>
         </Card>
 
         {/* Empty third column to maintain the 3-column layout */}
