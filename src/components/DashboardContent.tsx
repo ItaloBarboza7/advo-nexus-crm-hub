@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserPlus, UserX, DollarSign, TrendingUp, Target, BarChart3 } from "lucide-react";
@@ -260,33 +259,32 @@ export function DashboardContent() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="h-80 flex items-center justify-center pt-4">
-              <div className="w-full h-72">
-                <ChartContainer config={chartConfig}>
-                  <BarChart data={weeklyConversionData} margin={{ top: 20, right: 20, left: 20, bottom: 40 }}>
-                    <XAxis 
-                      dataKey="day" 
-                      tick={{ fontSize: 12 }}
-                      angle={-45}
-                      textAnchor="end"
-                      height={60}
-                    />
-                    <YAxis 
-                      tick={{ fontSize: 12 }}
-                    />
-                    <ChartTooltip 
-                      content={<ChartTooltipContent />}
-                      formatter={(value, name) => [`${value}%`, 'Taxa de Conversão']}
-                      labelFormatter={(label) => `${label}-feira`}
-                    />
-                    <Bar 
-                      dataKey="conversion" 
-                      fill="var(--color-conversion)"
-                      radius={[4, 4, 0, 0]}
-                    />
-                  </BarChart>
-                </ChartContainer>
-              </div>
+            <div className="h-64">
+              <ChartContainer config={chartConfig}>
+                <BarChart data={weeklyConversionData} margin={{ top: 5, right: 5, left: 5, bottom: 35 }}>
+                  <XAxis 
+                    dataKey="day" 
+                    tick={{ fontSize: 12 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={50}
+                  />
+                  <YAxis 
+                    tick={{ fontSize: 12 }}
+                    width={35}
+                  />
+                  <ChartTooltip 
+                    content={<ChartTooltipContent />}
+                    formatter={(value, name) => [`${value}%`, 'Taxa de Conversão']}
+                    labelFormatter={(label) => `${label}-feira`}
+                  />
+                  <Bar 
+                    dataKey="conversion" 
+                    fill="var(--color-conversion)"
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ChartContainer>
             </div>
             <div className="mt-4 text-sm text-gray-600">
               <p className="text-center">
