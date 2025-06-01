@@ -3,8 +3,8 @@ import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Target, Users, BarChart3, PieChart } from "lucide-react";
-import { PieChart as RechartsPieChart, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
+import { Target, Users, BarChart3, PieChart as PieChartIcon } from "lucide-react";
+import { PieChart, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { Lead } from "@/types/lead";
 
 interface ActionTypesChartProps {
@@ -92,7 +92,7 @@ export function ActionTypesChart({ leads }: ActionTypesChartProps) {
               size="sm"
               onClick={() => setViewType('pie')}
             >
-              <PieChart className="h-4 w-4" />
+              <PieChartIcon className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -133,7 +133,7 @@ export function ActionTypesChart({ leads }: ActionTypesChartProps) {
               </Bar>
             </BarChart>
           ) : (
-            <RechartsPieChart>
+            <PieChart data={chartData} width={400} height={400}>
               <PieChart
                 data={chartData}
                 cx="50%"
@@ -162,13 +162,13 @@ export function ActionTypesChart({ leads }: ActionTypesChartProps) {
               <Legend 
                 verticalAlign="bottom" 
                 height={36}
-                formatter={(value, entry) => (
-                  <span style={{ color: entry.color, fontSize: '12px' }}>
-                    {entry.payload.type}
+                formatter={(value: string) => (
+                  <span style={{ fontSize: '12px' }}>
+                    {value}
                   </span>
                 )}
               />
-            </RechartsPieChart>
+            </PieChart>
           )}
         </ResponsiveContainer>
       </div>
