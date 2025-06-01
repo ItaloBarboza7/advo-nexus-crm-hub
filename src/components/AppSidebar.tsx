@@ -1,5 +1,5 @@
 
-import { Home, Users, Briefcase, Calendar, Settings, Scale } from "lucide-react";
+import { Home, Users, Target, TrendingUp, Scale } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -25,18 +25,18 @@ const menuItems = [
     view: "dashboard" as ActiveView,
   },
   {
-    title: "Clientes",
+    title: "Leads",
     icon: Users,
     view: "clients" as ActiveView,
   },
   {
-    title: "Casos",
-    icon: Briefcase,
+    title: "Análises",
+    icon: TrendingUp,
     view: "cases" as ActiveView,
   },
   {
-    title: "Calendário",
-    icon: Calendar,
+    title: "Metas",
+    icon: Target,
     view: "calendar" as ActiveView,
   },
 ];
@@ -50,8 +50,8 @@ export function AppSidebar({ activeView, setActiveView }: AppSidebarProps) {
             <Scale className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-900">LegalCRM</h2>
-            <p className="text-sm text-gray-500">Sistema Advocacia</p>
+            <h2 className="text-xl font-bold text-gray-900">LeadsCRM</h2>
+            <p className="text-sm text-gray-500">Análise de Leads</p>
           </div>
         </div>
       </SidebarHeader>
@@ -78,22 +78,6 @@ export function AppSidebar({ activeView, setActiveView }: AppSidebarProps) {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        
-        <SidebarGroup className="mt-8">
-          <SidebarGroupLabel className="text-gray-600 font-medium px-3 py-2">
-            Configurações
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton className="w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-gray-600 hover:bg-gray-100">
-                  <Settings className="h-5 w-5" />
-                  <span className="font-medium">Configurações</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
