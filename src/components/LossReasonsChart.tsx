@@ -88,36 +88,37 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
 
       <div className="h-80">
         {viewType === 'bar' ? (
-          <div className="space-y-6 h-full overflow-y-auto">
+          <div className="space-y-4 h-full overflow-y-auto">
             {chartData.map((item, index) => (
-              <div key={item.reason} className="space-y-3">
+              <div key={item.reason} className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
                     <div 
-                      className="w-4 h-4 rounded-full flex-shrink-0 shadow-sm" 
+                      className="w-3 h-3 rounded-full flex-shrink-0" 
                       style={{ backgroundColor: item.color }}
                     />
                     <span className="font-medium text-gray-800 truncate text-sm">
                       {item.reason}
                     </span>
                   </div>
-                  <div className="flex items-center gap-3 text-sm text-gray-600 ml-4">
-                    <span className="font-semibold text-gray-900">{item.count}</span>
-                    <span className="text-xs bg-gray-100 px-2 py-1 rounded-full">
+                  <div className="flex items-center gap-2 text-sm text-gray-600 ml-4">
+                    <span className="font-semibold text-gray-900 min-w-[2rem] text-right">{item.count}</span>
+                    <span className="text-xs bg-gray-100 px-2 py-0.5 rounded-full font-medium min-w-[3rem] text-center">
                       {item.percentage.toFixed(1)}%
                     </span>
                   </div>
                 </div>
                 <div className="relative">
-                  <div className="w-full bg-gray-200 rounded-full h-6 shadow-inner">
+                  <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
                     <div
-                      className="h-6 rounded-full relative overflow-hidden transition-all duration-500 ease-out shadow-sm"
+                      className="h-full rounded-full relative overflow-hidden transition-all duration-700 ease-out"
                       style={{ 
                         width: `${(item.count / maxCount) * 100}%`,
-                        background: `linear-gradient(90deg, ${item.color} 0%, ${item.color}dd 100%)`
+                        background: `linear-gradient(90deg, ${item.color} 0%, ${item.color}e6 50%, ${item.color}cc 100%)`
                       }}
                     >
-                      <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent"></div>
+                      <div className="absolute inset-0 bg-gradient-to-r from-white/30 via-white/10 to-transparent"></div>
+                      <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent"></div>
                     </div>
                   </div>
                 </div>
