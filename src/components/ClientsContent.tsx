@@ -1,9 +1,8 @@
-
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Phone, Mail, MapPin, Filter } from "lucide-react";
+import { Plus, Search, Phone, Mail, MapPin, Filter, Users } from "lucide-react";
 
 export function ClientsContent() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -73,7 +72,6 @@ export function ClientsContent() {
         </Button>
       </div>
 
-      {/* Search and Filters */}
       <Card className="p-6">
         <div className="flex items-center gap-4">
           <div className="relative flex-1 max-w-md">
@@ -92,7 +90,6 @@ export function ClientsContent() {
         </div>
       </Card>
 
-      {/* Clients Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredClients.map((client) => (
           <Card key={client.id} className="p-6 hover:shadow-lg transition-shadow cursor-pointer">
