@@ -1,16 +1,11 @@
-
 import { useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from "recharts";
 import { BarChart3, PieChart as PieChartIcon } from "lucide-react";
 import { useChartPreferences } from "@/hooks/useChartPreferences";
-
-interface Lead {
-  id: string;
-  loss_reason?: string;
-}
+import { Lead } from "@/types/lead";
 
 interface LossReasonsChartProps {
   leads: Lead[];
@@ -38,6 +33,10 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
   const { chartType, updateChartType } = useChartPreferences('loss-reasons');
 
   const chartData = useMemo(() => {
+    if (!leads || !Array.isArray(leads)) {
+      return [];
+    }
+    
     const lossReasons = leads.reduce((acc, lead) => {
       const reason = lead.loss_reason || "Sem motivo especificado";
       acc[reason] = (acc[reason] || 0) + 1;
@@ -53,7 +52,7 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
       .sort((a, b) => b.count - a.count);
   }, [leads]);
 
-  const totalLeads = leads.length;
+  const totalLeads = leads?.length || 0;
 
   if (totalLeads === 0) {
     return (

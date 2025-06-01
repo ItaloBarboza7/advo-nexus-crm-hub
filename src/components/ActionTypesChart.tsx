@@ -1,4 +1,3 @@
-
 import { useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,11 +5,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from "recharts";
 import { BarChart3, PieChart as PieChartIcon } from "lucide-react";
 import { useChartPreferences } from "@/hooks/useChartPreferences";
-
-interface Lead {
-  id: string;
-  action_type?: string;
-}
+import { Lead } from "@/types/lead";
 
 interface ActionTypesChartProps {
   leads: Lead[];
@@ -49,6 +44,10 @@ export function ActionTypesChart({ leads }: ActionTypesChartProps) {
   const { chartType, updateChartType } = useChartPreferences('action-types');
 
   const chartData = useMemo(() => {
+    if (!leads || !Array.isArray(leads)) {
+      return [];
+    }
+    
     const actionTypes = leads.reduce((acc, lead) => {
       const type = lead.action_type || "outros";
       const label = ACTION_TYPE_LABELS[type] || type;
@@ -65,7 +64,7 @@ export function ActionTypesChart({ leads }: ActionTypesChartProps) {
       .sort((a, b) => b.count - a.count);
   }, [leads]);
 
-  const totalLeads = leads.length;
+  const totalLeads = leads?.length || 0;
 
   if (totalLeads === 0) {
     return (

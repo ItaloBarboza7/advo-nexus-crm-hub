@@ -157,6 +157,18 @@ export function CasesContent() {
     };
   });
 
+  // Filter leads for charts based on category
+  const getLeadsForChart = () => {
+    if (selectedCategory === "perdas") {
+      return filteredLeads.filter(lead => lead.status === "Perdido");
+    } else if (selectedCategory === "contratos") {
+      return filteredLeads.filter(lead => lead.status === "Contrato Fechado");
+    } else if (selectedCategory === "oportunidades") {
+      return filteredLeads.filter(lead => ["Novo", "Proposta", "Reunião"].includes(lead.status));
+    }
+    return filteredLeads;
+  };
+
   const filteredLeads = leads.filter(lead => {
     const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (lead.email && lead.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -331,18 +343,11 @@ export function CasesContent() {
       {shouldShowChart() && (
         <>
           {shouldShowLossReasonsChart() && (
-            <LossReasonsChart 
-              leadsData={transformedLeadsData}
-              lossReasons={lossReasons}
-              selectedCategory={selectedCategory}
-            />
+            <LossReasonsChart leads={getLeadsForChart()} />
           )}
           
           {shouldShowActionTypesChart() && (
-            <ActionTypesChart 
-              leadsData={transformedLeadsData}
-              selectedCategory={selectedCategory}
-            />
+            <ActionTypesChart leads={getLeadsForChart()} />
           )}
         </>
       )}
