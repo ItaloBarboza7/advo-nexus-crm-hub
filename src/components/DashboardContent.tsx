@@ -1,8 +1,11 @@
+
 import { useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Users, UserPlus, UserX, DollarSign, TrendingUp, Target } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Users, UserPlus, UserX, DollarSign, TrendingUp, Target, BarChart3 } from "lucide-react";
 import { DateRange } from "react-day-picker";
 import { DateFilter } from "@/components/DateFilter";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts";
 
 export function DashboardContent() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
@@ -74,6 +77,23 @@ export function DashboardContent() {
     overallConversion: "73.0%",
   };
 
+  const weeklyConversionData = [
+    { day: "Segunda", sales: 12, conversion: 18.5 },
+    { day: "Terça", sales: 9, conversion: 14.2 },
+    { day: "Quarta", sales: 15, conversion: 23.1 },
+    { day: "Quinta", sales: 11, conversion: 16.9 },
+    { day: "Sexta", sales: 8, conversion: 12.3 },
+    { day: "Sábado", sales: 6, conversion: 9.2 },
+    { day: "Domingo", sales: 4, conversion: 6.1 },
+  ];
+
+  const chartConfig = {
+    conversion: {
+      label: "Taxa de Conversão (%)",
+      color: "#3b82f6",
+    },
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -112,7 +132,7 @@ export function DashboardContent() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Team Results */}
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
@@ -201,6 +221,50 @@ export function DashboardContent() {
               </div>
             </div>
           </div>
+        </Card>
+
+        {/* Weekly Conversion Chart */}
+        <Card className="p-6">
+          <CardHeader className="p-0 mb-4">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <BarChart3 className="h-5 w-5 text-blue-600" />
+              Conversão por Dia da Semana
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="h-64">
+              <ChartContainer config={chartConfig}>
+                <BarChart data={weeklyConversionData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <XAxis 
+                    dataKey="day" 
+                    tick={{ fontSize: 12 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  <YAxis 
+                    tick={{ fontSize: 12 }}
+                    label={{ value: 'Taxa (%)', angle: -90, position: 'insideLeft' }}
+                  />
+                  <ChartTooltip 
+                    content={<ChartTooltipContent />}
+                    formatter={(value, name) => [`${value}%`, 'Taxa de Conversão']}
+                    labelFormatter={(label) => `${label}-feira`}
+                  />
+                  <Bar 
+                    dataKey="conversion" 
+                    fill="var(--color-conversion)"
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ChartContainer>
+            </div>
+            <div className="mt-4 text-sm text-gray-600">
+              <p className="text-center">
+                Melhor dia: <span className="font-medium text-blue-600">Quarta-feira (23.1%)</span>
+              </p>
+            </div>
+          </CardContent>
         </Card>
       </div>
     </div>
