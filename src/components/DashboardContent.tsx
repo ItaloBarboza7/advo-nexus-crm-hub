@@ -306,15 +306,15 @@ export function DashboardContent() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="h-52">
+            <div className="h-40">
               <ChartContainer config={chartConfig}>
-                <BarChart data={weeklyLeadsData} margin={{ top: 10, right: 10, left: 10, bottom: 35 }}>
+                <BarChart data={weeklyLeadsData} margin={{ top: 10, right: 10, left: 10, bottom: 25 }}>
                   <XAxis 
                     dataKey="day" 
                     tick={{ fontSize: 12 }}
                     angle={-45}
                     textAnchor="end"
-                    height={45}
+                    height={35}
                   />
                   <YAxis 
                     tick={{ fontSize: 12 }}
@@ -332,7 +332,7 @@ export function DashboardContent() {
                 </BarChart>
               </ChartContainer>
             </div>
-            <div className="mt-4 text-sm text-gray-600">
+            <div className="mt-6 text-sm text-gray-600">
               <p className="text-center">
                 Melhor dia: <span className="font-medium text-green-600">Quarta-feira (65 leads)</span>
               </p>
@@ -349,15 +349,15 @@ export function DashboardContent() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="h-52">
+            <div className="h-40">
               <ChartContainer config={chartConfig}>
-                <BarChart data={weeklyProposalsData} margin={{ top: 10, right: 10, left: 10, bottom: 35 }}>
+                <BarChart data={weeklyProposalsData} margin={{ top: 10, right: 10, left: 10, bottom: 25 }}>
                   <XAxis 
                     dataKey="day" 
                     tick={{ fontSize: 12 }}
                     angle={-45}
                     textAnchor="end"
-                    height={45}
+                    height={35}
                   />
                   <YAxis 
                     tick={{ fontSize: 12 }}
@@ -375,7 +375,7 @@ export function DashboardContent() {
                 </BarChart>
               </ChartContainer>
             </div>
-            <div className="mt-4 text-sm text-gray-600">
+            <div className="mt-6 text-sm text-gray-600">
               <p className="text-center">
                 Melhor dia: <span className="font-medium text-orange-600">Quarta-feira (18 propostas)</span>
               </p>
