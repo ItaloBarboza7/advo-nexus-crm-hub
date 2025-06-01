@@ -14,6 +14,21 @@ interface ActionTypesChartProps {
   selectedCategory: string;
 }
 
+// Move getActionTypeLabel outside the component to avoid initialization issues
+const getActionTypeLabel = (actionType: string) => {
+  const labels: Record<string, string> = {
+    "consultoria": "Consultoria Jurídica",
+    "contratos": "Contratos",
+    "trabalhista": "Trabalhista",
+    "compliance": "Compliance",
+    "tributario": "Tributário",
+    "civil": "Civil",
+    "criminal": "Criminal",
+    "outros": "Outros"
+  };
+  return labels[actionType] || actionType;
+};
+
 export function ActionTypesChart({ leadsData, selectedCategory }: ActionTypesChartProps) {
   const actionTypeData = useMemo(() => {
     let filteredLeads = [];
@@ -51,20 +66,6 @@ export function ActionTypesChart({ leadsData, selectedCategory }: ActionTypesCha
       }))
       .sort((a, b) => b.count - a.count);
   }, [leadsData, selectedCategory]);
-
-  const getActionTypeLabel = (actionType: string) => {
-    const labels: Record<string, string> = {
-      "consultoria": "Consultoria Jurídica",
-      "contratos": "Contratos",
-      "trabalhista": "Trabalhista",
-      "compliance": "Compliance",
-      "tributario": "Tributário",
-      "civil": "Civil",
-      "criminal": "Criminal",
-      "outros": "Outros"
-    };
-    return labels[actionType] || actionType;
-  };
 
   // Só mostrar o gráfico se há dados para exibir
   if (actionTypeData.length === 0) return null;
