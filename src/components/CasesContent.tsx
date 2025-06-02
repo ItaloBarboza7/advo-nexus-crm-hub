@@ -208,7 +208,10 @@ export function CasesContent() {
           )}
           
           {shouldShowActionTypesChart() && (
-            <ActionTypesChart leads={getLeadsForChart} />
+            <ActionTypesChart 
+              leads={getLeadsForChart} 
+              selectedCategory={selectedCategory}
+            />
           )}
 
           {shouldShowStateChart() && (

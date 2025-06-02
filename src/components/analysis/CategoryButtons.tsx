@@ -82,7 +82,7 @@ export function CategoryButtons({ selectedCategory, onCategoryChange }: Category
     );
   }
 
-  // Botões padrão para categoria "all" e outras
+  // Botões para categoria "all" - CORRIGIDO: manter na mesma página
   return (
     <div className="flex gap-2 flex-wrap">
       <Button
@@ -90,24 +90,6 @@ export function CategoryButtons({ selectedCategory, onCategoryChange }: Category
         onClick={() => onCategoryChange("all")}
       >
         Todos
-      </Button>
-      <Button
-        variant={mainCategory === "contratos" ? "default" : "outline"}
-        onClick={() => onCategoryChange("contratos")}
-      >
-        Novos Contratos
-      </Button>
-      <Button
-        variant={mainCategory === "oportunidades" ? "default" : "outline"}
-        onClick={() => onCategoryChange("oportunidades")}
-      >
-        Oportunidades
-      </Button>
-      <Button
-        variant={mainCategory === "perdas" ? "default" : "outline"}
-        onClick={() => onCategoryChange("perdas")}
-      >
-        Perdas
       </Button>
       <Button
         variant={selectedCategory === "estados" ? "default" : "outline"}
