@@ -19,14 +19,14 @@ export function CategoryButtons({ selectedCategory, onCategoryChange }: Category
           Perdas
         </Button>
         <Button
-          variant={selectedCategory === "estados" ? "default" : "outline"}
+          variant="outline"
           onClick={() => onCategoryChange("estados")}
         >
           <MapPin className="h-4 w-4 mr-2" />
           Estados
         </Button>
         <Button
-          variant={selectedCategory === "tipo-acao" ? "default" : "outline"}
+          variant="outline"
           onClick={() => onCategoryChange("tipo-acao")}
         >
           <FileText className="h-4 w-4 mr-2" />
