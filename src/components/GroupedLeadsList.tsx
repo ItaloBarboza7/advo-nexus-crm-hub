@@ -3,24 +3,21 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronRight, Users } from "lucide-react";
 import { Lead } from "@/types/lead";
-import { LeadDetailsDialog } from "@/components/LeadDetailsDialog";
 
 interface GroupedLeadsListProps {
   leads: Lead[];
   selectedCategory: string;
+  onViewDetails: (lead: Lead) => void;
+  onEditLead: (lead: Lead) => void;
 }
 
-export function GroupedLeadsList({ leads, selectedCategory }: GroupedLeadsListProps) {
+export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEditLead }: GroupedLeadsListProps) {
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
-  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const handleLeadClick = (lead: Lead) => {
-    setSelectedLead(lead);
-    setIsDialogOpen(true);
+    onViewDetails(lead);
   };
 
-  // Função para agrupar leads baseado na categoria selecionada
   const groupedLeads = () => {
     if (selectedCategory === "perdas") {
       const groups = leads.reduce((acc, lead) => {
@@ -249,15 +246,6 @@ export function GroupedLeadsList({ leads, selectedCategory }: GroupedLeadsListPr
           </div>
         );
       })}
-
-      {/* Dialog de detalhes do lead - corrigido */}
-      {selectedLead && (
-        <LeadDetailsDialog
-          lead={selectedLead}
-          open={isDialogOpen}
-          onOpenChange={setIsDialogOpen}
-        />
-      )}
     </div>
   );
 }
