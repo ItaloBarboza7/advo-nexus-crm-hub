@@ -50,7 +50,7 @@ export function CasesContent() {
     shouldShowLossReasonsChart,
     shouldShowActionTypesChart,
     shouldShowStateChart
-  } = useAnalysisLogic(leads, selectedCategory);
+  } = useAnalysisLogic(leads, selectedCategory, statusHistory, hasLeadPassedThroughStatus);
 
   const fetchLossReasons = async () => {
     try {
