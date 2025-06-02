@@ -14,6 +14,8 @@ export const useAnalysisLogic = (leads: Lead[], selectedCategory: string) => {
       categoryFilteredLeads = leads.filter(lead => ["Novo", "Proposta", "Reunião"].includes(lead.status));
     } else if (selectedCategory === "estados") {
       categoryFilteredLeads = leads;
+    } else if (selectedCategory === "tipo-acao") {
+      categoryFilteredLeads = leads.filter(lead => lead.status === "Perdido");
     }
     
     return categoryFilteredLeads;
@@ -21,7 +23,7 @@ export const useAnalysisLogic = (leads: Lead[], selectedCategory: string) => {
 
   const shouldShowChart = () => selectedCategory !== "all";
   const shouldShowLossReasonsChart = () => selectedCategory === "perdas";
-  const shouldShowActionTypesChart = () => selectedCategory === "contratos" || selectedCategory === "oportunidades";
+  const shouldShowActionTypesChart = () => selectedCategory === "contratos" || selectedCategory === "oportunidades" || selectedCategory === "tipo-acao";
   const shouldShowStateChart = () => selectedCategory === "estados";
 
   return {

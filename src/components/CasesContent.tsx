@@ -129,6 +129,7 @@ export function CasesContent() {
       (selectedCategory === "contratos" && lead.status === "Contrato Fechado") ||
       (selectedCategory === "oportunidades" && ["Novo", "Proposta", "Reunião"].includes(lead.status)) ||
       (selectedCategory === "perdas" && lead.status === "Perdido") ||
+      (selectedCategory === "tipo-acao" && lead.status === "Perdido") ||
       (selectedCategory === "estados");
 
     // Aplicar filtros avançados para todas as categorias exceto "estados"
