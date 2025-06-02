@@ -6,25 +6,40 @@ export const useAnalysisLogic = (leads: Lead[], selectedCategory: string) => {
   const getLeadsForChart = useMemo(() => {
     let categoryFilteredLeads = leads;
     
-    if (selectedCategory === "perdas") {
+    // Extrair a categoria principal (antes do hífen se houver)
+    const mainCategory = selectedCategory.split('-')[0];
+    
+    if (mainCategory === "perdas") {
       categoryFilteredLeads = leads.filter(lead => lead.status === "Perdido");
-    } else if (selectedCategory === "contratos") {
+    } else if (mainCategory === "contratos") {
       categoryFilteredLeads = leads.filter(lead => lead.status === "Contrato Fechado");
-    } else if (selectedCategory === "oportunidades") {
+    } else if (mainCategory === "oportunidades") {
       categoryFilteredLeads = leads.filter(lead => ["Novo", "Proposta", "Reunião"].includes(lead.status));
     } else if (selectedCategory === "estados") {
       categoryFilteredLeads = leads;
-    } else if (selectedCategory === "tipo-acao") {
-      categoryFilteredLeads = leads.filter(lead => lead.status === "Perdido");
     }
     
     return categoryFilteredLeads;
   }, [leads, selectedCategory]);
 
   const shouldShowChart = () => selectedCategory !== "all";
-  const shouldShowLossReasonsChart = () => selectedCategory === "perdas";
-  const shouldShowActionTypesChart = () => selectedCategory === "contratos" || selectedCategory === "oportunidades" || selectedCategory === "tipo-acao";
-  const shouldShowStateChart = () => selectedCategory === "estados";
+  const shouldShowLossReasonsChart = () => {
+    const mainCategory = selectedCategory.split('-')[0];
+    return mainCategory === "perdas" && selectedCategory === "perdas";
+  };
+  const shouldShowActionTypesChart = () => {
+    const mainCategory = selectedCategory.split('-')[0];
+    return (mainCategory === "contratos" && selectedCategory === "contratos") || 
+           (mainCategory === "oportunidades" && selectedCategory === "oportunidades") || 
+           selectedCategory === "perdas-tipo-acao";
+  };
+  const shouldShowStateChart = () => {
+    const mainCategory = selectedCategory.split('-')[0];
+    return selectedCategory === "estados" || 
+           selectedCategory === "contratos-estados" || 
+           selectedCategory === "oportunidades-estados" || 
+           selectedCategory === "perdas-estados";
+  };
 
   return {
     getLeadsForChart,

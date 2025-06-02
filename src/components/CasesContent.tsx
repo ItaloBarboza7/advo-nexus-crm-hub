@@ -125,15 +125,17 @@ export function CasesContent() {
       (lead.email && lead.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (lead.company && lead.company.toLowerCase().includes(searchTerm.toLowerCase()));
     
+    // Extrair categoria principal para filtros
+    const mainCategory = selectedCategory.split('-')[0];
+    
     const matchesCategory = selectedCategory === "all" || 
-      (selectedCategory === "contratos" && lead.status === "Contrato Fechado") ||
-      (selectedCategory === "oportunidades" && ["Novo", "Proposta", "Reunião"].includes(lead.status)) ||
-      (selectedCategory === "perdas" && lead.status === "Perdido") ||
-      (selectedCategory === "tipo-acao" && lead.status === "Perdido") ||
-      (selectedCategory === "estados");
+      (mainCategory === "contratos" && lead.status === "Contrato Fechado") ||
+      (mainCategory === "oportunidades" && ["Novo", "Proposta", "Reunião"].includes(lead.status)) ||
+      (mainCategory === "perdas" && lead.status === "Perdido") ||
+      (selectedCategory === "estados" || selectedCategory.endsWith("-estados"));
 
     // Aplicar filtros avançados para todas as categorias exceto "estados"
-    const matchesAdvancedFilters = selectedCategory === "estados" || (
+    const matchesAdvancedFilters = selectedCategory === "estados" || selectedCategory.endsWith("-estados") || (
       (advancedFilters.status.length === 0 || advancedFilters.status.includes(lead.status)) &&
       (advancedFilters.source.length === 0 || !lead.source || advancedFilters.source.includes(lead.source)) &&
       (advancedFilters.actionType.length === 0 || !lead.action_type || advancedFilters.actionType.includes(lead.action_type)) &&

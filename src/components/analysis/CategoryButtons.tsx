@@ -8,19 +8,23 @@ interface CategoryButtonsProps {
 }
 
 export function CategoryButtons({ selectedCategory, onCategoryChange }: CategoryButtonsProps) {
+  // Extrair a categoria principal e subcategoria
+  const mainCategory = selectedCategory.split('-')[0];
+  const subCategory = selectedCategory.includes('-') ? selectedCategory.split('-')[1] : null;
+
   // Card Novos Contratos - mostrar apenas "Novos Contratos" e "Estados"
-  if (selectedCategory === "contratos") {
+  if (mainCategory === "contratos") {
     return (
       <div className="flex gap-2 flex-wrap">
         <Button
-          variant="default"
+          variant={selectedCategory === "contratos" ? "default" : "outline"}
           onClick={() => onCategoryChange("contratos")}
         >
           Novos Contratos
         </Button>
         <Button
-          variant="outline"
-          onClick={() => onCategoryChange("estados")}
+          variant={selectedCategory === "contratos-estados" ? "default" : "outline"}
+          onClick={() => onCategoryChange("contratos-estados")}
         >
           <MapPin className="h-4 w-4 mr-2" />
           Estados
@@ -30,18 +34,18 @@ export function CategoryButtons({ selectedCategory, onCategoryChange }: Category
   }
 
   // Card Oportunidades - mostrar apenas "Oportunidades" e "Estados"
-  if (selectedCategory === "oportunidades") {
+  if (mainCategory === "oportunidades") {
     return (
       <div className="flex gap-2 flex-wrap">
         <Button
-          variant="default"
+          variant={selectedCategory === "oportunidades" ? "default" : "outline"}
           onClick={() => onCategoryChange("oportunidades")}
         >
           Oportunidades
         </Button>
         <Button
-          variant="outline"
-          onClick={() => onCategoryChange("estados")}
+          variant={selectedCategory === "oportunidades-estados" ? "default" : "outline"}
+          onClick={() => onCategoryChange("oportunidades-estados")}
         >
           <MapPin className="h-4 w-4 mr-2" />
           Estados
@@ -51,25 +55,25 @@ export function CategoryButtons({ selectedCategory, onCategoryChange }: Category
   }
 
   // Card Perdas - mostrar "Perdas", "Estados" e "Tipo de ação"
-  if (selectedCategory === "perdas") {
+  if (mainCategory === "perdas") {
     return (
       <div className="flex gap-2 flex-wrap">
         <Button
-          variant="default"
+          variant={selectedCategory === "perdas" ? "default" : "outline"}
           onClick={() => onCategoryChange("perdas")}
         >
           Perdas
         </Button>
         <Button
-          variant="outline"
-          onClick={() => onCategoryChange("estados")}
+          variant={selectedCategory === "perdas-estados" ? "default" : "outline"}
+          onClick={() => onCategoryChange("perdas-estados")}
         >
           <MapPin className="h-4 w-4 mr-2" />
           Estados
         </Button>
         <Button
-          variant="outline"
-          onClick={() => onCategoryChange("tipo-acao")}
+          variant={selectedCategory === "perdas-tipo-acao" ? "default" : "outline"}
+          onClick={() => onCategoryChange("perdas-tipo-acao")}
         >
           <FileText className="h-4 w-4 mr-2" />
           Tipo de ação
@@ -88,19 +92,19 @@ export function CategoryButtons({ selectedCategory, onCategoryChange }: Category
         Todos
       </Button>
       <Button
-        variant={selectedCategory === "contratos" ? "default" : "outline"}
+        variant={mainCategory === "contratos" ? "default" : "outline"}
         onClick={() => onCategoryChange("contratos")}
       >
         Novos Contratos
       </Button>
       <Button
-        variant={selectedCategory === "oportunidades" ? "default" : "outline"}
+        variant={mainCategory === "oportunidades" ? "default" : "outline"}
         onClick={() => onCategoryChange("oportunidades")}
       >
         Oportunidades
       </Button>
       <Button
-        variant={selectedCategory === "perdas" ? "default" : "outline"}
+        variant={mainCategory === "perdas" ? "default" : "outline"}
         onClick={() => onCategoryChange("perdas")}
       >
         Perdas
