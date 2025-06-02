@@ -1,8 +1,7 @@
+
 import { useState } from "react";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Filter, X } from "lucide-react";
@@ -11,6 +10,12 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
+import { StatusFilter } from "@/components/filters/StatusFilter";
+import { SourceFilter } from "@/components/filters/SourceFilter";
+import { ActionTypeFilter } from "@/components/filters/ActionTypeFilter";
+import { StateFilter } from "@/components/filters/StateFilter";
+import { LossReasonFilter } from "@/components/filters/LossReasonFilter";
+import { useFilterOptions } from "@/hooks/useFilterOptions";
 
 interface AdvancedFiltersProps {
   onFiltersChange: (filters: FilterOptions) => void;
@@ -30,65 +35,7 @@ export interface FilterOptions {
 
 export function AdvancedFilters({ onFiltersChange, activeFilters, selectedCategory, lossReasons = [] }: AdvancedFiltersProps) {
   const [isOpen, setIsOpen] = useState(false);
-
-  const statusOptions = [
-    { value: "Novo", label: "Novo" },
-    { value: "Reunião", label: "Reunião" },
-    { value: "Proposta", label: "Proposta" },
-    { value: "Contrato Fechado", label: "Contrato Fechado" },
-    { value: "Perdido", label: "Perdido" }
-  ];
-
-  const sourceOptions = [
-    { value: "website", label: "Website" },
-    { value: "indicacao", label: "Indicação" },
-    { value: "google", label: "Google Ads" },
-    { value: "facebook", label: "Facebook" },
-    { value: "linkedin", label: "LinkedIn" },
-    { value: "outros", label: "Outros" }
-  ];
-
-  const actionTypeOptions = [
-    { value: "consultoria", label: "Consultoria Jurídica" },
-    { value: "contratos", label: "Contratos" },
-    { value: "trabalhista", label: "Trabalhista" },
-    { value: "compliance", label: "Compliance" },
-    { value: "tributario", label: "Tributário" },
-    { value: "civil", label: "Civil" },
-    { value: "criminal", label: "Criminal" },
-    { value: "outros", label: "Outros" }
-  ];
-
-  // Lista completa de todos os estados brasileiros
-  const stateOptions = [
-    { value: "Acre", label: "Acre" },
-    { value: "Alagoas", label: "Alagoas" },
-    { value: "Amapá", label: "Amapá" },
-    { value: "Amazonas", label: "Amazonas" },
-    { value: "Bahia", label: "Bahia" },
-    { value: "Ceará", label: "Ceará" },
-    { value: "Distrito Federal", label: "Distrito Federal" },
-    { value: "Espírito Santo", label: "Espírito Santo" },
-    { value: "Goiás", label: "Goiás" },
-    { value: "Maranhão", label: "Maranhão" },
-    { value: "Mato Grosso", label: "Mato Grosso" },
-    { value: "Mato Grosso do Sul", label: "Mato Grosso do Sul" },
-    { value: "Minas Gerais", label: "Minas Gerais" },
-    { value: "Pará", label: "Pará" },
-    { value: "Paraíba", label: "Paraíba" },
-    { value: "Paraná", label: "Paraná" },
-    { value: "Pernambuco", label: "Pernambuco" },
-    { value: "Piauí", label: "Piauí" },
-    { value: "Rio de Janeiro", label: "Rio de Janeiro" },
-    { value: "Rio Grande do Norte", label: "Rio Grande do Norte" },
-    { value: "Rio Grande do Sul", label: "Rio Grande do Sul" },
-    { value: "Rondônia", label: "Rondônia" },
-    { value: "Roraima", label: "Roraima" },
-    { value: "Santa Catarina", label: "Santa Catarina" },
-    { value: "São Paulo", label: "São Paulo" },
-    { value: "Sergipe", label: "Sergipe" },
-    { value: "Tocantins", label: "Tocantins" }
-  ];
+  const { statusOptions, sourceOptions, actionTypeOptions, stateOptions } = useFilterOptions();
 
   const handleStatusChange = (status: string, checked: boolean) => {
     const newStatus = checked
@@ -184,141 +131,49 @@ export function AdvancedFilters({ onFiltersChange, activeFilters, selectedCatego
 
         <ScrollArea className="h-96">
           <div className="p-4 space-y-4">
-            {/* Status Filter - Only show when category is NOT "perdas" */}
             {selectedCategory !== "perdas" && (
               <>
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-gray-700">Status</h4>
-                  <div className="space-y-2">
-                    {statusOptions.map((option) => (
-                      <div key={option.value} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`status-${option.value}`}
-                          checked={activeFilters.status.includes(option.value)}
-                          onCheckedChange={(checked) => 
-                            handleStatusChange(option.value, checked as boolean)
-                          }
-                        />
-                        <label 
-                          htmlFor={`status-${option.value}`} 
-                          className="text-sm text-gray-600 cursor-pointer"
-                        >
-                          {option.label}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
+                <StatusFilter
+                  statusOptions={statusOptions}
+                  activeFilters={activeFilters.status}
+                  onStatusChange={handleStatusChange}
+                />
                 <Separator />
               </>
             )}
 
-            {/* Source Filter */}
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium text-gray-700">Fonte</h4>
-              <div className="space-y-2">
-                {sourceOptions.map((option) => (
-                  <div key={option.value} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`source-${option.value}`}
-                      checked={activeFilters.source.includes(option.value)}
-                      onCheckedChange={(checked) => 
-                        handleSourceChange(option.value, checked as boolean)
-                      }
-                    />
-                    <label 
-                      htmlFor={`source-${option.value}`} 
-                      className="text-sm text-gray-600 cursor-pointer"
-                    >
-                      {option.label}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <SourceFilter
+              sourceOptions={sourceOptions}
+              activeFilters={activeFilters.source}
+              onSourceChange={handleSourceChange}
+            />
 
             <Separator />
 
-            {/* Action Type Filter */}
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium text-gray-700">Tipo de Ação</h4>
-              <div className="space-y-2">
-                {actionTypeOptions.map((option) => (
-                  <div key={option.value} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`action-${option.value}`}
-                      checked={activeFilters.actionType.includes(option.value)}
-                      onCheckedChange={(checked) => 
-                        handleActionTypeChange(option.value, checked as boolean)
-                      }
-                    />
-                    <label 
-                      htmlFor={`action-${option.value}`} 
-                      className="text-sm text-gray-600 cursor-pointer"
-                    >
-                      {option.label}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <ActionTypeFilter
+              actionTypeOptions={actionTypeOptions}
+              activeFilters={activeFilters.actionType}
+              onActionTypeChange={handleActionTypeChange}
+            />
 
             <Separator />
 
-            {/* Loss Reason Filter - Only show when category is "perdas" */}
             {selectedCategory === "perdas" && (
               <>
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-gray-700">Motivo da Perda</h4>
-                  <div className="space-y-2">
-                    {lossReasons.map((reason) => (
-                      <div key={reason.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`loss-reason-${reason.id}`}
-                          checked={activeFilters.lossReason.includes(reason.reason)}
-                          onCheckedChange={(checked) => 
-                            handleLossReasonChange(reason.reason, checked as boolean)
-                          }
-                        />
-                        <label 
-                          htmlFor={`loss-reason-${reason.id}`} 
-                          className="text-sm text-gray-600 cursor-pointer"
-                        >
-                          {reason.reason}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
+                <LossReasonFilter
+                  lossReasons={lossReasons}
+                  activeFilters={activeFilters.lossReason}
+                  onLossReasonChange={handleLossReasonChange}
+                />
                 <Separator />
               </>
             )}
 
-            {/* State Filter */}
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium text-gray-700">Estado</h4>
-              <div className="space-y-2">
-                {stateOptions.map((option) => (
-                  <div key={option.value} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`state-${option.value}`}
-                      checked={activeFilters.state.includes(option.value)}
-                      onCheckedChange={(checked) => 
-                        handleStateChange(option.value, checked as boolean)
-                      }
-                    />
-                    <label 
-                      htmlFor={`state-${option.value}`} 
-                      className="text-sm text-gray-600 cursor-pointer"
-                    >
-                      {option.label}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <StateFilter
+              stateOptions={stateOptions}
+              activeFilters={activeFilters.state}
+              onStateChange={handleStateChange}
+            />
           </div>
         </ScrollArea>
       </DropdownMenuContent>

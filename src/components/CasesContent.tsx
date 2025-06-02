@@ -1,9 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Search, TrendingUp, Users, UserCheck, UserX, Target, MapPin } from "lucide-react";
+import { Search } from "lucide-react";
 import { DateRange } from "react-day-picker";
 import { DateFilter } from "@/components/DateFilter";
 import { LossReasonsChart } from "@/components/LossReasonsChart";
@@ -13,10 +11,13 @@ import { GroupedLeadsList } from "@/components/GroupedLeadsList";
 import { AdvancedFilters, FilterOptions } from "@/components/AdvancedFilters";
 import { LeadDetailsDialog } from "@/components/LeadDetailsDialog";
 import { EditLeadForm } from "@/components/EditLeadForm";
+import { AnalysisStats } from "@/components/analysis/AnalysisStats";
+import { CategoryButtons } from "@/components/analysis/CategoryButtons";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
 import { useLeadStatusHistory } from "@/hooks/useLeadStatusHistory";
+import { useAnalysisLogic } from "@/hooks/useAnalysisLogic";
 
 interface LossReason {
   id: string;
@@ -43,6 +44,13 @@ export function CasesContent() {
   });
   const { toast } = useToast();
   const { statusHistory, hasLeadPassedThroughStatus } = useLeadStatusHistory();
+  const {
+    getLeadsForChart,
+    shouldShowChart,
+    shouldShowLossReasonsChart,
+    shouldShowActionTypesChart,
+    shouldShowStateChart
+  } = useAnalysisLogic(leads, selectedCategory);
 
   const fetchLossReasons = async () => {
     try {
@@ -112,59 +120,6 @@ export function CasesContent() {
     fetchLeads();
   }, []);
 
-  // Calcular estatísticas com base nos dados reais - agora incluindo "Todos"
-  const analysisStats = [
-    {
-      title: "Todos",
-      value: leads.length.toString(),
-      icon: Users,
-      change: "+5%",
-      changeType: "positive" as const,
-      color: "bg-purple-100 text-purple-800",
-    },
-    {
-      title: "Novos Contratos",
-      value: leads.filter(lead => lead.status === "Contrato Fechado").length.toString(),
-      icon: UserCheck,
-      change: "+18%",
-      changeType: "positive" as const,
-      color: "bg-green-100 text-green-800",
-    },
-    {
-      title: "Oportunidades",
-      value: leads.filter(lead => ["Novo", "Proposta", "Reunião"].includes(lead.status)).length.toString(),
-      icon: Target,
-      change: "+12%",
-      changeType: "positive" as const,
-      color: "bg-blue-100 text-blue-800",
-    },
-    {
-      title: "Perdas",
-      value: leads.filter(lead => lead.status === "Perdido").length.toString(),
-      icon: UserX,
-      change: "-8%",
-      changeType: "positive" as const,
-      color: "bg-red-100 text-red-800",
-    },
-  ];
-
-  // Filter leads for charts based on category
-  const getLeadsForChart = () => {
-    let categoryFilteredLeads = leads;
-    
-    if (selectedCategory === "perdas") {
-      categoryFilteredLeads = leads.filter(lead => lead.status === "Perdido");
-    } else if (selectedCategory === "contratos") {
-      categoryFilteredLeads = leads.filter(lead => lead.status === "Contrato Fechado");
-    } else if (selectedCategory === "oportunidades") {
-      categoryFilteredLeads = leads.filter(lead => ["Novo", "Proposta", "Reunião"].includes(lead.status));
-    } else if (selectedCategory === "estados") {
-      categoryFilteredLeads = leads;
-    }
-    
-    return categoryFilteredLeads;
-  };
-
   const filteredLeads = leads.filter(lead => {
     const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (lead.email && lead.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -201,22 +156,6 @@ export function CasesContent() {
     });
   };
 
-  const shouldShowChart = () => {
-    return selectedCategory !== "all";
-  };
-
-  const shouldShowLossReasonsChart = () => {
-    return selectedCategory === "perdas";
-  };
-
-  const shouldShowActionTypesChart = () => {
-    return selectedCategory === "contratos" || selectedCategory === "oportunidades";
-  };
-
-  const shouldShowStateChart = () => {
-    return selectedCategory === "estados";
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -227,69 +166,12 @@ export function CasesContent() {
         <DateFilter date={dateRange} setDate={setDateRange} />
       </div>
 
-      {/* Stats Cards - agora com 4 cards incluindo "Todos" */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {analysisStats.map((stat, index) => (
-          <Card key={index} className="p-6 hover:shadow-lg transition-shadow cursor-pointer"
-                onClick={() => handleCategoryChange(stat.title.toLowerCase().replace(" ", "").replace("novos", "").replace("contratos", "contratos").replace("oportunidades", "oportunidades").replace("perdas", "perdas").replace("todos", "all"))}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                <p className="text-2xl font-bold text-gray-900 mt-2">{stat.value}</p>
-                <div className="flex items-center mt-2">
-                  <TrendingUp className={`h-4 w-4 mr-1 ${
-                    stat.changeType === 'positive' ? 'text-green-500' : 'text-red-500'
-                  }`} />
-                  <span className={`text-sm font-medium ${
-                    stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {stat.change}
-                  </span>
-                  <span className="text-sm text-gray-500 ml-1">vs mês anterior</span>
-                </div>
-              </div>
-              <div className={`p-3 rounded-lg ${stat.color.split(' ')[0]}-100`}>
-                <stat.icon className={`h-6 w-6 ${stat.color.split(' ')[1]}-600`} />
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
+      <AnalysisStats leads={leads} onCategoryChange={handleCategoryChange} />
 
-      {/* Category Filter Buttons */}
-      <div className="flex gap-2 flex-wrap">
-        <Button
-          variant={selectedCategory === "all" ? "default" : "outline"}
-          onClick={() => handleCategoryChange("all")}
-        >
-          Todos
-        </Button>
-        <Button
-          variant={selectedCategory === "contratos" ? "default" : "outline"}
-          onClick={() => handleCategoryChange("contratos")}
-        >
-          Novos Contratos
-        </Button>
-        <Button
-          variant={selectedCategory === "oportunidades" ? "default" : "outline"}
-          onClick={() => handleCategoryChange("oportunidades")}
-        >
-          Oportunidades
-        </Button>
-        <Button
-          variant={selectedCategory === "perdas" ? "default" : "outline"}
-          onClick={() => handleCategoryChange("perdas")}
-        >
-          Perdas
-        </Button>
-        <Button
-          variant={selectedCategory === "estados" ? "default" : "outline"}
-          onClick={() => handleCategoryChange("estados")}
-        >
-          <MapPin className="h-4 w-4 mr-2" />
-          Estados
-        </Button>
-      </div>
+      <CategoryButtons 
+        selectedCategory={selectedCategory}
+        onCategoryChange={handleCategoryChange}
+      />
 
       {/* Search and Filters */}
       <Card className="p-6">
@@ -304,7 +186,6 @@ export function CasesContent() {
             />
           </div>
           
-          {/* Mostrar filtros avançados para todas as categorias exceto "estados" */}
           {selectedCategory !== "estados" && (
             <AdvancedFilters 
               onFiltersChange={setAdvancedFilters}
@@ -320,15 +201,15 @@ export function CasesContent() {
       {shouldShowChart() && (
         <>
           {shouldShowLossReasonsChart() && (
-            <LossReasonsChart leads={getLeadsForChart()} />
+            <LossReasonsChart leads={getLeadsForChart} />
           )}
           
           {shouldShowActionTypesChart() && (
-            <ActionTypesChart leads={getLeadsForChart()} />
+            <ActionTypesChart leads={getLeadsForChart} />
           )}
 
           {shouldShowStateChart() && (
-            <StateStatsChart leads={getLeadsForChart()} />
+            <StateStatsChart leads={getLeadsForChart} />
           )}
         </>
       )}
