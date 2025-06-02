@@ -8,43 +8,140 @@ import { Lead } from "@/types/lead";
 
 interface StateStatsChartProps {
   leads: Lead[];
+  selectedCategory?: string;
+  hasLeadPassedThroughStatus?: (leadId: string, statuses: string[]) => boolean;
 }
 
-export function StateStatsChart({ leads }: StateStatsChartProps) {
+export function StateStatsChart({ leads, selectedCategory = "all", hasLeadPassedThroughStatus }: StateStatsChartProps) {
+  
+  // Função para verificar se um lead é uma oportunidade
+  const isOpportunityLead = (lead: Lead): boolean => {
+    if (!hasLeadPassedThroughStatus) return false;
+    
+    if (lead.status === "Novo") return false;
+    if (lead.status === "Perdido" || lead.status === "Contrato Fechado") return false;
+    
+    const hasPassedThroughTargetStatuses = hasLeadPassedThroughStatus(lead.id, ["Proposta", "Reunião"]);
+    
+    if (lead.status === "Proposta" || lead.status === "Reunião") return true;
+    
+    return hasPassedThroughTargetStatuses;
+  };
+
   const stateStats = useMemo(() => {
     if (!leads || !Array.isArray(leads)) {
       return [];
     }
+    
+    const mainCategory = selectedCategory.split('-')[0];
     
     const states = leads.reduce((acc, lead) => {
       const state = lead.state || "Não informado";
       if (!acc[state]) {
         acc[state] = {
           total: 0,
-          contratos: 0
+          contratos: 0,
+          oportunidades: 0,
+          perdas: 0
         };
       }
       
+      // Sempre contar o total
       acc[state].total += 1;
       
+      // Contar contratos
       if (lead.status === "Contrato Fechado") {
         acc[state].contratos += 1;
       }
       
+      // Contar oportunidades
+      if (isOpportunityLead(lead)) {
+        acc[state].oportunidades += 1;
+      }
+      
+      // Contar perdas
+      if (lead.status === "Perdido") {
+        acc[state].perdas += 1;
+      }
+      
       return acc;
-    }, {} as Record<string, { total: number; contratos: number; }>);
+    }, {} as Record<string, { total: number; contratos: number; oportunidades: number; perdas: number; }>);
 
     return Object.entries(states)
-      .map(([state, stats]) => ({
-        state,
-        ...stats,
-        taxaConversao: stats.total > 0 ? (stats.contratos / stats.total) * 100 : 0
-      }))
-      .sort((a, b) => b.taxaConversao - a.taxaConversao); // Ordenar por taxa de conversão
-  }, [leads]);
+      .map(([state, stats]) => {
+        let metrica = 0;
+        let taxaConversao = 0;
+        
+        // Definir métrica baseada na categoria
+        switch (mainCategory) {
+          case "contratos":
+            metrica = stats.contratos;
+            taxaConversao = stats.total > 0 ? (stats.contratos / stats.total) * 100 : 0;
+            break;
+          case "oportunidades":
+            metrica = stats.oportunidades;
+            taxaConversao = stats.total > 0 ? (stats.oportunidades / stats.total) * 100 : 0;
+            break;
+          case "perdas":
+            metrica = stats.perdas;
+            taxaConversao = stats.total > 0 ? (stats.perdas / stats.total) * 100 : 0;
+            break;
+          default: // "all" ou "estados"
+            metrica = stats.total;
+            taxaConversao = stats.total > 0 ? (stats.contratos / stats.total) * 100 : 0;
+            break;
+        }
+        
+        return {
+          state,
+          total: stats.total,
+          contratos: stats.contratos,
+          oportunidades: stats.oportunidades,
+          perdas: stats.perdas,
+          metrica,
+          taxaConversao
+        };
+      })
+      .sort((a, b) => {
+        // Para ranking geral (todos), ordenar por quantidade total
+        if (mainCategory === "all" || selectedCategory === "estados") {
+          return b.total - a.total;
+        }
+        // Para outras categorias, ordenar pela métrica específica
+        return b.metrica - a.metrica;
+      });
+  }, [leads, selectedCategory, hasLeadPassedThroughStatus]);
+
+  const getTitle = () => {
+    const mainCategory = selectedCategory.split('-')[0];
+    switch (mainCategory) {
+      case "contratos":
+        return "Estados com Mais Contratos";
+      case "oportunidades":
+        return "Estados com Mais Oportunidades";
+      case "perdas":
+        return "Estados com Mais Perdas";
+      default:
+        return "Estados com Mais Leads";
+    }
+  };
+
+  const getMetricaLabel = () => {
+    const mainCategory = selectedCategory.split('-')[0];
+    switch (mainCategory) {
+      case "contratos":
+        return "contratos";
+      case "oportunidades":
+        return "oportunidades";
+      case "perdas":
+        return "perdas";
+      default:
+        return "leads";
+    }
+  };
 
   const totalLeads = leads?.length || 0;
-  const totalContratos = stateStats.reduce((acc, state) => acc + state.contratos, 0);
+  const totalMetrica = stateStats.reduce((acc, state) => acc + state.metrica, 0);
   const top3Estados = stateStats.slice(0, 3);
 
   if (totalLeads === 0) {
@@ -53,7 +150,7 @@ export function StateStatsChart({ leads }: StateStatsChartProps) {
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
             <MapPin className="h-5 w-5 text-purple-500" />
-            Performance por Estado
+            {getTitle()}
           </h3>
         </div>
         <div className="text-center text-gray-500 py-8">
@@ -68,7 +165,7 @@ export function StateStatsChart({ leads }: StateStatsChartProps) {
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
           <MapPin className="h-5 w-5 text-purple-500" />
-          Performance por Estado
+          {getTitle()}
         </h3>
         <div className="flex items-center gap-4 text-sm text-gray-600">
           <div className="flex items-center gap-1">
@@ -77,16 +174,16 @@ export function StateStatsChart({ leads }: StateStatsChartProps) {
           </div>
           <div className="flex items-center gap-1">
             <UserCheck className="h-4 w-4 text-green-600" />
-            <span>{totalContratos} contratos</span>
+            <span>{totalMetrica} {getMetricaLabel()}</span>
           </div>
         </div>
       </div>
 
-      {/* Top 3 Estados - Ranking de Conversão */}
+      {/* Top 3 Estados */}
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-4">
           <Trophy className="h-5 w-5 text-yellow-500" />
-          <h4 className="font-semibold text-gray-800">Top 3 Estados por Conversão</h4>
+          <h4 className="font-semibold text-gray-800">Top 3 Estados</h4>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -112,7 +209,7 @@ export function StateStatsChart({ leads }: StateStatsChartProps) {
                   index === 1 ? 'bg-gray-100 text-gray-800' :
                   'bg-orange-100 text-orange-800'
                 }>
-                  {estado.taxaConversao.toFixed(1)}%
+                  {estado.metrica}
                 </Badge>
               </div>
               
@@ -122,16 +219,9 @@ export function StateStatsChart({ leads }: StateStatsChartProps) {
                   <div className="text-gray-600 text-xs">Total</div>
                 </div>
                 <div className="text-center">
-                  <div className="font-bold text-green-700">{estado.contratos}</div>
-                  <div className="text-gray-600 text-xs">Contratos</div>
+                  <div className="font-bold text-green-700">{estado.metrica}</div>
+                  <div className="text-gray-600 text-xs">{getMetricaLabel()}</div>
                 </div>
-              </div>
-              
-              <div className="mt-3">
-                <Progress 
-                  value={estado.taxaConversao} 
-                  className="h-2"
-                />
               </div>
             </div>
           ))}
@@ -154,15 +244,11 @@ export function StateStatsChart({ leads }: StateStatsChartProps) {
               <div className="flex items-center gap-4">
                 <div className="text-center">
                   <div className="text-sm font-semibold text-gray-900">{estado.total}</div>
-                  <div className="text-xs text-gray-600">leads</div>
+                  <div className="text-xs text-gray-600">total</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-sm font-semibold text-green-700">{estado.contratos}</div>
-                  <div className="text-xs text-gray-600">contratos</div>
-                </div>
-                <div className="text-center min-w-[60px]">
-                  <div className="text-sm font-bold text-purple-700">{estado.taxaConversao.toFixed(1)}%</div>
-                  <div className="text-xs text-gray-600">conversão</div>
+                  <div className="text-sm font-semibold text-purple-700">{estado.metrica}</div>
+                  <div className="text-xs text-gray-600">{getMetricaLabel()}</div>
                 </div>
               </div>
             </div>
@@ -177,8 +263,8 @@ export function StateStatsChart({ leads }: StateStatsChartProps) {
             <div>Estados ativos</div>
           </div>
           <div>
-            <span className="font-semibold text-gray-900">{((totalContratos / totalLeads) * 100).toFixed(1)}%</span>
-            <div>Taxa geral de conversão</div>
+            <span className="font-semibold text-gray-900">{totalMetrica}</span>
+            <div>Total de {getMetricaLabel()}</div>
           </div>
         </div>
       </div>

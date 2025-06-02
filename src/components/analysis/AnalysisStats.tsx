@@ -6,9 +6,36 @@ import { Lead } from "@/types/lead";
 interface AnalysisStatsProps {
   leads: Lead[];
   onCategoryChange: (category: string) => void;
+  statusHistory: any[];
+  hasLeadPassedThroughStatus: (leadId: string, statuses: string[]) => boolean;
 }
 
-export function AnalysisStats({ leads, onCategoryChange }: AnalysisStatsProps) {
+export function AnalysisStats({ leads, onCategoryChange, statusHistory, hasLeadPassedThroughStatus }: AnalysisStatsProps) {
+  
+  // Função para verificar se um lead é uma oportunidade (mesma lógica do useAnalysisLogic)
+  const isOpportunityLead = (lead: Lead): boolean => {
+    // PRIMEIRO: Excluir completamente leads com status "Novo"
+    if (lead.status === "Novo") {
+      return false;
+    }
+    
+    // SEGUNDO: Excluir leads com status final (Perdido/Contrato Fechado)
+    if (lead.status === "Perdido" || lead.status === "Contrato Fechado") {
+      return false;
+    }
+    
+    // TERCEIRO: Para leads em outros status, verificar se passaram por Proposta/Reunião
+    const hasPassedThroughTargetStatuses = hasLeadPassedThroughStatus(lead.id, ["Proposta", "Reunião"]);
+    
+    // Se está em Proposta ou Reunião atualmente, incluir automaticamente
+    if (lead.status === "Proposta" || lead.status === "Reunião") {
+      return true;
+    }
+    
+    // Para outros status, deve ter passado por Proposta/Reunião
+    return hasPassedThroughTargetStatuses;
+  };
+
   const analysisStats = [
     {
       title: "Todos",
@@ -30,7 +57,7 @@ export function AnalysisStats({ leads, onCategoryChange }: AnalysisStatsProps) {
     },
     {
       title: "Oportunidades",
-      value: leads.filter(lead => ["Novo", "Proposta", "Reunião"].includes(lead.status)).length.toString(),
+      value: leads.filter(lead => isOpportunityLead(lead)).length.toString(),
       icon: Target,
       change: "+12%",
       changeType: "positive" as const,

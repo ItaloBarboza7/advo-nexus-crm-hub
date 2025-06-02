@@ -206,7 +206,12 @@ export function CasesContent() {
         <DateFilter date={dateRange} setDate={setDateRange} />
       </div>
 
-      <AnalysisStats leads={leads} onCategoryChange={handleCategoryChange} />
+      <AnalysisStats 
+        leads={leads} 
+        onCategoryChange={handleCategoryChange}
+        statusHistory={statusHistory}
+        hasLeadPassedThroughStatus={hasLeadPassedThroughStatus}
+      />
 
       <CategoryButtons 
         selectedCategory={selectedCategory}
@@ -252,7 +257,11 @@ export function CasesContent() {
           )}
 
           {shouldShowStateChart() && (
-            <StateStatsChart leads={getLeadsForChart} />
+            <StateStatsChart 
+              leads={getLeadsForChart} 
+              selectedCategory={selectedCategory}
+              hasLeadPassedThroughStatus={hasLeadPassedThroughStatus}
+            />
           )}
         </>
       )}
