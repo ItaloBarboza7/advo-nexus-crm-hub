@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Target, Users, BarChart3, PieChart as PieChartIcon } from "lucide-react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, LabelList } from "recharts";
 import { Lead } from "@/types/lead";
 
 interface ActionTypesChartProps {
@@ -40,7 +40,7 @@ export function ActionTypesChart({ leads }: ActionTypesChartProps) {
 
     return Object.entries(actionTypes)
       .map(([type, count], index) => ({
-        name: type, // Para o gráfico de pizza
+        name: type,
         type,
         count,
         percentage: leads.length > 0 ? (count / leads.length) * 100 : 0,
@@ -50,7 +50,12 @@ export function ActionTypesChart({ leads }: ActionTypesChartProps) {
   }, [leads]);
 
   const totalLeads = leads?.length || 0;
-  const maxCount = Math.max(...chartData.map(item => item.count), 1);
+
+  const renderCustomizedLabel = (entry: any) => {
+    const percent = entry.percent * 100;
+    if (percent < 5) return ''; // Não mostra percentual para fatias muito pequenas
+    return `${percent.toFixed(0)}%`;
+  };
 
   if (totalLeads === 0) {
     return (
@@ -107,7 +112,7 @@ export function ActionTypesChart({ leads }: ActionTypesChartProps) {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div 
-                      className="w-4 h-4 rounded-full flex-shrink-0 shadow-sm" 
+                      className="w-4 h-4 rounded-full flex-shrink-0 shadow-sm border border-white" 
                       style={{ backgroundColor: item.color }}
                     />
                     <span className="font-medium text-gray-800 truncate text-sm">
@@ -116,23 +121,24 @@ export function ActionTypesChart({ leads }: ActionTypesChartProps) {
                   </div>
                   <div className="flex items-center gap-3 text-sm text-gray-600 ml-4">
                     <span className="font-bold text-gray-900 min-w-[2rem] text-right">{item.count}</span>
-                    <span className="text-xs bg-gradient-to-r from-blue-50 to-blue-25 px-3 py-1 rounded-full font-semibold min-w-[3.5rem] text-center border border-blue-200 text-blue-700">
+                    <span className="text-xs bg-gradient-to-r from-blue-50 to-blue-100 px-3 py-1 rounded-full font-semibold min-w-[3.5rem] text-center border border-blue-200 text-blue-700">
                       {item.percentage.toFixed(1)}%
                     </span>
                   </div>
                 </div>
                 <div className="relative">
-                  <div className="w-full bg-gradient-to-r from-gray-100 to-gray-50 rounded-full h-4 overflow-hidden shadow-inner border border-gray-200">
+                  <div className="w-full bg-gradient-to-r from-gray-50 to-gray-100 rounded-full h-6 overflow-hidden shadow-inner border border-gray-200">
                     <div
                       className="h-full rounded-full relative overflow-hidden transition-all duration-1000 ease-out shadow-sm"
                       style={{ 
-                        width: `${item.percentage}%`, // Corrigido aqui também!
-                        background: `linear-gradient(135deg, ${item.color} 0%, ${item.color}f0 50%, ${item.color}e6 100%)`
+                        width: `${item.percentage}%`,
+                        background: `linear-gradient(135deg, ${item.color} 0%, ${item.color}e6 50%, ${item.color}cc 100%)`
                       }}
                     >
-                      <div className="absolute inset-0 bg-gradient-to-r from-white/40 via-white/20 to-transparent"></div>
-                      <div className="absolute inset-0 bg-gradient-to-b from-white/30 to-black/10"></div>
-                      <div className="absolute right-0 top-0 bottom-0 w-1 bg-gradient-to-b from-white/60 to-white/20"></div>
+                      <div className="absolute inset-0 bg-gradient-to-r from-white/30 via-white/10 to-transparent"></div>
+                      <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-black/5"></div>
+                      <div className="absolute right-0 top-0 bottom-0 w-1 bg-gradient-to-b from-white/50 to-white/10 rounded-r-full"></div>
+                      <div className="absolute inset-0 rounded-full shadow-inner"></div>
                     </div>
                   </div>
                 </div>
@@ -154,6 +160,12 @@ export function ActionTypesChart({ leads }: ActionTypesChartProps) {
                 {chartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
+                <LabelList 
+                  dataKey="percentage" 
+                  position="outside"
+                  formatter={(value: number) => `${value.toFixed(1)}%`}
+                  className="fill-gray-700 text-sm font-medium"
+                />
               </Pie>
               <Tooltip 
                 contentStyle={{ 
@@ -173,7 +185,7 @@ export function ActionTypesChart({ leads }: ActionTypesChartProps) {
                 wrapperStyle={{ paddingTop: '20px' }}
                 formatter={(value: string, entry: any) => (
                   <span style={{ fontSize: '12px', color: '#374151' }}>
-                    {entry.payload.type}
+                    {entry.payload.type} ({entry.payload.percentage.toFixed(1)}%)
                   </span>
                 )}
               />
