@@ -132,12 +132,11 @@ export function ActionTypesChart({ leads }: ActionTypesChartProps) {
                 <div className="relative">
                   <div className="w-full bg-gray-200 rounded-full h-8 overflow-hidden shadow-inner">
                     <div
-                      className="h-full rounded-full relative overflow-hidden transition-all duration-1000 ease-out"
+                      className="h-full rounded-full relative overflow-hidden transition-all duration-1000 ease-out animate-gradient-shift"
                       style={{ 
                         width: `${item.percentage}%`,
                         background: `linear-gradient(45deg, ${item.color}, ${item.color}ff, ${item.color}cc, ${item.color}ff, ${item.color})`,
                         backgroundSize: '400% 400%',
-                        animation: 'gradient-shift 3s ease infinite',
                         boxShadow: `
                           0 0 20px ${item.color}60,
                           inset 0 1px 0 rgba(255,255,255,0.6),
@@ -147,7 +146,7 @@ export function ActionTypesChart({ leads }: ActionTypesChartProps) {
                       }}
                     >
                       <div 
-                        className="absolute inset-0 rounded-full"
+                        className="absolute inset-0 rounded-full animate-laser-sweep"
                         style={{
                           background: `linear-gradient(90deg, 
                             transparent 0%, 
@@ -155,8 +154,7 @@ export function ActionTypesChart({ leads }: ActionTypesChartProps) {
                             rgba(255,255,255,0.8) 50%, 
                             rgba(255,255,255,0.6) 80%, 
                             transparent 100%
-                          )`,
-                          animation: 'laser-sweep 2s ease-in-out infinite'
+                          )`
                         }}
                       />
                       <div 
@@ -222,20 +220,6 @@ export function ActionTypesChart({ leads }: ActionTypesChartProps) {
           <span>Principal tipo: {chartData[0]?.type || 'N/A'}</span>
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes gradient-shift {
-          0% { background-position: 0% 50% }
-          50% { background-position: 100% 50% }
-          100% { background-position: 0% 50% }
-        }
-        
-        @keyframes laser-sweep {
-          0% { transform: translateX(-100%); opacity: 0 }
-          50% { opacity: 1 }
-          100% { transform: translateX(100%); opacity: 0 }
-        }
-      `}</style>
     </Card>
   );
 }
