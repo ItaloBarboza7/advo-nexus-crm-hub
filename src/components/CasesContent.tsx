@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -113,8 +112,16 @@ export function CasesContent() {
     fetchLeads();
   }, []);
 
-  // Calcular estatísticas com base nos dados reais
+  // Calcular estatísticas com base nos dados reais - agora incluindo "Todos"
   const analysisStats = [
+    {
+      title: "Todos",
+      value: leads.length.toString(),
+      icon: Users,
+      change: "+5%",
+      changeType: "positive" as const,
+      color: "bg-purple-100 text-purple-800",
+    },
     {
       title: "Novos Contratos",
       value: leads.filter(lead => lead.status === "Contrato Fechado").length.toString(),
@@ -220,11 +227,11 @@ export function CasesContent() {
         <DateFilter date={dateRange} setDate={setDateRange} />
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Stats Cards - agora com 4 cards incluindo "Todos" */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {analysisStats.map((stat, index) => (
           <Card key={index} className="p-6 hover:shadow-lg transition-shadow cursor-pointer"
-                onClick={() => handleCategoryChange(stat.title.toLowerCase().replace(" ", "").replace("novos", "").replace("contratos", "contratos").replace("oportunidades", "oportunidades").replace("perdas", "perdas"))}>
+                onClick={() => handleCategoryChange(stat.title.toLowerCase().replace(" ", "").replace("novos", "").replace("contratos", "contratos").replace("oportunidades", "oportunidades").replace("perdas", "perdas").replace("todos", "all"))}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">{stat.title}</p>

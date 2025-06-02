@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -185,31 +184,35 @@ export function AdvancedFilters({ onFiltersChange, activeFilters, selectedCatego
 
         <ScrollArea className="h-96">
           <div className="p-4 space-y-4">
-            {/* Status Filter */}
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium text-gray-700">Status</h4>
-              <div className="space-y-2">
-                {statusOptions.map((option) => (
-                  <div key={option.value} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`status-${option.value}`}
-                      checked={activeFilters.status.includes(option.value)}
-                      onCheckedChange={(checked) => 
-                        handleStatusChange(option.value, checked as boolean)
-                      }
-                    />
-                    <label 
-                      htmlFor={`status-${option.value}`} 
-                      className="text-sm text-gray-600 cursor-pointer"
-                    >
-                      {option.label}
-                    </label>
+            {/* Status Filter - Only show when category is NOT "perdas" */}
+            {selectedCategory !== "perdas" && (
+              <>
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium text-gray-700">Status</h4>
+                  <div className="space-y-2">
+                    {statusOptions.map((option) => (
+                      <div key={option.value} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`status-${option.value}`}
+                          checked={activeFilters.status.includes(option.value)}
+                          onCheckedChange={(checked) => 
+                            handleStatusChange(option.value, checked as boolean)
+                          }
+                        />
+                        <label 
+                          htmlFor={`status-${option.value}`} 
+                          className="text-sm text-gray-600 cursor-pointer"
+                        >
+                          {option.label}
+                        </label>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
 
-            <Separator />
+                <Separator />
+              </>
+            )}
 
             {/* Source Filter */}
             <div className="space-y-2">
