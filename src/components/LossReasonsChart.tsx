@@ -100,8 +100,11 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div 
-                      className="w-4 h-4 rounded-full flex-shrink-0 shadow-sm border border-white" 
-                      style={{ backgroundColor: item.color }}
+                      className="w-4 h-4 rounded-full flex-shrink-0 shadow-lg border-2 border-white" 
+                      style={{ 
+                        backgroundColor: item.color,
+                        boxShadow: `0 0 12px ${item.color}40, inset 0 1px 0 rgba(255,255,255,0.4)`
+                      }}
                     />
                     <span className="font-medium text-gray-800 truncate text-sm">
                       {item.reason}
@@ -109,24 +112,47 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
                   </div>
                   <div className="flex items-center gap-3 text-sm text-gray-600 ml-4">
                     <span className="font-bold text-gray-900 min-w-[2rem] text-right">{item.count}</span>
-                    <span className="text-xs bg-gradient-to-r from-red-50 to-red-100 px-3 py-1 rounded-full font-semibold min-w-[3.5rem] text-center border border-red-200 text-red-700">
+                    <span className="text-xs bg-gradient-to-r from-red-50 to-red-100 px-3 py-1 rounded-full font-semibold min-w-[3.5rem] text-center border border-red-200 text-red-700 shadow-sm">
                       {item.percentage.toFixed(1)}%
                     </span>
                   </div>
                 </div>
                 <div className="relative">
-                  <div className="w-full bg-gradient-to-r from-gray-50 to-gray-100 rounded-full h-6 overflow-hidden shadow-inner border border-gray-200">
+                  <div className="w-full bg-gray-200 rounded-full h-8 overflow-hidden shadow-inner">
                     <div
-                      className="h-full rounded-full relative overflow-hidden transition-all duration-1000 ease-out shadow-sm"
+                      className="h-full rounded-full relative overflow-hidden transition-all duration-1000 ease-out"
                       style={{ 
                         width: `${item.percentage}%`,
-                        background: `linear-gradient(135deg, ${item.color} 0%, ${item.color}e6 50%, ${item.color}cc 100%)`
+                        background: `linear-gradient(45deg, ${item.color}, ${item.color}ff, ${item.color}cc, ${item.color}ff, ${item.color})`,
+                        backgroundSize: '400% 400%',
+                        animation: 'gradient-shift 3s ease infinite',
+                        boxShadow: `
+                          0 0 20px ${item.color}60,
+                          inset 0 1px 0 rgba(255,255,255,0.6),
+                          inset 0 -1px 0 rgba(0,0,0,0.2),
+                          0 4px 15px ${item.color}30
+                        `
                       }}
                     >
-                      <div className="absolute inset-0 bg-gradient-to-r from-white/30 via-white/10 to-transparent"></div>
-                      <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-black/5"></div>
-                      <div className="absolute right-0 top-0 bottom-0 w-1 bg-gradient-to-b from-white/50 to-white/10 rounded-r-full"></div>
-                      <div className="absolute inset-0 rounded-full shadow-inner"></div>
+                      <div 
+                        className="absolute inset-0 rounded-full"
+                        style={{
+                          background: `linear-gradient(90deg, 
+                            transparent 0%, 
+                            rgba(255,255,255,0.6) 20%, 
+                            rgba(255,255,255,0.8) 50%, 
+                            rgba(255,255,255,0.6) 80%, 
+                            transparent 100%
+                          )`,
+                          animation: 'laser-sweep 2s ease-in-out infinite'
+                        }}
+                      />
+                      <div 
+                        className="absolute inset-0 rounded-full opacity-30"
+                        style={{
+                          background: `radial-gradient(ellipse at center, ${item.color}ff 0%, transparent 70%)`
+                        }}
+                      />
                     </div>
                   </div>
                 </div>
@@ -184,6 +210,20 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
           <span>Principal motivo: {chartData[0]?.reason || 'N/A'}</span>
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes gradient-shift {
+          0% { background-position: 0% 50% }
+          50% { background-position: 100% 50% }
+          100% { background-position: 0% 50% }
+        }
+        
+        @keyframes laser-sweep {
+          0% { transform: translateX(-100%); opacity: 0 }
+          50% { opacity: 1 }
+          100% { transform: translateX(100%); opacity: 0 }
+        }
+      `}</style>
     </Card>
   );
 }

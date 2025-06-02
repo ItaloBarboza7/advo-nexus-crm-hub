@@ -3,11 +3,12 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, TrendingUp, Users, UserCheck, UserX, Target } from "lucide-react";
+import { Search, TrendingUp, Users, UserCheck, UserX, Target, MapPin } from "lucide-react";
 import { DateRange } from "react-day-picker";
 import { DateFilter } from "@/components/DateFilter";
 import { LossReasonsChart } from "@/components/LossReasonsChart";
 import { ActionTypesChart } from "@/components/ActionTypesChart";
+import { StateStatsChart } from "@/components/StateStatsChart";
 import { GroupedLeadsList } from "@/components/GroupedLeadsList";
 import { AdvancedFilters, FilterOptions } from "@/components/AdvancedFilters";
 import { LeadDetailsDialog } from "@/components/LeadDetailsDialog";
@@ -147,14 +148,19 @@ export function CasesContent() {
 
   // Filter leads for charts based on category
   const getLeadsForChart = () => {
+    let categoryFilteredLeads = leads;
+    
     if (selectedCategory === "perdas") {
-      return filteredLeads.filter(lead => lead.status === "Perdido");
+      categoryFilteredLeads = leads.filter(lead => lead.status === "Perdido");
     } else if (selectedCategory === "contratos") {
-      return filteredLeads.filter(lead => lead.status === "Contrato Fechado");
+      categoryFilteredLeads = leads.filter(lead => lead.status === "Contrato Fechado");
     } else if (selectedCategory === "oportunidades") {
-      return filteredLeads.filter(lead => ["Novo", "Proposta", "Reunião"].includes(lead.status));
+      categoryFilteredLeads = leads.filter(lead => ["Novo", "Proposta", "Reunião"].includes(lead.status));
+    } else if (selectedCategory === "estados") {
+      categoryFilteredLeads = leads;
     }
-    return filteredLeads;
+    
+    return categoryFilteredLeads;
   };
 
   const filteredLeads = leads.filter(lead => {
@@ -165,14 +171,16 @@ export function CasesContent() {
     const matchesCategory = selectedCategory === "all" || 
       (selectedCategory === "contratos" && lead.status === "Contrato Fechado") ||
       (selectedCategory === "oportunidades" && ["Novo", "Proposta", "Reunião"].includes(lead.status)) ||
-      (selectedCategory === "perdas" && lead.status === "Perdido");
+      (selectedCategory === "perdas" && lead.status === "Perdido") ||
+      (selectedCategory === "estados");
     
     const matchesLossReason = selectedCategory !== "perdas" || 
       selectedLossReason === "all" || 
       lead.loss_reason === selectedLossReason;
 
-    // Aplicar filtros avançados apenas quando categoria é "all"
-    const matchesAdvancedFilters = selectedCategory !== "all" || (
+    // Aplicar filtros avançados corretamente para cada categoria
+    const matchesAdvancedFilters = selectedCategory === "all" || 
+      selectedCategory === "estados" || (
       (advancedFilters.status.length === 0 || advancedFilters.status.includes(lead.status)) &&
       (advancedFilters.source.length === 0 || !lead.source || advancedFilters.source.includes(lead.source)) &&
       (advancedFilters.actionType.length === 0 || !lead.action_type || advancedFilters.actionType.includes(lead.action_type)) &&
@@ -205,6 +213,10 @@ export function CasesContent() {
 
   const shouldShowActionTypesChart = () => {
     return selectedCategory === "contratos" || selectedCategory === "oportunidades";
+  };
+
+  const shouldShowStateChart = () => {
+    return selectedCategory === "estados";
   };
 
   return (
@@ -272,6 +284,13 @@ export function CasesContent() {
         >
           Perdas
         </Button>
+        <Button
+          variant={selectedCategory === "estados" ? "default" : "outline"}
+          onClick={() => handleCategoryChange("estados")}
+        >
+          <MapPin className="h-4 w-4 mr-2" />
+          Estados
+        </Button>
       </div>
 
       {/* Search and Filters */}
@@ -287,7 +306,7 @@ export function CasesContent() {
             />
           </div>
           
-          {(selectedCategory === "all" || selectedCategory === "contratos" || selectedCategory === "oportunidades" || selectedCategory === "perdas") && (
+          {selectedCategory === "all" && (
             <AdvancedFilters 
               onFiltersChange={setAdvancedFilters}
               activeFilters={advancedFilters}
@@ -339,23 +358,31 @@ export function CasesContent() {
           {shouldShowActionTypesChart() && (
             <ActionTypesChart leads={getLeadsForChart()} />
           )}
+
+          {shouldShowStateChart() && (
+            <StateStatsChart leads={getLeadsForChart()} />
+          )}
         </>
       )}
 
       {/* Lista de Leads Agrupada */}
-      {isLoading ? (
-        <Card className="p-12 text-center">
-          <div className="text-gray-500">
-            <p>Carregando leads...</p>
-          </div>
-        </Card>
-      ) : (
-        <GroupedLeadsList 
-          leads={filteredLeads}
-          selectedCategory={selectedCategory}
-          onViewDetails={handleViewDetails}
-          onEditLead={handleEditLead}
-        />
+      {!shouldShowStateChart() && (
+        <>
+          {isLoading ? (
+            <Card className="p-12 text-center">
+              <div className="text-gray-500">
+                <p>Carregando leads...</p>
+              </div>
+            </Card>
+          ) : (
+            <GroupedLeadsList 
+              leads={filteredLeads}
+              selectedCategory={selectedCategory}
+              onViewDetails={handleViewDetails}
+              onEditLead={handleEditLead}
+            />
+          )}
+        </>
       )}
 
       <LeadDetailsDialog
