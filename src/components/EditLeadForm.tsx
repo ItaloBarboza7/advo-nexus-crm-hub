@@ -62,19 +62,8 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
     loss_reason: "",
   });
   
-  // Estado para armazenar os dados originais
-  const [originalData, setOriginalData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    state: "",
-    source: "",
-    status: "",
-    action_type: "",
-    value: "",
-    description: "",
-    loss_reason: "",
-  });
+  // Estado para armazenar os dados originais do lead
+  const [originalLeadData, setOriginalLeadData] = useState<Lead | null>(null);
   
   const [isLoading, setIsLoading] = useState(false);
   const [showNewOptionInput, setShowNewOptionInput] = useState<string | null>(null);
@@ -105,6 +94,11 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
   // Update form data when lead changes
   useEffect(() => {
     if (lead && open) {
+      console.log("🔄 EditLeadForm - Carregando dados do lead:", lead);
+      
+      // Salvar dados originais do lead
+      setOriginalLeadData(lead);
+      
       const initialData = {
         name: lead.name || "",
         email: lead.email || "",
@@ -118,8 +112,8 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
         loss_reason: lead.loss_reason || "",
       };
       
+      console.log("📋 EditLeadForm - Dados iniciais do formulário:", initialData);
       setFormData(initialData);
-      setOriginalData(initialData); // Salvar dados originais
     }
   }, [lead, open]);
 
@@ -129,18 +123,47 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
     }
   }, [open]);
 
+  // Função para restaurar dados originais
+  const restoreOriginalData = () => {
+    if (originalLeadData) {
+      const restoredData = {
+        name: originalLeadData.name || "",
+        email: originalLeadData.email || "",
+        phone: originalLeadData.phone || "",
+        state: originalLeadData.state || "",
+        source: originalLeadData.source || "",
+        status: originalLeadData.status || "",
+        action_type: originalLeadData.action_type || "",
+        value: originalLeadData.value?.toString() || "",
+        description: originalLeadData.description || "",
+        loss_reason: originalLeadData.loss_reason || "",
+      };
+      
+      console.log("🔄 EditLeadForm - Restaurando dados originais:", restoredData);
+      setFormData(restoredData);
+    }
+  };
+
   // Função para lidar com o fechamento do modal
   const handleClose = () => {
+    console.log("❌ EditLeadForm - Fechando modal sem salvar");
+    
     // Restaurar dados originais
-    setFormData(originalData);
+    restoreOriginalData();
+    
+    // Limpar estados auxiliares
     setShowNewOptionInput(null);
     setNewOptionValue("");
+    
+    // Fechar modal
     onOpenChange(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!lead) return;
+
+    console.log("💾 EditLeadForm - Salvando lead com dados:", formData);
 
     setIsLoading(true);
     try {
@@ -170,6 +193,8 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
         return;
       }
 
+      console.log("✅ EditLeadForm - Lead atualizado com sucesso");
+
       toast({
         title: "Sucesso",
         description: "Lead atualizado com sucesso.",
@@ -190,6 +215,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
   };
 
   const handleInputChange = (field: string, value: string) => {
+    console.log(`📝 EditLeadForm - Alterando ${field} para:`, value);
     setFormData(prev => ({
       ...prev,
       [field]: value

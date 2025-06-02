@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,12 +14,6 @@ import { GroupedLeadsList } from "@/components/GroupedLeadsList";
 import { AdvancedFilters, FilterOptions } from "@/components/AdvancedFilters";
 import { LeadDetailsDialog } from "@/components/LeadDetailsDialog";
 import { EditLeadForm } from "@/components/EditLeadForm";
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
@@ -34,7 +29,6 @@ export function CasesContent() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [lossReasons, setLossReasons] = useState<LossReason[]>([]);
-  const [selectedLossReason, setSelectedLossReason] = useState<string>("all");
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -45,6 +39,7 @@ export function CasesContent() {
     source: [],
     actionType: [],
     state: [],
+    lossReason: [],
     valueRange: { min: null, max: null }
   });
   const { toast } = useToast();
@@ -173,31 +168,28 @@ export function CasesContent() {
       (selectedCategory === "oportunidades" && ["Novo", "Proposta", "Reunião"].includes(lead.status)) ||
       (selectedCategory === "perdas" && lead.status === "Perdido") ||
       (selectedCategory === "estados");
-    
-    const matchesLossReason = selectedCategory !== "perdas" || 
-      selectedLossReason === "all" || 
-      lead.loss_reason === selectedLossReason;
 
     // Aplicar filtros avançados para todas as categorias exceto "estados"
     const matchesAdvancedFilters = selectedCategory === "estados" || (
       (advancedFilters.status.length === 0 || advancedFilters.status.includes(lead.status)) &&
       (advancedFilters.source.length === 0 || !lead.source || advancedFilters.source.includes(lead.source)) &&
       (advancedFilters.actionType.length === 0 || !lead.action_type || advancedFilters.actionType.includes(lead.action_type)) &&
-      (advancedFilters.state.length === 0 || !lead.state || advancedFilters.state.includes(lead.state))
+      (advancedFilters.state.length === 0 || !lead.state || advancedFilters.state.includes(lead.state)) &&
+      (advancedFilters.lossReason.length === 0 || !lead.loss_reason || advancedFilters.lossReason.includes(lead.loss_reason))
     );
     
-    return matchesSearch && matchesCategory && matchesLossReason && matchesAdvancedFilters;
+    return matchesSearch && matchesCategory && matchesAdvancedFilters;
   });
 
   const handleCategoryChange = (category: string) => {
     setSelectedCategory(category);
-    setSelectedLossReason("all");
     // Limpar filtros avançados quando mudar de categoria
     setAdvancedFilters({
       status: [],
       source: [],
       actionType: [],
       state: [],
+      lossReason: [],
       valueRange: { min: null, max: null }
     });
   };
@@ -310,40 +302,9 @@ export function CasesContent() {
             <AdvancedFilters 
               onFiltersChange={setAdvancedFilters}
               activeFilters={advancedFilters}
+              selectedCategory={selectedCategory}
+              lossReasons={lossReasons}
             />
-          )}
-
-          {selectedCategory === "perdas" && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline">
-                  <Search className="h-4 w-4 mr-2" />
-                  Motivos das Perdas
-                  {selectedLossReason !== "all" && (
-                    <Badge className="ml-2 bg-red-100 text-red-800">
-                      1
-                    </Badge>
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56 bg-white border border-gray-200 shadow-lg z-50">
-                <DropdownMenuItem 
-                  onClick={() => setSelectedLossReason("all")}
-                  className={selectedLossReason === "all" ? "bg-gray-100" : ""}
-                >
-                  Todos os motivos
-                </DropdownMenuItem>
-                {lossReasons.map((reason) => (
-                  <DropdownMenuItem 
-                    key={reason.id} 
-                    onClick={() => setSelectedLossReason(reason.reason)}
-                    className={selectedLossReason === reason.reason ? "bg-gray-100" : ""}
-                  >
-                    {reason.reason}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
           )}
         </div>
       </Card>

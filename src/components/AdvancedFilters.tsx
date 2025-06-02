@@ -16,6 +16,8 @@ import {
 interface AdvancedFiltersProps {
   onFiltersChange: (filters: FilterOptions) => void;
   activeFilters: FilterOptions;
+  selectedCategory?: string;
+  lossReasons?: Array<{ id: string; reason: string; }>;
 }
 
 export interface FilterOptions {
@@ -23,10 +25,11 @@ export interface FilterOptions {
   source: string[];
   actionType: string[];
   state: string[];
+  lossReason: string[];
   valueRange: { min: number | null; max: number | null };
 }
 
-export function AdvancedFilters({ onFiltersChange, activeFilters }: AdvancedFiltersProps) {
+export function AdvancedFilters({ onFiltersChange, activeFilters, selectedCategory, lossReasons = [] }: AdvancedFiltersProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const statusOptions = [
@@ -120,12 +123,21 @@ export function AdvancedFilters({ onFiltersChange, activeFilters }: AdvancedFilt
     onFiltersChange({ ...activeFilters, state: newState });
   };
 
+  const handleLossReasonChange = (lossReason: string, checked: boolean) => {
+    const newLossReason = checked
+      ? [...activeFilters.lossReason, lossReason]
+      : activeFilters.lossReason.filter(l => l !== lossReason);
+    
+    onFiltersChange({ ...activeFilters, lossReason: newLossReason });
+  };
+
   const clearAllFilters = () => {
     onFiltersChange({
       status: [],
       source: [],
       actionType: [],
       state: [],
+      lossReason: [],
       valueRange: { min: null, max: null }
     });
   };
@@ -134,7 +146,8 @@ export function AdvancedFilters({ onFiltersChange, activeFilters }: AdvancedFilt
     return activeFilters.status.length + 
            activeFilters.source.length + 
            activeFilters.actionType.length +
-           activeFilters.state.length;
+           activeFilters.state.length +
+           activeFilters.lossReason.length;
   };
 
   const activeFiltersCount = getActiveFiltersCount();
@@ -249,6 +262,36 @@ export function AdvancedFilters({ onFiltersChange, activeFilters }: AdvancedFilt
             </div>
 
             <Separator />
+
+            {/* Loss Reason Filter - Only show when category is "perdas" */}
+            {selectedCategory === "perdas" && (
+              <>
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium text-gray-700">Motivo da Perda</h4>
+                  <div className="space-y-2">
+                    {lossReasons.map((reason) => (
+                      <div key={reason.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`loss-reason-${reason.id}`}
+                          checked={activeFilters.lossReason.includes(reason.reason)}
+                          onCheckedChange={(checked) => 
+                            handleLossReasonChange(reason.reason, checked as boolean)
+                          }
+                        />
+                        <label 
+                          htmlFor={`loss-reason-${reason.id}`} 
+                          className="text-sm text-gray-600 cursor-pointer"
+                        >
+                          {reason.reason}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <Separator />
+              </>
+            )}
 
             {/* State Filter */}
             <div className="space-y-2">

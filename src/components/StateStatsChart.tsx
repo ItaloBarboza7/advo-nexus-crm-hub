@@ -2,7 +2,7 @@
 import { useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Users, UserCheck, TrendingUp, Trophy } from "lucide-react";
+import { MapPin, Users, UserCheck, Trophy } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Lead } from "@/types/lead";
 
@@ -45,7 +45,6 @@ export function StateStatsChart({ leads }: StateStatsChartProps) {
 
   const totalLeads = leads?.length || 0;
   const totalContratos = stateStats.reduce((acc, state) => acc + state.contratos, 0);
-  const melhorEstado = stateStats[0];
   const top3Estados = stateStats.slice(0, 3);
 
   if (totalLeads === 0) {
@@ -172,18 +171,14 @@ export function StateStatsChart({ leads }: StateStatsChartProps) {
       </div>
 
       <div className="mt-6 pt-4 border-t border-gray-200">
-        <div className="grid grid-cols-3 gap-4 text-sm text-gray-600 text-center">
+        <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 text-center">
           <div>
             <span className="font-semibold text-gray-900">{stateStats.length}</span>
             <div>Estados ativos</div>
           </div>
           <div>
-            <span className="font-semibold text-gray-900">{melhorEstado?.state || 'N/A'}</span>
-            <div>Melhor estado</div>
-          </div>
-          <div>
-            <span className="font-semibold text-gray-900">{melhorEstado?.taxaConversao.toFixed(1) || '0'}%</span>
-            <div>Melhor conversão</div>
+            <span className="font-semibold text-gray-900">{((totalContratos / totalLeads) * 100).toFixed(1)}%</span>
+            <div>Taxa geral de conversão</div>
           </div>
         </div>
       </div>
