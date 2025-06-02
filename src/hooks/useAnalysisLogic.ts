@@ -31,7 +31,22 @@ export const useAnalysisLogic = (
       categoryFilteredLeads = leads.filter(lead => {
         console.log(`🔍 Analisando lead ${lead.name} (${lead.id}) com status atual: ${lead.status}`);
         
-        // Verificar se o lead passou por "Proposta" ou "Reunião"
+        // Se o lead está atualmente em "Novo", verificar se ele NUNCA passou por "Proposta" ou "Reunião"
+        // Se ele passou e retornou para "Novo", deve ser excluído
+        if (lead.status === "Novo") {
+          const hasPassedThroughTargetStatuses = hasLeadPassedThroughStatus(lead.id, ["Proposta", "Reunião"]);
+          console.log(`📊 Lead ${lead.name} com status Novo - passou por Proposta/Reunião: ${hasPassedThroughTargetStatuses}`);
+          
+          if (hasPassedThroughTargetStatuses) {
+            console.log(`❌ Lead ${lead.name} retornou para Novo após passar por Proposta/Reunião - EXCLUÍDO`);
+            return false;
+          } else {
+            console.log(`✅ Lead ${lead.name} nunca passou por Proposta/Reunião - INCLUÍDO`);
+            return true;
+          }
+        }
+        
+        // Para leads que não estão em "Novo", verificar se passaram por "Proposta" ou "Reunião"
         const hasPassedThroughTargetStatuses = hasLeadPassedThroughStatus(lead.id, ["Proposta", "Reunião"]);
         console.log(`📊 Lead ${lead.name} passou por Proposta/Reunião: ${hasPassedThroughTargetStatuses}`);
         
@@ -40,37 +55,15 @@ export const useAnalysisLogic = (
           return false;
         }
         
-        // Verificar se o lead não retornou para "Novo" após passar por "Proposta" ou "Reunião"
-        const leadHistory = statusHistory
-          .filter(history => history.lead_id === lead.id)
-          .sort((a, b) => new Date(a.changed_at).getTime() - new Date(b.changed_at).getTime());
-        
-        console.log(`📜 Histórico do lead ${lead.name}:`, leadHistory.map(h => `${h.old_status} -> ${h.new_status} (${h.changed_at})`));
-        
-        // Encontrar quando o lead passou por "Proposta" ou "Reunião" pela primeira vez
-        const firstTargetStatusIndex = leadHistory.findIndex(history => 
-          ["Proposta", "Reunião"].includes(history.new_status)
-        );
-        
-        if (firstTargetStatusIndex === -1) {
-          console.log(`❌ Lead ${lead.name} não tem histórico de Proposta/Reunião - EXCLUÍDO`);
-          return false;
-        }
-        
-        // Verificar se após passar por "Proposta" ou "Reunião", o lead não retornou para "Novo"
-        const subsequentHistory = leadHistory.slice(firstTargetStatusIndex + 1);
-        const hasReturnedToNovo = subsequentHistory.some(history => history.new_status === "Novo");
-        
-        console.log(`🔄 Lead ${lead.name} retornou para Novo após Proposta/Reunião: ${hasReturnedToNovo}`);
-        
-        const shouldInclude = !hasReturnedToNovo;
-        console.log(`✅ Lead ${lead.name} será ${shouldInclude ? 'INCLUÍDO' : 'EXCLUÍDO'} do gráfico`);
-        
-        return shouldInclude;
+        console.log(`✅ Lead ${lead.name} passou por Proposta/Reunião e não está em Novo - INCLUÍDO`);
+        return true;
       });
     } else if (selectedCategory === "estados") {
       categoryFilteredLeads = leads;
     }
+    
+    console.log(`🎯 Total de leads filtrados para ${selectedCategory}:`, categoryFilteredLeads.length);
+    console.log(`📋 Leads incluídos:`, categoryFilteredLeads.map(l => `${l.name} (${l.status})`));
     
     return categoryFilteredLeads;
   }, [leads, selectedCategory, statusHistory, hasLeadPassedThroughStatus]);
