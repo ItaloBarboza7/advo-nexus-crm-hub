@@ -120,6 +120,42 @@ export function CasesContent() {
     fetchLeads();
   }, []);
 
+  // Função para verificar se um lead é uma oportunidade
+  const isOpportunityLead = (lead: Lead): boolean => {
+    console.log(`🔍 [CasesContent] Verificando se ${lead.name} (${lead.status}) é oportunidade`);
+    
+    // PRIMEIRO: Excluir completamente leads com status "Novo"
+    if (lead.status === "Novo") {
+      console.log(`❌ [CasesContent] Lead ${lead.name} está em Novo - SEMPRE EXCLUÍDO`);
+      return false;
+    }
+    
+    // SEGUNDO: Excluir leads com status final (Perdido/Contrato Fechado)
+    if (lead.status === "Perdido" || lead.status === "Contrato Fechado") {
+      console.log(`❌ [CasesContent] Lead ${lead.name} está em status final (${lead.status}) - EXCLUÍDO`);
+      return false;
+    }
+    
+    // TERCEIRO: Para leads em outros status, verificar se passaram por Proposta/Reunião
+    const hasPassedThroughTargetStatuses = hasLeadPassedThroughStatus(lead.id, ["Proposta", "Reunião"]);
+    console.log(`📊 [CasesContent] Lead ${lead.name} (${lead.status}) passou por Proposta/Reunião: ${hasPassedThroughTargetStatuses}`);
+    
+    // Se está em Proposta ou Reunião atualmente, incluir automaticamente
+    if (lead.status === "Proposta" || lead.status === "Reunião") {
+      console.log(`✅ [CasesContent] Lead ${lead.name} está atualmente em ${lead.status} - INCLUÍDO`);
+      return true;
+    }
+    
+    // Para outros status, deve ter passado por Proposta/Reunião
+    if (!hasPassedThroughTargetStatuses) {
+      console.log(`❌ [CasesContent] Lead ${lead.name} não passou por Proposta/Reunião - EXCLUÍDO`);
+      return false;
+    }
+    
+    console.log(`✅ [CasesContent] Lead ${lead.name} passou por Proposta/Reunião e está em ${lead.status} - INCLUÍDO`);
+    return true;
+  };
+
   const filteredLeads = leads.filter(lead => {
     const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (lead.email && lead.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -128,9 +164,10 @@ export function CasesContent() {
     // Extrair categoria principal para filtros
     const mainCategory = selectedCategory.split('-')[0];
     
+    // LÓGICA CORRIGIDA: usar a mesma regra do useAnalysisLogic
     const matchesCategory = selectedCategory === "all" || 
       (mainCategory === "contratos" && lead.status === "Contrato Fechado") ||
-      (mainCategory === "oportunidades" && ["Novo", "Proposta", "Reunião"].includes(lead.status)) ||
+      (mainCategory === "oportunidades" && isOpportunityLead(lead)) ||  // CORRIGIDO: usar função específica
       (mainCategory === "perdas" && lead.status === "Perdido") ||
       (selectedCategory === "estados" || selectedCategory.endsWith("-estados"));
 
