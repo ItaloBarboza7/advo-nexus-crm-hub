@@ -8,7 +8,49 @@ interface CategoryButtonsProps {
 }
 
 export function CategoryButtons({ selectedCategory, onCategoryChange }: CategoryButtonsProps) {
-  // Se a categoria selecionada for "perdas", mostrar apenas os botões específicos para perdas
+  // Card Novos Contratos - mostrar apenas "Novos Contratos" e "Estados"
+  if (selectedCategory === "contratos") {
+    return (
+      <div className="flex gap-2 flex-wrap">
+        <Button
+          variant="default"
+          onClick={() => onCategoryChange("contratos")}
+        >
+          Novos Contratos
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => onCategoryChange("estados")}
+        >
+          <MapPin className="h-4 w-4 mr-2" />
+          Estados
+        </Button>
+      </div>
+    );
+  }
+
+  // Card Oportunidades - mostrar apenas "Oportunidades" e "Estados"
+  if (selectedCategory === "oportunidades") {
+    return (
+      <div className="flex gap-2 flex-wrap">
+        <Button
+          variant="default"
+          onClick={() => onCategoryChange("oportunidades")}
+        >
+          Oportunidades
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => onCategoryChange("estados")}
+        >
+          <MapPin className="h-4 w-4 mr-2" />
+          Estados
+        </Button>
+      </div>
+    );
+  }
+
+  // Card Perdas - mostrar "Perdas", "Estados" e "Tipo de ação"
   if (selectedCategory === "perdas") {
     return (
       <div className="flex gap-2 flex-wrap">
@@ -36,7 +78,7 @@ export function CategoryButtons({ selectedCategory, onCategoryChange }: Category
     );
   }
 
-  // Botões padrão para outras categorias
+  // Botões padrão para categoria "all" e outras
   return (
     <div className="flex gap-2 flex-wrap">
       <Button
