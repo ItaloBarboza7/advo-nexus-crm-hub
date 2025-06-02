@@ -333,9 +333,13 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
   };
 
   const handleEditClick = () => {
+    console.log('Edit button clicked for lead:', lead);
     if (onEditLead && lead) {
+      console.log('Calling onEditLead with lead:', lead);
       onEditLead(lead);
       onOpenChange(false);
+    } else {
+      console.log('onEditLead is not available or lead is null');
     }
   };
 
