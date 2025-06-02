@@ -107,16 +107,22 @@ export function ClientsContent() {
   };
 
   const handleViewDetails = (lead: Lead) => {
+    console.log("🔍 ClientsContent - handleViewDetails chamado com lead:", lead.name);
     setSelectedLead(lead);
     setIsDetailsDialogOpen(true);
   };
 
   const handleEditLead = (lead: Lead) => {
+    console.log("✏️ ClientsContent - handleEditLead chamado com lead:", lead.name);
+    console.log("📋 Lead completo:", lead);
     setSelectedLead(lead);
     setIsEditFormOpen(true);
+    // Fechar o dialog de detalhes se estiver aberto
+    setIsDetailsDialogOpen(false);
   };
 
   const handleEditStatus = (lead: Lead) => {
+    console.log("🔄 ClientsContent - handleEditStatus chamado com lead:", lead.name);
     setSelectedLead(lead);
     setIsStatusFormOpen(true);
   };

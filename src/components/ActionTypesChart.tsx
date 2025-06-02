@@ -40,6 +40,7 @@ export function ActionTypesChart({ leads }: ActionTypesChartProps) {
 
     return Object.entries(actionTypes)
       .map(([type, count], index) => ({
+        name: type, // Para o gráfico de pizza
         type,
         count,
         percentage: leads.length > 0 ? (count / leads.length) * 100 : 0,
@@ -100,37 +101,38 @@ export function ActionTypesChart({ leads }: ActionTypesChartProps) {
 
       <div className="h-80">
         {viewType === 'bar' ? (
-          <div className="space-y-4 h-full overflow-y-auto">
+          <div className="space-y-6 h-full overflow-y-auto px-2">
             {chartData.map((item, index) => (
-              <div key={item.type} className="space-y-2">
+              <div key={item.type} className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div 
-                      className="w-3 h-3 rounded-full flex-shrink-0" 
+                      className="w-4 h-4 rounded-full flex-shrink-0 shadow-sm" 
                       style={{ backgroundColor: item.color }}
                     />
                     <span className="font-medium text-gray-800 truncate text-sm">
                       {item.type}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600 ml-4">
-                    <span className="font-semibold text-gray-900 min-w-[2rem] text-right">{item.count}</span>
-                    <span className="text-xs bg-gray-100 px-2 py-0.5 rounded-full font-medium min-w-[3rem] text-center">
+                  <div className="flex items-center gap-3 text-sm text-gray-600 ml-4">
+                    <span className="font-bold text-gray-900 min-w-[2rem] text-right">{item.count}</span>
+                    <span className="text-xs bg-gradient-to-r from-blue-50 to-blue-25 px-3 py-1 rounded-full font-semibold min-w-[3.5rem] text-center border border-blue-200 text-blue-700">
                       {item.percentage.toFixed(1)}%
                     </span>
                   </div>
                 </div>
                 <div className="relative">
-                  <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                  <div className="w-full bg-gradient-to-r from-gray-100 to-gray-50 rounded-full h-4 overflow-hidden shadow-inner border border-gray-200">
                     <div
-                      className="h-full rounded-full relative overflow-hidden transition-all duration-700 ease-out"
+                      className="h-full rounded-full relative overflow-hidden transition-all duration-1000 ease-out shadow-sm"
                       style={{ 
-                        width: `${(item.count / maxCount) * 100}%`,
-                        background: `linear-gradient(90deg, ${item.color} 0%, ${item.color}e6 50%, ${item.color}cc 100%)`
+                        width: `${item.percentage}%`, // Corrigido aqui também!
+                        background: `linear-gradient(135deg, ${item.color} 0%, ${item.color}f0 50%, ${item.color}e6 100%)`
                       }}
                     >
-                      <div className="absolute inset-0 bg-gradient-to-r from-white/30 via-white/10 to-transparent"></div>
-                      <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent"></div>
+                      <div className="absolute inset-0 bg-gradient-to-r from-white/40 via-white/20 to-transparent"></div>
+                      <div className="absolute inset-0 bg-gradient-to-b from-white/30 to-black/10"></div>
+                      <div className="absolute right-0 top-0 bottom-0 w-1 bg-gradient-to-b from-white/60 to-white/20"></div>
                     </div>
                   </div>
                 </div>
@@ -167,10 +169,11 @@ export function ActionTypesChart({ leads }: ActionTypesChartProps) {
               />
               <Legend 
                 verticalAlign="bottom" 
-                height={36}
-                formatter={(value: string) => (
-                  <span style={{ fontSize: '12px' }}>
-                    {value}
+                height={60}
+                wrapperStyle={{ paddingTop: '20px' }}
+                formatter={(value: string, entry: any) => (
+                  <span style={{ fontSize: '12px', color: '#374151' }}>
+                    {entry.payload.type}
                   </span>
                 )}
               />
