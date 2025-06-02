@@ -107,13 +107,11 @@ export function ClientsContent() {
   };
 
   const handleViewDetails = (lead: Lead) => {
-    console.log('handleViewDetails called with lead:', lead);
     setSelectedLead(lead);
     setIsDetailsDialogOpen(true);
   };
 
   const handleEditLead = (lead: Lead) => {
-    console.log('handleEditLead called with lead:', lead);
     setSelectedLead(lead);
     setIsEditFormOpen(true);
   };
