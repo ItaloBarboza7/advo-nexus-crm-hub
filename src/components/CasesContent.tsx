@@ -178,9 +178,8 @@ export function CasesContent() {
       selectedLossReason === "all" || 
       lead.loss_reason === selectedLossReason;
 
-    // Aplicar filtros avançados corretamente para cada categoria
-    const matchesAdvancedFilters = selectedCategory === "all" || 
-      selectedCategory === "estados" || (
+    // Aplicar filtros avançados para todas as categorias exceto "estados"
+    const matchesAdvancedFilters = selectedCategory === "estados" || (
       (advancedFilters.status.length === 0 || advancedFilters.status.includes(lead.status)) &&
       (advancedFilters.source.length === 0 || !lead.source || advancedFilters.source.includes(lead.source)) &&
       (advancedFilters.actionType.length === 0 || !lead.action_type || advancedFilters.actionType.includes(lead.action_type)) &&
@@ -306,7 +305,8 @@ export function CasesContent() {
             />
           </div>
           
-          {selectedCategory === "all" && (
+          {/* Mostrar filtros avançados para todas as categorias exceto "estados" */}
+          {selectedCategory !== "estados" && (
             <AdvancedFilters 
               onFiltersChange={setAdvancedFilters}
               activeFilters={advancedFilters}

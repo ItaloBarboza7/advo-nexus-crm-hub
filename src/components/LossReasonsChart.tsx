@@ -1,4 +1,3 @@
-
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -94,17 +93,14 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
 
       <div className="h-80">
         {viewType === 'bar' ? (
-          <div className="space-y-6 h-full overflow-y-auto px-2">
+          <div className="space-y-4 h-full overflow-y-auto px-2">
             {chartData.map((item, index) => (
-              <div key={item.reason} className="space-y-3">
+              <div key={item.reason} className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div 
-                      className="w-4 h-4 rounded-full flex-shrink-0 shadow-lg border-2 border-white" 
-                      style={{ 
-                        backgroundColor: item.color,
-                        boxShadow: `0 0 12px ${item.color}40, inset 0 1px 0 rgba(255,255,255,0.4)`
-                      }}
+                      className="w-3 h-3 rounded-full flex-shrink-0" 
+                      style={{ backgroundColor: item.color }}
                     />
                     <span className="font-medium text-gray-800 truncate text-sm">
                       {item.reason}
@@ -112,46 +108,20 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
                   </div>
                   <div className="flex items-center gap-3 text-sm text-gray-600 ml-4">
                     <span className="font-bold text-gray-900 min-w-[2rem] text-right">{item.count}</span>
-                    <span className="text-xs bg-gradient-to-r from-red-50 to-red-100 px-3 py-1 rounded-full font-semibold min-w-[3.5rem] text-center border border-red-200 text-red-700 shadow-sm">
+                    <span className="text-xs bg-red-50 px-2 py-1 rounded-full font-medium min-w-[3rem] text-center text-red-700">
                       {item.percentage.toFixed(1)}%
                     </span>
                   </div>
                 </div>
                 <div className="relative">
-                  <div className="w-full bg-gray-200 rounded-full h-8 overflow-hidden shadow-inner">
+                  <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                     <div
-                      className="h-full rounded-full relative overflow-hidden transition-all duration-1000 ease-out animate-gradient-shift"
+                      className="h-full rounded-full transition-all duration-500 ease-out"
                       style={{ 
                         width: `${item.percentage}%`,
-                        background: `linear-gradient(45deg, ${item.color}, ${item.color}ff, ${item.color}cc, ${item.color}ff, ${item.color})`,
-                        backgroundSize: '400% 400%',
-                        boxShadow: `
-                          0 0 20px ${item.color}60,
-                          inset 0 1px 0 rgba(255,255,255,0.6),
-                          inset 0 -1px 0 rgba(0,0,0,0.2),
-                          0 4px 15px ${item.color}30
-                        `
+                        backgroundColor: item.color
                       }}
-                    >
-                      <div 
-                        className="absolute inset-0 rounded-full animate-laser-sweep"
-                        style={{
-                          background: `linear-gradient(90deg, 
-                            transparent 0%, 
-                            rgba(255,255,255,0.6) 20%, 
-                            rgba(255,255,255,0.8) 50%, 
-                            rgba(255,255,255,0.6) 80%, 
-                            transparent 100%
-                          )`
-                        }}
-                      />
-                      <div 
-                        className="absolute inset-0 rounded-full opacity-30"
-                        style={{
-                          background: `radial-gradient(ellipse at center, ${item.color}ff 0%, transparent 70%)`
-                        }}
-                      />
-                    </div>
+                    />
                   </div>
                 </div>
               </div>
