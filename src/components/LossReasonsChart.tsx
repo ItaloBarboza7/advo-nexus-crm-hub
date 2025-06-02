@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { TrendingDown, Users, BarChart3, PieChart as PieChartIcon } from "lucide-react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, LabelList } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { Lead } from "@/types/lead";
 
 interface LossReasonsChartProps {
@@ -39,8 +39,8 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
 
   const totalLeads = leads?.length || 0;
 
-  const renderCustomizedLabel = (entry: any) => {
-    const percent = entry.percent * 100;
+  const renderCustomLabel = (entry: any) => {
+    const percent = entry.percentage;
     if (percent < 5) return ''; // Não mostra percentual para fatias muito pequenas
     return `${percent.toFixed(0)}%`;
   };
@@ -144,16 +144,12 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
                 outerRadius={120}
                 paddingAngle={2}
                 dataKey="count"
+                label={renderCustomLabel}
+                labelLine={false}
               >
                 {chartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
-                <LabelList 
-                  dataKey="percentage" 
-                  position="outside"
-                  formatter={(value: number) => `${value.toFixed(1)}%`}
-                  className="fill-gray-700 text-sm font-medium"
-                />
               </Pie>
               <Tooltip 
                 contentStyle={{ 
@@ -173,7 +169,7 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
                 wrapperStyle={{ paddingTop: '20px' }}
                 formatter={(value: string, entry: any) => (
                   <span style={{ fontSize: '12px', color: '#374151' }}>
-                    {entry.payload.reason} ({entry.payload.percentage.toFixed(1)}%)
+                    {entry.payload.reason}
                   </span>
                 )}
               />

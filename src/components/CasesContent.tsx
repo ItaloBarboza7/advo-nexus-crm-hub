@@ -10,6 +10,8 @@ import { LossReasonsChart } from "@/components/LossReasonsChart";
 import { ActionTypesChart } from "@/components/ActionTypesChart";
 import { GroupedLeadsList } from "@/components/GroupedLeadsList";
 import { AdvancedFilters, FilterOptions } from "@/components/AdvancedFilters";
+import { LeadDetailsDialog } from "@/components/LeadDetailsDialog";
+import { EditLeadForm } from "@/components/EditLeadForm";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -34,6 +36,9 @@ export function CasesContent() {
   const [selectedLossReason, setSelectedLossReason] = useState<string>("all");
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState<FilterOptions>({
     status: [],
     source: [],
@@ -91,6 +96,20 @@ export function CasesContent() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleViewDetails = (lead: Lead) => {
+    console.log("🔍 CasesContent - handleViewDetails chamado com lead:", lead.name);
+    setSelectedLead(lead);
+    setIsDetailsDialogOpen(true);
+  };
+
+  const handleEditLead = (lead: Lead) => {
+    console.log("✏️ CasesContent - handleEditLead chamado com lead:", lead.name);
+    console.log("📋 Lead completo:", lead);
+    setSelectedLead(lead);
+    setIsEditFormOpen(true);
+    setIsDetailsDialogOpen(false);
   };
 
   useEffect(() => {
@@ -268,7 +287,7 @@ export function CasesContent() {
             />
           </div>
           
-          {selectedCategory === "all" && (
+          {(selectedCategory === "all" || selectedCategory === "contratos" || selectedCategory === "oportunidades" || selectedCategory === "perdas") && (
             <AdvancedFilters 
               onFiltersChange={setAdvancedFilters}
               activeFilters={advancedFilters}
@@ -334,8 +353,24 @@ export function CasesContent() {
         <GroupedLeadsList 
           leads={filteredLeads}
           selectedCategory={selectedCategory}
+          onViewDetails={handleViewDetails}
+          onEditLead={handleEditLead}
         />
       )}
+
+      <LeadDetailsDialog
+        lead={selectedLead}
+        open={isDetailsDialogOpen}
+        onOpenChange={setIsDetailsDialogOpen}
+        onEditLead={handleEditLead}
+      />
+
+      <EditLeadForm
+        lead={selectedLead}
+        open={isEditFormOpen}
+        onOpenChange={setIsEditFormOpen}
+        onLeadUpdated={fetchLeads}
+      />
     </div>
   );
 }
