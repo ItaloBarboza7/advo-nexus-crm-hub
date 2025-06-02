@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -62,6 +61,21 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
     description: "",
     loss_reason: "",
   });
+  
+  // Estado para armazenar os dados originais
+  const [originalData, setOriginalData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    state: "",
+    source: "",
+    status: "",
+    action_type: "",
+    value: "",
+    description: "",
+    loss_reason: "",
+  });
+  
   const [isLoading, setIsLoading] = useState(false);
   const [showNewOptionInput, setShowNewOptionInput] = useState<string | null>(null);
   const [newOptionValue, setNewOptionValue] = useState("");
@@ -91,7 +105,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
   // Update form data when lead changes
   useEffect(() => {
     if (lead && open) {
-      setFormData({
+      const initialData = {
         name: lead.name || "",
         email: lead.email || "",
         phone: lead.phone || "",
@@ -102,7 +116,10 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
         value: lead.value?.toString() || "",
         description: lead.description || "",
         loss_reason: lead.loss_reason || "",
-      });
+      };
+      
+      setFormData(initialData);
+      setOriginalData(initialData); // Salvar dados originais
     }
   }, [lead, open]);
 
@@ -111,6 +128,15 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
       fetchLossReasons();
     }
   }, [open]);
+
+  // Função para lidar com o fechamento do modal
+  const handleClose = () => {
+    // Restaurar dados originais
+    setFormData(originalData);
+    setShowNewOptionInput(null);
+    setNewOptionValue("");
+    onOpenChange(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -260,7 +286,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
   if (!lead) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Editar Lead - {lead.name}</DialogTitle>
@@ -548,7 +574,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
             <Button 
               type="button" 
               variant="outline" 
-              onClick={() => onOpenChange(false)}
+              onClick={handleClose}
               className="flex-1"
             >
               Cancelar

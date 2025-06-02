@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -155,7 +156,7 @@ export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEdi
                       <strong>Telefone:</strong> {lead.phone}
                     </div>
                     <div>
-                      <strong>Empresa:</strong> {lead.company || 'Não informado'}
+                      <strong>Estado:</strong> {lead.state || 'Não informado'}
                     </div>
                   </div>
                 </div>
@@ -230,7 +231,7 @@ export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEdi
                             <strong>Telefone:</strong> {lead.phone}
                           </div>
                           <div>
-                            <strong>Empresa:</strong> {lead.company || 'Não informado'}
+                            <strong>Estado:</strong> {lead.state || 'Não informado'}
                           </div>
                         </div>
                       </div>
