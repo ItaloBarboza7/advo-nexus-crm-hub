@@ -27,35 +27,42 @@ export const useAnalysisLogic = (
     } else if (mainCategory === "contratos") {
       categoryFilteredLeads = leads.filter(lead => lead.status === "Contrato Fechado");
     } else if (mainCategory === "oportunidades") {
-      // Filtrar leads que passaram por "Proposta" ou "Reunião" mas não retornaram para "Novo"
+      // REGRA CORRIGIDA: Oportunidades são leads que:
+      // 1. NÃO estão em "Novo" (independente do histórico)
+      // 2. NÃO estão em "Perdido" ou "Contrato Fechado"
+      // 3. Estão em "Proposta", "Reunião" ou passaram por eles
       categoryFilteredLeads = leads.filter(lead => {
         console.log(`🔍 Analisando lead ${lead.name} (${lead.id}) com status atual: ${lead.status}`);
         
-        // Se o lead está atualmente em "Novo", verificar se ele NUNCA passou por "Proposta" ou "Reunião"
-        // Se ele passou e retornou para "Novo", deve ser excluído
+        // PRIMEIRO: Excluir completamente leads com status "Novo"
         if (lead.status === "Novo") {
-          const hasPassedThroughTargetStatuses = hasLeadPassedThroughStatus(lead.id, ["Proposta", "Reunião"]);
-          console.log(`📊 Lead ${lead.name} com status Novo - passou por Proposta/Reunião: ${hasPassedThroughTargetStatuses}`);
-          
-          if (hasPassedThroughTargetStatuses) {
-            console.log(`❌ Lead ${lead.name} retornou para Novo após passar por Proposta/Reunião - EXCLUÍDO`);
-            return false;
-          } else {
-            console.log(`✅ Lead ${lead.name} nunca passou por Proposta/Reunião - INCLUÍDO`);
-            return true;
-          }
+          console.log(`❌ Lead ${lead.name} está em Novo - SEMPRE EXCLUÍDO de oportunidades`);
+          return false;
         }
         
-        // Para leads que não estão em "Novo", verificar se passaram por "Proposta" ou "Reunião"
-        const hasPassedThroughTargetStatuses = hasLeadPassedThroughStatus(lead.id, ["Proposta", "Reunião"]);
-        console.log(`📊 Lead ${lead.name} passou por Proposta/Reunião: ${hasPassedThroughTargetStatuses}`);
+        // SEGUNDO: Excluir leads com status final (Perdido/Contrato Fechado)
+        if (lead.status === "Perdido" || lead.status === "Contrato Fechado") {
+          console.log(`❌ Lead ${lead.name} está em status final (${lead.status}) - EXCLUÍDO de oportunidades`);
+          return false;
+        }
         
+        // TERCEIRO: Para leads em outros status, verificar se passaram por Proposta/Reunião
+        const hasPassedThroughTargetStatuses = hasLeadPassedThroughStatus(lead.id, ["Proposta", "Reunião"]);
+        console.log(`📊 Lead ${lead.name} (${lead.status}) passou por Proposta/Reunião: ${hasPassedThroughTargetStatuses}`);
+        
+        // Se está em Proposta ou Reunião atualmente, incluir automaticamente
+        if (lead.status === "Proposta" || lead.status === "Reunião") {
+          console.log(`✅ Lead ${lead.name} está atualmente em ${lead.status} - INCLUÍDO`);
+          return true;
+        }
+        
+        // Para outros status, deve ter passado por Proposta/Reunião
         if (!hasPassedThroughTargetStatuses) {
           console.log(`❌ Lead ${lead.name} não passou por Proposta/Reunião - EXCLUÍDO`);
           return false;
         }
         
-        console.log(`✅ Lead ${lead.name} passou por Proposta/Reunião e não está em Novo - INCLUÍDO`);
+        console.log(`✅ Lead ${lead.name} passou por Proposta/Reunião e está em ${lead.status} - INCLUÍDO`);
         return true;
       });
     } else if (selectedCategory === "estados") {
