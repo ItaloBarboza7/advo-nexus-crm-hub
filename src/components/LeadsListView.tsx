@@ -54,7 +54,11 @@ export function LeadsListView({
         </TableHeader>
         <TableBody>
           {leads.map((lead) => (
-            <TableRow key={lead.id} className="hover:bg-gray-50">
+            <TableRow 
+              key={lead.id} 
+              className="hover:bg-gray-50 cursor-pointer"
+              onClick={() => onViewDetails(lead)}
+            >
               <TableCell>
                 <div className="font-medium text-gray-900">{lead.name}</div>
                 {lead.description && (
@@ -124,7 +128,10 @@ export function LeadsListView({
                   <Button 
                     variant="ghost" 
                     size="sm" 
-                    onClick={() => onViewDetails(lead)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onViewDetails(lead);
+                    }}
                     className="h-8 w-8 p-0"
                   >
                     <Eye className="h-4 w-4" />
@@ -132,7 +139,10 @@ export function LeadsListView({
                   <Button 
                     variant="ghost"
                     size="sm" 
-                    onClick={() => onEditStatus(lead)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEditStatus(lead);
+                    }}
                     className="h-8 w-8 p-0"
                   >
                     <Edit className="h-4 w-4" />
@@ -140,7 +150,10 @@ export function LeadsListView({
                   <Button 
                     variant="ghost"
                     size="sm" 
-                    onClick={() => onDeleteLead(lead.id, lead.name)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteLead(lead.id, lead.name);
+                    }}
                     className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                   >
                     <Trash2 className="h-4 w-4" />
