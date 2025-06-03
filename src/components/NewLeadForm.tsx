@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,18 +25,19 @@ const BRAZILIAN_STATES = [
   "Roraima", "Santa Catarina", "São Paulo", "Sergipe", "Tocantins"
 ];
 
-export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormProps) {
-  const [formData, setFormData] = useState({
-    name: "",
-    phone: "",
-    email: "",
-    description: "",
-    source: "",
-    state: "",
-    actionGroup: "",
-    actionType: ""
-  });
+const initialFormData = {
+  name: "",
+  phone: "",
+  email: "",
+  description: "",
+  source: "",
+  state: "",
+  actionGroup: "",
+  actionType: ""
+};
 
+export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormProps) {
+  const [formData, setFormData] = useState({ ...initialFormData });
   const [customActionGroups, setCustomActionGroups] = useState<string[]>([]);
   const [customActionTypes, setCustomActionTypes] = useState<string[]>([]);
   const [showNewActionGroupInput, setShowNewActionGroupInput] = useState(false);
@@ -46,6 +48,21 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
 
   const { toast } = useToast();
   const { actionGroupOptions, getActionTypeOptions } = useFilterOptions();
+  
+  // Reset form when dialog is closed
+  useEffect(() => {
+    if (!open) {
+      resetForm();
+    }
+  }, [open]);
+  
+  const resetForm = () => {
+    setFormData({ ...initialFormData });
+    setShowNewActionGroupInput(false);
+    setShowNewActionTypeInput(false);
+    setNewActionGroup("");
+    setNewActionType("");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,16 +112,7 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
       });
 
       // Reset form
-      setFormData({
-        name: "",
-        phone: "",
-        email: "",
-        description: "",
-        source: "",
-        state: "",
-        actionGroup: "",
-        actionType: ""
-      });
+      resetForm();
 
       onOpenChange(false);
       onLeadCreated?.();

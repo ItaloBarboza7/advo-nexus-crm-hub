@@ -48,6 +48,7 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
   const [showNewOptionInput, setShowNewOptionInput] = useState<string | null>(null);
   const [customSources, setCustomSources] = useState<string[]>([]);
   const [customActionGroups, setCustomActionGroups] = useState<string[]>([]);
+  const [customActionTypes, setCustomActionTypes] = useState<string[]>([]);
   const { toast } = useToast();
   const { actionGroupOptions, getActionTypeOptions } = useFilterOptions();
 
@@ -196,6 +197,8 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
       setCustomSources(prev => [...prev, newOptionValue.trim()]);
     } else if (field === 'action_group') {
       setCustomActionGroups(prev => [...prev, newOptionValue.trim()]);
+    } else if (field === 'action_type') {
+      setCustomActionTypes(prev => [...prev, newOptionValue.trim()]);
     }
 
     setTempValue(newOptionValue.trim());
@@ -244,7 +247,13 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
 
   const getAvailableActionTypes = () => {
     if (!tempValue) return [];
-    return getActionTypeOptions(tempValue);
+    const defaultTypes = getActionTypeOptions(tempValue);
+    const customTypes = customActionTypes.map(type => ({
+      value: type,
+      label: type
+    }));
+    
+    return [...defaultTypes, ...customTypes];
   };
 
   const renderEditableField = (field: string, label: string, value: string, options?: Array<{value: string, label: string}>) => {
@@ -356,11 +365,11 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
           {renderEditableField('action_group', 'Grupo de Ação', lead?.action_group || '', getActionGroupOptionsForSelect())}
         </div>
         
-        {/* Campo Tipo e Ação - aparece quando há um grupo selecionado */}
+        {/* Campo Tipo de Ação - aparece quando há um grupo selecionado */}
         {(lead?.action_group || (isEditing && tempValue)) && (
           <div className="group relative">
             <div className="flex items-center gap-2 text-sm text-gray-600">
-              <span className="font-medium">Tipo e Ação:</span>
+              <span className="font-medium">Tipo de Ação:</span>
               {isEditing ? (
                 <div className="flex items-center gap-2 flex-1">
                   <Select value={tempActionType} onValueChange={setTempActionType}>
@@ -375,6 +384,16 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
                       ))}
                     </SelectContent>
                   </Select>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowNewOptionInput('action_type')}
+                    className="h-6 w-6 p-0"
+                    title="Adicionar nova opção"
+                  >
+                    <Plus className="h-3 w-3" />
+                  </Button>
                 </div>
               ) : (
                 <div className="flex items-center gap-2 flex-1">
@@ -384,8 +403,49 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
                       : 'Não informado'
                     }
                   </span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleFieldEdit('action_type')}
+                    className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <Edit2 className="h-3 w-3" />
+                  </Button>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+        
+        {showNewOptionInput === 'action_type' && (
+          <div className="absolute top-full left-0 right-0 mt-2 p-3 bg-white border rounded-lg shadow-lg z-50">
+            <div className="space-y-3">
+              <Input
+                placeholder="Novo tipo de ação..."
+                value={newOptionValue}
+                onChange={(e) => setNewOptionValue(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleAddNewOption('action_type')}
+                className="text-sm"
+              />
+              <div className="flex gap-2 justify-end">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setShowNewOptionInput(null);
+                    setNewOptionValue("");
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => handleAddNewOption('action_type')}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  Adicionar
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -519,7 +579,7 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
                 {renderEditableField('source', 'Fonte', lead.source || '', getSourceOptions())}
               </div>
               
-              {/* Grupo de Ação e Tipo e Ação editáveis */}
+              {/* Grupo de Ação e Tipo de Ação editáveis */}
               {renderActionGroupField()}
             </div>
           </div>
