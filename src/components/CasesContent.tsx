@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { DateRange } from "react-day-picker";
 import { DateFilter } from "@/components/DateFilter";
@@ -98,11 +99,11 @@ export function CasesContent() {
       // Transform the data to match our Lead type by adding missing fields
       const transformedLeads: Lead[] = (data || []).map(lead => ({
         ...lead,
-        action_group: lead.action_group || null, // Add default value if missing
-        company: lead.company || undefined, // Handle optional fields
-        interest: lead.interest || undefined,
-        lastContact: lead.lastContact || undefined,
-        avatar: lead.avatar || undefined
+        action_group: null, // This field doesn't exist in database, set to null
+        company: undefined, // Handle optional fields that don't exist in database
+        interest: undefined,
+        lastContact: undefined,
+        avatar: undefined
       }));
 
       setLeads(transformedLeads);
