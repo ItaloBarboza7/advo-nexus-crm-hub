@@ -68,6 +68,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
   const [newOptionValue, setNewOptionValue] = useState("");
   const [customSources, setCustomSources] = useState<string[]>([]);
   const [customActionGroups, setCustomActionGroups] = useState<string[]>([]);
+  const [customActionTypes, setCustomActionTypes] = useState<string[]>([]);
   const [lossReasons, setLossReasons] = useState<LossReason[]>([]);
   const { toast } = useToast();
   const { actionGroupOptions, getActionTypeOptions } = useFilterOptions();
@@ -241,6 +242,9 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
     } else if (field === 'action_group') {
       setCustomActionGroups(prev => [...prev, newOptionValue.trim()]);
       handleInputChange(field, newOptionValue.trim());
+    } else if (field === 'action_type') {
+      setCustomActionTypes(prev => [...prev, newOptionValue.trim()]);
+      handleInputChange(field, newOptionValue.trim());
     } else if (field === 'loss_reason') {
       try {
         const { error } = await supabase
@@ -311,7 +315,13 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
 
   const getAvailableActionTypes = () => {
     if (!formData.action_group) return [];
-    return getActionTypeOptions(formData.action_group);
+    const defaultTypes = getActionTypeOptions(formData.action_group);
+    const customTypes = customActionTypes.map(type => ({
+      value: type,
+      label: type
+    }));
+    
+    return [...defaultTypes, ...customTypes];
   };
 
   if (!lead) return null;
@@ -513,22 +523,68 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
               )}
             </div>
 
-            {/* Campo Tipo e Ação - aparece quando há um grupo selecionado */}
+            {/* Campo Tipo de Ação - aparece quando há um grupo selecionado */}
             {formData.action_group && (
-              <div className="space-y-2">
-                <Label htmlFor="action_type">Tipo e Ação</Label>
-                <Select value={formData.action_type} onValueChange={(value) => handleInputChange('action_type', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o tipo específico" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white border shadow-lg max-h-60 overflow-y-auto z-50">
-                    {getAvailableActionTypes().map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="space-y-2 relative">
+                <Label htmlFor="action_type">Tipo de Ação</Label>
+                <div className="flex gap-2">
+                  <Select value={formData.action_type} onValueChange={(value) => handleInputChange('action_type', value)}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Selecione o tipo específico" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border shadow-lg max-h-60 overflow-y-auto z-50">
+                      {getAvailableActionTypes().map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowNewOptionInput('action_type')}
+                    className="px-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                
+                {showNewOptionInput === 'action_type' && (
+                  <div className="absolute top-full left-0 right-0 mt-2 p-3 bg-white border rounded-lg shadow-lg z-50">
+                    <div className="space-y-3">
+                      <Input
+                        placeholder="Novo tipo de ação..."
+                        value={newOptionValue}
+                        onChange={(e) => setNewOptionValue(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && handleAddNewOption('action_type')}
+                        className="text-sm"
+                      />
+                      <div className="flex gap-2 justify-end">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setShowNewOptionInput(null);
+                            setNewOptionValue("");
+                          }}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => handleAddNewOption('action_type')}
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
+                          Adicionar
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
