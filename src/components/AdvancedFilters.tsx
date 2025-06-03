@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { StatusFilter } from "@/components/filters/StatusFilter";
 import { SourceFilter } from "@/components/filters/SourceFilter";
-import { ActionTypeFilter } from "@/components/filters/ActionTypeFilter";
+import { ActionGroupFilter } from "@/components/filters/ActionGroupFilter";
 import { StateFilter } from "@/components/filters/StateFilter";
 import { LossReasonFilter } from "@/components/filters/LossReasonFilter";
 import { useFilterOptions } from "@/hooks/useFilterOptions";
@@ -35,7 +35,7 @@ export interface FilterOptions {
 
 export function AdvancedFilters({ onFiltersChange, activeFilters, selectedCategory, lossReasons = [] }: AdvancedFiltersProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const { statusOptions, sourceOptions, actionTypeOptions, stateOptions } = useFilterOptions();
+  const { statusOptions, sourceOptions, actionGroupOptions, stateOptions } = useFilterOptions();
 
   const handleStatusChange = (status: string, checked: boolean) => {
     const newStatus = checked
@@ -53,10 +53,10 @@ export function AdvancedFilters({ onFiltersChange, activeFilters, selectedCatego
     onFiltersChange({ ...activeFilters, source: newSource });
   };
 
-  const handleActionTypeChange = (actionType: string, checked: boolean) => {
+  const handleActionGroupChange = (actionGroup: string, checked: boolean) => {
     const newActionType = checked
-      ? [...activeFilters.actionType, actionType]
-      : activeFilters.actionType.filter(a => a !== actionType);
+      ? [...activeFilters.actionType, actionGroup]
+      : activeFilters.actionType.filter(a => a !== actionGroup);
     
     onFiltersChange({ ...activeFilters, actionType: newActionType });
   };
@@ -150,10 +150,10 @@ export function AdvancedFilters({ onFiltersChange, activeFilters, selectedCatego
 
             <Separator />
 
-            <ActionTypeFilter
-              actionTypeOptions={actionTypeOptions}
+            <ActionGroupFilter
+              actionGroupOptions={actionGroupOptions}
               activeFilters={activeFilters.actionType}
-              onActionTypeChange={handleActionTypeChange}
+              onActionGroupChange={handleActionGroupChange}
             />
 
             <Separator />

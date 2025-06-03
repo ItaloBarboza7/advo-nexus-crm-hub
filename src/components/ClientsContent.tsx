@@ -59,7 +59,17 @@ export function ClientsContent() {
         return;
       }
 
-      setLeads(data || []);
+      // Transform the data to match our Lead type by adding missing fields
+      const transformedLeads: Lead[] = (data || []).map(lead => ({
+        ...lead,
+        action_group: lead.action_group || null, // Add default value if missing
+        company: lead.company || undefined, // Handle optional fields
+        interest: lead.interest || undefined,
+        lastContact: lead.lastContact || undefined,
+        avatar: lead.avatar || undefined
+      }));
+
+      setLeads(transformedLeads);
     } catch (error) {
       console.error('Erro inesperado ao buscar leads:', error);
       toast({
