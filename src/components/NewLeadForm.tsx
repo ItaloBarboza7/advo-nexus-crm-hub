@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useFilterOptions } from "@/hooks/useFilterOptions";
 
 interface NewLeadFormProps {
   open: boolean;
@@ -24,11 +25,6 @@ const BRAZILIAN_STATES = [
   "Roraima", "Santa Catarina", "São Paulo", "Sergipe", "Tocantins"
 ];
 
-const DEFAULT_ACTION_TYPES = [
-  "consultoria", "contratos", "trabalhista", "compliance", 
-  "tributario", "civil", "criminal", "outros"
-];
-
 export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormProps) {
   const [formData, setFormData] = useState({
     name: "",
@@ -37,15 +33,17 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
     description: "",
     source: "",
     state: "",
+    actionGroup: "",
     actionType: ""
   });
 
-  const [customActionTypes, setCustomActionTypes] = useState<string[]>([]);
-  const [newActionType, setNewActionType] = useState("");
-  const [showNewActionInput, setShowNewActionInput] = useState(false);
+  const [customActionGroups, setCustomActionGroups] = useState<string[]>([]);
+  const [showNewActionGroupInput, setShowNewActionGroupInput] = useState(false);
+  const [newActionGroup, setNewActionGroup] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { toast } = useToast();
+  const { actionGroupOptions, getActionTypeOptions } = useFilterOptions();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,6 +71,7 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
             description: formData.description || null,
             source: formData.source || null,
             state: formData.state || null,
+            action_group: formData.actionGroup || null,
             action_type: formData.actionType || null,
             status: "Novo"
           }
@@ -101,6 +100,7 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
         description: "",
         source: "",
         state: "",
+        actionGroup: "",
         actionType: ""
       });
 
@@ -123,25 +123,43 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
       ...prev,
       [field]: value
     }));
+    
+    // Se mudou o grupo de ação, limpar o tipo de ação
+    if (field === 'actionGroup') {
+      setFormData(prev => ({
+        ...prev,
+        actionType: ""
+      }));
+    }
   };
 
-  const handleAddCustomAction = () => {
-    if (newActionType.trim() && !DEFAULT_ACTION_TYPES.includes(newActionType.toLowerCase()) && !customActionTypes.includes(newActionType)) {
-      setCustomActionTypes(prev => [...prev, newActionType.trim()]);
-      setFormData(prev => ({ ...prev, actionType: newActionType.trim() }));
-      setNewActionType("");
-      setShowNewActionInput(false);
+  const handleAddCustomActionGroup = () => {
+    if (newActionGroup.trim() && !actionGroupOptions.some(option => option.value === newActionGroup.toLowerCase()) && !customActionGroups.includes(newActionGroup)) {
+      setCustomActionGroups(prev => [...prev, newActionGroup.trim()]);
+      setFormData(prev => ({ ...prev, actionGroup: newActionGroup.trim() }));
+      setNewActionGroup("");
+      setShowNewActionGroupInput(false);
       toast({
-        title: "Ação adicionada!",
-        description: `"${newActionType}" foi adicionado às opções.`,
+        title: "Grupo adicionado!",
+        description: `"${newActionGroup}" foi adicionado às opções.`,
       });
     }
   };
 
-  const allActionTypes = [
-    ...DEFAULT_ACTION_TYPES.map(type => ({ value: type, label: type === "consultoria" ? "Consultoria Jurídica" : type === "contratos" ? "Contratos" : type === "trabalhista" ? "Trabalhista" : type === "compliance" ? "Compliance" : type === "tributario" ? "Tributário" : type === "civil" ? "Civil" : type === "criminal" ? "Criminal" : "Outros" })),
-    ...customActionTypes.map(type => ({ value: type, label: type }))
-  ];
+  const getActionGroupOptionsForSelect = () => {
+    const defaultOptions = actionGroupOptions;
+    const customOptions = customActionGroups.map(group => ({
+      value: group,
+      label: group
+    }));
+    
+    return [...defaultOptions, ...customOptions];
+  };
+
+  const getAvailableActionTypes = () => {
+    if (!formData.actionGroup) return [];
+    return getActionTypeOptions(formData.actionGroup);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -235,16 +253,16 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="actionType">Tipo de Ação</Label>
+            <div className="space-y-2 relative">
+              <Label htmlFor="actionGroup">Grupo de Ação</Label>
               <div className="flex gap-2">
-                <Select value={formData.actionType} onValueChange={(value) => handleInputChange("actionType", value)} disabled={isSubmitting}>
+                <Select value={formData.actionGroup} onValueChange={(value) => handleInputChange("actionGroup", value)} disabled={isSubmitting}>
                   <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Selecione o tipo" />
+                    <SelectValue placeholder="Selecione o grupo" />
                   </SelectTrigger>
                   <SelectContent>
-                    {allActionTypes.map((type) => (
-                      <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                    {getActionGroupOptionsForSelect().map((option) => (
+                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -252,7 +270,7 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setShowNewActionInput(true)}
+                  onClick={() => setShowNewActionGroupInput(true)}
                   className="px-3"
                   disabled={isSubmitting}
                 >
@@ -261,17 +279,34 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
               </div>
             </div>
           </div>
+
+          {/* Campo Tipo e Ação - aparece quando há um grupo selecionado */}
+          {formData.actionGroup && (
+            <div className="space-y-2">
+              <Label htmlFor="actionType">Tipo e Ação</Label>
+              <Select value={formData.actionType} onValueChange={(value) => handleInputChange("actionType", value)} disabled={isSubmitting}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o tipo específico" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getAvailableActionTypes().map((option) => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           
-          {showNewActionInput && (
+          {showNewActionGroupInput && (
             <div className="space-y-2 p-4 border rounded-lg bg-gray-50">
-              <Label htmlFor="newActionType">Novo Tipo de Ação</Label>
+              <Label htmlFor="newActionGroup">Novo Grupo de Ação</Label>
               <div className="space-y-3">
                 <Input
-                  id="newActionType"
-                  placeholder="Digite o novo tipo de ação..."
-                  value={newActionType}
-                  onChange={(e) => setNewActionType(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleAddCustomAction()}
+                  id="newActionGroup"
+                  placeholder="Digite o novo grupo de ação..."
+                  value={newActionGroup}
+                  onChange={(e) => setNewActionGroup(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleAddCustomActionGroup()}
                   className="w-full"
                   disabled={isSubmitting}
                 />
@@ -280,8 +315,8 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
                     type="button"
                     variant="outline"
                     onClick={() => {
-                      setShowNewActionInput(false);
-                      setNewActionType("");
+                      setShowNewActionGroupInput(false);
+                      setNewActionGroup("");
                     }}
                     size="sm"
                     disabled={isSubmitting}
@@ -290,7 +325,7 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
                   </Button>
                   <Button
                     type="button"
-                    onClick={handleAddCustomAction}
+                    onClick={handleAddCustomActionGroup}
                     size="sm"
                     className="bg-blue-600 hover:bg-blue-700"
                     disabled={isSubmitting}

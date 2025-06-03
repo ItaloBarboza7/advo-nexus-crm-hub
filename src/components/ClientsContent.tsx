@@ -2,13 +2,14 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Phone, Mail, MapPin, LayoutGrid, List, Trash2, Edit, DollarSign, Users } from "lucide-react";
+import { Plus, Search, LayoutGrid, List, Users } from "lucide-react";
 import { KanbanView } from "@/components/KanbanView";
 import { NewLeadForm } from "@/components/NewLeadForm";
 import { LeadDetailsDialog } from "@/components/LeadDetailsDialog";
 import { StatusChangeForm } from "@/components/StatusChangeForm";
 import { EditLeadForm } from "@/components/EditLeadForm";
 import { LeadFilters, FilterOptions } from "@/components/LeadFilters";
+import { LeadsListView } from "@/components/LeadsListView";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
@@ -287,95 +288,15 @@ export function ClientsContent() {
           originalLeads={filteredLeads}
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredLeads.map((lead) => (
-            <Card key={lead.id} className="p-6 hover:shadow-lg transition-shadow">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="bg-blue-600 text-white w-12 h-12 rounded-full flex items-center justify-center font-semibold">
-                    {getInitials(lead.name)}
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{lead.name}</h3>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(lead.status)}`}>
-                      {lead.status}
-                    </span>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="flex items-center gap-1 text-sm font-medium text-green-600">
-                    <DollarSign className="h-4 w-4" />
-                    <span>{formatCurrency(lead.value)}</span>
-                  </div>
-                  <p className="text-xs text-gray-500">{lead.source || 'Não informado'}</p>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {lead.email && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Mail className="h-4 w-4" />
-                    <span>{lead.email}</span>
-                  </div>
-                )}
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Phone className="h-4 w-4" />
-                  <span>{lead.phone}</span>
-                </div>
-                {lead.state && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <MapPin className="h-4 w-4" />
-                    <span>{lead.state}</span>
-                  </div>
-                )}
-              </div>
-
-              {lead.description && (
-                <div className="mt-3 pt-3 border-t border-gray-200">
-                  <p className="text-sm text-gray-600 line-clamp-2">{lead.description}</p>
-                </div>
-              )}
-
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">
-                    {lead.action_group ? `Grupo: ${lead.action_group}` : 'Grupo não informado'}
-                  </span>
-                  <span className="text-gray-500">Criado: {formatDate(lead.created_at)}</span>
-                </div>
-              </div>
-
-              <div className="mt-4 flex gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="flex-1"
-                  onClick={() => handleViewDetails(lead)}
-                >
-                  Ver Detalhes
-                </Button>
-                <Button 
-                  variant="outline"
-                  size="sm" 
-                  className="flex-1"
-                  onClick={() => handleEditStatus(lead)}
-                >
-                  <Edit className="h-4 w-4 mr-1" />
-                  Status
-                </Button>
-                <Button 
-                  variant="destructive"
-                  size="sm" 
-                  className="flex-1"
-                  onClick={() => handleDeleteLead(lead.id, lead.name)}
-                >
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  Excluir
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
+        <LeadsListView
+          leads={filteredLeads}
+          onViewDetails={handleViewDetails}
+          onEditStatus={handleEditStatus}
+          onDeleteLead={handleDeleteLead}
+          getStatusColor={getStatusColor}
+          formatDate={formatDate}
+          formatCurrency={formatCurrency}
+        />
       )}
 
       {filteredLeads.length === 0 && !isLoading && (
