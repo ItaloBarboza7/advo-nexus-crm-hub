@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
 import { LeadStatusHistory } from "@/types/leadStatusHistory";
+import { useFilterOptions } from "@/hooks/useFilterOptions";
 
 interface LeadDetailsDialogProps {
   lead: Lead | null;
@@ -38,20 +39,17 @@ const DEFAULT_SOURCES = [
   "website", "google-ads", "facebook", "linkedin", "indicacao", "evento", "telefone", "outros"
 ];
 
-const DEFAULT_ACTION_TYPES = [
-  "consultoria", "contratos", "trabalhista", "compliance", 
-  "tributario", "civil", "criminal", "outros"
-];
-
 export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: LeadDetailsDialogProps) {
   const [statusHistory, setStatusHistory] = useState<LeadStatusHistory[]>([]);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState("");
+  const [tempActionType, setTempActionType] = useState("");
   const [newOptionValue, setNewOptionValue] = useState("");
   const [showNewOptionInput, setShowNewOptionInput] = useState<string | null>(null);
   const [customSources, setCustomSources] = useState<string[]>([]);
-  const [customActionTypes, setCustomActionTypes] = useState<string[]>([]);
+  const [customActionGroups, setCustomActionGroups] = useState<string[]>([]);
   const { toast } = useToast();
+  const { actionGroupOptions, getActionTypeOptions } = useFilterOptions();
 
   const fetchStatusHistory = async (leadId: string) => {
     try {
@@ -112,12 +110,19 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
     }).format(value);
   };
 
-  const updateLeadField = async (field: string, value: string) => {
+  const updateLeadField = async (field: string, value: string, actionType?: string) => {
     try {
+      const updateData: any = { [field]: value };
+      
+      // Se estiver atualizando o grupo de ação, também limpar o tipo de ação
+      if (field === 'action_group') {
+        updateData.action_type = actionType || null;
+      }
+
       const { error } = await supabase
         .from('leads')
-        .update({ [field]: value })
-        .eq('id', lead.id);
+        .update(updateData)
+        .eq('id', lead!.id);
 
       if (error) {
         console.error('Erro ao atualizar campo:', error);
@@ -135,7 +140,7 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
       });
       
       // Atualizar o lead localmente
-      Object.assign(lead, { [field]: value });
+      Object.assign(lead!, updateData);
       return true;
     } catch (error) {
       console.error('Erro inesperado:', error);
@@ -150,22 +155,36 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
 
   const handleFieldEdit = (field: string) => {
     setEditingField(field);
-    setTempValue(lead[field as keyof Lead] as string || "");
+    if (field === 'action_group') {
+      setTempValue(lead?.action_group || "");
+      setTempActionType(lead?.action_type || "");
+    } else {
+      setTempValue(lead?.[field as keyof Lead] as string || "");
+    }
   };
 
   const handleFieldSave = async () => {
     if (!editingField) return;
     
-    const success = await updateLeadField(editingField, tempValue);
+    let success = false;
+    
+    if (editingField === 'action_group') {
+      success = await updateLeadField(editingField, tempValue, tempActionType);
+    } else {
+      success = await updateLeadField(editingField, tempValue);
+    }
+    
     if (success) {
       setEditingField(null);
       setTempValue("");
+      setTempActionType("");
     }
   };
 
   const handleFieldCancel = () => {
     setEditingField(null);
     setTempValue("");
+    setTempActionType("");
     setShowNewOptionInput(null);
     setNewOptionValue("");
   };
@@ -175,8 +194,8 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
 
     if (field === 'source') {
       setCustomSources(prev => [...prev, newOptionValue.trim()]);
-    } else if (field === 'action_type') {
-      setCustomActionTypes(prev => [...prev, newOptionValue.trim()]);
+    } else if (field === 'action_group') {
+      setCustomActionGroups(prev => [...prev, newOptionValue.trim()]);
     }
 
     setTempValue(newOptionValue.trim());
@@ -213,24 +232,19 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
     return [...defaultOptions, ...customOptions];
   };
 
-  const getActionTypeOptions = () => {
-    const defaultOptions = DEFAULT_ACTION_TYPES.map(type => ({
-      value: type,
-      label: type === "consultoria" ? "Consultoria Jurídica" :
-             type === "contratos" ? "Contratos" :
-             type === "trabalhista" ? "Trabalhista" :
-             type === "compliance" ? "Compliance" :
-             type === "tributario" ? "Tributário" :
-             type === "civil" ? "Civil" :
-             type === "criminal" ? "Criminal" : "Outros"
-    }));
-    
-    const customOptions = customActionTypes.map(type => ({
-      value: type,
-      label: type
+  const getActionGroupOptionsForSelect = () => {
+    const defaultOptions = actionGroupOptions;
+    const customOptions = customActionGroups.map(group => ({
+      value: group,
+      label: group
     }));
     
     return [...defaultOptions, ...customOptions];
+  };
+
+  const getAvailableActionTypes = () => {
+    if (!tempValue) return [];
+    return getActionTypeOptions(tempValue);
   };
 
   const renderEditableField = (field: string, label: string, value: string, options?: Array<{value: string, label: string}>) => {
@@ -325,6 +339,53 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
                   Adicionar
                 </Button>
               </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderActionGroupField = () => {
+    const isEditing = editingField === 'action_group';
+    const availableActionTypes = getAvailableActionTypes();
+
+    return (
+      <div className="space-y-3">
+        <div className="group relative">
+          {renderEditableField('action_group', 'Grupo de Ação', lead?.action_group || '', getActionGroupOptionsForSelect())}
+        </div>
+        
+        {/* Campo Tipo e Ação - aparece quando há um grupo selecionado */}
+        {(lead?.action_group || (isEditing && tempValue)) && (
+          <div className="group relative">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span className="font-medium">Tipo e Ação:</span>
+              {isEditing ? (
+                <div className="flex items-center gap-2 flex-1">
+                  <Select value={tempActionType} onValueChange={setTempActionType}>
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue placeholder="Selecione o tipo específico" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableActionTypes.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 flex-1">
+                  <span className="flex-1">
+                    {lead?.action_type ? 
+                      getActionTypeOptions(lead.action_group || '').find(t => t.value === lead.action_type)?.label || lead.action_type
+                      : 'Não informado'
+                    }
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -458,10 +519,8 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
                 {renderEditableField('source', 'Fonte', lead.source || '', getSourceOptions())}
               </div>
               
-              {/* Tipo de Ação editável */}
-              <div className="group relative">
-                {renderEditableField('action_type', 'Tipo de Ação', lead.action_type || '', getActionTypeOptions())}
-              </div>
+              {/* Grupo de Ação e Tipo e Ação editáveis */}
+              {renderActionGroupField()}
             </div>
           </div>
 

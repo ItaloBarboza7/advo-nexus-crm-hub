@@ -17,7 +17,7 @@ export const useFilterOptions = () => {
     { value: "outros", label: "Outros" }
   ];
 
-  const actionTypeOptions = [
+  const actionGroupOptions = [
     { value: "consultoria", label: "Consultoria Jurídica" },
     { value: "contratos", label: "Contratos" },
     { value: "trabalhista", label: "Trabalhista" },
@@ -27,6 +27,55 @@ export const useFilterOptions = () => {
     { value: "criminal", label: "Criminal" },
     { value: "outros", label: "Outros" }
   ];
+
+  const getActionTypeOptions = (actionGroup: string) => {
+    const actionTypesByGroup: Record<string, Array<{ value: string; label: string }>> = {
+      tributario: [
+        { value: "divida-ativa", label: "Dívida Ativa" },
+        { value: "recuperacao-credito", label: "Recuperação de Crédito" },
+        { value: "planejamento-tributario", label: "Planejamento Tributário" },
+        { value: "restituicao-tributos", label: "Restituição de Tributos" },
+        { value: "defesa-autuacao", label: "Defesa de Autuação" }
+      ],
+      trabalhista: [
+        { value: "rescisao-contrato", label: "Rescisão de Contrato" },
+        { value: "acordo-trabalhista", label: "Acordo Trabalhista" },
+        { value: "acao-trabalhista", label: "Ação Trabalhista" },
+        { value: "consultoria-trabalhista", label: "Consultoria Trabalhista" }
+      ],
+      civil: [
+        { value: "contratos-civis", label: "Contratos Civis" },
+        { value: "cobranca-judicial", label: "Cobrança Judicial" },
+        { value: "indenizacao", label: "Indenização" },
+        { value: "revisao-contrato", label: "Revisão de Contrato" }
+      ],
+      criminal: [
+        { value: "defesa-criminal", label: "Defesa Criminal" },
+        { value: "habeas-corpus", label: "Habeas Corpus" },
+        { value: "recursos-criminais", label: "Recursos Criminais" }
+      ],
+      compliance: [
+        { value: "auditoria-compliance", label: "Auditoria de Compliance" },
+        { value: "politicas-internas", label: "Políticas Internas" },
+        { value: "treinamento-compliance", label: "Treinamento de Compliance" }
+      ],
+      contratos: [
+        { value: "elaboracao-contratos", label: "Elaboração de Contratos" },
+        { value: "revisao-contratos", label: "Revisão de Contratos" },
+        { value: "negociacao-contratos", label: "Negociação de Contratos" }
+      ],
+      consultoria: [
+        { value: "consultoria-geral", label: "Consultoria Geral" },
+        { value: "pareceres-juridicos", label: "Pareceres Jurídicos" },
+        { value: "assessoria-juridica", label: "Assessoria Jurídica" }
+      ],
+      outros: [
+        { value: "outros-tipos", label: "Outros Tipos" }
+      ]
+    };
+
+    return actionTypesByGroup[actionGroup] || [];
+  };
 
   const stateOptions = [
     { value: "Acre", label: "Acre" },
@@ -61,7 +110,8 @@ export const useFilterOptions = () => {
   return {
     statusOptions,
     sourceOptions,
-    actionTypeOptions,
+    actionGroupOptions, // Renomeado de actionTypeOptions
+    getActionTypeOptions, // Nova função para tipos específicos
     stateOptions
   };
 };
