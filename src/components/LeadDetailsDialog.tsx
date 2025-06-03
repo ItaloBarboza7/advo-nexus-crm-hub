@@ -370,7 +370,7 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
           <div className="group relative">
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <span className="font-medium">Tipo de Ação:</span>
-              {isEditing ? (
+              {editingField === 'action_type' ? (
                 <div className="flex items-center gap-2 flex-1">
                   <Select value={tempActionType} onValueChange={setTempActionType}>
                     <SelectTrigger className="h-8 text-sm">
@@ -384,6 +384,12 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
                       ))}
                     </SelectContent>
                   </Select>
+                  <Button size="sm" variant="ghost" onClick={handleFieldSave} className="h-6 w-6 p-0">
+                    <Check className="h-3 w-3" />
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={handleFieldCancel} className="h-6 w-6 p-0">
+                    <X className="h-3 w-3" />
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -406,7 +412,10 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => handleFieldEdit('action_type')}
+                    onClick={() => {
+                      setEditingField('action_type');
+                      setTempActionType(lead?.action_type || "");
+                    }}
                     className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     <Edit2 className="h-3 w-3" />

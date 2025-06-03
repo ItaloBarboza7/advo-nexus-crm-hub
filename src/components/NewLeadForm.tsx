@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -62,6 +61,8 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
     setShowNewActionTypeInput(false);
     setNewActionGroup("");
     setNewActionType("");
+    setCustomActionGroups([]);
+    setCustomActionTypes([]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -309,10 +310,10 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
             </div>
           </div>
 
-          {/* Campo Tipo e Ação - aparece quando há um grupo selecionado */}
+          {/* Campo Tipo de Ação - aparece quando há um grupo selecionado */}
           {formData.actionGroup && (
             <div className="space-y-2">
-              <Label htmlFor="actionType">Tipo e Ação</Label>
+              <Label htmlFor="actionType">Tipo de Ação</Label>
               <div className="flex gap-2">
                 <Select value={formData.actionType} onValueChange={(value) => handleInputChange("actionType", value)} disabled={isSubmitting}>
                   <SelectTrigger className="flex-1">
