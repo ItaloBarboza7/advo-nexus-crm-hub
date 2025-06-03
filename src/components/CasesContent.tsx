@@ -99,7 +99,6 @@ export function CasesContent() {
       // Transform the data to match our Lead type by adding missing fields
       const transformedLeads: Lead[] = (data || []).map(lead => ({
         ...lead,
-        action_group: null, // This field doesn't exist in database, set to null
         company: undefined, // Handle optional fields that don't exist in database
         interest: undefined,
         lastContact: undefined,

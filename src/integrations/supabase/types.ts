@@ -46,6 +46,7 @@ export type Database = {
       }
       leads: {
         Row: {
+          action_group: string | null
           action_type: string | null
           created_at: string
           description: string | null
@@ -61,6 +62,7 @@ export type Database = {
           value: number | null
         }
         Insert: {
+          action_group?: string | null
           action_type?: string | null
           created_at?: string
           description?: string | null
@@ -76,6 +78,7 @@ export type Database = {
           value?: number | null
         }
         Update: {
+          action_group?: string | null
           action_type?: string | null
           created_at?: string
           description?: string | null

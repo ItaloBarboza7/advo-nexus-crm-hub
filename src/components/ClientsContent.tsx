@@ -62,7 +62,6 @@ export function ClientsContent() {
       // Transform the data to match our Lead type by adding missing fields
       const transformedLeads: Lead[] = (data || []).map(lead => ({
         ...lead,
-        action_group: null, // This field doesn't exist in database, set to null
         company: undefined, // Handle optional fields that don't exist in database
         interest: undefined,
         lastContact: undefined,
@@ -161,7 +160,7 @@ export function ClientsContent() {
     const matchesStatus = filters.status.length === 0 || filters.status.includes(lead.status);
     const matchesSource = filters.source.length === 0 || (lead.source && filters.source.includes(lead.source));
     const matchesState = filters.state.length === 0 || (lead.state && filters.state.includes(lead.state));
-    const matchesActionType = filters.actionType.length === 0 || (lead.action_type && filters.actionType.includes(lead.action_type));
+    const matchesActionType = filters.actionType.length === 0 || (lead.action_group && filters.actionType.includes(lead.action_group));
     
     // Filtro de faixa de valor
     const leadValue = lead.value || 0;
@@ -206,7 +205,7 @@ export function ClientsContent() {
     company: lead.state || 'Não informado',
     source: lead.source || 'Não informado',
     status: lead.status,
-    interest: lead.action_type || 'Não informado',
+    interest: lead.action_group || 'Não informado',
     value: formatCurrency(lead.value),
     lastContact: formatDate(lead.created_at),
     avatar: getInitials(lead.name),
@@ -340,7 +339,7 @@ export function ClientsContent() {
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-500">
-                    {lead.action_type ? `Tipo: ${lead.action_type}` : 'Tipo não informado'}
+                    {lead.action_group ? `Grupo: ${lead.action_group}` : 'Grupo não informado'}
                   </span>
                   <span className="text-gray-500">Criado: {formatDate(lead.created_at)}</span>
                 </div>

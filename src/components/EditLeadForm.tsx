@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
+import { useFilterOptions } from "@/hooks/useFilterOptions";
 
 interface EditLeadFormProps {
   lead: Lead | null;
@@ -38,11 +40,6 @@ const DEFAULT_SOURCES = [
   "website", "google-ads", "facebook", "linkedin", "indicacao", "evento", "telefone", "outros"
 ];
 
-const DEFAULT_ACTION_TYPES = [
-  "consultoria", "contratos", "trabalhista", "compliance", 
-  "tributario", "civil", "criminal", "outros"
-];
-
 interface LossReason {
   id: string;
   reason: string;
@@ -56,6 +53,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
     state: "",
     source: "",
     status: "",
+    action_group: "",
     action_type: "",
     value: "",
     description: "",
@@ -69,9 +67,10 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
   const [showNewOptionInput, setShowNewOptionInput] = useState<string | null>(null);
   const [newOptionValue, setNewOptionValue] = useState("");
   const [customSources, setCustomSources] = useState<string[]>([]);
-  const [customActionTypes, setCustomActionTypes] = useState<string[]>([]);
+  const [customActionGroups, setCustomActionGroups] = useState<string[]>([]);
   const [lossReasons, setLossReasons] = useState<LossReason[]>([]);
   const { toast } = useToast();
+  const { actionGroupOptions, getActionTypeOptions } = useFilterOptions();
 
   const fetchLossReasons = async () => {
     try {
@@ -106,6 +105,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
         state: lead.state || "",
         source: lead.source || "",
         status: lead.status || "",
+        action_group: lead.action_group || "",
         action_type: lead.action_type || "",
         value: lead.value?.toString() || "",
         description: lead.description || "",
@@ -133,6 +133,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
         state: originalLeadData.state || "",
         source: originalLeadData.source || "",
         status: originalLeadData.status || "",
+        action_group: originalLeadData.action_group || "",
         action_type: originalLeadData.action_type || "",
         value: originalLeadData.value?.toString() || "",
         description: originalLeadData.description || "",
@@ -176,6 +177,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
           state: formData.state || null,
           source: formData.source || null,
           status: formData.status,
+          action_group: formData.action_group || null,
           action_type: formData.action_type || null,
           value: formData.value ? parseFloat(formData.value) : null,
           description: formData.description || null,
@@ -220,6 +222,14 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
       ...prev,
       [field]: value
     }));
+    
+    // Se mudou o grupo de ação, limpar o tipo de ação
+    if (field === 'action_group') {
+      setFormData(prev => ({
+        ...prev,
+        action_type: ""
+      }));
+    }
   };
 
   const handleAddNewOption = async (field: string) => {
@@ -228,8 +238,8 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
     if (field === 'source') {
       setCustomSources(prev => [...prev, newOptionValue.trim()]);
       handleInputChange(field, newOptionValue.trim());
-    } else if (field === 'action_type') {
-      setCustomActionTypes(prev => [...prev, newOptionValue.trim()]);
+    } else if (field === 'action_group') {
+      setCustomActionGroups(prev => [...prev, newOptionValue.trim()]);
       handleInputChange(field, newOptionValue.trim());
     } else if (field === 'loss_reason') {
       try {
@@ -289,24 +299,19 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
     return [...defaultOptions, ...customOptions];
   };
 
-  const getActionTypeOptions = () => {
-    const defaultOptions = DEFAULT_ACTION_TYPES.map(type => ({
-      value: type,
-      label: type === "consultoria" ? "Consultoria Jurídica" :
-             type === "contratos" ? "Contratos" :
-             type === "trabalhista" ? "Trabalhista" :
-             type === "compliance" ? "Compliance" :
-             type === "tributario" ? "Tributário" :
-             type === "civil" ? "Civil" :
-             type === "criminal" ? "Criminal" : "Outros"
-    }));
-    
-    const customOptions = customActionTypes.map(type => ({
-      value: type,
-      label: type
+  const getActionGroupOptionsForSelect = () => {
+    const defaultOptions = actionGroupOptions;
+    const customOptions = customActionGroups.map(group => ({
+      value: group,
+      label: group
     }));
     
     return [...defaultOptions, ...customOptions];
+  };
+
+  const getAvailableActionTypes = () => {
+    if (!formData.action_group) return [];
+    return getActionTypeOptions(formData.action_group);
   };
 
   if (!lead) return null;
@@ -447,14 +452,14 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
             </div>
 
             <div className="space-y-2 relative">
-              <Label htmlFor="action_type">Tipo de Ação</Label>
+              <Label htmlFor="action_group">Grupo de Ação</Label>
               <div className="flex gap-2">
-                <Select value={formData.action_type} onValueChange={(value) => handleInputChange('action_type', value)}>
+                <Select value={formData.action_group} onValueChange={(value) => handleInputChange('action_group', value)}>
                   <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Selecione o tipo de ação" />
+                    <SelectValue placeholder="Selecione o grupo de ação" />
                   </SelectTrigger>
                   <SelectContent className="bg-white border shadow-lg max-h-60 overflow-y-auto z-50">
-                    {getActionTypeOptions().map((option) => (
+                    {getActionGroupOptionsForSelect().map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         {option.label}
                       </SelectItem>
@@ -465,21 +470,21 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setShowNewOptionInput('action_type')}
+                  onClick={() => setShowNewOptionInput('action_group')}
                   className="px-2"
                 >
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
               
-              {showNewOptionInput === 'action_type' && (
+              {showNewOptionInput === 'action_group' && (
                 <div className="absolute top-full left-0 right-0 mt-2 p-3 bg-white border rounded-lg shadow-lg z-50">
                   <div className="space-y-3">
                     <Input
-                      placeholder="Novo tipo de ação..."
+                      placeholder="Novo grupo de ação..."
                       value={newOptionValue}
                       onChange={(e) => setNewOptionValue(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleAddNewOption('action_type')}
+                      onKeyPress={(e) => e.key === 'Enter' && handleAddNewOption('action_group')}
                       className="text-sm"
                     />
                     <div className="flex gap-2 justify-end">
@@ -497,7 +502,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
                       <Button
                         type="button"
                         size="sm"
-                        onClick={() => handleAddNewOption('action_type')}
+                        onClick={() => handleAddNewOption('action_group')}
                         className="bg-blue-600 hover:bg-blue-700"
                       >
                         Adicionar
@@ -507,6 +512,25 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
                 </div>
               )}
             </div>
+
+            {/* Campo Tipo e Ação - aparece quando há um grupo selecionado */}
+            {formData.action_group && (
+              <div className="space-y-2">
+                <Label htmlFor="action_type">Tipo e Ação</Label>
+                <Select value={formData.action_type} onValueChange={(value) => handleInputChange('action_type', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o tipo específico" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border shadow-lg max-h-60 overflow-y-auto z-50">
+                    {getAvailableActionTypes().map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="value">Valor Potencial (R$)</Label>
