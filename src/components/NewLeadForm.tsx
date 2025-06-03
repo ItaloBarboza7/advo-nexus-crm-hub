@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -38,8 +37,11 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
   });
 
   const [customActionGroups, setCustomActionGroups] = useState<string[]>([]);
+  const [customActionTypes, setCustomActionTypes] = useState<string[]>([]);
   const [showNewActionGroupInput, setShowNewActionGroupInput] = useState(false);
+  const [showNewActionTypeInput, setShowNewActionTypeInput] = useState(false);
   const [newActionGroup, setNewActionGroup] = useState("");
+  const [newActionType, setNewActionType] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { toast } = useToast();
@@ -146,6 +148,19 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
     }
   };
 
+  const handleAddCustomActionType = () => {
+    if (newActionType.trim() && !customActionTypes.includes(newActionType)) {
+      setCustomActionTypes(prev => [...prev, newActionType.trim()]);
+      setFormData(prev => ({ ...prev, actionType: newActionType.trim() }));
+      setNewActionType("");
+      setShowNewActionTypeInput(false);
+      toast({
+        title: "Tipo adicionado!",
+        description: `"${newActionType}" foi adicionado às opções.`,
+      });
+    }
+  };
+
   const getActionGroupOptionsForSelect = () => {
     const defaultOptions = actionGroupOptions;
     const customOptions = customActionGroups.map(group => ({
@@ -158,7 +173,13 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
 
   const getAvailableActionTypes = () => {
     if (!formData.actionGroup) return [];
-    return getActionTypeOptions(formData.actionGroup);
+    const defaultTypes = getActionTypeOptions(formData.actionGroup);
+    const customTypes = customActionTypes.map(type => ({
+      value: type,
+      label: type
+    }));
+    
+    return [...defaultTypes, ...customTypes];
   };
 
   return (
@@ -284,16 +305,28 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
           {formData.actionGroup && (
             <div className="space-y-2">
               <Label htmlFor="actionType">Tipo e Ação</Label>
-              <Select value={formData.actionType} onValueChange={(value) => handleInputChange("actionType", value)} disabled={isSubmitting}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o tipo específico" />
-                </SelectTrigger>
-                <SelectContent>
-                  {getAvailableActionTypes().map((option) => (
-                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <Select value={formData.actionType} onValueChange={(value) => handleInputChange("actionType", value)} disabled={isSubmitting}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Selecione o tipo específico" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getAvailableActionTypes().map((option) => (
+                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowNewActionTypeInput(true)}
+                  className="px-3"
+                  disabled={isSubmitting}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           )}
           
@@ -326,6 +359,46 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
                   <Button
                     type="button"
                     onClick={handleAddCustomActionGroup}
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700"
+                    disabled={isSubmitting}
+                  >
+                    Adicionar
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showNewActionTypeInput && (
+            <div className="space-y-2 p-4 border rounded-lg bg-gray-50">
+              <Label htmlFor="newActionType">Novo Tipo de Ação</Label>
+              <div className="space-y-3">
+                <Input
+                  id="newActionType"
+                  placeholder="Digite o novo tipo de ação..."
+                  value={newActionType}
+                  onChange={(e) => setNewActionType(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleAddCustomActionType()}
+                  className="w-full"
+                  disabled={isSubmitting}
+                />
+                <div className="flex gap-2 justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setShowNewActionTypeInput(false);
+                      setNewActionType("");
+                    }}
+                    size="sm"
+                    disabled={isSubmitting}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleAddCustomActionType}
                     size="sm"
                     className="bg-blue-600 hover:bg-blue-700"
                     disabled={isSubmitting}

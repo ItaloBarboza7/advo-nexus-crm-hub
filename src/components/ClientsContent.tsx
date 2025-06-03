@@ -10,6 +10,7 @@ import { StatusChangeForm } from "@/components/StatusChangeForm";
 import { EditLeadForm } from "@/components/EditLeadForm";
 import { LeadFilters, FilterOptions } from "@/components/LeadFilters";
 import { LeadsListView } from "@/components/LeadsListView";
+import { DeleteLeadDialog } from "@/components/DeleteLeadDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
@@ -31,6 +32,8 @@ export function ClientsContent() {
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [isStatusFormOpen, setIsStatusFormOpen] = useState(false);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [leadToDelete, setLeadToDelete] = useState<{ id: string; name: string } | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filters, setFilters] = useState<FilterOptions>({
@@ -136,9 +139,15 @@ export function ClientsContent() {
     setIsStatusFormOpen(true);
   };
 
-  const handleDeleteLead = async (leadId: string, leadName: string) => {
-    if (window.confirm(`Tem certeza que deseja excluir o lead "${leadName}"?`)) {
-      await deleteLead(leadId);
+  const handleDeleteLead = (leadId: string, leadName: string) => {
+    setLeadToDelete({ id: leadId, name: leadName });
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteLead = () => {
+    if (leadToDelete) {
+      deleteLead(leadToDelete.id);
+      setLeadToDelete(null);
     }
   };
 
@@ -339,6 +348,13 @@ export function ClientsContent() {
         open={isEditFormOpen}
         onOpenChange={setIsEditFormOpen}
         onLeadUpdated={fetchLeads}
+      />
+
+      <DeleteLeadDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        leadName={leadToDelete?.name || ""}
+        onConfirm={confirmDeleteLead}
       />
     </div>
   );
