@@ -1,11 +1,8 @@
 
 import { useState, useEffect } from "react";
-import { Search, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { supabase } from "@/integrations/supabase/client";
 import { Lead } from "@/types/lead";
 
@@ -14,10 +11,10 @@ interface GlobalSearchProps {
 }
 
 export function GlobalSearch({ onLeadSelect }: GlobalSearchProps) {
-  const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [leads, setLeads] = useState<Lead[]>([]);
   const [filteredLeads, setFilteredLeads] = useState<Lead[]>([]);
+  const [showResults, setShowResults] = useState(false);
 
   useEffect(() => {
     const fetchLeads = async () => {
@@ -50,22 +47,12 @@ export function GlobalSearch({ onLeadSelect }: GlobalSearchProps) {
         (lead.company && lead.company.toLowerCase().includes(searchTerm.toLowerCase()))
       );
       setFilteredLeads(filtered);
+      setShowResults(true);
     } else {
       setFilteredLeads([]);
+      setShowResults(false);
     }
   }, [searchTerm, leads]);
-
-  useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        setOpen((open) => !open);
-      }
-    };
-
-    document.addEventListener("keydown", down);
-    return () => document.removeEventListener("keydown", down);
-  }, []);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -83,34 +70,41 @@ export function GlobalSearch({ onLeadSelect }: GlobalSearchProps) {
   };
 
   const handleLeadSelect = (lead: Lead) => {
-    setOpen(false);
     setSearchTerm("");
+    setShowResults(false);
     onLeadSelect(lead);
   };
 
+  const handleFocus = () => {
+    if (searchTerm.length > 0) {
+      setShowResults(true);
+    }
+  };
+
+  const handleBlur = () => {
+    // Delay hiding results to allow for click on result
+    setTimeout(() => setShowResults(false), 150);
+  };
+
   return (
-    <>
-      <Button
-        variant="outline"
-        className="relative max-w-md w-full justify-start text-sm text-muted-foreground"
-        onClick={() => setOpen(true)}
-      >
-        <Search className="mr-2 h-4 w-4" />
-        Buscar leads...
-        <kbd className="pointer-events-none absolute right-1.5 top-1.5 hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
-          <span className="text-xs">⌘</span>K
-        </kbd>
-      </Button>
-      <CommandDialog open={open} onOpenChange={setOpen}>
-        <CommandInput placeholder="Buscar leads por nome, email, telefone..." />
-        <CommandList>
-          <CommandEmpty>Nenhum lead encontrado.</CommandEmpty>
-          <CommandGroup heading="Leads">
+    <div className="relative max-w-md w-full">
+      <Input
+        placeholder="Buscar leads..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        className="w-full"
+      />
+      
+      {showResults && filteredLeads.length > 0 && (
+        <Card className="absolute top-full left-0 right-0 mt-1 max-h-80 overflow-y-auto z-50 border shadow-lg">
+          <div className="p-2">
             {filteredLeads.slice(0, 10).map((lead) => (
-              <CommandItem
+              <div
                 key={lead.id}
-                onSelect={() => handleLeadSelect(lead)}
-                className="flex items-center gap-3 p-3"
+                onClick={() => handleLeadSelect(lead)}
+                className="flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md"
               >
                 <div className="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold">
                   {lead.name.split(' ').map(word => word.charAt(0)).join('').toUpperCase().slice(0, 2)}
@@ -126,11 +120,19 @@ export function GlobalSearch({ onLeadSelect }: GlobalSearchProps) {
                     {lead.email} • {lead.phone}
                   </div>
                 </div>
-              </CommandItem>
+              </div>
             ))}
-          </CommandGroup>
-        </CommandList>
-      </CommandDialog>
-    </>
+          </div>
+        </Card>
+      )}
+      
+      {showResults && filteredLeads.length === 0 && searchTerm.length > 0 && (
+        <Card className="absolute top-full left-0 right-0 mt-1 z-50 border shadow-lg">
+          <div className="p-4 text-center text-muted-foreground">
+            Nenhum lead encontrado.
+          </div>
+        </Card>
+      )}
+    </div>
   );
 }
