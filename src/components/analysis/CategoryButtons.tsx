@@ -54,7 +54,7 @@ export function CategoryButtons({ selectedCategory, onCategoryChange }: Category
     );
   }
 
-  // Card Perdas - mostrar "Perdas", "Estados" e "Tipo de ação"
+  // Card Perdas - TROCADO: mostrar "Perdas", "Tipo de ação" e "Estados"
   if (mainCategory === "perdas") {
     return (
       <div className="flex gap-2 flex-wrap">
@@ -65,18 +65,18 @@ export function CategoryButtons({ selectedCategory, onCategoryChange }: Category
           Perdas
         </Button>
         <Button
-          variant={selectedCategory === "perdas-estados" ? "default" : "outline"}
-          onClick={() => onCategoryChange("perdas-estados")}
-        >
-          <MapPin className="h-4 w-4 mr-2" />
-          Estados
-        </Button>
-        <Button
           variant={selectedCategory === "perdas-tipo-acao" ? "default" : "outline"}
           onClick={() => onCategoryChange("perdas-tipo-acao")}
         >
           <FileText className="h-4 w-4 mr-2" />
           Tipo de ação
+        </Button>
+        <Button
+          variant={selectedCategory === "perdas-estados" ? "default" : "outline"}
+          onClick={() => onCategoryChange("perdas-estados")}
+        >
+          <MapPin className="h-4 w-4 mr-2" />
+          Estados
         </Button>
       </div>
     );

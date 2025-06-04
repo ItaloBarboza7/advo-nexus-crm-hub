@@ -1,27 +1,34 @@
 
-import { Bell, Search, User } from "lucide-react";
+import { Bell, User } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { GlobalSearch } from "@/components/GlobalSearch";
+import { Lead } from "@/types/lead";
 
-export function Header() {
+interface HeaderProps {
+  onLeadSelect?: (lead: Lead) => void;
+}
+
+export function Header({ onLeadSelect }: HeaderProps) {
+  const handleLeadSelect = (lead: Lead) => {
+    if (onLeadSelect) {
+      onLeadSelect(lead);
+    }
+  };
+
   return (
-    <header className="bg-white border-b border-gray-200 px-6 py-4">
+    <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <SidebarTrigger />
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Buscar clientes, casos..."
-              className="pl-10 bg-gray-50 border-gray-200"
-            />
-          </div>
+          <GlobalSearch onLeadSelect={handleLeadSelect} />
         </div>
         
         <div className="flex items-center gap-4">
+          <ThemeToggle />
           <Button variant="ghost" size="icon" className="relative">
-            <Bell className="h-5 w-5 text-gray-600" />
+            <Bell className="h-5 w-5 text-gray-600 dark:text-gray-300" />
             <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
               3
             </span>
@@ -29,8 +36,8 @@ export function Header() {
           
           <div className="flex items-center gap-3">
             <div className="text-right">
-              <p className="text-sm font-medium text-gray-900">Dr. João Silva</p>
-              <p className="text-xs text-gray-500">Advogado Senior</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Dr. João Silva</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Advogado Senior</p>
             </div>
             <div className="bg-blue-600 p-2 rounded-full">
               <User className="h-5 w-5 text-white" />

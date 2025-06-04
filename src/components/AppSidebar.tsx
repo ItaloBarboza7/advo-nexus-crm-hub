@@ -1,5 +1,5 @@
 
-import { Home, Users, Target, TrendingUp, Scale, Settings } from "lucide-react";
+import { Home, Users, Target, TrendingUp, Settings } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -48,21 +48,23 @@ const menuItems = [
 
 export function AppSidebar({ activeView, setActiveView }: AppSidebarProps) {
   return (
-    <Sidebar className="border-r border-gray-200">
-      <SidebarHeader className="border-b border-gray-200 p-6">
+    <Sidebar className="border-r border-gray-200 dark:border-gray-800">
+      <SidebarHeader className="border-b border-gray-200 dark:border-gray-800 p-6">
         <div className="flex items-center gap-3">
-          <div className="bg-blue-600 p-2 rounded-lg">
-            <Scale className="h-6 w-6 text-white" />
-          </div>
+          <img 
+            src="/lovable-uploads/153d3133-c453-45c0-89e4-e12fff78895f.png" 
+            alt="EVOJURIS Logo" 
+            className="h-8 w-8"
+          />
           <div>
-            <h2 className="text-xl font-bold text-gray-900">LeadsCRM</h2>
-            <p className="text-sm text-gray-500">Análise de Leads</p>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">EVOJURIS</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Análise de Leads</p>
           </div>
         </div>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-gray-600 font-medium px-3 py-2">
+          <SidebarGroupLabel className="text-gray-600 dark:text-gray-400 font-medium px-3 py-2">
             Menu Principal
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -74,8 +76,8 @@ export function AppSidebar({ activeView, setActiveView }: AppSidebarProps) {
                     onClick={() => setActiveView(item.view)}
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
                       activeView === item.view
-                        ? "bg-blue-100 text-blue-700 border-r-2 border-blue-600"
-                        : "text-gray-600 hover:bg-gray-100"
+                        ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-r-2 border-blue-600"
+                        : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                     }`}
                   >
                     <item.icon className="h-5 w-5" />
