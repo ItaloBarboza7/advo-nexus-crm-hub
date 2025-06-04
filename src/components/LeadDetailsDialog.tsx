@@ -19,12 +19,12 @@ interface LeadDetailsDialogProps {
 }
 
 const LEAD_STATUSES = [
-  { id: "Novo", title: "Novo", color: "bg-blue-100 text-blue-800" },
-  { id: "Proposta", title: "Proposta", color: "bg-purple-100 text-purple-800" },
-  { id: "Reunião", title: "Reunião", color: "bg-orange-100 text-orange-800" },
-  { id: "Contrato Fechado", title: "Contrato Fechado", color: "bg-green-100 text-green-800" },
-  { id: "Perdido", title: "Perdido", color: "bg-red-100 text-red-800" },
-  { id: "Finalizado", title: "Finalizado", color: "bg-gray-100 text-gray-800" },
+  { id: "Novo", title: "Novo", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" },
+  { id: "Proposta", title: "Proposta", color: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300" },
+  { id: "Reunião", title: "Reunião", color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300" },
+  { id: "Contrato Fechado", title: "Contrato Fechado", color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" },
+  { id: "Perdido", title: "Perdido", color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300" },
+  { id: "Finalizado", title: "Finalizado", color: "bg-gray-100 text-gray-800 dark:bg-gray-700/50 dark:text-gray-300" },
 ];
 
 const BRAZILIAN_STATES = [
@@ -81,7 +81,7 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
 
   const getStatusColor = (status: string) => {
     const statusConfig = LEAD_STATUSES.find(s => s.id === status);
-    return statusConfig ? statusConfig.color : 'bg-gray-100 text-gray-800';
+    return statusConfig ? statusConfig.color : 'bg-gray-100 text-gray-800 dark:bg-gray-700/50 dark:text-gray-300';
   };
 
   const getInitials = (name: string) => {
@@ -115,7 +115,6 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
     try {
       const updateData: any = { [field]: value };
       
-      // Se estiver atualizando o grupo de ação, também limpar o tipo de ação
       if (field === 'action_group') {
         updateData.action_type = actionType || null;
       }
@@ -140,7 +139,6 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
         description: "Campo atualizado com sucesso.",
       });
       
-      // Atualizar o lead localmente
       Object.assign(lead!, updateData);
       return true;
     } catch (error) {
@@ -470,12 +468,8 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
     if (onEditLead && lead) {
       console.log("✅ Chamando onEditLead com lead:", lead.name);
       onEditLead(lead);
-      console.log("🚪 Fechando dialog");
-      onOpenChange(false);
     } else {
       console.error("❌ onEditLead não está disponível ou lead é null");
-      console.error("onEditLead:", onEditLead);
-      console.error("lead:", lead);
     }
   };
 
@@ -503,19 +497,19 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
-            <div className="bg-blue-600 text-white w-12 h-12 rounded-full flex items-center justify-center font-semibold">
+            <div className="bg-blue-600 dark:bg-blue-500 text-white w-12 h-12 rounded-full flex items-center justify-center font-semibold">
               {getInitials(lead.name)}
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">{lead.name}</h2>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">{lead.name}</h2>
               <div className="flex items-center gap-2">
                 <Badge className={getStatusColor(lead.status)}>
                   {lead.status}
                 </Badge>
-                <div className="flex items-center gap-1 text-green-600 font-medium">
+                <div className="flex items-center gap-1 text-green-600 dark:text-green-400 font-medium">
                   <DollarSign className="h-4 w-4" />
                   <span>{formatCurrency(lead.value)}</span>
                 </div>
@@ -526,107 +520,115 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
 
         <div className="space-y-6 mt-6">
           {/* Informações de Contato */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+          <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg">
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
               <User className="h-4 w-4" />
               Informações de Contato
             </h3>
             <div className="space-y-3">
               {lead.email && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
                   <Mail className="h-4 w-4" />
                   <span>{lead.email}</span>
                 </div>
               )}
-              <div className="flex items-center gap-2 text-sm text-gray-600">
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
                 <Phone className="h-4 w-4" />
                 <span>{lead.phone}</span>
               </div>
-              {/* Estado editável */}
-              <div className="group relative">
-                <MapPin className="h-4 w-4 inline mr-2" />
-                {renderEditableField('state', 'Estado', lead.state || '', BRAZILIAN_STATES.map(state => ({ value: state, label: state })))}
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                <MapPin className="h-4 w-4" />
+                <span>{lead.state || 'Estado não informado'}</span>
               </div>
             </div>
           </div>
 
           {/* Informações Comerciais */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+          <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg">
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
               Informações Comerciais
             </h3>
             <div className="space-y-3">
-              <div className="flex items-center gap-2 text-sm text-gray-600">
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
                 <span className="font-medium">Valor Potencial:</span>
-                <span className="text-green-600 font-semibold">{formatCurrency(lead.value)}</span>
+                <span className="text-green-600 dark:text-green-400 font-semibold">{formatCurrency(lead.value)}</span>
               </div>
-              <div className="flex items-center gap-2 text-sm text-gray-600">
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
                 <span className="font-medium">Status:</span>
                 <Badge className={getStatusColor(lead.status)} variant="outline">
                   {lead.status}
                 </Badge>
               </div>
               {lead.loss_reason && lead.status === "Perdido" && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
                   <span className="font-medium">Motivo da Perda:</span>
-                  <span className="text-red-600">{lead.loss_reason}</span>
+                  <span className="text-red-600 dark:text-red-400">{lead.loss_reason}</span>
                 </div>
               )}
             </div>
           </div>
 
           {/* Informações Adicionais */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+          <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg">
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
               <Tag className="h-4 w-4" />
               Informações Adicionais
             </h3>
             <div className="space-y-3">
-              {/* Fonte editável */}
-              <div className="group relative">
-                {renderEditableField('source', 'Fonte', lead.source || '', getSourceOptions())}
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                <span className="font-medium">Fonte:</span>
+                <span>{lead.source || 'Não informado'}</span>
               </div>
               
-              {/* Grupo de Ação e Tipo de Ação editáveis */}
-              {renderActionGroupField()}
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                <span className="font-medium">Grupo de Ação:</span>
+                <span>{lead.action_group || 'Não informado'}</span>
+              </div>
+
+              {lead.action_type && (
+                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                  <span className="font-medium">Tipo de Ação:</span>
+                  <span>{lead.action_type}</span>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Descrição */}
           {lead.description && (
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg">
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
                 <FileText className="h-4 w-4" />
                 Descrição
               </h3>
-              <p className="text-sm text-gray-600 whitespace-pre-wrap">{lead.description}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">{lead.description}</p>
             </div>
           )}
 
-          {/* Histórico de Status Completo */}
+          {/* Histórico de Status */}
           {completeHistory.length > 0 && (
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg">
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
                 <Clock className="h-4 w-4" />
                 Histórico de Status
               </h3>
               <div className="space-y-3">
                 {completeHistory.map((history) => (
-                  <div key={history.id} className="flex items-center justify-between text-sm border-l-2 border-blue-200 pl-3">
+                  <div key={history.id} className="flex items-center justify-between text-sm border-l-2 border-blue-200 dark:border-blue-600 pl-3">
                     <div>
                       {history.old_status ? (
                         <>
-                          <span className="text-gray-600">{history.old_status} → </span>
+                          <span className="text-gray-600 dark:text-gray-400">{history.old_status} → </span>
                           <Badge className={getStatusColor(history.new_status)} variant="outline">
                             {history.new_status}
                           </Badge>
                         </>
                       ) : (
-                        <span className="text-gray-600">Lead criado em</span>
+                        <span className="text-gray-600 dark:text-gray-400">Lead criado em</span>
                       )}
                     </div>
-                    <span className="text-gray-400">{formatDate(history.changed_at)}</span>
+                    <span className="text-gray-400 dark:text-gray-500">{formatDate(history.changed_at)}</span>
                   </div>
                 ))}
               </div>
@@ -635,11 +637,15 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
         </div>
 
         <div className="flex gap-2 mt-6">
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
+          <Button 
+            variant="outline" 
+            onClick={() => onOpenChange(false)} 
+            className="flex-1 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+          >
             Fechar
           </Button>
           <Button 
-            className="flex-1 bg-blue-600 hover:bg-blue-700"
+            className="flex-1 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white"
             onClick={handleEditClick}
           >
             Editar Lead

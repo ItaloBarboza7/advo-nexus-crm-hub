@@ -10,6 +10,7 @@ import { CalendarContent } from "@/components/CalendarContent";
 import { SettingsContent } from "@/components/SettingsContent";
 import { Header } from "@/components/Header";
 import { LeadDetailsDialog } from "@/components/LeadDetailsDialog";
+import { EditLeadForm } from "@/components/EditLeadForm";
 import { Lead } from "@/types/lead";
 
 export type ActiveView = 'dashboard' | 'clients' | 'cases' | 'calendar' | 'settings';
@@ -18,8 +19,10 @@ const Index = () => {
   const [activeView, setActiveView] = useState<ActiveView>('dashboard');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [isEditFormOpen, setIsEditFormOpen] = useState(false);
 
   const handleLeadSelect = (lead: Lead) => {
+    console.log("🔍 Index - handleLeadSelect chamado com lead:", lead.name);
     setSelectedLead(lead);
     setIsDetailsDialogOpen(true);
     // Mudar para a aba de leads se não estiver nela
@@ -29,8 +32,16 @@ const Index = () => {
   };
 
   const handleEditLead = (lead: Lead) => {
-    // Esta função pode ser expandida conforme necessário
-    console.log("Edit lead:", lead);
+    console.log("✏️ Index - handleEditLead chamado com lead:", lead.name);
+    setSelectedLead(lead);
+    setIsDetailsDialogOpen(false);
+    setIsEditFormOpen(true);
+  };
+
+  const handleLeadUpdated = () => {
+    console.log("🔄 Index - handleLeadUpdated chamado");
+    setIsEditFormOpen(false);
+    setSelectedLead(null);
   };
 
   const renderContent = () => {
@@ -66,6 +77,12 @@ const Index = () => {
             open={isDetailsDialogOpen}
             onOpenChange={setIsDetailsDialogOpen}
             onEditLead={handleEditLead}
+          />
+          <EditLeadForm
+            lead={selectedLead}
+            open={isEditFormOpen}
+            onOpenChange={setIsEditFormOpen}
+            onLeadUpdated={handleLeadUpdated}
           />
         </div>
       </SidebarProvider>
