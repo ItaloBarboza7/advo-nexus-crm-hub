@@ -11,19 +11,25 @@ export function CategoryButtons({ selectedCategory, onCategoryChange }: Category
   // Extrair a categoria principal e subcategoria
   const mainCategory = selectedCategory.split('-')[0];
 
+  const handleCategoryClick = (category: string, event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onCategoryChange(category);
+  };
+
   // Card Novos Contratos - mostrar apenas "Novos Contratos" e "Estados"
   if (mainCategory === "contratos") {
     return (
       <div className="flex gap-2 flex-wrap">
         <Button
           variant={selectedCategory === "contratos" ? "default" : "outline"}
-          onClick={() => onCategoryChange("contratos")}
+          onClick={(e) => handleCategoryClick("contratos", e)}
         >
           Novos Contratos
         </Button>
         <Button
           variant={selectedCategory === "contratos-estados" ? "default" : "outline"}
-          onClick={() => onCategoryChange("contratos-estados")}
+          onClick={(e) => handleCategoryClick("contratos-estados", e)}
         >
           <MapPin className="h-4 w-4 mr-2" />
           Estados
@@ -38,13 +44,13 @@ export function CategoryButtons({ selectedCategory, onCategoryChange }: Category
       <div className="flex gap-2 flex-wrap">
         <Button
           variant={selectedCategory === "oportunidades" ? "default" : "outline"}
-          onClick={() => onCategoryChange("oportunidades")}
+          onClick={(e) => handleCategoryClick("oportunidades", e)}
         >
           Oportunidades
         </Button>
         <Button
           variant={selectedCategory === "oportunidades-estados" ? "default" : "outline"}
-          onClick={() => onCategoryChange("oportunidades-estados")}
+          onClick={(e) => handleCategoryClick("oportunidades-estados", e)}
         >
           <MapPin className="h-4 w-4 mr-2" />
           Estados
@@ -59,13 +65,13 @@ export function CategoryButtons({ selectedCategory, onCategoryChange }: Category
       <div className="flex gap-2 flex-wrap">
         <Button
           variant={selectedCategory === "perdas" ? "default" : "outline"}
-          onClick={() => onCategoryChange("perdas")}
+          onClick={(e) => handleCategoryClick("perdas", e)}
         >
           Perdas
         </Button>
         <Button
           variant={selectedCategory === "perdas-estados" ? "default" : "outline"}
-          onClick={() => onCategoryChange("perdas-estados")}
+          onClick={(e) => handleCategoryClick("perdas-estados", e)}
         >
           <MapPin className="h-4 w-4 mr-2" />
           Estados
@@ -79,13 +85,13 @@ export function CategoryButtons({ selectedCategory, onCategoryChange }: Category
     <div className="flex gap-2 flex-wrap">
       <Button
         variant={selectedCategory === "all" ? "default" : "outline"}
-        onClick={() => onCategoryChange("all")}
+        onClick={(e) => handleCategoryClick("all", e)}
       >
         Todos
       </Button>
       <Button
         variant={selectedCategory === "estados" ? "default" : "outline"}
-        onClick={() => onCategoryChange("estados")}
+        onClick={(e) => handleCategoryClick("estados", e)}
       >
         <MapPin className="h-4 w-4 mr-2" />
         Estados
