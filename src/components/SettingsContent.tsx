@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,6 +37,7 @@ export function SettingsContent() {
     { id: "kanban", title: "Quadro Kanban", icon: Columns },
     { id: "company", title: "Empresa", icon: Building },
     { id: "leads", title: "Opções de Leads", icon: UserPlus },
+    { id: "dashboard", title: "Dashboard", icon: Building },
   ];
 
   const renderTeamTab = () => (
@@ -187,6 +187,91 @@ export function SettingsContent() {
     </div>
   );
 
+  const renderDashboardTab = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-gray-900">Configurações do Dashboard</h3>
+        <p className="text-sm text-gray-600">Gerencie a visibilidade dos componentes do dashboard</p>
+      </div>
+      
+      <Card className="p-6">
+        <h4 className="text-md font-semibold text-gray-900 mb-4">Componentes Disponíveis</h4>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div>
+              <h5 className="font-medium text-gray-900">Gráfico de Leads por Status</h5>
+              <p className="text-sm text-gray-600">Mostra a distribuição dos leads por status</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-green-600">Visível</span>
+              <Button variant="outline" size="sm">
+                <Edit className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div>
+              <h5 className="font-medium text-gray-900">Estatísticas de Conversão</h5>
+              <p className="text-sm text-gray-600">Métricas de conversão de leads</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-green-600">Visível</span>
+              <Button variant="outline" size="sm">
+                <Edit className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div>
+              <h5 className="font-medium text-gray-900">Atividades Recentes</h5>
+              <p className="text-sm text-gray-600">Lista das últimas atividades do sistema</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-green-600">Visível</span>
+              <Button variant="outline" size="sm">
+                <Edit className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div>
+              <h5 className="font-medium text-gray-900">Comparação Individual</h5>
+              <p className="text-sm text-gray-600">Gráfico de comparação de performance individual</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Oculto</span>
+              <Button variant="outline" size="sm">
+                <Edit className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div>
+              <h5 className="font-medium text-gray-900">Metas da Equipe</h5>
+              <p className="text-sm text-gray-600">Progresso das metas mensais da equipe</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-green-600">Visível</span>
+              <Button variant="outline" size="sm">
+                <Edit className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+        
+        <div className="mt-6 pt-4 border-t">
+          <Button className="bg-blue-600 hover:bg-blue-700">
+            Salvar Configurações
+          </Button>
+        </div>
+      </Card>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <div>
@@ -215,6 +300,7 @@ export function SettingsContent() {
         {activeTab === "kanban" && renderKanbanTab()}
         {activeTab === "company" && renderCompanyTab()}
         {activeTab === "leads" && renderLeadsTab()}
+        {activeTab === "dashboard" && renderDashboardTab()}
       </Card>
     </div>
   );

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,18 +15,18 @@ export function CalendarContent() {
     month: "Junho 2024"
   };
 
-  // Dados do usuário logado (simulado)
+  // Dados do usuário logado (simulado) - atualizados para contratos
   const currentUser = {
     name: "Maria Silva",
     currentMonth: {
-      completed: 8,
-      points: 110
+      completed: 12, // contratos fechados este mês
+      points: 925   // pontos atualizados para corresponder ao gráfico
     },
     previousMonth: {
-      completed: 43,
+      completed: 8,  // contratos fechados mês anterior
       points: 780
     },
-    goal: 600
+    goal: 1000
   };
 
   return (
@@ -133,7 +132,7 @@ export function CalendarContent() {
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-4 text-center">
-          <div className="text-2xl font-bold text-blue-600">32</div>
+          <div className="text-2xl font-bold text-blue-600">12</div>
           <div className="text-sm text-gray-600">Contratos Este Mês</div>
         </Card>
         <Card className="p-4 text-center">

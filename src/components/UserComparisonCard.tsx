@@ -1,3 +1,4 @@
+
 import { Card } from "@/components/ui/card";
 import { ChevronDown, TrendingUp } from "lucide-react";
 
@@ -33,29 +34,21 @@ export function UserComparisonCard({
 
   const generateChartData = () => {
     const data = [];
-    for (let i = 0; i <= 24; i++) {
-      // Simulated data showing growth from previous to current month
-      const prevValue = previousMonth.points;
-      const currValue = currentMonth.points;
-      const progress = i / 24;
-      
-      let value;
-      if (i <= 6) {
-        value = prevValue + (prevValue * 0.1 * (i / 6));
-      } else if (i <= 12) {
-        value = prevValue * 1.1 + ((currValue - prevValue * 1.1) * 0.6 * ((i - 6) / 6));
-      } else {
-        value = prevValue * 1.1 + ((currValue - prevValue * 1.1) * 0.6) + 
-                ((currValue - (prevValue * 1.1 + (currValue - prevValue * 1.1) * 0.6)) * ((i - 12) / 12));
-      }
-      
-      data.push(value);
+    // Dados fictícios mais realistas para demonstração
+    const basePoints = [
+      450, 465, 480, 520, 535, 550, 580, 595, 610, 640, 
+      655, 670, 695, 720, 735, 750, 780, 795, 810, 835,
+      850, 865, 890, 910, 925
+    ];
+    
+    for (let i = 0; i < 25; i++) {
+      data.push(basePoints[i] || currentMonth.points);
     }
     return data;
   };
 
   const chartData = generateChartData();
-  const maxValue = Math.max(...chartData, goal);
+  const maxValue = Math.max(...chartData, goal, previousMonth.points);
 
   return (
     <Card className="p-6 bg-white border border-gray-200">
@@ -65,10 +58,10 @@ export function UserComparisonCard({
       </div>
       
       <div className="grid grid-cols-2 gap-6 mb-6">
-        {/* Tarefas concluídas */}
+        {/* Contratos fechados */}
         <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
           <div className="flex items-center justify-between mb-2">
-            <h4 className="text-sm text-gray-600">Tarefas concluídas</h4>
+            <h4 className="text-sm text-gray-600">Contratos fechados</h4>
             <ChevronDown className="h-4 w-4 text-gray-400" />
           </div>
           <div className="text-3xl font-bold mb-1 text-gray-900">{currentMonth.completed}</div>
@@ -144,7 +137,7 @@ export function UserComparisonCard({
             {/* Current month curve */}
             <svg className="absolute inset-0 w-full h-full">
               <path
-                d={`M 0 ${128 - (previousMonth.points / maxValue) * 128} ${chartData.map((value, index) => 
+                d={`M 0 ${128 - (chartData[0] / maxValue) * 128} ${chartData.map((value, index) => 
                   `L ${(index / (chartData.length - 1)) * 100}% ${128 - (value / maxValue) * 128}`
                 ).join(' ')}`}
                 fill="none"
