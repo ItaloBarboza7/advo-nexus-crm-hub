@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -165,22 +164,6 @@ export function CalendarContent() {
           </div>
         </div>
       </Card>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-4 text-center">
-          <div className="text-2xl font-bold text-blue-600">12</div>
-          <div className="text-sm text-gray-600">Contratos Este Mês</div>
-        </Card>
-        <Card className="p-4 text-center">
-          <div className="text-2xl font-bold text-orange-600">64%</div>
-          <div className="text-sm text-gray-600">Meta Atingida</div>
-        </Card>
-        <Card className="p-4 text-center">
-          <div className="text-2xl font-bold text-purple-600">18</div>
-          <div className="text-sm text-gray-600">Restante</div>
-        </Card>
-      </div>
     </div>
   );
 }
