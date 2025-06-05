@@ -25,15 +25,26 @@ export function ActionToggleDropdown({ selectedCategory, onCategoryChange }: Act
   const currentLabel = isGroupView ? "Grupo de Ação" : "Tipo de Ação";
   const CurrentIcon = isGroupView ? Users : FileText;
 
-  const handleOptionSelect = (viewType: 'tipo' | 'grupo') => {
+  const handleOptionSelect = (viewType: 'tipo' | 'grupo', event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
     const suffix = viewType === 'grupo' ? '-grupo-acao' : '';
     onCategoryChange(`${mainCategory}${suffix}`);
+  };
+
+  const handleTriggerClick = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
   };
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="gap-2">
+        <Button 
+          variant="outline" 
+          className="gap-2"
+          onClick={handleTriggerClick}
+        >
           <CurrentIcon className="h-4 w-4" />
           {currentLabel}
           <ChevronDown className="h-4 w-4" />
@@ -41,14 +52,14 @@ export function ActionToggleDropdown({ selectedCategory, onCategoryChange }: Act
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="z-50 bg-white dark:bg-gray-800">
         <DropdownMenuItem 
-          onClick={() => handleOptionSelect('tipo')}
+          onClick={(e) => handleOptionSelect('tipo', e)}
           className="gap-2 cursor-pointer"
         >
           <FileText className="h-4 w-4" />
           Tipo de Ação
         </DropdownMenuItem>
         <DropdownMenuItem 
-          onClick={() => handleOptionSelect('grupo')}
+          onClick={(e) => handleOptionSelect('grupo', e)}
           className="gap-2 cursor-pointer"
         >
           <Users className="h-4 w-4" />

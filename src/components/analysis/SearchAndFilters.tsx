@@ -37,21 +37,19 @@ export function SearchAndFilters({
           />
         </div>
         
+        {selectedCategory !== "estados" && (
+          <AdvancedFilters 
+            onFiltersChange={setAdvancedFilters}
+            activeFilters={advancedFilters}
+            selectedCategory={selectedCategory}
+            lossReasons={lossReasons}
+          />
+        )}
+        
         <ActionToggleDropdown
           selectedCategory={selectedCategory}
           onCategoryChange={onCategoryChange}
         />
-        
-        <div className="ml-auto">
-          {selectedCategory !== "estados" && (
-            <AdvancedFilters 
-              onFiltersChange={setAdvancedFilters}
-              activeFilters={advancedFilters}
-              selectedCategory={selectedCategory}
-              lossReasons={lossReasons}
-            />
-          )}
-        </div>
       </div>
     </Card>
   );
