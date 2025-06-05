@@ -1,12 +1,15 @@
+
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Plus, ChevronLeft, ChevronRight, Target } from "lucide-react";
 import { UserComparisonCard } from "@/components/UserComparisonCard";
+import { DailyContractsPanel } from "@/components/DailyContractsPanel";
 
 export function CalendarContent() {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   const monthlyGoals = {
     totalGoal: 50,
@@ -27,6 +30,17 @@ export function CalendarContent() {
       points: 780
     },
     goal: 1000
+  };
+
+  const handleDateClick = (day: number) => {
+    if (day > 0 && day <= 30) {
+      const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+      setSelectedDate(newDate);
+    }
+  };
+
+  const handleCloseDailyPanel = () => {
+    setSelectedDate(null);
   };
 
   return (
@@ -78,13 +92,16 @@ export function CalendarContent() {
               const day = i - 5 + 1;
               const isCurrentMonth = day > 0 && day <= 30;
               const isToday = day === 1;
+              const isSelected = selectedDate && day === selectedDate.getDate();
               
               return (
                 <div
                   key={i}
-                  className={`p-1 text-xs cursor-pointer hover:bg-gray-100 rounded ${
-                    !isCurrentMonth ? 'text-gray-300' :
-                    isToday ? 'bg-blue-600 text-white' :
+                  onClick={() => handleDateClick(day)}
+                  className={`p-1 text-xs cursor-pointer hover:bg-gray-100 rounded transition-colors ${
+                    !isCurrentMonth ? 'text-gray-300 cursor-default' :
+                    isSelected ? 'bg-blue-600 text-white' :
+                    isToday ? 'bg-gray-200 text-gray-900' :
                     'text-gray-700'
                   }`}
                 >
@@ -95,6 +112,14 @@ export function CalendarContent() {
           </div>
         </Card>
       </div>
+
+      {/* Daily Contracts Panel */}
+      {selectedDate && (
+        <DailyContractsPanel 
+          selectedDate={selectedDate} 
+          onClose={handleCloseDailyPanel}
+        />
+      )}
 
       {/* Monthly Goal Summary - Bottom */}
       <Card className="p-6">

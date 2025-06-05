@@ -32,23 +32,33 @@ export function UserComparisonCard({
     Math.round((Math.abs(pointsChange) / previousMonth.points) * 100) : 
     -Math.round((Math.abs(pointsChange) / previousMonth.points) * 100);
 
-  const generateChartData = () => {
-    const data = [];
-    // Dados fictícios mais realistas para demonstração
+  const generateCurrentMonthData = () => {
+    // Dados do mês atual - curva crescente realística
     const basePoints = [
       450, 465, 480, 520, 535, 550, 580, 595, 610, 640, 
       655, 670, 695, 720, 735, 750, 780, 795, 810, 835,
       850, 865, 890, 910, 925
     ];
     
+    return basePoints;
+  };
+
+  const generatePreviousMonthData = () => {
+    // Dados do mês passado - progresso mais linear e menor
+    const data = [];
+    const startValue = 300;
+    const endValue = previousMonth.points;
+    const increment = (endValue - startValue) / 24;
+    
     for (let i = 0; i < 25; i++) {
-      data.push(basePoints[i] || currentMonth.points);
+      data.push(Math.round(startValue + (increment * i)));
     }
     return data;
   };
 
-  const chartData = generateChartData();
-  const maxValue = Math.max(...chartData, goal, previousMonth.points);
+  const currentMonthData = generateCurrentMonthData();
+  const previousMonthData = generatePreviousMonthData();
+  const maxValue = Math.max(...currentMonthData, ...previousMonthData, goal);
 
   return (
     <Card className="p-6 bg-white border border-gray-200">
@@ -128,17 +138,23 @@ export function UserComparisonCard({
               style={{ bottom: `${(goal / maxValue) * 100}%` }}
             ></div>
 
-            {/* Previous month line (straight line) */}
-            <div 
-              className="absolute w-full border-t-2 border-blue-500"
-              style={{ bottom: `${(previousMonth.points / maxValue) * 100}%` }}
-            ></div>
-
-            {/* Current month curve */}
+            {/* SVG for both lines */}
             <svg className="absolute inset-0 w-full h-full">
+              {/* Previous month line (blue) */}
               <path
-                d={`M 0 ${128 - (chartData[0] / maxValue) * 128} ${chartData.map((value, index) => 
-                  `L ${(index / (chartData.length - 1)) * 100}% ${128 - (value / maxValue) * 128}`
+                d={`M 0 ${128 - (previousMonthData[0] / maxValue) * 128} ${previousMonthData.map((value, index) => 
+                  `L ${(index / (previousMonthData.length - 1)) * 100}% ${128 - (value / maxValue) * 128}`
+                ).join(' ')}`}
+                fill="none"
+                stroke="#3b82f6"
+                strokeWidth="2"
+                className="drop-shadow-sm"
+              />
+              
+              {/* Current month line (green) */}
+              <path
+                d={`M 0 ${128 - (currentMonthData[0] / maxValue) * 128} ${currentMonthData.map((value, index) => 
+                  `L ${(index / (currentMonthData.length - 1)) * 100}% ${128 - (value / maxValue) * 128}`
                 ).join(' ')}`}
                 fill="none"
                 stroke="#22c55e"
