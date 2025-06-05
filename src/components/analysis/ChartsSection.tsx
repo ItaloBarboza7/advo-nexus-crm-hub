@@ -1,6 +1,7 @@
 
 import { LossReasonsChart } from "@/components/LossReasonsChart";
 import { ActionTypesChart } from "@/components/ActionTypesChart";
+import { ActionGroupChart } from "@/components/ActionGroupChart";
 import { StateStatsChart } from "@/components/StateStatsChart";
 import { Lead } from "@/types/lead";
 
@@ -10,6 +11,7 @@ interface ChartsSectionProps {
   shouldShowChart: boolean;
   shouldShowLossReasonsChart: boolean;
   shouldShowActionTypesChart: boolean;
+  shouldShowActionGroupChart: boolean;
   shouldShowStateChart: boolean;
   hasLeadPassedThroughStatus: (leadId: string, statuses: string[]) => boolean;
 }
@@ -20,6 +22,7 @@ export function ChartsSection({
   shouldShowChart,
   shouldShowLossReasonsChart,
   shouldShowActionTypesChart,
+  shouldShowActionGroupChart,
   shouldShowStateChart,
   hasLeadPassedThroughStatus
 }: ChartsSectionProps) {
@@ -35,6 +38,13 @@ export function ChartsSection({
       
       {shouldShowActionTypesChart && (
         <ActionTypesChart 
+          leads={leads} 
+          selectedCategory={selectedCategory}
+        />
+      )}
+
+      {shouldShowActionGroupChart && (
+        <ActionGroupChart 
           leads={leads} 
           selectedCategory={selectedCategory}
         />

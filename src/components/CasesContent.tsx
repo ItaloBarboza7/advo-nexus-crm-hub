@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { DateRange } from "react-day-picker";
 import { DateFilter } from "@/components/DateFilter";
@@ -49,6 +48,7 @@ export function CasesContent() {
     shouldShowChart,
     shouldShowLossReasonsChart,
     shouldShowActionTypesChart,
+    shouldShowActionGroupChart,
     shouldShowStateChart
   } = useAnalysisLogic(leads, selectedCategory, statusHistory, hasLeadPassedThroughStatus);
   
@@ -187,6 +187,7 @@ export function CasesContent() {
         shouldShowChart={shouldShowChart()}
         shouldShowLossReasonsChart={shouldShowLossReasonsChart()}
         shouldShowActionTypesChart={shouldShowActionTypesChart()}
+        shouldShowActionGroupChart={shouldShowActionGroupChart()}
         shouldShowStateChart={shouldShowStateChart()}
         hasLeadPassedThroughStatus={hasLeadPassedThroughStatus}
       />

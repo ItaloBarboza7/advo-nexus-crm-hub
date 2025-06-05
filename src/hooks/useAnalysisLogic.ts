@@ -86,6 +86,10 @@ export const useAnalysisLogic = (
            (mainCategory === "oportunidades" && selectedCategory === "oportunidades") || 
            selectedCategory === "perdas-tipo-acao";
   };
+  const shouldShowActionGroupChart = () => {
+    return selectedCategory === "contratos-grupo-acao" || 
+           selectedCategory === "oportunidades-grupo-acao";
+  };
   const shouldShowStateChart = () => {
     const mainCategory = selectedCategory.split('-')[0];
     return selectedCategory === "estados" || 
@@ -99,6 +103,7 @@ export const useAnalysisLogic = (
     shouldShowChart,
     shouldShowLossReasonsChart,
     shouldShowActionTypesChart,
+    shouldShowActionGroupChart,
     shouldShowStateChart
   };
 };

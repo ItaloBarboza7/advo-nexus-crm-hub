@@ -1,32 +1,47 @@
 
-interface ChartTitleProviderProps {
+interface ChartTitleProps {
   selectedCategory: string;
-  chartType: 'actionTypes' | 'lossReasons' | 'states';
+  chartType: 'lossReasons' | 'actionTypes' | 'actionGroups' | 'states';
 }
 
-export function getChartTitle({ selectedCategory, chartType }: ChartTitleProviderProps): string {
+export const getChartTitle = ({ selectedCategory, chartType }: ChartTitleProps): string => {
   const mainCategory = selectedCategory.split('-')[0];
-  
-  if (chartType === 'actionTypes') {
-    switch (mainCategory) {
-      case 'contratos':
-        return 'Tipos de ação de novos contratos';
-      case 'oportunidades':
-        return 'Tipo de ação geradas em novas oportunidades';
-      case 'perdas':
-        return 'Tipos de ações perdidas';
-      default:
-        return 'Tipos de Ação';
-    }
-  }
-  
+  const subCategory = selectedCategory.includes('-') ? selectedCategory.split('-')[1] : null;
+
   if (chartType === 'lossReasons') {
-    return 'Motivos de Perda';
+    return "Motivos de Perda";
   }
-  
+
+  if (chartType === 'actionTypes') {
+    if (mainCategory === 'contratos') {
+      return "Tipo de Ação - Novos Contratos";
+    } else if (mainCategory === 'oportunidades') {
+      return "Tipo de Ação - Oportunidades";
+    } else if (selectedCategory === 'perdas-tipo-acao') {
+      return "Tipo de Ação - Perdas";
+    }
+    return "Tipo de Ação";
+  }
+
+  if (chartType === 'actionGroups') {
+    if (mainCategory === 'contratos') {
+      return "Grupo de Ação - Novos Contratos";
+    } else if (mainCategory === 'oportunidades') {
+      return "Grupo de Ação - Oportunidades";
+    }
+    return "Grupo de Ação";
+  }
+
   if (chartType === 'states') {
-    return 'Distribuição por Estados';
+    if (mainCategory === 'contratos') {
+      return "Estados - Novos Contratos";
+    } else if (mainCategory === 'oportunidades') {
+      return "Estados - Oportunidades";
+    } else if (mainCategory === 'perdas') {
+      return "Estados - Perdas";
+    }
+    return "Distribuição por Estados";
   }
-  
-  return '';
-}
+
+  return "Análise de Dados";
+};

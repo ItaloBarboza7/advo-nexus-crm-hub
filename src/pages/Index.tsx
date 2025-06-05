@@ -7,13 +7,14 @@ import { DashboardContent } from "@/components/DashboardContent";
 import { ClientsContent } from "@/components/ClientsContent";
 import { CasesContent } from "@/components/CasesContent";
 import { CalendarContent } from "@/components/CalendarContent";
+import { OptimizationContent } from "@/components/OptimizationContent";
 import { SettingsContent } from "@/components/SettingsContent";
 import { Header } from "@/components/Header";
 import { LeadDetailsDialog } from "@/components/LeadDetailsDialog";
 import { EditLeadForm } from "@/components/EditLeadForm";
 import { Lead } from "@/types/lead";
 
-export type ActiveView = 'dashboard' | 'clients' | 'cases' | 'calendar' | 'settings';
+export type ActiveView = 'dashboard' | 'clients' | 'cases' | 'calendar' | 'optimization' | 'settings';
 
 const Index = () => {
   const [activeView, setActiveView] = useState<ActiveView>('dashboard');
@@ -54,6 +55,8 @@ const Index = () => {
         return <CasesContent />;
       case 'calendar':
         return <CalendarContent />;
+      case 'optimization':
+        return <OptimizationContent />;
       case 'settings':
         return <SettingsContent />;
       default:
