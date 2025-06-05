@@ -1,3 +1,4 @@
+
 import { useMemo } from "react";
 import { Lead } from "@/types/lead";
 
@@ -20,6 +21,8 @@ export const useAnalysisLogic = (
     
     // Extrair a categoria principal (antes do hífen se houver)
     const mainCategory = selectedCategory.split('-')[0];
+    
+    console.log(`🔍 getLeadsForChart - selectedCategory: ${selectedCategory}, mainCategory: ${mainCategory}`);
     
     if (mainCategory === "perdas") {
       categoryFilteredLeads = leads.filter(lead => lead.status === "Perdido");
@@ -75,23 +78,32 @@ export const useAnalysisLogic = (
   }, [leads, selectedCategory, statusHistory, hasLeadPassedThroughStatus]);
 
   const shouldShowChart = () => selectedCategory !== "all";
+  
   const shouldShowLossReasonsChart = () => {
-    const mainCategory = selectedCategory.split('-')[0];
-    return mainCategory === "perdas" && selectedCategory === "perdas";
+    console.log(`🔍 shouldShowLossReasonsChart - selectedCategory: ${selectedCategory}`);
+    return selectedCategory === "perdas";
   };
+  
   const shouldShowActionTypesChart = () => {
-    const mainCategory = selectedCategory.split('-')[0];
-    return (mainCategory === "contratos" && selectedCategory === "contratos") || 
-           (mainCategory === "oportunidades" && selectedCategory === "oportunidades") || 
-           (mainCategory === "perdas" && selectedCategory === "perdas");
+    console.log(`🔍 shouldShowActionTypesChart - selectedCategory: ${selectedCategory}`);
+    // Mostrar gráfico de tipos de ação quando:
+    // 1. Categoria principal sem sufixo (contratos, oportunidades, perdas)
+    // 2. NÃO quando tem sufixo -grupo-acao ou -estados
+    const isMainCategoryOnly = selectedCategory === "contratos" || 
+                               selectedCategory === "oportunidades" || 
+                               selectedCategory === "perdas";
+    return isMainCategoryOnly;
   };
+  
   const shouldShowActionGroupChart = () => {
+    console.log(`🔍 shouldShowActionGroupChart - selectedCategory: ${selectedCategory}`);
     return selectedCategory === "contratos-grupo-acao" || 
            selectedCategory === "oportunidades-grupo-acao" ||
            selectedCategory === "perdas-grupo-acao";
   };
+  
   const shouldShowStateChart = () => {
-    const mainCategory = selectedCategory.split('-')[0];
+    console.log(`🔍 shouldShowStateChart - selectedCategory: ${selectedCategory}`);
     return selectedCategory === "estados" || 
            selectedCategory === "contratos-estados" || 
            selectedCategory === "oportunidades-estados" || 

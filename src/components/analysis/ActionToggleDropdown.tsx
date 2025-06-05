@@ -25,47 +25,60 @@ export function ActionToggleDropdown({ selectedCategory, onCategoryChange }: Act
   const currentLabel = isGroupView ? "Grupo de Ação" : "Tipo de Ação";
   const CurrentIcon = isGroupView ? Users : FileText;
 
-  const handleOptionSelect = (viewType: 'tipo' | 'grupo', event: React.MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
+  const handleOptionSelect = (viewType: 'tipo' | 'grupo') => {
+    console.log(`🎯 ActionToggleDropdown - Selecionando viewType: ${viewType} para categoria: ${mainCategory}`);
     const suffix = viewType === 'grupo' ? '-grupo-acao' : '';
-    onCategoryChange(`${mainCategory}${suffix}`);
-  };
-
-  const handleTriggerClick = (event: React.MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
+    const newCategory = `${mainCategory}${suffix}`;
+    console.log(`🎯 ActionToggleDropdown - Nova categoria: ${newCategory}`);
+    onCategoryChange(newCategory);
   };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button 
-          variant="outline" 
-          className="gap-2"
-          onClick={handleTriggerClick}
+    <div onClick={(e) => e.stopPropagation()}>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button 
+            variant="outline" 
+            className="gap-2"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+          >
+            <CurrentIcon className="h-4 w-4" />
+            {currentLabel}
+            <ChevronDown className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent 
+          align="start" 
+          className="z-50 bg-white dark:bg-gray-800"
+          onClick={(e) => e.stopPropagation()}
         >
-          <CurrentIcon className="h-4 w-4" />
-          {currentLabel}
-          <ChevronDown className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="z-50 bg-white dark:bg-gray-800">
-        <DropdownMenuItem 
-          onClick={(e) => handleOptionSelect('tipo', e)}
-          className="gap-2 cursor-pointer"
-        >
-          <FileText className="h-4 w-4" />
-          Tipo de Ação
-        </DropdownMenuItem>
-        <DropdownMenuItem 
-          onClick={(e) => handleOptionSelect('grupo', e)}
-          className="gap-2 cursor-pointer"
-        >
-          <Users className="h-4 w-4" />
-          Grupo de Ação
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          <DropdownMenuItem 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleOptionSelect('tipo');
+            }}
+            className="gap-2 cursor-pointer"
+          >
+            <FileText className="h-4 w-4" />
+            Tipo de Ação
+          </DropdownMenuItem>
+          <DropdownMenuItem 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleOptionSelect('grupo');
+            }}
+            className="gap-2 cursor-pointer"
+          >
+            <Users className="h-4 w-4" />
+            Grupo de Ação
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }
