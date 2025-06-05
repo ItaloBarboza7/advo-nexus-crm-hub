@@ -23,7 +23,7 @@ export function ActionToggleDropdown({ selectedCategory, onCategoryChange }: Act
 
   const isGroupView = selectedCategory.includes("-grupo-acao");
   const currentLabel = isGroupView ? "Grupo de Ação" : "Tipo de Ação";
-  const currentIcon = isGroupView ? Users : FileText;
+  const CurrentIcon = isGroupView ? Users : FileText;
 
   const handleOptionSelect = (viewType: 'tipo' | 'grupo') => {
     const suffix = viewType === 'grupo' ? '-grupo-acao' : '';
@@ -34,7 +34,7 @@ export function ActionToggleDropdown({ selectedCategory, onCategoryChange }: Act
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" className="gap-2">
-          <currentIcon className="h-4 w-4" />
+          <CurrentIcon className="h-4 w-4" />
           {currentLabel}
           <ChevronDown className="h-4 w-4" />
         </Button>
