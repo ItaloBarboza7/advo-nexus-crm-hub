@@ -60,7 +60,7 @@ export function UserComparisonCard({
 
   const currentMonthData = generateCurrentMonthData();
   const previousMonthData = generatePreviousMonthData();
-  const maxValue = Math.max(...currentMonthData, ...previousMonthData, goal);
+  const maxValue = Math.max(...currentMonthData, ...previousMonthData);
 
   return (
     <Card className="p-6 bg-white border border-gray-200">
@@ -115,10 +115,6 @@ export function UserComparisonCard({
             <div className="w-3 h-3 rounded-full bg-blue-500"></div>
             <span className="text-gray-700">MÊS PASSADO (8 contratos)</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-purple-500"></div>
-            <span className="text-gray-700">META (1000 pts)</span>
-          </div>
         </div>
 
         {/* Chart Area */}
@@ -134,12 +130,6 @@ export function UserComparisonCard({
 
           {/* Chart content */}
           <div className="ml-12 h-full relative p-2">
-            {/* Goal line */}
-            <div 
-              className="absolute w-full border-t-2 border-dashed border-purple-500"
-              style={{ bottom: `${((goal / maxValue) * 100)}%` }}
-            ></div>
-
             {/* SVG for both lines */}
             <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
               {/* Previous month line (blue) */}

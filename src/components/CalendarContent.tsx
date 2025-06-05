@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Plus, ChevronLeft, ChevronRight, Target } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Flag } from "lucide-react";
 import { UserComparisonCard } from "@/components/UserComparisonCard";
 import { DailyContractsPanel } from "@/components/DailyContractsPanel";
 
@@ -21,7 +21,8 @@ export function CalendarContent() {
     totalGoal: 50,
     achieved: 32,
     percentage: 64,
-    month: "Junho 2024"
+    month: "Junho 2024",
+    remaining: 18
   };
 
   // Dados do usuário logado (simulado) - atualizados para contratos
@@ -131,12 +132,12 @@ export function CalendarContent() {
       {/* Monthly Goal Summary - Bottom */}
       <Card className="p-6">
         <div className="flex items-center gap-3 mb-4">
-          <Target className="h-6 w-6 text-blue-600" />
+          <Flag className="h-6 w-6 text-blue-600" />
           <h3 className="text-lg font-semibold text-gray-900">Meta Mensal da Equipe - {monthlyGoals.month}</h3>
         </div>
         
         <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-lg border-l-4 border-blue-500">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="text-center">
               <div className="text-3xl font-bold text-blue-600">{monthlyGoals.achieved}</div>
               <div className="text-sm text-gray-600">Contratos Fechados</div>
@@ -149,6 +150,10 @@ export function CalendarContent() {
               <div className="text-3xl font-bold text-green-600">{monthlyGoals.percentage}%</div>
               <div className="text-sm text-gray-600">Progresso</div>
             </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-red-600">{monthlyGoals.remaining}</div>
+              <div className="text-sm text-gray-600">Restante</div>
+            </div>
           </div>
           
           <div className="mt-4">
@@ -156,7 +161,7 @@ export function CalendarContent() {
               <span>Progresso da Meta</span>
               <span>{monthlyGoals.achieved}/{monthlyGoals.totalGoal}</span>
             </div>
-            <Progress value={monthlyGoals.percentage} className="h-3" />
+            <Progress value={monthlyGoals.percentage} className="h-3 [&>div]:bg-blue-500" />
           </div>
         </div>
       </Card>
