@@ -22,13 +22,19 @@ export function ActionToggleDropdown({ selectedCategory, onCategoryChange }: Act
   }
 
   const isGroupView = selectedCategory.includes("-grupo-acao");
+  const isTypeView = selectedCategory.includes("-tipo-acao");
+  
+  // Determinar o label atual baseado na categoria
   const currentLabel = isGroupView ? "Grupo de Ação" : "Tipo de Ação";
   const CurrentIcon = isGroupView ? Users : FileText;
 
   const handleOptionSelect = (viewType: 'tipo' | 'grupo') => {
     console.log(`🎯 ActionToggleDropdown - Selecionando viewType: ${viewType} para categoria: ${mainCategory}`);
-    const suffix = viewType === 'grupo' ? '-grupo-acao' : '';
+    
+    // CORREÇÃO: Gerar sufixos específicos para cada tipo
+    const suffix = viewType === 'grupo' ? '-grupo-acao' : '-tipo-acao';
     const newCategory = `${mainCategory}${suffix}`;
+    
     console.log(`🎯 ActionToggleDropdown - Nova categoria: ${newCategory}`);
     onCategoryChange(newCategory);
   };

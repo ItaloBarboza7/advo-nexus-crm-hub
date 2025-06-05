@@ -81,20 +81,27 @@ export const useAnalysisLogic = (
   
   const shouldShowLossReasonsChart = () => {
     console.log(`🔍 shouldShowLossReasonsChart - selectedCategory: ${selectedCategory}`);
-    // Mostrar gráfico de motivos de perda APENAS quando categoria é exatamente "perdas"
-    return selectedCategory === "perdas";
+    // CORREÇÃO: Mostrar gráfico de motivos de perda APENAS quando categoria é exatamente "perdas" (clique direto)
+    const shouldShow = selectedCategory === "perdas";
+    console.log(`📊 shouldShowLossReasonsChart - shouldShow: ${shouldShow} para ${selectedCategory}`);
+    return shouldShow;
   };
   
   const shouldShowActionTypesChart = () => {
     console.log(`🔍 shouldShowActionTypesChart - selectedCategory: ${selectedCategory}`);
-    // Mostrar gráfico de tipos de ação quando:
-    // 1. Categoria principal sem sufixo (contratos, oportunidades, perdas)
-    // 2. NÃO quando tem sufixo -grupo-acao, -estados, etc.
+    // CORREÇÃO: Mostrar gráfico de tipos de ação quando:
+    // 1. Categoria principal com sufixo -tipo-acao (seleção via dropdown)
+    // 2. OU categoria principal sem sufixo (clique direto no botão)
     const isMainCategoryOnly = selectedCategory === "contratos" || 
                                selectedCategory === "oportunidades" || 
                                selectedCategory === "perdas";
-    console.log(`📊 shouldShowActionTypesChart - isMainCategoryOnly: ${isMainCategoryOnly} para ${selectedCategory}`);
-    return isMainCategoryOnly;
+    const isTypeActionCategory = selectedCategory === "contratos-tipo-acao" ||
+                                selectedCategory === "oportunidades-tipo-acao" ||
+                                selectedCategory === "perdas-tipo-acao";
+    
+    const shouldShow = isMainCategoryOnly || isTypeActionCategory;
+    console.log(`📊 shouldShowActionTypesChart - shouldShow: ${shouldShow} (main: ${isMainCategoryOnly}, type: ${isTypeActionCategory}) para ${selectedCategory}`);
+    return shouldShow;
   };
   
   const shouldShowActionGroupChart = () => {

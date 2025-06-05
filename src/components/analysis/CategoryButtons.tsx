@@ -17,16 +17,11 @@ export function CategoryButtons({ selectedCategory, onCategoryChange }: Category
     onCategoryChange(category);
   };
 
-  // Função para verificar se um botão deve estar ativo
-  const isButtonActive = (buttonCategory: string) => {
-    // Para botões principais (contratos, oportunidades, perdas)
-    if (!buttonCategory.includes('-')) {
-      return selectedCategory === buttonCategory || 
-             (selectedCategory.startsWith(buttonCategory + '-') && 
-              !selectedCategory.includes('-estados') && 
-              !selectedCategory.includes('-grupo-acao'));
-    }
-    // Para botões de estados
+  // CORREÇÃO: Função para verificar se um botão principal deve estar ativo
+  const isMainButtonActive = (buttonCategory: string) => {
+    // Botão principal só fica ativo quando:
+    // 1. selectedCategory é exatamente igual ao buttonCategory (clique direto)
+    // 2. NÃO quando há sufixos como -tipo-acao, -grupo-acao, -estados
     return selectedCategory === buttonCategory;
   };
 
@@ -35,7 +30,7 @@ export function CategoryButtons({ selectedCategory, onCategoryChange }: Category
     return (
       <div className="flex gap-2 flex-wrap">
         <Button
-          variant={isButtonActive("contratos") ? "default" : "outline"}
+          variant={isMainButtonActive("contratos") ? "default" : "outline"}
           onClick={(e) => handleCategoryClick("contratos", e)}
         >
           Novos Contratos
@@ -56,7 +51,7 @@ export function CategoryButtons({ selectedCategory, onCategoryChange }: Category
     return (
       <div className="flex gap-2 flex-wrap">
         <Button
-          variant={isButtonActive("oportunidades") ? "default" : "outline"}
+          variant={isMainButtonActive("oportunidades") ? "default" : "outline"}
           onClick={(e) => handleCategoryClick("oportunidades", e)}
         >
           Oportunidades
@@ -77,7 +72,7 @@ export function CategoryButtons({ selectedCategory, onCategoryChange }: Category
     return (
       <div className="flex gap-2 flex-wrap">
         <Button
-          variant={isButtonActive("perdas") ? "default" : "outline"}
+          variant={isMainButtonActive("perdas") ? "default" : "outline"}
           onClick={(e) => handleCategoryClick("perdas", e)}
         >
           Perdas
