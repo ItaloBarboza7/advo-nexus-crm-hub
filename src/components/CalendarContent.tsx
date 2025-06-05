@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -10,6 +10,12 @@ import { DailyContractsPanel } from "@/components/DailyContractsPanel";
 export function CalendarContent() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
+  // Definir automaticamente o dia atual quando a página carrega
+  useEffect(() => {
+    const today = new Date();
+    setSelectedDate(today);
+  }, []);
 
   const monthlyGoals = {
     totalGoal: 50,
@@ -91,7 +97,8 @@ export function CalendarContent() {
             {Array.from({ length: 35 }, (_, i) => {
               const day = i - 5 + 1;
               const isCurrentMonth = day > 0 && day <= 30;
-              const isToday = day === 1;
+              const today = new Date();
+              const isToday = day === today.getDate();
               const isSelected = selectedDate && day === selectedDate.getDate();
               
               return (

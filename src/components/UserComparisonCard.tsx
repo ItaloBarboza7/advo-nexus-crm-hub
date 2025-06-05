@@ -33,27 +33,29 @@ export function UserComparisonCard({
     -Math.round((Math.abs(pointsChange) / previousMonth.points) * 100);
 
   const generateCurrentMonthData = () => {
-    // Dados do mês atual - curva crescente realística
-    const basePoints = [
-      450, 465, 480, 520, 535, 550, 580, 595, 610, 640, 
-      655, 670, 695, 720, 735, 750, 780, 795, 810, 835,
-      850, 865, 890, 910, 925
+    // Dados do mês atual baseados nos 12 contratos fechados
+    // Progressão mais realística ao longo de 25 dias
+    const contractsPerDay = [
+      0, 0, 1, 1, 2, 2, 3, 4, 4, 5, 
+      6, 6, 7, 8, 8, 9, 9, 10, 10, 11, 
+      11, 12, 12, 12, 12
     ];
     
-    return basePoints;
+    // Converter contratos em pontos (assumindo ~77 pontos por contrato em média)
+    return contractsPerDay.map(contracts => Math.round(contracts * 77));
   };
 
   const generatePreviousMonthData = () => {
-    // Dados do mês passado - progresso mais linear e menor
-    const data = [];
-    const startValue = 300;
-    const endValue = previousMonth.points;
-    const increment = (endValue - startValue) / 24;
+    // Dados do mês passado baseados nos 8 contratos fechados
+    // Progressão mais linear
+    const contractsPerDay = [
+      0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 
+      5, 5, 5, 6, 6, 6, 7, 7, 7, 8, 
+      8, 8, 8, 8, 8
+    ];
     
-    for (let i = 0; i < 25; i++) {
-      data.push(Math.round(startValue + (increment * i)));
-    }
-    return data;
+    // Converter contratos em pontos (assumindo ~97.5 pontos por contrato)
+    return contractsPerDay.map(contracts => Math.round(contracts * 97.5));
   };
 
   const currentMonthData = generateCurrentMonthData();
@@ -107,22 +109,22 @@ export function UserComparisonCard({
         <div className="flex items-center gap-6 mb-4 text-xs">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-green-500"></div>
-            <span className="text-gray-700">MÊS ATUAL</span>
+            <span className="text-gray-700">MÊS ATUAL (12 contratos)</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-            <span className="text-gray-700">MÊS PASSADO</span>
+            <span className="text-gray-700">MÊS PASSADO (8 contratos)</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-purple-500"></div>
-            <span className="text-gray-700">META</span>
+            <span className="text-gray-700">META (1000 pts)</span>
           </div>
         </div>
 
         {/* Chart Area */}
-        <div className="relative h-32 bg-gray-50 rounded border border-gray-100">
+        <div className="relative h-40 bg-gray-50 rounded border border-gray-100">
           {/* Y-axis labels */}
-          <div className="absolute left-0 top-0 h-full flex flex-col justify-between text-xs text-gray-500 pr-2">
+          <div className="absolute left-0 top-0 h-full flex flex-col justify-between text-xs text-gray-500 pr-2 py-2">
             <span>{Math.round(maxValue)}</span>
             <span>{Math.round(maxValue * 0.75)}</span>
             <span>{Math.round(maxValue * 0.5)}</span>
@@ -131,46 +133,53 @@ export function UserComparisonCard({
           </div>
 
           {/* Chart content */}
-          <div className="ml-8 h-full relative">
+          <div className="ml-12 h-full relative p-2">
             {/* Goal line */}
             <div 
               className="absolute w-full border-t-2 border-dashed border-purple-500"
-              style={{ bottom: `${(goal / maxValue) * 100}%` }}
+              style={{ bottom: `${((goal / maxValue) * 100)}%` }}
             ></div>
 
             {/* SVG for both lines */}
-            <svg className="absolute inset-0 w-full h-full">
+            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
               {/* Previous month line (blue) */}
-              <path
-                d={`M 0 ${128 - (previousMonthData[0] / maxValue) * 128} ${previousMonthData.map((value, index) => 
-                  `L ${(index / (previousMonthData.length - 1)) * 100}% ${128 - (value / maxValue) * 128}`
-                ).join(' ')}`}
+              <polyline
+                points={previousMonthData.map((value, index) => 
+                  `${(index / (previousMonthData.length - 1)) * 100},${100 - (value / maxValue) * 100}`
+                ).join(' ')}
                 fill="none"
                 stroke="#3b82f6"
-                strokeWidth="2"
-                className="drop-shadow-sm"
+                strokeWidth="0.5"
+                vectorEffect="non-scaling-stroke"
               />
               
               {/* Current month line (green) */}
-              <path
-                d={`M 0 ${128 - (currentMonthData[0] / maxValue) * 128} ${currentMonthData.map((value, index) => 
-                  `L ${(index / (currentMonthData.length - 1)) * 100}% ${128 - (value / maxValue) * 128}`
-                ).join(' ')}`}
+              <polyline
+                points={currentMonthData.map((value, index) => 
+                  `${(index / (currentMonthData.length - 1)) * 100},${100 - (value / maxValue) * 100}`
+                ).join(' ')}
                 fill="none"
                 stroke="#22c55e"
-                strokeWidth="2"
-                className="drop-shadow-sm"
+                strokeWidth="0.5"
+                vectorEffect="non-scaling-stroke"
               />
             </svg>
 
             {/* X-axis labels */}
             <div className="absolute bottom-0 w-full flex justify-between text-xs text-gray-500 pt-2">
+              <span>1</span>
               <span>6</span>
               <span>12</span>
               <span>18</span>
-              <span>24</span>
+              <span>25</span>
             </div>
           </div>
+        </div>
+        
+        {/* Chart Values Summary */}
+        <div className="mt-2 text-xs text-gray-600 flex justify-between">
+          <span>Mês atual: {currentMonth.points} pts ({currentMonth.completed} contratos)</span>
+          <span>Mês anterior: {previousMonth.points} pts ({previousMonth.completed} contratos)</span>
         </div>
       </div>
     </Card>
