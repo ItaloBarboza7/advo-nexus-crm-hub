@@ -81,6 +81,7 @@ export const useAnalysisLogic = (
   
   const shouldShowLossReasonsChart = () => {
     console.log(`🔍 shouldShowLossReasonsChart - selectedCategory: ${selectedCategory}`);
+    // Mostrar gráfico de motivos de perda APENAS quando categoria é exatamente "perdas"
     return selectedCategory === "perdas";
   };
   
@@ -88,18 +89,21 @@ export const useAnalysisLogic = (
     console.log(`🔍 shouldShowActionTypesChart - selectedCategory: ${selectedCategory}`);
     // Mostrar gráfico de tipos de ação quando:
     // 1. Categoria principal sem sufixo (contratos, oportunidades, perdas)
-    // 2. NÃO quando tem sufixo -grupo-acao ou -estados
+    // 2. NÃO quando tem sufixo -grupo-acao, -estados, etc.
     const isMainCategoryOnly = selectedCategory === "contratos" || 
                                selectedCategory === "oportunidades" || 
                                selectedCategory === "perdas";
+    console.log(`📊 shouldShowActionTypesChart - isMainCategoryOnly: ${isMainCategoryOnly} para ${selectedCategory}`);
     return isMainCategoryOnly;
   };
   
   const shouldShowActionGroupChart = () => {
     console.log(`🔍 shouldShowActionGroupChart - selectedCategory: ${selectedCategory}`);
-    return selectedCategory === "contratos-grupo-acao" || 
-           selectedCategory === "oportunidades-grupo-acao" ||
-           selectedCategory === "perdas-grupo-acao";
+    const shouldShow = selectedCategory === "contratos-grupo-acao" || 
+                       selectedCategory === "oportunidades-grupo-acao" ||
+                       selectedCategory === "perdas-grupo-acao";
+    console.log(`📊 shouldShowActionGroupChart - shouldShow: ${shouldShow} para ${selectedCategory}`);
+    return shouldShow;
   };
   
   const shouldShowStateChart = () => {

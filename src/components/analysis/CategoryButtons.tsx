@@ -17,12 +17,25 @@ export function CategoryButtons({ selectedCategory, onCategoryChange }: Category
     onCategoryChange(category);
   };
 
+  // Função para verificar se um botão deve estar ativo
+  const isButtonActive = (buttonCategory: string) => {
+    // Para botões principais (contratos, oportunidades, perdas)
+    if (!buttonCategory.includes('-')) {
+      return selectedCategory === buttonCategory || 
+             (selectedCategory.startsWith(buttonCategory + '-') && 
+              !selectedCategory.includes('-estados') && 
+              !selectedCategory.includes('-grupo-acao'));
+    }
+    // Para botões de estados
+    return selectedCategory === buttonCategory;
+  };
+
   // Card Novos Contratos - mostrar apenas "Novos Contratos" e "Estados"
   if (mainCategory === "contratos") {
     return (
       <div className="flex gap-2 flex-wrap">
         <Button
-          variant={selectedCategory === "contratos" ? "default" : "outline"}
+          variant={isButtonActive("contratos") ? "default" : "outline"}
           onClick={(e) => handleCategoryClick("contratos", e)}
         >
           Novos Contratos
@@ -43,7 +56,7 @@ export function CategoryButtons({ selectedCategory, onCategoryChange }: Category
     return (
       <div className="flex gap-2 flex-wrap">
         <Button
-          variant={selectedCategory === "oportunidades" ? "default" : "outline"}
+          variant={isButtonActive("oportunidades") ? "default" : "outline"}
           onClick={(e) => handleCategoryClick("oportunidades", e)}
         >
           Oportunidades
@@ -64,7 +77,7 @@ export function CategoryButtons({ selectedCategory, onCategoryChange }: Category
     return (
       <div className="flex gap-2 flex-wrap">
         <Button
-          variant={selectedCategory === "perdas" ? "default" : "outline"}
+          variant={isButtonActive("perdas") ? "default" : "outline"}
           onClick={(e) => handleCategoryClick("perdas", e)}
         >
           Perdas
