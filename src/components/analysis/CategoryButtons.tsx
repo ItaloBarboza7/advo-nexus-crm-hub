@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { MapPin, FileText, Users } from "lucide-react";
+import { MapPin } from "lucide-react";
 
 interface CategoryButtonsProps {
   selectedCategory: string;
@@ -10,9 +10,8 @@ interface CategoryButtonsProps {
 export function CategoryButtons({ selectedCategory, onCategoryChange }: CategoryButtonsProps) {
   // Extrair a categoria principal e subcategoria
   const mainCategory = selectedCategory.split('-')[0];
-  const subCategory = selectedCategory.includes('-') ? selectedCategory.split('-')[1] : null;
 
-  // Card Novos Contratos - mostrar "Novos Contratos", "Grupo de Ação" e "Estados"
+  // Card Novos Contratos - mostrar apenas "Novos Contratos" e "Estados"
   if (mainCategory === "contratos") {
     return (
       <div className="flex gap-2 flex-wrap">
@@ -21,13 +20,6 @@ export function CategoryButtons({ selectedCategory, onCategoryChange }: Category
           onClick={() => onCategoryChange("contratos")}
         >
           Novos Contratos
-        </Button>
-        <Button
-          variant={selectedCategory === "contratos-grupo-acao" ? "default" : "outline"}
-          onClick={() => onCategoryChange("contratos-grupo-acao")}
-        >
-          <Users className="h-4 w-4 mr-2" />
-          Grupo de Ação
         </Button>
         <Button
           variant={selectedCategory === "contratos-estados" ? "default" : "outline"}
@@ -40,7 +32,7 @@ export function CategoryButtons({ selectedCategory, onCategoryChange }: Category
     );
   }
 
-  // Card Oportunidades - mostrar "Oportunidades", "Grupo de Ação" e "Estados"
+  // Card Oportunidades - mostrar apenas "Oportunidades" e "Estados"
   if (mainCategory === "oportunidades") {
     return (
       <div className="flex gap-2 flex-wrap">
@@ -49,13 +41,6 @@ export function CategoryButtons({ selectedCategory, onCategoryChange }: Category
           onClick={() => onCategoryChange("oportunidades")}
         >
           Oportunidades
-        </Button>
-        <Button
-          variant={selectedCategory === "oportunidades-grupo-acao" ? "default" : "outline"}
-          onClick={() => onCategoryChange("oportunidades-grupo-acao")}
-        >
-          <Users className="h-4 w-4 mr-2" />
-          Grupo de Ação
         </Button>
         <Button
           variant={selectedCategory === "oportunidades-estados" ? "default" : "outline"}
@@ -68,7 +53,7 @@ export function CategoryButtons({ selectedCategory, onCategoryChange }: Category
     );
   }
 
-  // Card Perdas - mostrar "Perdas", "Tipo de ação" e "Estados"
+  // Card Perdas - mostrar apenas "Perdas" e "Estados"
   if (mainCategory === "perdas") {
     return (
       <div className="flex gap-2 flex-wrap">
@@ -77,13 +62,6 @@ export function CategoryButtons({ selectedCategory, onCategoryChange }: Category
           onClick={() => onCategoryChange("perdas")}
         >
           Perdas
-        </Button>
-        <Button
-          variant={selectedCategory === "perdas-tipo-acao" ? "default" : "outline"}
-          onClick={() => onCategoryChange("perdas-tipo-acao")}
-        >
-          <FileText className="h-4 w-4 mr-2" />
-          Tipo de ação
         </Button>
         <Button
           variant={selectedCategory === "perdas-estados" ? "default" : "outline"}

@@ -179,6 +179,7 @@ export function CasesContent() {
         advancedFilters={advancedFilters}
         setAdvancedFilters={setAdvancedFilters}
         lossReasons={lossReasons}
+        onCategoryChange={handleCategoryChange}
       />
 
       <ChartsSection

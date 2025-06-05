@@ -1,4 +1,3 @@
-
 import { useMemo } from "react";
 import { Lead } from "@/types/lead";
 
@@ -84,11 +83,12 @@ export const useAnalysisLogic = (
     const mainCategory = selectedCategory.split('-')[0];
     return (mainCategory === "contratos" && selectedCategory === "contratos") || 
            (mainCategory === "oportunidades" && selectedCategory === "oportunidades") || 
-           selectedCategory === "perdas-tipo-acao";
+           (mainCategory === "perdas" && selectedCategory === "perdas");
   };
   const shouldShowActionGroupChart = () => {
     return selectedCategory === "contratos-grupo-acao" || 
-           selectedCategory === "oportunidades-grupo-acao";
+           selectedCategory === "oportunidades-grupo-acao" ||
+           selectedCategory === "perdas-grupo-acao";
   };
   const shouldShowStateChart = () => {
     const mainCategory = selectedCategory.split('-')[0];
