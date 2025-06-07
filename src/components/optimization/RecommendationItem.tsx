@@ -19,7 +19,7 @@ export function RecommendationItem({ title, description, icon, onComplete }: Rec
           </div>
           <div className="flex-1">
             <h3 className="text-lg font-semibold text-gray-900 mb-3 tracking-tight">{title}</h3>
-            <div className="text-gray-700 leading-relaxed font-mono text-sm bg-white rounded-md p-3 border border-gray-200">
+            <div className="text-gray-700 leading-relaxed text-sm bg-white rounded-lg p-4 border border-gray-100 shadow-sm">
               {description}
             </div>
           </div>
