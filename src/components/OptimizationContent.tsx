@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -61,42 +60,52 @@ export function OptimizationContent() {
   const generateSuggestions = (leadsData: Lead[]) => {
     const newSuggestions: OptimizationSuggestion[] = [];
 
-    // === ANÁLISES ORIGINAIS (mantidas) ===
-    
-    // Análise de Performance Geral
+    // === ANÁLISES PRINCIPAIS RESTAURADAS ===
+
+    // 1. Análise de Performance Geral
     const performanceAnalysis = analyzePerformance(leadsData);
     newSuggestions.push(...performanceAnalysis);
 
-    // Análise de Conversão por Fonte
+    // 2. Análise de Conversão por Fonte
     const sourceAnalysis = analyzeSourceConversion(leadsData);
     newSuggestions.push(...sourceAnalysis);
 
-    // Análise de Tipos de Ação
+    // 3. Análise de Tipos de Ação
     const actionTypeAnalysis = analyzeActionTypes(leadsData);
     newSuggestions.push(...actionTypeAnalysis);
 
-    // === NOVAS ANÁLISES DE CRUZAMENTO ===
-    
-    // Análise por Estado e Performance
+    // 4. ANÁLISE PRINCIPAL DE MOTIVOS DE PERDA
+    const lossReasonAnalysis = analyzeLossReasons(leadsData);
+    newSuggestions.push(...lossReasonAnalysis);
+
+    // === ANÁLISES DE CRUZAMENTO ===
+
+    // 5. Análise por Estado e Performance
     const statePerformanceAnalysis = analyzeStatePerformance(leadsData);
     newSuggestions.push(...statePerformanceAnalysis);
 
-    // Análise por Estado e Tipo de Ação
+    // 6. Análise por Estado e Tipo de Ação
     const stateActionAnalysis = analyzeStateActionPerformance(leadsData);
     newSuggestions.push(...stateActionAnalysis);
 
-    // Análise de Motivos de Perda por Estado
+    // 7. Análise de Motivos de Perda por Estado
     const stateLossAnalysis = analyzeStateLossReasons(leadsData);
     newSuggestions.push(...stateLossAnalysis);
 
-    // Análise de Taxa de Conversão (aprimorada)
+    // 8. Análise de Taxa de Conversão
     const conversionAnalysis = analyzeConversionRates(leadsData);
     newSuggestions.push(...conversionAnalysis);
+
+    console.log('🔍 Total de sugestões geradas:', newSuggestions.length);
+    console.log('📊 Sugestões por tipo:', newSuggestions.reduce((acc, s) => {
+      acc[s.type] = (acc[s.type] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>));
 
     setSuggestions(newSuggestions);
   };
 
-  // === ANÁLISES ORIGINAIS (mantidas) ===
+  // === ANÁLISES PRINCIPAIS (restauradas) ===
 
   const analyzePerformance = (leadsData: Lead[]): OptimizationSuggestion[] => {
     const suggestions: OptimizationSuggestion[] = [];
@@ -237,7 +246,90 @@ export function OptimizationContent() {
     return suggestions;
   };
 
-  // === NOVAS ANÁLISES DE CRUZAMENTO ===
+  // === ANÁLISE PRINCIPAL DE MOTIVOS DE PERDA (nova/corrigida) ===
+
+  const analyzeLossReasons = (leadsData: Lead[]): OptimizationSuggestion[] => {
+    const suggestions: OptimizationSuggestion[] = [];
+    const lostLeads = leadsData.filter(lead => lead.status === 'Perdido');
+    
+    if (lostLeads.length < 3) return suggestions;
+
+    const lossReasonData: Record<string, number> = {};
+    
+    lostLeads.forEach(lead => {
+      const reason = lead.loss_reason || 'Não informado';
+      lossReasonData[reason] = (lossReasonData[reason] || 0) + 1;
+    });
+
+    const lossReasonPerformance = Object.entries(lossReasonData)
+      .map(([reason, count]) => ({
+        reason,
+        count,
+        percentage: (count / lostLeads.length) * 100
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    // Principal motivo de perda
+    const mainLossReason = lossReasonPerformance[0];
+    if (mainLossReason && mainLossReason.percentage > 25) {
+      suggestions.push({
+        id: `main-loss-reason-${mainLossReason.reason}`,
+        type: 'loss_reason',
+        priority: mainLossReason.percentage > 50 ? 'high' : 'medium',
+        title: `Principal motivo de perda: "${mainLossReason.reason}"`,
+        description: `${mainLossReason.percentage.toFixed(1)}% de todas as perdas são por "${mainLossReason.reason}"`,
+        metric: `${mainLossReason.count} de ${lostLeads.length} perdas (${mainLossReason.percentage.toFixed(1)}%)`,
+        recommendation: `Desenvolver estratégia específica para reduzir perdas por "${mainLossReason.reason}"`,
+        impact: `Potencial recuperação de ${Math.round(mainLossReason.count * 0.25)}-${Math.round(mainLossReason.count * 0.4)} leads`,
+        dataSupport: {
+          mainStat: `${mainLossReason.count} leads perdidos por "${mainLossReason.reason}"`,
+          additionalInfo: [
+            `Representa ${mainLossReason.percentage.toFixed(1)}% de todas as perdas`,
+            `Total de leads perdidos: ${lostLeads.length}`,
+            `Outros motivos: ${lossReasonPerformance.length - 1} diferentes`,
+            `Impacto estimado na receita: Alto`
+          ]
+        }
+      });
+    }
+
+    // Motivos concentrados (mais de 20% mas não o principal)
+    lossReasonPerformance.slice(1).forEach(reason => {
+      if (reason.percentage > 20 && reason.count >= 3) {
+        suggestions.push({
+          id: `concentrated-loss-${reason.reason}`,
+          type: 'loss_reason',
+          priority: 'medium',
+          title: `Alto índice de perda por "${reason.reason}"`,
+          description: `"${reason.reason}" representa ${reason.percentage.toFixed(1)}% das perdas`,
+          metric: `${reason.count} de ${lostLeads.length} perdas`,
+          recommendation: `Analisar e criar plano de ação para "${reason.reason}"`,
+          impact: `Potencial recuperação de ${Math.round(reason.count * 0.2)} leads`,
+          dataSupport: {
+            mainStat: `${reason.count} leads perdidos por "${reason.reason}" (${reason.percentage.toFixed(1)}%)`,
+            comparisonStat: `Principal motivo: "${mainLossReason.reason}" com ${mainLossReason.percentage.toFixed(1)}%`,
+            additionalInfo: [
+              `Concentração significativa do problema`,
+              `Oportunidade de melhoria direcionada`,
+              `ROI alto em ações específicas`
+            ]
+          }
+        });
+      }
+    });
+
+    console.log('📊 Análise de motivos de perda:', {
+      totalLostLeads: lostLeads.length,
+      reasonsAnalyzed: lossReasonPerformance.length,
+      suggestionsGenerated: suggestions.length,
+      mainReason: mainLossReason?.reason,
+      mainReasonPercentage: mainLossReason?.percentage
+    });
+
+    return suggestions;
+  };
+
+  // === ANÁLISES DE CRUZAMENTO (mantidas) ===
 
   const analyzeStatePerformance = (leadsData: Lead[]): OptimizationSuggestion[] => {
     const suggestions: OptimizationSuggestion[] = [];
@@ -456,6 +548,7 @@ export function OptimizationContent() {
     return suggestions;
   };
 
+  // ... keep existing code (helper functions and rendering)
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'high': return 'bg-red-100 text-red-800 border-red-200';
