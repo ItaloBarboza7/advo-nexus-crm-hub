@@ -4,7 +4,7 @@ import { CheckCircle2 } from "lucide-react";
 
 interface RecommendationItemProps {
   title: string;
-  description: string;
+  description: string | React.ReactNode;
   icon: React.ReactNode;
   onComplete: () => void;
 }
@@ -19,7 +19,7 @@ export function RecommendationItem({ title, description, icon, onComplete }: Rec
           </div>
           <div className="flex-1">
             <h3 className="text-lg font-semibold text-gray-900 mb-3 tracking-tight">{title}</h3>
-            <div className="text-gray-700 leading-relaxed text-sm bg-white rounded-lg p-4 border border-gray-100 shadow-sm">
+            <div className="text-gray-700 leading-relaxed text-sm">
               {description}
             </div>
           </div>

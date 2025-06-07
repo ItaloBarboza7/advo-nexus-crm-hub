@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -87,7 +86,27 @@ export function OptimizationContent() {
       recommendations.push({
         id: 'top-state',
         title: `Intensificar operações em ${topState[0]}`,
-        description: `DADOS: ${topState[1].won} contratos fechados de ${topState[1].total} leads (${conversionRate}% conversão). ROI estimado: ${roi.toFixed(0)}% superior à média. AÇÃO: Alocar 40% dos recursos de marketing e vendas para esta região. Implementar campanha segmentada e contratar representante local.`,
+        description: (
+          <div className="space-y-3">
+            <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-200">
+              <h4 className="font-semibold text-emerald-800 mb-2">📊 Análise de Performance</h4>
+              <ul className="text-emerald-700 text-sm space-y-1">
+                <li>• {topState[1].won} contratos fechados de {topState[1].total} leads</li>
+                <li>• Taxa de conversão: {conversionRate}%</li>
+                <li>• ROI estimado: {roi.toFixed(0)}% superior à média</li>
+              </ul>
+            </div>
+            <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+              <h4 className="font-semibold text-blue-800 mb-2">🎯 Ações Recomendadas</h4>
+              <ul className="text-blue-700 text-sm space-y-1">
+                <li>• Alocar 40% dos recursos de marketing para esta região</li>
+                <li>• Implementar campanha segmentada específica</li>
+                <li>• Contratar representante comercial local</li>
+                <li>• Investir em publicidade regional direcionada</li>
+              </ul>
+            </div>
+          </div>
+        ),
         icon: <MapPin className="h-5 w-5 text-emerald-600" />
       });
     }
@@ -98,7 +117,27 @@ export function OptimizationContent() {
       recommendations.push({
         id: 'improve-state',
         title: `Otimizar estratégia para ${worstState[0]}`,
-        description: `DADOS: Taxa de conversão crítica de ${conversionRate}% (${worstState[1].won}/${worstState[1].total}). Taxa de perda: ${lossRate}%. AÇÃO: Revisar proposta de valor, ajustar pricing regional, implementar follow-up intensivo e treinar equipe com objeções específicas da região.`,
+        description: (
+          <div className="space-y-3">
+            <div className="bg-amber-50 p-3 rounded-lg border border-amber-200">
+              <h4 className="font-semibold text-amber-800 mb-2">⚠️ Situação Atual</h4>
+              <ul className="text-amber-700 text-sm space-y-1">
+                <li>• Taxa de conversão crítica: {conversionRate}%</li>
+                <li>• Leads perdidos: {worstState[1].lost} de {worstState[1].total}</li>
+                <li>• Taxa de perda: {lossRate}%</li>
+              </ul>
+            </div>
+            <div className="bg-purple-50 p-3 rounded-lg border border-purple-200">
+              <h4 className="font-semibold text-purple-800 mb-2">🔧 Plano de Melhoria</h4>
+              <ul className="text-purple-700 text-sm space-y-1">
+                <li>• Revisar proposta de valor para a região</li>
+                <li>• Ajustar pricing com base no mercado local</li>
+                <li>• Implementar follow-up intensivo</li>
+                <li>• Treinar equipe com objeções específicas</li>
+              </ul>
+            </div>
+          </div>
+        ),
         icon: <TrendingUp className="h-5 w-5 text-amber-600" />
       });
     }
@@ -112,8 +151,7 @@ export function OptimizationContent() {
       acc[actionType].total++;
       if (lead.status === 'Contrato Fechado') {
         acc[actionType].won++;
-        // Assumindo um valor médio de contrato para cálculo
-        const contractValue = 5000; // Valor exemplo
+        const contractValue = 5000;
         acc[actionType].totalValue += contractValue;
       }
       return acc;
@@ -126,11 +164,31 @@ export function OptimizationContent() {
     if (bestActionType && !isRecommendationCompleted('best-action')) {
       const conversionRate = ((bestActionType[1].won / bestActionType[1].total) * 100).toFixed(1);
       const efficiency = bestActionType[1].won / bestActionType[1].total;
-      const projectedGain = Math.round(efficiency * 10000); // Ganho projetado
+      const projectedGain = Math.round(efficiency * 10000);
       recommendations.push({
         id: 'best-action',
         title: `Priorizar ações do tipo "${bestActionType[0]}"`,
-        description: `DADOS: Conversão de ${conversionRate}% (${bestActionType[1].won}/${bestActionType[1].total}). Eficiência ${(efficiency * 100).toFixed(0)}% superior à média. AÇÃO: Realocação de 60% das ações para este tipo. Projeção: +R$ ${projectedGain.toLocaleString()} em receita mensal.`,
+        description: (
+          <div className="space-y-3">
+            <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+              <h4 className="font-semibold text-blue-800 mb-2">📈 Performance Destacada</h4>
+              <ul className="text-blue-700 text-sm space-y-1">
+                <li>• Taxa de conversão: {conversionRate}%</li>
+                <li>• Fechamentos: {bestActionType[1].won} de {bestActionType[1].total} leads</li>
+                <li>• Eficiência {(efficiency * 100).toFixed(0)}% superior à média</li>
+              </ul>
+            </div>
+            <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+              <h4 className="font-semibold text-green-800 mb-2">💰 Estratégia de Crescimento</h4>
+              <ul className="text-green-700 text-sm space-y-1">
+                <li>• Realocar 60% das ações para este tipo</li>
+                <li>• Treinar equipe nesta abordagem específica</li>
+                <li>• Projeção de ganho: +R$ {projectedGain.toLocaleString()}/mês</li>
+                <li>• Padronizar processos desta categoria</li>
+              </ul>
+            </div>
+          </div>
+        ),
         icon: <Target className="h-5 w-5 text-blue-600" />
       });
     }
@@ -150,11 +208,31 @@ export function OptimizationContent() {
 
     if (mainLossReason && mainLossReason[1] >= 2 && !isRecommendationCompleted('main-loss')) {
       const lossPercentage = ((mainLossReason[1] / totalLosses) * 100).toFixed(1);
-      const potentialRecovery = Math.round(mainLossReason[1] * 0.3 * 5000); // 30% de recuperação estimada
+      const potentialRecovery = Math.round(mainLossReason[1] * 0.3 * 5000);
       recommendations.push({
         id: 'main-loss',
         title: `Mitigar principal causa de perda: "${mainLossReason[0]}"`,
-        description: `DADOS: ${mainLossReason[1]} perdas (${lossPercentage}% do total). Impacto estimado: R$ ${(mainLossReason[1] * 5000).toLocaleString()} em receita perdida. AÇÃO: Criar script de objeções, treinamento específico da equipe, ajuste na proposta. Potencial recuperação: R$ ${potentialRecovery.toLocaleString()}.`,
+        description: (
+          <div className="space-y-3">
+            <div className="bg-red-50 p-3 rounded-lg border border-red-200">
+              <h4 className="font-semibold text-red-800 mb-2">🚨 Problema Identificado</h4>
+              <ul className="text-red-700 text-sm space-y-1">
+                <li>• {mainLossReason[1]} perdas por este motivo</li>
+                <li>• Representa {lossPercentage}% de todas as perdas</li>
+                <li>• Receita perdida: R$ {(mainLossReason[1] * 5000).toLocaleString()}</li>
+              </ul>
+            </div>
+            <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-200">
+              <h4 className="font-semibold text-indigo-800 mb-2">🛠️ Plano de Ação</h4>
+              <ul className="text-indigo-700 text-sm space-y-1">
+                <li>• Criar script específico para esta objeção</li>
+                <li>• Treinamento intensivo da equipe comercial</li>
+                <li>• Ajustar proposta para endereçar a causa</li>
+                <li>• Potencial recuperação: R$ {potentialRecovery.toLocaleString()}</li>
+              </ul>
+            </div>
+          </div>
+        ),
         icon: <AlertTriangle className="h-5 w-5 text-red-600" />
       });
     }
@@ -172,13 +250,33 @@ export function OptimizationContent() {
 
       if (leadsInProcessCount >= 3) {
         const processPercentage = ((leadsInProcessCount / totalActiveLeads) * 100).toFixed(1);
-        const projectedClosing = Math.round(leadsInProcessCount * 0.4); // 40% de fechamento projetado
+        const projectedClosing = Math.round(leadsInProcessCount * 0.4);
         const revenueProjection = projectedClosing * 5000;
         
         recommendations.push({
           id: 'follow-up',
           title: 'Implementar sistema de follow-up estruturado',
-          description: `DADOS: ${leadsInProcessCount} leads em processo (${processPercentage}% do pipeline ativo). Tempo médio de conversão pode ser reduzido em 35%. AÇÃO: Automatizar follow-ups, definir cronograma de contatos, implementar CRM triggers. Projeção: ${projectedClosing} fechamentos adicionais (R$ ${revenueProjection.toLocaleString()}).`,
+          description: (
+            <div className="space-y-3">
+              <div className="bg-purple-50 p-3 rounded-lg border border-purple-200">
+                <h4 className="font-semibold text-purple-800 mb-2">🔄 Pipeline Atual</h4>
+                <ul className="text-purple-700 text-sm space-y-1">
+                  <li>• {leadsInProcessCount} leads em processo ativo</li>
+                  <li>• Representa {processPercentage}% do pipeline</li>
+                  <li>• Potencial para reduzir tempo de conversão em 35%</li>
+                </ul>
+              </div>
+              <div className="bg-cyan-50 p-3 rounded-lg border border-cyan-200">
+                <h4 className="font-semibold text-cyan-800 mb-2">⚡ Sistema de Follow-up</h4>
+                <ul className="text-cyan-700 text-sm space-y-1">
+                  <li>• Automatizar lembretes de contato</li>
+                  <li>• Definir cronograma estruturado</li>
+                  <li>• Implementar triggers no CRM</li>
+                  <li>• Meta: {projectedClosing} fechamentos (R$ {revenueProjection.toLocaleString()})</li>
+                </ul>
+              </div>
+            </div>
+          ),
           icon: <Users className="h-5 w-5 text-purple-600" />
         });
       }
