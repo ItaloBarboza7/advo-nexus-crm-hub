@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,6 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Plus, ChevronLeft, ChevronRight, Flag } from "lucide-react";
 import { UserComparisonCard } from "@/components/UserComparisonCard";
 import { DailyContractsPanel } from "@/components/DailyContractsPanel";
+import { RecoverableLeadsTask } from "@/components/RecoverableLeadsTask";
 
 export function CalendarContent() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -127,6 +129,9 @@ export function CalendarContent() {
           onClose={handleCloseDailyPanel}
         />
       )}
+
+      {/* Recoverable Leads Task */}
+      <RecoverableLeadsTask userName={currentUser.name} />
 
       {/* Monthly Goal Summary - Bottom */}
       <Card className="p-6">

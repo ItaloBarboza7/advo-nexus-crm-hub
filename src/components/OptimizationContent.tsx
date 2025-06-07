@@ -1,21 +1,25 @@
-
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, TrendingUp, TrendingDown, Target, DollarSign, MapPin, Activity, Lightbulb } from "lucide-react";
+import { AlertTriangle, TrendingUp, TrendingDown, Target, DollarSign, MapPin, Activity, Lightbulb, BarChart3 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Lead } from "@/types/lead";
 
 interface OptimizationSuggestion {
   id: string;
-  type: 'state_action' | 'loss_reason' | 'conversion_rate';
+  type: 'state_action' | 'loss_reason' | 'conversion_rate' | 'state_performance';
   priority: 'high' | 'medium' | 'low';
   title: string;
   description: string;
   metric: string;
   recommendation: string;
   impact: string;
+  dataSupport: {
+    mainStat: string;
+    comparisonStat?: string;
+    additionalInfo: string[];
+  };
 }
 
 export function OptimizationContent() {
@@ -56,13 +60,17 @@ export function OptimizationContent() {
   const generateSuggestions = (leadsData: Lead[]) => {
     const newSuggestions: OptimizationSuggestion[] = [];
 
+    // Análise por Estado e Performance
+    const statePerformanceAnalysis = analyzeStatePerformance(leadsData);
+    newSuggestions.push(...statePerformanceAnalysis);
+
     // Análise por Estado e Tipo de Ação
     const stateActionAnalysis = analyzeStateActionPerformance(leadsData);
     newSuggestions.push(...stateActionAnalysis);
 
-    // Análise de Motivos de Perda
-    const lossReasonAnalysis = analyzeLossReasons(leadsData);
-    newSuggestions.push(...lossReasonAnalysis);
+    // Análise de Motivos de Perda por Estado
+    const stateLossAnalysis = analyzeStateLossReasons(leadsData);
+    newSuggestions.push(...stateLossAnalysis);
 
     // Análise de Taxa de Conversão
     const conversionAnalysis = analyzeConversionRates(leadsData);
@@ -71,18 +79,71 @@ export function OptimizationContent() {
     setSuggestions(newSuggestions);
   };
 
+  const analyzeStatePerformance = (leadsData: Lead[]): OptimizationSuggestion[] => {
+    const suggestions: OptimizationSuggestion[] = [];
+    const stateData: Record<string, { total: number; closed: number; lost: number }> = {};
+
+    leadsData.forEach(lead => {
+      const state = lead.state || 'Não informado';
+      if (!stateData[state]) {
+        stateData[state] = { total: 0, closed: 0, lost: 0 };
+      }
+      stateData[state].total++;
+      if (lead.status === 'Contrato Fechado') stateData[state].closed++;
+      if (lead.status === 'Perdido') stateData[state].lost++;
+    });
+
+    const statePerformance = Object.entries(stateData)
+      .map(([state, data]) => ({
+        state,
+        conversionRate: data.total > 0 ? (data.closed / data.total) * 100 : 0,
+        lossRate: data.total > 0 ? (data.lost / data.total) * 100 : 0,
+        total: data.total,
+        closed: data.closed,
+        lost: data.lost
+      }))
+      .filter(state => state.total >= 5)
+      .sort((a, b) => b.conversionRate - a.conversionRate);
+
+    if (statePerformance.length > 1) {
+      const bestState = statePerformance[0];
+      const worstStates = statePerformance.filter(s => s.conversionRate < bestState.conversionRate - 20);
+
+      worstStates.forEach(state => {
+        suggestions.push({
+          id: `state-performance-${state.state}`,
+          type: 'state_performance',
+          priority: state.conversionRate < 15 ? 'high' : 'medium',
+          title: `Baixa performance no estado: ${state.state}`,
+          description: `${state.state} apresenta conversão significativamente inferior aos melhores estados`,
+          metric: `${state.conversionRate.toFixed(1)}% de conversão`,
+          recommendation: `Analisar estratégias específicas para ${state.state} e aplicar táticas do estado ${bestState.state}`,
+          impact: `Potencial aumento de ${(bestState.conversionRate - state.conversionRate).toFixed(1)}% na conversão`,
+          dataSupport: {
+            mainStat: `${state.closed} contratos de ${state.total} leads (${state.conversionRate.toFixed(1)}%)`,
+            comparisonStat: `Melhor estado: ${bestState.state} com ${bestState.conversionRate.toFixed(1)}%`,
+            additionalInfo: [
+              `${state.lost} leads perdidos em ${state.state}`,
+              `Taxa de perda: ${state.lossRate.toFixed(1)}%`,
+              `Diferença para o melhor: ${(bestState.conversionRate - state.conversionRate).toFixed(1)} pontos percentuais`
+            ]
+          }
+        });
+      });
+    }
+
+    return suggestions;
+  };
+
   const analyzeStateActionPerformance = (leadsData: Lead[]): OptimizationSuggestion[] => {
     const suggestions: OptimizationSuggestion[] = [];
     const stateActionData: Record<string, Record<string, { total: number; closed: number }>> = {};
 
-    // Agrupar dados por estado e tipo de ação
     leadsData.forEach(lead => {
       const state = lead.state || 'Não informado';
       const actionType = lead.action_type || 'Não informado';
 
-      if (!stateActionData[state]) {
-        stateActionData[state] = {};
-      }
+      if (!stateActionData[state]) stateActionData[state] = {};
       if (!stateActionData[state][actionType]) {
         stateActionData[state][actionType] = { total: 0, closed: 0 };
       }
@@ -93,32 +154,62 @@ export function OptimizationContent() {
       }
     });
 
-    // Analisar cada estado
     Object.entries(stateActionData).forEach(([state, actions]) => {
-      const actionPerformance = Object.entries(actions).map(([actionType, data]) => ({
-        actionType,
-        conversionRate: data.total > 0 ? (data.closed / data.total) * 100 : 0,
-        total: data.total
-      })).filter(action => action.total >= 3); // Só considerar ações com pelo menos 3 leads
+      const actionPerformance = Object.entries(actions)
+        .map(([actionType, data]) => ({
+          actionType,
+          conversionRate: data.total > 0 ? (data.closed / data.total) * 100 : 0,
+          total: data.total,
+          closed: data.closed
+        }))
+        .filter(action => action.total >= 3)
+        .sort((a, b) => b.conversionRate - a.conversionRate);
 
       if (actionPerformance.length > 1) {
-        const bestAction = actionPerformance.reduce((best, current) => 
-          current.conversionRate > best.conversionRate ? current : best
-        );
-        const worstAction = actionPerformance.reduce((worst, current) => 
-          current.conversionRate < worst.conversionRate ? current : worst
-        );
+        const bestAction = actionPerformance[0];
+        const worstAction = actionPerformance[actionPerformance.length - 1];
 
-        if (bestAction.conversionRate > worstAction.conversionRate + 20) {
+        if (bestAction.conversionRate > worstAction.conversionRate + 25) {
           suggestions.push({
-            id: `state-action-${state}`,
+            id: `state-action-${state}-${worstAction.actionType}`,
             type: 'state_action',
-            priority: worstAction.conversionRate < 20 ? 'high' : 'medium',
-            title: `Otimizar ações no estado: ${state}`,
-            description: `O tipo de ação "${worstAction.actionType}" tem baixa conversão (${worstAction.conversionRate.toFixed(1)}%)`,
+            priority: worstAction.conversionRate < 15 ? 'high' : 'medium',
+            title: `${state}: Otimizar tipo de ação "${worstAction.actionType}"`,
+            description: `No estado ${state}, o tipo de ação "${worstAction.actionType}" tem performance muito baixa`,
             metric: `${worstAction.conversionRate.toFixed(1)}% vs ${bestAction.conversionRate.toFixed(1)}%`,
-            recommendation: `Reduzir foco em "${worstAction.actionType}" e aumentar em "${bestAction.actionType}"`,
-            impact: `Potencial aumento de ${(bestAction.conversionRate - worstAction.conversionRate).toFixed(1)}% na conversão`
+            recommendation: `Reduzir "${worstAction.actionType}" e focar em "${bestAction.actionType}" no estado ${state}`,
+            impact: `Potencial aumento de ${(bestAction.conversionRate - worstAction.conversionRate).toFixed(1)}% na conversão`,
+            dataSupport: {
+              mainStat: `"${worstAction.actionType}": ${worstAction.closed}/${worstAction.total} (${worstAction.conversionRate.toFixed(1)}%)`,
+              comparisonStat: `"${bestAction.actionType}": ${bestAction.closed}/${bestAction.total} (${bestAction.conversionRate.toFixed(1)}%)`,
+              additionalInfo: [
+                `Estado analisado: ${state}`,
+                `Diferença de performance: ${(bestAction.conversionRate - worstAction.conversionRate).toFixed(1)} pontos percentuais`,
+                `Total de ações analisadas: ${actionPerformance.length}`
+              ]
+            }
+          });
+        }
+
+        // Recomendação para focar na melhor ação
+        if (bestAction.conversionRate > 60 && bestAction.total >= 5) {
+          suggestions.push({
+            id: `focus-best-action-${state}-${bestAction.actionType}`,
+            type: 'state_action',
+            priority: 'medium',
+            title: `${state}: Aumentar foco em "${bestAction.actionType}"`,
+            description: `O tipo de ação "${bestAction.actionType}" apresenta excelente performance no estado ${state}`,
+            metric: `${bestAction.conversionRate.toFixed(1)}% de conversão`,
+            recommendation: `Aumentar investimento e volume de "${bestAction.actionType}" no estado ${state}`,
+            impact: `Potencial aumento de 20-25% no volume de contratos fechados`,
+            dataSupport: {
+              mainStat: `"${bestAction.actionType}": ${bestAction.closed}/${bestAction.total} (${bestAction.conversionRate.toFixed(1)}%)`,
+              additionalInfo: [
+                `Estado: ${state}`,
+                `Performance superior à média`,
+                `Volume atual: ${bestAction.total} leads processados`
+              ]
+            }
           });
         }
       }
@@ -127,52 +218,45 @@ export function OptimizationContent() {
     return suggestions;
   };
 
-  const analyzeLossReasons = (leadsData: Lead[]): OptimizationSuggestion[] => {
+  const analyzeStateLossReasons = (leadsData: Lead[]): OptimizationSuggestion[] => {
     const suggestions: OptimizationSuggestion[] = [];
-    const lostLeads = leadsData.filter(lead => lead.status === 'Perdido');
-    
-    if (lostLeads.length === 0) return suggestions;
+    const stateLossData: Record<string, Record<string, number>> = {};
 
-    const lossReasonCount: Record<string, { count: number; states: Set<string> }> = {};
-
-    lostLeads.forEach(lead => {
-      const reason = lead.loss_reason || 'Não informado';
+    leadsData.filter(lead => lead.status === 'Perdido').forEach(lead => {
       const state = lead.state || 'Não informado';
+      const lossReason = lead.loss_reason || 'Não informado';
 
-      if (!lossReasonCount[reason]) {
-        lossReasonCount[reason] = { count: 0, states: new Set() };
-      }
-      lossReasonCount[reason].count++;
-      lossReasonCount[reason].states.add(state);
+      if (!stateLossData[state]) stateLossData[state] = {};
+      stateLossData[state][lossReason] = (stateLossData[state][lossReason] || 0) + 1;
     });
 
-    // Identificar motivos de perda críticos
-    Object.entries(lossReasonCount).forEach(([reason, data]) => {
-      const percentage = (data.count / lostLeads.length) * 100;
+    Object.entries(stateLossData).forEach(([state, lossReasons]) => {
+      const totalLossesInState = Object.values(lossReasons).reduce((sum, count) => sum + count, 0);
       
-      if (percentage > 25 && reason.toLowerCase().includes('dinheiro')) {
-        suggestions.push({
-          id: `loss-reason-${reason}`,
-          type: 'loss_reason',
-          priority: 'high',
-          title: `Alto índice de perda por falta de recursos financeiros`,
-          description: `${percentage.toFixed(1)}% das perdas são por "${reason}"`,
-          metric: `${data.count} leads perdidos (${percentage.toFixed(1)}%)`,
-          recommendation: `Focar em leads com maior capacidade financeira e melhorar qualificação inicial`,
-          impact: `Potencial redução de 15-20% nas perdas por esse motivo`
-        });
-      } else if (percentage > 20) {
-        suggestions.push({
-          id: `loss-reason-${reason}`,
-          type: 'loss_reason',
-          priority: percentage > 30 ? 'high' : 'medium',
-          title: `Motivo de perda recorrente: ${reason}`,
-          description: `${percentage.toFixed(1)}% das perdas são por "${reason}"`,
-          metric: `${data.count} leads perdidos`,
-          recommendation: `Desenvolver estratégia específica para lidar com "${reason}"`,
-          impact: `Potencial recuperação de 10-15% desses leads`
-        });
-      }
+      Object.entries(lossReasons).forEach(([reason, count]) => {
+        const percentage = (count / totalLossesInState) * 100;
+        
+        if (percentage > 30 && totalLossesInState >= 5) {
+          suggestions.push({
+            id: `state-loss-${state}-${reason}`,
+            type: 'loss_reason',
+            priority: percentage > 50 ? 'high' : 'medium',
+            title: `${state}: Alto índice de perda por "${reason}"`,
+            description: `No estado ${state}, ${percentage.toFixed(1)}% das perdas são por "${reason}"`,
+            metric: `${count} perdas de ${totalLossesInState} total`,
+            recommendation: `Desenvolver estratégia específica para "${reason}" no estado ${state}`,
+            impact: `Potencial recuperação de ${Math.round(count * 0.2)}-${Math.round(count * 0.3)} leads`,
+            dataSupport: {
+              mainStat: `${count} leads perdidos por "${reason}" (${percentage.toFixed(1)}% do total)`,
+              additionalInfo: [
+                `Estado: ${state}`,
+                `Total de perdas no estado: ${totalLossesInState}`,
+                `Concentração do problema: ${percentage.toFixed(1)}%`
+              ]
+            }
+          });
+        }
+      });
     });
 
     return suggestions;
@@ -181,7 +265,6 @@ export function OptimizationContent() {
   const analyzeConversionRates = (leadsData: Lead[]): OptimizationSuggestion[] => {
     const suggestions: OptimizationSuggestion[] = [];
     
-    // Análise por fonte
     const sourceData: Record<string, { total: number; closed: number }> = {};
     
     leadsData.forEach(lead => {
@@ -199,7 +282,8 @@ export function OptimizationContent() {
       .map(([source, data]) => ({
         source,
         conversionRate: data.total > 0 ? (data.closed / data.total) * 100 : 0,
-        total: data.total
+        total: data.total,
+        closed: data.closed
       }))
       .filter(source => source.total >= 5)
       .sort((a, b) => b.conversionRate - a.conversionRate);
@@ -217,7 +301,16 @@ export function OptimizationContent() {
           description: `Taxa de conversão de apenas ${source.conversionRate.toFixed(1)}%`,
           metric: `${source.conversionRate.toFixed(1)}% vs ${bestSource.conversionRate.toFixed(1)}% (melhor fonte)`,
           recommendation: `Revisar qualidade dos leads de "${source.source}" ou reduzir investimento`,
-          impact: `Realocação de recursos pode aumentar ROI em 25-30%`
+          impact: `Realocação de recursos pode aumentar ROI em 25-30%`,
+          dataSupport: {
+            mainStat: `${source.closed}/${source.total} contratos (${source.conversionRate.toFixed(1)}%)`,
+            comparisonStat: `Melhor fonte: ${bestSource.source} com ${bestSource.conversionRate.toFixed(1)}%`,
+            additionalInfo: [
+              `Diferença: ${(bestSource.conversionRate - source.conversionRate).toFixed(1)} pontos percentuais`,
+              `Volume de leads: ${source.total}`,
+              `Contratos perdidos potenciais: ${Math.round((bestSource.conversionRate - source.conversionRate) * source.total / 100)}`
+            ]
+          }
         });
       });
     }
@@ -246,6 +339,7 @@ export function OptimizationContent() {
   const getTypeIcon = (type: string) => {
     switch (type) {
       case 'state_action': return <MapPin className="h-5 w-5 text-blue-500" />;
+      case 'state_performance': return <BarChart3 className="h-5 w-5 text-purple-500" />;
       case 'loss_reason': return <DollarSign className="h-5 w-5 text-red-500" />;
       case 'conversion_rate': return <Activity className="h-5 w-5 text-green-500" />;
       default: return <Lightbulb className="h-5 w-5 text-yellow-500" />;
@@ -362,13 +456,37 @@ export function OptimizationContent() {
                     </Badge>
                   </div>
                   
-                  <p className="text-gray-600 mb-3">{suggestion.description}</p>
+                  <p className="text-gray-600 mb-4">{suggestion.description}</p>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div>
-                      <span className="text-sm font-medium text-gray-700">Métrica:</span>
-                      <p className="text-sm text-gray-600">{suggestion.metric}</p>
+                  {/* Dados de Suporte */}
+                  <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4" />
+                      Dados que Corroboram a Análise:
+                    </h4>
+                    <div className="space-y-2">
+                      <div className="text-sm">
+                        <span className="font-medium text-gray-700">Métrica Principal:</span>
+                        <span className="ml-2 text-gray-600">{suggestion.dataSupport.mainStat}</span>
+                      </div>
+                      {suggestion.dataSupport.comparisonStat && (
+                        <div className="text-sm">
+                          <span className="font-medium text-gray-700">Comparação:</span>
+                          <span className="ml-2 text-gray-600">{suggestion.dataSupport.comparisonStat}</span>
+                        </div>
+                      )}
+                      <div className="text-sm">
+                        <span className="font-medium text-gray-700">Informações Adicionais:</span>
+                        <ul className="ml-4 mt-1 space-y-1">
+                          {suggestion.dataSupport.additionalInfo.map((info, index) => (
+                            <li key={index} className="text-gray-600 text-xs">• {info}</li>
+                          ))}
+                        </ul>
+                      </div>
                     </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <span className="text-sm font-medium text-gray-700">Recomendação:</span>
                       <p className="text-sm text-gray-600">{suggestion.recommendation}</p>

@@ -89,18 +89,14 @@ export const useAnalysisLogic = (
   
   const shouldShowActionTypesChart = () => {
     console.log(`🔍 shouldShowActionTypesChart - selectedCategory: ${selectedCategory}`);
-    // CORREÇÃO: Mostrar gráfico de tipos de ação quando:
-    // 1. Categoria principal com sufixo -tipo-acao (seleção via dropdown)
-    // 2. OU categoria principal sem sufixo (clique direto no botão)
-    const isMainCategoryOnly = selectedCategory === "contratos" || 
-                               selectedCategory === "oportunidades" || 
-                               selectedCategory === "perdas";
+    // CORREÇÃO: Mostrar gráfico de tipos de ação APENAS quando selecionado via dropdown (com sufixo -tipo-acao)
+    // NÃO mostrar automaticamente quando clica diretamente no botão
     const isTypeActionCategory = selectedCategory === "contratos-tipo-acao" ||
                                 selectedCategory === "oportunidades-tipo-acao" ||
                                 selectedCategory === "perdas-tipo-acao";
     
-    const shouldShow = isMainCategoryOnly || isTypeActionCategory;
-    console.log(`📊 shouldShowActionTypesChart - shouldShow: ${shouldShow} (main: ${isMainCategoryOnly}, type: ${isTypeActionCategory}) para ${selectedCategory}`);
+    const shouldShow = isTypeActionCategory;
+    console.log(`📊 shouldShowActionTypesChart - shouldShow: ${shouldShow} para ${selectedCategory}`);
     return shouldShow;
   };
   
