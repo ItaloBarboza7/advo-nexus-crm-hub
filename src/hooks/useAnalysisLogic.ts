@@ -92,9 +92,18 @@ export const useAnalysisLogic = (
     // CORREÇÃO: Mostrar gráfico de tipos de ação quando:
     // 1. Categoria principal (contratos, oportunidades) OU
     // 2. Categoria com sufixo -tipo-acao
+    // MAS NÃO quando for grupo de ação
     const mainCategory = selectedCategory.split('-')[0];
     const isMainCategory = mainCategory === "contratos" || mainCategory === "oportunidades";
     const isTypeActionCategory = selectedCategory.includes("-tipo-acao");
+    const isGroupActionCategory = selectedCategory.includes("-grupo-acao");
+    
+    // Se for grupo de ação, NÃO mostrar tipo de ação
+    if (isGroupActionCategory) {
+      const shouldShow = false;
+      console.log(`📊 shouldShowActionTypesChart - shouldShow: ${shouldShow} para ${selectedCategory} (grupo de ação)`);
+      return shouldShow;
+    }
     
     const shouldShow = isMainCategory || isTypeActionCategory;
     console.log(`📊 shouldShowActionTypesChart - shouldShow: ${shouldShow} para ${selectedCategory}`);
