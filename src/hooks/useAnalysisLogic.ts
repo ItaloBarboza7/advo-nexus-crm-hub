@@ -81,7 +81,7 @@ export const useAnalysisLogic = (
   
   const shouldShowLossReasonsChart = () => {
     console.log(`🔍 shouldShowLossReasonsChart - selectedCategory: ${selectedCategory}`);
-    // CORREÇÃO: Mostrar gráfico de motivos de perda APENAS quando categoria é exatamente "perdas" (clique direto)
+    // CORREÇÃO: Mostrar gráfico de motivos de perda quando categoria é "perdas" (clique direto)
     const shouldShow = selectedCategory === "perdas";
     console.log(`📊 shouldShowLossReasonsChart - shouldShow: ${shouldShow} para ${selectedCategory}`);
     return shouldShow;
@@ -89,13 +89,14 @@ export const useAnalysisLogic = (
   
   const shouldShowActionTypesChart = () => {
     console.log(`🔍 shouldShowActionTypesChart - selectedCategory: ${selectedCategory}`);
-    // CORREÇÃO: Mostrar gráfico de tipos de ação APENAS quando selecionado via dropdown (com sufixo -tipo-acao)
-    // NÃO mostrar automaticamente quando clica diretamente no botão
-    const isTypeActionCategory = selectedCategory === "contratos-tipo-acao" ||
-                                selectedCategory === "oportunidades-tipo-acao" ||
-                                selectedCategory === "perdas-tipo-acao";
+    // CORREÇÃO: Mostrar gráfico de tipos de ação quando:
+    // 1. Categoria principal (contratos, oportunidades) OU
+    // 2. Categoria com sufixo -tipo-acao
+    const mainCategory = selectedCategory.split('-')[0];
+    const isMainCategory = mainCategory === "contratos" || mainCategory === "oportunidades";
+    const isTypeActionCategory = selectedCategory.includes("-tipo-acao");
     
-    const shouldShow = isTypeActionCategory;
+    const shouldShow = isMainCategory || isTypeActionCategory;
     console.log(`📊 shouldShowActionTypesChart - shouldShow: ${shouldShow} para ${selectedCategory}`);
     return shouldShow;
   };

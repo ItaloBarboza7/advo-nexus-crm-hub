@@ -1,14 +1,15 @@
+
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, TrendingUp, TrendingDown, Target, DollarSign, MapPin, Activity, Lightbulb, BarChart3 } from "lucide-react";
+import { AlertTriangle, TrendingUp, TrendingDown, Target, DollarSign, MapPin, Activity, Lightbulb, BarChart3, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Lead } from "@/types/lead";
 
 interface OptimizationSuggestion {
   id: string;
-  type: 'state_action' | 'loss_reason' | 'conversion_rate' | 'state_performance';
+  type: 'performance' | 'conversion' | 'source' | 'action_type' | 'state_action' | 'loss_reason' | 'conversion_rate' | 'state_performance';
   priority: 'high' | 'medium' | 'low';
   title: string;
   description: string;
@@ -60,6 +61,22 @@ export function OptimizationContent() {
   const generateSuggestions = (leadsData: Lead[]) => {
     const newSuggestions: OptimizationSuggestion[] = [];
 
+    // === ANÁLISES ORIGINAIS (mantidas) ===
+    
+    // Análise de Performance Geral
+    const performanceAnalysis = analyzePerformance(leadsData);
+    newSuggestions.push(...performanceAnalysis);
+
+    // Análise de Conversão por Fonte
+    const sourceAnalysis = analyzeSourceConversion(leadsData);
+    newSuggestions.push(...sourceAnalysis);
+
+    // Análise de Tipos de Ação
+    const actionTypeAnalysis = analyzeActionTypes(leadsData);
+    newSuggestions.push(...actionTypeAnalysis);
+
+    // === NOVAS ANÁLISES DE CRUZAMENTO ===
+    
     // Análise por Estado e Performance
     const statePerformanceAnalysis = analyzeStatePerformance(leadsData);
     newSuggestions.push(...statePerformanceAnalysis);
@@ -72,12 +89,155 @@ export function OptimizationContent() {
     const stateLossAnalysis = analyzeStateLossReasons(leadsData);
     newSuggestions.push(...stateLossAnalysis);
 
-    // Análise de Taxa de Conversão
+    // Análise de Taxa de Conversão (aprimorada)
     const conversionAnalysis = analyzeConversionRates(leadsData);
     newSuggestions.push(...conversionAnalysis);
 
     setSuggestions(newSuggestions);
   };
+
+  // === ANÁLISES ORIGINAIS (mantidas) ===
+
+  const analyzePerformance = (leadsData: Lead[]): OptimizationSuggestion[] => {
+    const suggestions: OptimizationSuggestion[] = [];
+    const totalLeads = leadsData.length;
+    const closedLeads = leadsData.filter(lead => lead.status === 'Contrato Fechado').length;
+    const lostLeads = leadsData.filter(lead => lead.status === 'Perdido').length;
+    const conversionRate = totalLeads > 0 ? (closedLeads / totalLeads) * 100 : 0;
+
+    if (conversionRate < 20) {
+      suggestions.push({
+        id: 'low-conversion-rate',
+        type: 'performance',
+        priority: 'high',
+        title: 'Taxa de conversão geral baixa',
+        description: `A taxa de conversão geral está em ${conversionRate.toFixed(1)}%, abaixo do ideal`,
+        metric: `${conversionRate.toFixed(1)}% de conversão`,
+        recommendation: 'Revisar processo de vendas e qualificação de leads',
+        impact: 'Aumento potencial de 15-25% na conversão',
+        dataSupport: {
+          mainStat: `${closedLeads} contratos de ${totalLeads} leads (${conversionRate.toFixed(1)}%)`,
+          additionalInfo: [
+            `${lostLeads} leads perdidos (${((lostLeads / totalLeads) * 100).toFixed(1)}%)`,
+            'Meta recomendada: 25-35% de conversão',
+            'Focar em qualificação e follow-up'
+          ]
+        }
+      });
+    }
+
+    return suggestions;
+  };
+
+  const analyzeSourceConversion = (leadsData: Lead[]): OptimizationSuggestion[] => {
+    const suggestions: OptimizationSuggestion[] = [];
+    const sourceData: Record<string, { total: number; closed: number }> = {};
+
+    leadsData.forEach(lead => {
+      const source = lead.source || 'Não informado';
+      if (!sourceData[source]) {
+        sourceData[source] = { total: 0, closed: 0 };
+      }
+      sourceData[source].total++;
+      if (lead.status === 'Contrato Fechado') {
+        sourceData[source].closed++;
+      }
+    });
+
+    const sourcePerformance = Object.entries(sourceData)
+      .map(([source, data]) => ({
+        source,
+        conversionRate: data.total > 0 ? (data.closed / data.total) * 100 : 0,
+        total: data.total,
+        closed: data.closed
+      }))
+      .filter(source => source.total >= 3)
+      .sort((a, b) => b.conversionRate - a.conversionRate);
+
+    if (sourcePerformance.length > 1) {
+      const worstSource = sourcePerformance[sourcePerformance.length - 1];
+      
+      if (worstSource.conversionRate < 15 && worstSource.total >= 5) {
+        suggestions.push({
+          id: `source-${worstSource.source}`,
+          type: 'source',
+          priority: 'medium',
+          title: `Baixa performance da fonte: ${worstSource.source}`,
+          description: `A fonte "${worstSource.source}" tem apenas ${worstSource.conversionRate.toFixed(1)}% de conversão`,
+          metric: `${worstSource.conversionRate.toFixed(1)}% de conversão`,
+          recommendation: `Revisar qualidade dos leads de "${worstSource.source}" ou reduzir investimento`,
+          impact: 'Realocação de recursos pode aumentar ROI em 20-30%',
+          dataSupport: {
+            mainStat: `${worstSource.closed}/${worstSource.total} contratos (${worstSource.conversionRate.toFixed(1)}%)`,
+            additionalInfo: [
+              `Volume total: ${worstSource.total} leads`,
+              `Contratos perdidos: ${worstSource.total - worstSource.closed}`,
+              'Considerar melhorar ou pausar esta fonte'
+            ]
+          }
+        });
+      }
+    }
+
+    return suggestions;
+  };
+
+  const analyzeActionTypes = (leadsData: Lead[]): OptimizationSuggestion[] => {
+    const suggestions: OptimizationSuggestion[] = [];
+    const actionData: Record<string, { total: number; closed: number }> = {};
+
+    leadsData.forEach(lead => {
+      const actionType = lead.action_type || 'Não informado';
+      if (!actionData[actionType]) {
+        actionData[actionType] = { total: 0, closed: 0 };
+      }
+      actionData[actionType].total++;
+      if (lead.status === 'Contrato Fechado') {
+        actionData[actionType].closed++;
+      }
+    });
+
+    const actionPerformance = Object.entries(actionData)
+      .map(([action, data]) => ({
+        action,
+        conversionRate: data.total > 0 ? (data.closed / data.total) * 100 : 0,
+        total: data.total,
+        closed: data.closed
+      }))
+      .filter(action => action.total >= 3)
+      .sort((a, b) => b.conversionRate - a.conversionRate);
+
+    if (actionPerformance.length > 1) {
+      const bestAction = actionPerformance[0];
+      const worstAction = actionPerformance[actionPerformance.length - 1];
+
+      if (bestAction.conversionRate > worstAction.conversionRate + 20 && worstAction.total >= 5) {
+        suggestions.push({
+          id: `action-type-${worstAction.action}`,
+          type: 'action_type',
+          priority: 'medium',
+          title: `Otimizar tipo de ação: ${worstAction.action}`,
+          description: `"${worstAction.action}" tem performance inferior a "${bestAction.action}"`,
+          metric: `${worstAction.conversionRate.toFixed(1)}% vs ${bestAction.conversionRate.toFixed(1)}%`,
+          recommendation: `Focar mais em "${bestAction.action}" e reduzir "${worstAction.action}"`,
+          impact: `Potencial aumento de ${(bestAction.conversionRate - worstAction.conversionRate).toFixed(1)}% na conversão`,
+          dataSupport: {
+            mainStat: `"${worstAction.action}": ${worstAction.closed}/${worstAction.total} (${worstAction.conversionRate.toFixed(1)}%)`,
+            comparisonStat: `"${bestAction.action}": ${bestAction.closed}/${bestAction.total} (${bestAction.conversionRate.toFixed(1)}%)`,
+            additionalInfo: [
+              `Diferença: ${(bestAction.conversionRate - worstAction.conversionRate).toFixed(1)} pontos percentuais`,
+              'Realocar recursos para ações mais efetivas',
+              'Treinar equipe nas melhores práticas'
+            ]
+          }
+        });
+      }
+    }
+
+    return suggestions;
+  };
+
+  // === NOVAS ANÁLISES DE CRUZAMENTO ===
 
   const analyzeStatePerformance = (leadsData: Lead[]): OptimizationSuggestion[] => {
     const suggestions: OptimizationSuggestion[] = [];
@@ -186,28 +346,6 @@ export function OptimizationContent() {
                 `Estado analisado: ${state}`,
                 `Diferença de performance: ${(bestAction.conversionRate - worstAction.conversionRate).toFixed(1)} pontos percentuais`,
                 `Total de ações analisadas: ${actionPerformance.length}`
-              ]
-            }
-          });
-        }
-
-        // Recomendação para focar na melhor ação
-        if (bestAction.conversionRate > 60 && bestAction.total >= 5) {
-          suggestions.push({
-            id: `focus-best-action-${state}-${bestAction.actionType}`,
-            type: 'state_action',
-            priority: 'medium',
-            title: `${state}: Aumentar foco em "${bestAction.actionType}"`,
-            description: `O tipo de ação "${bestAction.actionType}" apresenta excelente performance no estado ${state}`,
-            metric: `${bestAction.conversionRate.toFixed(1)}% de conversão`,
-            recommendation: `Aumentar investimento e volume de "${bestAction.actionType}" no estado ${state}`,
-            impact: `Potencial aumento de 20-25% no volume de contratos fechados`,
-            dataSupport: {
-              mainStat: `"${bestAction.actionType}": ${bestAction.closed}/${bestAction.total} (${bestAction.conversionRate.toFixed(1)}%)`,
-              additionalInfo: [
-                `Estado: ${state}`,
-                `Performance superior à média`,
-                `Volume atual: ${bestAction.total} leads processados`
               ]
             }
           });
@@ -338,6 +476,9 @@ export function OptimizationContent() {
 
   const getTypeIcon = (type: string) => {
     switch (type) {
+      case 'performance': return <BarChart3 className="h-5 w-5 text-blue-500" />;
+      case 'source': return <Activity className="h-5 w-5 text-green-500" />;
+      case 'action_type': return <Users className="h-5 w-5 text-orange-500" />;
       case 'state_action': return <MapPin className="h-5 w-5 text-blue-500" />;
       case 'state_performance': return <BarChart3 className="h-5 w-5 text-purple-500" />;
       case 'loss_reason': return <DollarSign className="h-5 w-5 text-red-500" />;
