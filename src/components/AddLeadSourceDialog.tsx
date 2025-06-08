@@ -95,7 +95,7 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="ex: google-ads"
+                placeholder=""
                 required
               />
             </div>
@@ -105,7 +105,7 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
                 id="label"
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
-                placeholder="ex: Google Ads"
+                placeholder=""
                 required
               />
             </div>

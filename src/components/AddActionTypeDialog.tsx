@@ -118,7 +118,7 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="ex: E-mail Marketing"
+                placeholder=""
                 required
               />
             </div>

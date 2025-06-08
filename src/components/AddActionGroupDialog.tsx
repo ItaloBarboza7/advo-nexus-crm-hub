@@ -15,17 +15,16 @@ interface AddActionGroupDialogProps {
 
 export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActionGroupDialogProps) {
   const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name.trim() || !description.trim()) {
+    if (!name.trim()) {
       toast({
         title: "Erro",
-        description: "Nome e descrição são obrigatórios.",
+        description: "Nome é obrigatório.",
         variant: "destructive",
       });
       return;
@@ -38,7 +37,7 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
         .from('action_groups')
         .insert({
           name: name.toLowerCase().replace(/\s+/g, '-'),
-          description: description.trim()
+          description: name.trim()
         });
 
       if (error) {
@@ -57,7 +56,6 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
       });
 
       setName("");
-      setDescription("");
       onGroupAdded();
       onClose();
     } catch (error) {
@@ -74,7 +72,6 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
 
   const handleClose = () => {
     setName("");
-    setDescription("");
     onClose();
   };
 
@@ -95,17 +92,7 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="ex: Marketing"
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="description">Descrição</Label>
-              <Input
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="ex: Ações de Marketing Digital"
+                placeholder=""
                 required
               />
             </div>
