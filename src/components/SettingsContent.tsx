@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -471,7 +472,7 @@ export function SettingsContent() {
     { id: "dashboard", title: "Dashboard", icon: Building },
     { id: "team", title: "Equipe", icon: Users },
     { id: "kanban", title: "Quadro Kanban", icon: Columns },
-    { id: "configurations", title: "Configurações", icon: Settings },
+    { id: "configurations", title: "Ações", icon: Settings },
   ];
 
   const tabs = isAdmin ? allTabs : allTabs.filter(tab => tab.id !== "company");
