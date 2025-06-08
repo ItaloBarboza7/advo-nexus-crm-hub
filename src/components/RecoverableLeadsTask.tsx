@@ -130,7 +130,7 @@ export function RecoverableLeadsTask({ userName }: RecoverableLeadsTaskProps) {
       <Card className="p-6">
         <div className="flex items-center gap-3 mb-4">
           <RefreshCw className="h-6 w-6 text-green-600" />
-          <h3 className="text-lg font-semibold text-gray-900">Leads para Reconectar</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Leads para Follow Up</h3>
         </div>
         <div className="text-center py-6 text-gray-500">
           <AlertCircle className="h-12 w-12 mx-auto mb-3 text-gray-300" />
@@ -146,7 +146,7 @@ export function RecoverableLeadsTask({ userName }: RecoverableLeadsTaskProps) {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <RefreshCw className="h-6 w-6 text-green-600" />
-          <h3 className="text-lg font-semibold text-gray-900">Tarefa: Leads para Reconectar</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Leads para Follow Up</h3>
         </div>
         <Badge variant="outline" className="text-green-700 border-green-300">
           {visibleLeads.length} leads

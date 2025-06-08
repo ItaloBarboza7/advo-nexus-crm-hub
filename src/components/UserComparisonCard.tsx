@@ -1,6 +1,6 @@
 
 import { Card } from "@/components/ui/card";
-import { ChevronDown, TrendingUp } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 
 interface UserComparisonCardProps {
   userName: string;
@@ -64,11 +64,6 @@ export function UserComparisonCard({
 
   return (
     <Card className="p-6 bg-white border border-gray-200">
-      <div className="flex items-center gap-3 mb-6">
-        <TrendingUp className="h-6 w-6 text-blue-600" />
-        <h3 className="text-lg font-semibold text-gray-900">Comparação Individual - {userName}</h3>
-      </div>
-      
       <div className="grid grid-cols-2 gap-6 mb-6">
         {/* Contratos fechados */}
         <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">

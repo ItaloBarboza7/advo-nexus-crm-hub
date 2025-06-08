@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Plus, ChevronLeft, ChevronRight, Flag } from "lucide-react";
+import { ChevronLeft, ChevronRight, Flag } from "lucide-react";
 import { UserComparisonCard } from "@/components/UserComparisonCard";
 import { DailyContractsPanel } from "@/components/DailyContractsPanel";
 import { RecoverableLeadsTask } from "@/components/RecoverableLeadsTask";
@@ -22,7 +22,7 @@ export function CalendarContent() {
     totalGoal: 50,
     achieved: 32,
     percentage: 64,
-    month: "Junho 2024",
+    month: "Junho 2025",
     remaining: 18
   };
 
@@ -58,10 +58,6 @@ export function CalendarContent() {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Metas</h1>
           <p className="text-gray-600">Acompanhe as metas de contratos fechados da equipe</p>
         </div>
-        <Button className="bg-blue-600 hover:bg-blue-700">
-          <Plus className="h-4 w-4 mr-2" />
-          Nova Meta
-        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -78,7 +74,7 @@ export function CalendarContent() {
         {/* Calendar Widget - Right Side (Smaller) */}
         <Card className="p-4 lg:col-span-1">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-md font-semibold text-gray-900">Junho 2024</h3>
+            <h3 className="text-md font-semibold text-gray-900">Junho 2025</h3>
             <div className="flex gap-1">
               <Button variant="outline" size="sm">
                 <ChevronLeft className="h-3 w-3" />
@@ -137,7 +133,7 @@ export function CalendarContent() {
       <Card className="p-6">
         <div className="flex items-center gap-3 mb-4">
           <Flag className="h-6 w-6 text-blue-600" />
-          <h3 className="text-lg font-semibold text-gray-900">Meta Mensal da Equipe - {monthlyGoals.month}</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Meta Mensal - {monthlyGoals.month}</h3>
         </div>
         
         <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-lg border-l-4 border-blue-500">

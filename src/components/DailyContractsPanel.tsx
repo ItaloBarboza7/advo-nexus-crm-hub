@@ -67,7 +67,7 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
         <div className="flex items-center gap-3">
           <Calendar className="h-6 w-6 text-blue-600" />
           <h3 className="text-lg font-semibold text-gray-900">
-            Contratos fechados em {format(selectedDate, "dd/MM/yyyy")}
+            Painel de Atividade - {format(selectedDate, "dd/MM/yyyy")}
           </h3>
         </div>
         <button 
