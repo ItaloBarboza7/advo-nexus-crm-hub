@@ -230,9 +230,8 @@ export function SettingsContent() {
   };
 
   const handleCancelAddColumn = () => {
-    setIsAddingColumn(false);
-    setNewColumnName("");
-    setNewColumnColor("#3B82F6");
+    // This function is no longer needed since we're using AddColumnDialog
+    // but keeping it for compatibility
   };
 
   const leadOptions = [
