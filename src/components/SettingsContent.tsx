@@ -9,6 +9,7 @@ import { EditMemberModal } from "@/components/EditMemberModal";
 import { AddColumnDialog } from "@/components/AddColumnDialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useFilterOptions } from "@/hooks/useFilterOptions";
 
 interface KanbanColumn {
   id: string;
@@ -48,36 +49,22 @@ export function SettingsContent() {
   const [editingColumn, setEditingColumn] = useState<string | null>(null);
   const [editingColumnName, setEditingColumnName] = useState("");
 
-  // Estados para gerenciar grupos de ação
-  const [actionGroups, setActionGroups] = useState([
-    { id: 1, name: "Ligações", description: "Ações relacionadas a chamadas telefônicas" },
-    { id: 2, name: "WhatsApp", description: "Ações relacionadas ao WhatsApp" },
-    { id: 3, name: "E-mail", description: "Ações relacionadas a e-mails" },
-  ]);
+  // Usar o hook para obter os dados sincronizados
+  const { 
+    actionGroups, 
+    actionTypes, 
+    leadSources, 
+    loading: optionsLoading,
+    refreshData 
+  } = useFilterOptions();
 
-  // Estados para gerenciar tipos de ação
-  const [actionTypes, setActionTypes] = useState([
-    { id: 1, name: "Ligação realizada", group: "Ligações" },
-    { id: 2, name: "Mensagem enviada", group: "WhatsApp" },
-    { id: 3, name: "E-mail enviado", group: "E-mail" },
-  ]);
-
-  // Estados para gerenciar opções de leads
-  const [leadOptions, setLeadOptions] = useState([
-    { id: 1, category: "Fonte", option: "Website" },
-    { id: 2, category: "Fonte", option: "LinkedIn" },
-    { id: 3, category: "Fonte", option: "Indicação" },
-    { id: 4, category: "Interesse", option: "Consultoria Jurídica" },
-    { id: 5, category: "Interesse", option: "Contratos" },
-    { id: 6, category: "Interesse", option: "Compliance" },
-  ]);
-
-  const [editingActionGroup, setEditingActionGroup] = useState<number | null>(null);
-  const [editingActionType, setEditingActionType] = useState<number | null>(null);
-  const [editingLeadOption, setEditingLeadOption] = useState<number | null>(null);
+  // Estados para edição inline
+  const [editingActionGroup, setEditingActionGroup] = useState<string | null>(null);
+  const [editingActionType, setEditingActionType] = useState<string | null>(null);
+  const [editingLeadSource, setEditingLeadSource] = useState<string | null>(null);
   const [editingActionGroupName, setEditingActionGroupName] = useState("");
   const [editingActionTypeName, setEditingActionTypeName] = useState("");
-  const [editingLeadOptionName, setEditingLeadOptionName] = useState("");
+  const [editingLeadSourceName, setEditingLeadSourceName] = useState("");
 
   const { toast } = useToast();
 
@@ -331,13 +318,13 @@ export function SettingsContent() {
   };
 
   // Funções para gerenciar grupos de ação
-  const handleEditActionGroup = (groupId: number, currentName: string) => {
+  const handleEditActionGroup = (groupId: string, currentName: string) => {
     setEditingActionGroup(groupId);
     setEditingActionGroupName(currentName);
   };
 
-  const handleSaveActionGroup = () => {
-    if (!editingActionGroupName.trim()) {
+  const handleSaveActionGroup = async () => {
+    if (!editingActionGroupName.trim() || !editingActionGroup) {
       toast({
         title: "Erro",
         description: "O nome do grupo não pode estar vazio.",
@@ -346,37 +333,80 @@ export function SettingsContent() {
       return;
     }
 
-    setActionGroups(prev => prev.map(group => 
-      group.id === editingActionGroup 
-        ? { ...group, name: editingActionGroupName.trim() }
-        : group
-    ));
+    try {
+      const { error } = await supabase
+        .from('action_groups')
+        .update({ description: editingActionGroupName.trim() })
+        .eq('id', editingActionGroup);
 
-    setEditingActionGroup(null);
-    setEditingActionGroupName("");
+      if (error) {
+        console.error('Erro ao atualizar grupo:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível atualizar o grupo.",
+          variant: "destructive"
+        });
+        return;
+      }
 
-    toast({
-      title: "Sucesso",
-      description: "Nome do grupo atualizado com sucesso.",
-    });
+      await refreshData();
+      setEditingActionGroup(null);
+      setEditingActionGroupName("");
+
+      toast({
+        title: "Sucesso",
+        description: "Nome do grupo atualizado com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro inesperado:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado.",
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleDeleteActionGroup = (groupId: number) => {
-    setActionGroups(prev => prev.filter(group => group.id !== groupId));
-    toast({
-      title: "Sucesso",
-      description: "Grupo de ação excluído com sucesso.",
-    });
+  const handleDeleteActionGroup = async (groupId: string) => {
+    try {
+      const { error } = await supabase
+        .from('action_groups')
+        .delete()
+        .eq('id', groupId);
+
+      if (error) {
+        console.error('Erro ao excluir grupo:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível excluir o grupo.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      await refreshData();
+      toast({
+        title: "Sucesso",
+        description: "Grupo de ação excluído com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro inesperado:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado.",
+        variant: "destructive"
+      });
+    }
   };
 
   // Funções para gerenciar tipos de ação
-  const handleEditActionType = (typeId: number, currentName: string) => {
+  const handleEditActionType = (typeId: string, currentName: string) => {
     setEditingActionType(typeId);
     setEditingActionTypeName(currentName);
   };
 
-  const handleSaveActionType = () => {
-    if (!editingActionTypeName.trim()) {
+  const handleSaveActionType = async () => {
+    if (!editingActionTypeName.trim() || !editingActionType) {
       toast({
         title: "Erro",
         description: "O nome do tipo não pode estar vazio.",
@@ -385,66 +415,152 @@ export function SettingsContent() {
       return;
     }
 
-    setActionTypes(prev => prev.map(type => 
-      type.id === editingActionType 
-        ? { ...type, name: editingActionTypeName.trim() }
-        : type
-    ));
+    try {
+      const { error } = await supabase
+        .from('action_types')
+        .update({ name: editingActionTypeName.toLowerCase().replace(/\s+/g, '-') })
+        .eq('id', editingActionType);
 
-    setEditingActionType(null);
-    setEditingActionTypeName("");
+      if (error) {
+        console.error('Erro ao atualizar tipo:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível atualizar o tipo.",
+          variant: "destructive"
+        });
+        return;
+      }
 
-    toast({
-      title: "Sucesso",
-      description: "Nome do tipo atualizado com sucesso.",
-    });
-  };
+      await refreshData();
+      setEditingActionType(null);
+      setEditingActionTypeName("");
 
-  const handleDeleteActionType = (typeId: number) => {
-    setActionTypes(prev => prev.filter(type => type.id !== typeId));
-    toast({
-      title: "Sucesso",
-      description: "Tipo de ação excluído com sucesso.",
-    });
-  };
-
-  // Funções para gerenciar opções de leads
-  const handleEditLeadOption = (optionId: number, currentOption: string) => {
-    setEditingLeadOption(optionId);
-    setEditingLeadOptionName(currentOption);
-  };
-
-  const handleSaveLeadOption = () => {
-    if (!editingLeadOptionName.trim()) {
+      toast({
+        title: "Sucesso",
+        description: "Nome do tipo atualizado com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro inesperado:', error);
       toast({
         title: "Erro",
-        description: "O nome da opção não pode estar vazio.",
+        description: "Ocorreu um erro inesperado.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteActionType = async (typeId: string) => {
+    try {
+      const { error } = await supabase
+        .from('action_types')
+        .delete()
+        .eq('id', typeId);
+
+      if (error) {
+        console.error('Erro ao excluir tipo:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível excluir o tipo.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      await refreshData();
+      toast({
+        title: "Sucesso",
+        description: "Tipo de ação excluído com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro inesperado:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Funções para gerenciar fontes de leads
+  const handleEditLeadSource = (sourceId: string, currentLabel: string) => {
+    setEditingLeadSource(sourceId);
+    setEditingLeadSourceName(currentLabel);
+  };
+
+  const handleSaveLeadSource = async () => {
+    if (!editingLeadSourceName.trim() || !editingLeadSource) {
+      toast({
+        title: "Erro",
+        description: "O nome da fonte não pode estar vazio.",
         variant: "destructive",
       });
       return;
     }
 
-    setLeadOptions(prev => prev.map(option => 
-      option.id === editingLeadOption 
-        ? { ...option, option: editingLeadOptionName.trim() }
-        : option
-    ));
+    try {
+      const { error } = await supabase
+        .from('lead_sources')
+        .update({ label: editingLeadSourceName.trim() })
+        .eq('id', editingLeadSource);
 
-    setEditingLeadOption(null);
-    setEditingLeadOptionName("");
+      if (error) {
+        console.error('Erro ao atualizar fonte:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível atualizar a fonte.",
+          variant: "destructive"
+        });
+        return;
+      }
 
-    toast({
-      title: "Sucesso",
-      description: "Opção atualizada com sucesso.",
-    });
+      await refreshData();
+      setEditingLeadSource(null);
+      setEditingLeadSourceName("");
+
+      toast({
+        title: "Sucesso",
+        description: "Fonte atualizada com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro inesperado:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado.",
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleDeleteLeadOption = (optionId: number) => {
-    setLeadOptions(prev => prev.filter(option => option.id !== optionId));
-    toast({
-      title: "Sucesso",
-      description: "Opção excluída com sucesso.",
-    });
+  const handleDeleteLeadSource = async (sourceId: string) => {
+    try {
+      const { error } = await supabase
+        .from('lead_sources')
+        .delete()
+        .eq('id', sourceId);
+
+      if (error) {
+        console.error('Erro ao excluir fonte:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível excluir a fonte.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      await refreshData();
+      toast({
+        title: "Sucesso",
+        description: "Fonte excluída com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro inesperado:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado.",
+        variant: "destructive"
+      });
+    }
   };
 
   const renderCompanyTab = () => (
@@ -794,208 +910,221 @@ export function SettingsContent() {
     <div className="space-y-6">
       <h3 className="text-lg font-semibold text-gray-900">Configurações do Sistema</h3>
       
-      {/* Grupos de Ação */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h4 className="text-md font-semibold text-gray-900">Grupos de Ação</h4>
-          <Button className="bg-blue-600 hover:bg-blue-700">
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Grupo de Ação
-          </Button>
-        </div>
-        <div className="space-y-3">
-          {actionGroups.map((group) => (
-            <div key={group.id} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  {editingActionGroup === group.id ? (
-                    <div className="flex items-center gap-2">
-                      <Input
-                        value={editingActionGroupName}
-                        onChange={(e) => setEditingActionGroupName(e.target.value)}
-                        className="max-w-xs"
-                        placeholder="Nome do grupo"
-                      />
-                      <Button size="sm" onClick={handleSaveActionGroup}>
-                        <Check className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={() => {
-                          setEditingActionGroup(null);
-                          setEditingActionGroupName("");
-                        }}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <div>
-                      <h5 className="font-medium text-gray-900">{group.name}</h5>
-                      <p className="text-sm text-gray-600">{group.description}</p>
-                    </div>
-                  )}
-                </div>
-                {editingActionGroup !== group.id && (
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => handleEditActionGroup(group.id, group.name)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => handleDeleteActionGroup(group.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-              </div>
+      {optionsLoading ? (
+        <Card className="p-6 text-center">
+          <p className="text-gray-500">Carregando configurações...</p>
+        </Card>
+      ) : (
+        <>
+          {/* Grupos de Ação */}
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-md font-semibold text-gray-900">Grupos de Ação</h4>
+              <Button className="bg-blue-600 hover:bg-blue-700">
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Grupo de Ação
+              </Button>
             </div>
-          ))}
-        </div>
-      </Card>
-
-      {/* Tipos de Ação */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h4 className="text-md font-semibold text-gray-900">Tipos de Ação</h4>
-          <Button className="bg-blue-600 hover:bg-blue-700">
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Tipo de Ação
-          </Button>
-        </div>
-        <div className="space-y-3">
-          {actionTypes.map((type) => (
-            <div key={type.id} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  {editingActionType === type.id ? (
-                    <div className="flex items-center gap-2">
-                      <Input
-                        value={editingActionTypeName}
-                        onChange={(e) => setEditingActionTypeName(e.target.value)}
-                        className="max-w-xs"
-                        placeholder="Nome do tipo"
-                      />
-                      <Button size="sm" onClick={handleSaveActionType}>
-                        <Check className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={() => {
-                          setEditingActionType(null);
-                          setEditingActionTypeName("");
-                        }}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <div>
-                      <h5 className="font-medium text-gray-900">{type.name}</h5>
-                      <p className="text-sm text-gray-600">Grupo: {type.group}</p>
-                    </div>
-                  )}
-                </div>
-                {editingActionType !== type.id && (
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => handleEditActionType(type.id, type.name)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => handleDeleteActionType(type.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      {/* Opções para Cadastro de Leads */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h4 className="text-md font-semibold text-gray-900">Opções para Cadastro de Leads</h4>
-          <Button className="bg-blue-600 hover:bg-blue-700">
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Opção
-          </Button>
-        </div>
-        <div className="space-y-4">
-          {["Fonte", "Interesse"].map((category) => (
-            <div key={category}>
-              <h5 className="font-medium text-gray-900 mb-3">{category}</h5>
-              <div className="space-y-2">
-                {leadOptions
-                  .filter(option => option.category === category)
-                  .map((option) => (
-                    <div key={option.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                      {editingLeadOption === option.id ? (
-                        <div className="flex items-center gap-2 flex-1">
+            <div className="space-y-3">
+              {actionGroups.map((group) => (
+                <div key={group.id} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      {editingActionGroup === group.id ? (
+                        <div className="flex items-center gap-2">
                           <Input
-                            value={editingLeadOptionName}
-                            onChange={(e) => setEditingLeadOptionName(e.target.value)}
+                            value={editingActionGroupName}
+                            onChange={(e) => setEditingActionGroupName(e.target.value)}
                             className="max-w-xs"
-                            placeholder="Nome da opção"
+                            placeholder="Nome do grupo"
                           />
-                          <Button size="sm" onClick={handleSaveLeadOption}>
+                          <Button size="sm" onClick={handleSaveActionGroup}>
                             <Check className="h-4 w-4" />
                           </Button>
                           <Button 
                             size="sm" 
                             variant="outline" 
                             onClick={() => {
-                              setEditingLeadOption(null);
-                              setEditingLeadOptionName("");
+                              setEditingActionGroup(null);
+                              setEditingActionGroupName("");
                             }}
                           >
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
                       ) : (
-                        <>
-                          <span className="text-sm text-gray-700">{option.option}</span>
-                          <div className="flex gap-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleEditLeadOption(option.id, option.option)}
-                            >
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleDeleteLeadOption(option.id)}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </>
+                        <div>
+                          <h5 className="font-medium text-gray-900">{group.description || group.name}</h5>
+                          <p className="text-sm text-gray-600">ID: {group.name}</p>
+                        </div>
                       )}
                     </div>
-                  ))}
-              </div>
+                    {editingActionGroup !== group.id && (
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleEditActionGroup(group.id, group.description || group.name)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleDeleteActionGroup(group.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </Card>
+          </Card>
+
+          {/* Tipos de Ação */}
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-md font-semibold text-gray-900">Tipos de Ação</h4>
+              <Button className="bg-blue-600 hover:bg-blue-700">
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Tipo de Ação
+              </Button>
+            </div>
+            <div className="space-y-3">
+              {actionTypes.map((type) => {
+                const group = actionGroups.find(g => g.id === type.action_group_id);
+                return (
+                  <div key={type.id} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        {editingActionType === type.id ? (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={editingActionTypeName}
+                              onChange={(e) => setEditingActionTypeName(e.target.value)}
+                              className="max-w-xs"
+                              placeholder="Nome do tipo"
+                            />
+                            <Button size="sm" onClick={handleSaveActionType}>
+                              <Check className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => {
+                                setEditingActionType(null);
+                                setEditingActionTypeName("");
+                              }}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div>
+                            <h5 className="font-medium text-gray-900">
+                              {type.name.split('-').map(word => 
+                                word.charAt(0).toUpperCase() + word.slice(1)
+                              ).join(' ')}
+                            </h5>
+                            <p className="text-sm text-gray-600">Grupo: {group?.description || group?.name || 'N/A'}</p>
+                          </div>
+                        )}
+                      </div>
+                      {editingActionType !== type.id && (
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleEditActionType(type.id, type.name)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleDeleteActionType(type.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+
+          {/* Fontes de Leads */}
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-md font-semibold text-gray-900">Fontes de Leads</h4>
+              <Button className="bg-blue-600 hover:bg-blue-700">
+                <Plus className="h-4 w-4 mr-2" />
+                Nova Fonte
+              </Button>
+            </div>
+            <div className="space-y-3">
+              {leadSources.map((source) => (
+                <div key={source.id} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      {editingLeadSource === source.id ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={editingLeadSourceName}
+                            onChange={(e) => setEditingLeadSourceName(e.target.value)}
+                            className="max-w-xs"
+                            placeholder="Nome da fonte"
+                          />
+                          <Button size="sm" onClick={handleSaveLeadSource}>
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => {
+                              setEditingLeadSource(null);
+                              setEditingLeadSourceName("");
+                            }}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div>
+                          <h5 className="font-medium text-gray-900">{source.label}</h5>
+                          <p className="text-sm text-gray-600">ID: {source.name}</p>
+                        </div>
+                      )}
+                    </div>
+                    {editingLeadSource !== source.id && (
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleEditLeadSource(source.id, source.label)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleDeleteLeadSource(source.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </>
+      )}
     </div>
   );
 

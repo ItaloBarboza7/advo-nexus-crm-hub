@@ -99,6 +99,16 @@ export const useFilterOptions = () => {
     label: group.description || group.name
   }));
 
+  // Função para obter todos os tipos de ação para filtros
+  const getAllActionTypeOptions = () => {
+    return actionTypes.map(type => ({
+      value: type.name,
+      label: type.name.split('-').map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1)
+      ).join(' ')
+    }));
+  };
+
   const getActionTypeOptions = (actionGroupName: string) => {
     const actionGroup = actionGroups.find(group => group.name === actionGroupName);
     if (!actionGroup) return [];
@@ -148,6 +158,7 @@ export const useFilterOptions = () => {
     sourceOptions,
     actionGroupOptions,
     getActionTypeOptions,
+    getAllActionTypeOptions,
     stateOptions,
     actionGroups,
     actionTypes,
