@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { subscribeLossReasonUpdate } from "@/utils/lossReasonEvents";
@@ -25,7 +26,7 @@ interface LossReason {
   reason: string;
 }
 
-export const useFilterOptions = () => {
+export const useFilterOptions = (centralLossReasons?: LossReason[]) => {
   const [actionGroups, setActionGroups] = useState<ActionGroup[]>([]);
   const [actionTypes, setActionTypes] = useState<ActionType[]>([]);
   const [leadSources, setLeadSources] = useState<LeadSource[]>([]);
@@ -38,11 +39,24 @@ export const useFilterOptions = () => {
     // Subscrever aos eventos de atualização de motivos de perda
     const unsubscribe = subscribeLossReasonUpdate(() => {
       console.log('📨 [useFilterOptions] Recebido evento de atualização de motivos de perda');
-      refreshLossReasons();
+      if (centralLossReasons) {
+        console.log('📋 [useFilterOptions] Usando motivos de perda centralizados');
+        setLossReasons(centralLossReasons);
+      } else {
+        refreshLossReasons();
+      }
     });
 
     return unsubscribe;
   }, []);
+
+  // Atualizar os motivos de perda quando os dados centralizados mudarem
+  useEffect(() => {
+    if (centralLossReasons) {
+      console.log('🔄 [useFilterOptions] Atualizando com motivos de perda centralizados:', centralLossReasons.length);
+      setLossReasons(centralLossReasons);
+    }
+  }, [centralLossReasons]);
 
   const fetchAllData = async () => {
     try {
@@ -91,8 +105,10 @@ export const useFilterOptions = () => {
         setLeadSources(sourcesData || []);
       }
 
-      // Buscar motivos de perda
-      await refreshLossReasons();
+      // Buscar motivos de perda apenas se não tivermos dados centralizados
+      if (!centralLossReasons) {
+        await refreshLossReasons();
+      }
     } catch (error) {
       console.error('❌ [useFilterOptions] Erro inesperado ao buscar dados:', error);
     } finally {
@@ -108,6 +124,11 @@ export const useFilterOptions = () => {
 
   // Função específica para atualizar motivos de perda
   const refreshLossReasons = async () => {
+    if (centralLossReasons) {
+      console.log('📋 [useFilterOptions] Usando motivos de perda centralizados, não buscar do banco');
+      return;
+    }
+
     try {
       console.log('🔄 [useFilterOptions] Atualizando apenas motivos de perda...');
       
@@ -115,11 +136,6 @@ export const useFilterOptions = () => {
         .from('loss_reasons')
         .select('*')
         .order('reason');
-
-      console.log('📋 [useFilterOptions] Nova busca de motivos de perda:');
-      console.log('   - Data:', lossData);
-      console.log('   - Error:', lossError);
-      console.log('   - Quantidade de registros:', lossData?.length || 0);
 
       if (lossError) {
         console.error('❌ [useFilterOptions] Erro ao atualizar motivos de perda:', lossError);

@@ -16,6 +16,8 @@ interface EditLeadFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onLeadUpdated: () => void;
+  lossReasons?: Array<{ id: string; reason: string }>;
+  onAddLossReason?: (reason: string) => Promise<boolean>;
 }
 
 interface KanbanColumn {
@@ -34,12 +36,14 @@ const BRAZILIAN_STATES = [
   "Roraima", "Santa Catarina", "São Paulo", "Sergipe", "Tocantins"
 ];
 
-interface LossReason {
-  id: string;
-  reason: string;
-}
-
-export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLeadFormProps) {
+export function EditLeadForm({ 
+  lead, 
+  open, 
+  onOpenChange, 
+  onLeadUpdated,
+  lossReasons = [],
+  onAddLossReason
+}: EditLeadFormProps) {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -60,7 +64,6 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
   const [isLoading, setIsLoading] = useState(false);
   const [showNewOptionInput, setShowNewOptionInput] = useState<string | null>(null);
   const [newOptionValue, setNewOptionValue] = useState("");
-  const [lossReasons, setLossReasons] = useState<LossReason[]>([]);
   const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([]);
   const { toast } = useToast();
   const { 
@@ -87,24 +90,6 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
       setKanbanColumns(data || []);
     } catch (error) {
       console.error('Erro inesperado ao buscar colunas:', error);
-    }
-  };
-
-  const fetchLossReasons = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('loss_reasons')
-        .select('*')
-        .order('reason', { ascending: true });
-
-      if (error) {
-        console.error('Erro ao buscar motivos de perda:', error);
-        return;
-      }
-
-      setLossReasons(data || []);
-    } catch (error) {
-      console.error('Erro inesperado ao buscar motivos de perda:', error);
     }
   };
 
@@ -138,7 +123,6 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
   useEffect(() => {
     if (open) {
       fetchKanbanColumns();
-      fetchLossReasons();
     }
   }, [open]);
 
@@ -253,6 +237,22 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
   const handleAddNewOption = async (field: string) => {
     if (!newOptionValue.trim()) return;
 
+    if (field === 'loss_reason' && onAddLossReason) {
+      try {
+        const success = await onAddLossReason(newOptionValue.trim());
+        
+        if (success) {
+          handleInputChange(field, newOptionValue.trim());
+          setNewOptionValue("");
+          setShowNewOptionInput(null);
+        }
+        return;
+      } catch (error) {
+        console.error('Erro inesperado ao adicionar motivo:', error);
+        return;
+      }
+    }
+
     if (field === 'source') {
       try {
         const { error } = await supabase
@@ -329,7 +329,6 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
       }
     } else if (field === 'action_type') {
       try {
-        // Find the selected action group
         const actionGroup = actionGroups.find(group => group.name === formData.action_group);
         if (!actionGroup) {
           toast({
@@ -368,38 +367,6 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
         });
       } catch (error) {
         console.error('Erro inesperado ao adicionar tipo:', error);
-        toast({
-          title: "Erro",
-          description: "Ocorreu um erro inesperado.",
-          variant: "destructive"
-        });
-        return;
-      }
-    } else if (field === 'loss_reason') {
-      try {
-        const { error } = await supabase
-          .from('loss_reasons')
-          .insert({ reason: newOptionValue.trim() });
-
-        if (error) {
-          console.error('Erro ao adicionar motivo de perda:', error);
-          toast({
-            title: "Erro",
-            description: "Não foi possível adicionar o novo motivo.",
-            variant: "destructive"
-          });
-          return;
-        }
-
-        await fetchLossReasons();
-        handleInputChange(field, newOptionValue.trim());
-        
-        toast({
-          title: "Sucesso",
-          description: "Novo motivo de perda adicionado com sucesso.",
-        });
-      } catch (error) {
-        console.error('Erro inesperado ao adicionar motivo:', error);
         toast({
           title: "Erro",
           description: "Ocorreu um erro inesperado.",

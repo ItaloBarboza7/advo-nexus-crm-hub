@@ -31,9 +31,19 @@ export function CasesContent() {
     valueRange: { min: null, max: null }
   });
   
-  // Custom hooks
-  const { leads, isLoading, fetchLeads, refreshLossReasons: refreshLeadsDataLossReasons } = useLeadsData();
-  const { lossReasons, refreshLossReasons: refreshFilterOptionsLossReasons } = useFilterOptions();
+  // Custom hooks - leads data é a fonte principal
+  const { 
+    leads, 
+    lossReasons: centralLossReasons, 
+    isLoading, 
+    fetchLeads, 
+    addLossReason, 
+    deleteLossReason 
+  } = useLeadsData();
+  
+  // Usar os dados centralizados de motivos de perda
+  const filterOptions = useFilterOptions(centralLossReasons);
+  
   const { statusHistory, hasLeadPassedThroughStatus } = useLeadStatusHistory();
   const { isOpportunityLead } = useOpportunityLogic(hasLeadPassedThroughStatus);
   const {
@@ -90,14 +100,10 @@ export function CasesContent() {
     });
   };
 
-  // Função para sincronizar atualização de motivos de perda
+  // Função simplificada para atualização - não precisa mais de múltiplas chamadas
   const handleLossReasonUpdate = async () => {
-    console.log('🔄 [CasesContent] Sincronizando atualização de motivos de perda...');
-    await Promise.all([
-      refreshLeadsDataLossReasons(),
-      refreshFilterOptionsLossReasons()
-    ]);
-    console.log('✅ [CasesContent] Motivos de perda sincronizados');
+    console.log('🔄 [CasesContent] Motivos de perda atualizados automaticamente pela fonte central');
+    // Os dados já são atualizados automaticamente pelo useLeadsData
   };
 
   return (
@@ -128,7 +134,7 @@ export function CasesContent() {
         selectedCategory={selectedCategory}
         advancedFilters={advancedFilters}
         setAdvancedFilters={setAdvancedFilters}
-        lossReasons={lossReasons}
+        lossReasons={centralLossReasons}
         onCategoryChange={handleCategoryChange}
         leadsViewMode={leadsViewMode}
         onLeadsViewChange={handleLeadsViewChange}

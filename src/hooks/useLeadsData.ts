@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
+import { dispatchLossReasonUpdate } from "@/utils/lossReasonEvents";
 
 interface LossReason {
   id: string;
@@ -30,6 +31,9 @@ export function useLeadsData() {
 
       console.log('✅ [useLeadsData] Motivos de perda carregados:', data?.length || 0);
       setLossReasons(data || []);
+      
+      // Disparar evento global para sincronizar outras fontes
+      dispatchLossReasonUpdate();
     } catch (error) {
       console.error('❌ [useLeadsData] Erro inesperado ao buscar motivos de perda:', error);
     }
@@ -81,6 +85,84 @@ export function useLeadsData() {
     await fetchLossReasons();
   };
 
+  // Função para adicionar um novo motivo de perda
+  const addLossReason = async (reason: string) => {
+    try {
+      console.log('➕ [useLeadsData] Adicionando novo motivo de perda:', reason);
+      
+      const { error } = await supabase
+        .from('loss_reasons')
+        .insert({ reason: reason.trim() });
+
+      if (error) {
+        console.error('❌ [useLeadsData] Erro ao adicionar motivo de perda:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível adicionar o novo motivo.",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      console.log('✅ [useLeadsData] Motivo de perda adicionado com sucesso');
+      toast({
+        title: "Sucesso",
+        description: "Novo motivo adicionado com sucesso.",
+      });
+
+      await fetchLossReasons();
+      return true;
+    } catch (error) {
+      console.error('❌ [useLeadsData] Erro inesperado ao adicionar motivo:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado.",
+        variant: "destructive"
+      });
+      return false;
+    }
+  };
+
+  // Função para excluir um motivo de perda
+  const deleteLossReason = async (lossReasonId: string, lossReasonName: string) => {
+    try {
+      console.log('🗑️ [useLeadsData] Excluindo motivo de perda:', lossReasonName);
+
+      const { error } = await supabase
+        .from('loss_reasons')
+        .delete()
+        .eq('id', lossReasonId);
+
+      if (error) {
+        console.error('❌ [useLeadsData] Erro ao excluir motivo de perda:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível excluir o motivo de perda.",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      console.log('✅ [useLeadsData] Motivo de perda excluído com sucesso');
+      
+      toast({
+        title: "Sucesso",
+        description: `Motivo "${lossReasonName}" excluído com sucesso.`,
+      });
+
+      await fetchLossReasons();
+      return true;
+    } catch (error) {
+      console.error('❌ [useLeadsData] Erro inesperado:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado.",
+        variant: "destructive"
+      });
+      return false;
+    }
+  };
+
   useEffect(() => {
     fetchLossReasons();
     fetchLeads();
@@ -91,6 +173,8 @@ export function useLeadsData() {
     lossReasons,
     isLoading,
     fetchLeads,
-    refreshLossReasons
+    refreshLossReasons,
+    addLossReason,
+    deleteLossReason
   };
 }
