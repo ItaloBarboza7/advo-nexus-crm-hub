@@ -4,93 +4,75 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 
-interface CompanyInfoModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+interface CompanyInfo {
+  id: string;
+  company_name: string;
+  cnpj: string;
+  phone: string;
+  email: string;
+  address: string;
 }
 
-export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
+interface EditCompanyModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  companyInfo: CompanyInfo | null;
+  onSave: (info: Omit<CompanyInfo, 'id'>) => Promise<boolean>;
+  isLoading: boolean;
+}
+
+export function EditCompanyModal({ 
+  isOpen, 
+  onClose, 
+  companyInfo, 
+  onSave, 
+  isLoading 
+}: EditCompanyModalProps) {
   const [companyName, setCompanyName] = useState("");
   const [cnpj, setCnpj] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
+
+  useEffect(() => {
+    if (companyInfo) {
+      setCompanyName(companyInfo.company_name);
+      setCnpj(companyInfo.cnpj);
+      setPhone(companyInfo.phone);
+      setEmail(companyInfo.email);
+      setAddress(companyInfo.address);
+    } else {
+      // Limpar campos se não houver informações
+      setCompanyName("");
+      setCnpj("");
+      setPhone("");
+      setEmail("");
+      setAddress("");
+    }
+  }, [companyInfo]);
 
   const handleSave = async () => {
-    if (!companyName || !cnpj || !phone || !email || !address) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Por favor, preencha todos os campos.",
-        variant: "destructive",
-      });
-      return;
-    }
+    const success = await onSave({
+      company_name: companyName,
+      cnpj,
+      phone,
+      email,
+      address
+    });
 
-    setIsLoading(true);
-    try {
-      // Obter o usuário atual
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        toast({
-          title: "Erro de autenticação",
-          description: "Usuário não encontrado. Faça login novamente.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const { error } = await supabase
-        .from('company_info')
-        .upsert({
-          user_id: user.id,
-          company_name: companyName,
-          cnpj,
-          phone,
-          email,
-          address
-        });
-
-      if (error) {
-        console.error('Erro ao salvar informações da empresa:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível salvar as informações da empresa.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      toast({
-        title: "Informações salvas",
-        description: "As informações da empresa foram salvas com sucesso.",
-      });
-
-      // Marcar no localStorage que as informações da empresa já foram preenchidas
-      localStorage.setItem('companyInfoCompleted', 'true');
+    if (success) {
       onClose();
-    } catch (error) {
-      console.error('Erro ao salvar informações da empresa:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível salvar as informações da empresa.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={() => {}} modal>
-      <DialogContent className="sm:max-w-[500px]" onInteractOutside={(e) => e.preventDefault()}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">Informações da Empresa</DialogTitle>
+          <DialogTitle className="text-xl font-semibold">
+            {companyInfo ? "Editar Informações da Empresa" : "Cadastrar Informações da Empresa"}
+          </DialogTitle>
         </DialogHeader>
         
         <div className="space-y-4 py-4">
@@ -150,9 +132,12 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
             />
           </div>
 
-          <div className="flex justify-end pt-4">
-            <Button onClick={handleSave} disabled={isLoading} className="w-full">
-              {isLoading ? "Salvando..." : "Salvar e continuar"}
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={onClose} disabled={isLoading}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSave} disabled={isLoading}>
+              {isLoading ? "Salvando..." : "Salvar"}
             </Button>
           </div>
         </div>

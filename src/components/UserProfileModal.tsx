@@ -5,9 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Camera, User } from "lucide-react";
+import { Camera, Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { EditCompanyModal } from "./EditCompanyModal";
+import { useCompanyInfo } from "@/hooks/useCompanyInfo";
+import { Separator } from "@/components/ui/separator";
 
 interface UserProfileModalProps {
   isOpen: boolean;
@@ -15,16 +18,17 @@ interface UserProfileModalProps {
 }
 
 export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
-  const [name, setName] = useState("Dr. João Silva");
-  const [title, setTitle] = useState("Advogado Senior");
-  const [email, setEmail] = useState("joao.silva@escritorio.com");
-  const [phone, setPhone] = useState("(11) 99999-9999");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [title, setTitle] = useState("");
   const [avatar, setAvatar] = useState("");
-  const [profileId, setProfileId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
+  
   const { toast } = useToast();
+  const { companyInfo, isLoading: isCompanyLoading, updateCompanyInfo } = useCompanyInfo();
 
-  // Carregar dados do perfil ao abrir o modal
   useEffect(() => {
     if (isOpen) {
       loadUserProfile();
@@ -33,7 +37,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
 
   const loadUserProfile = async () => {
     try {
-      // Tentar carregar dados do banco de dados
+      setIsLoading(true);
       const { data: profiles, error } = await supabase
         .from('user_profiles')
         .select('*')
@@ -46,69 +50,69 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
 
       if (profiles && profiles.length > 0) {
         const profile = profiles[0];
-        setProfileId(profile.id);
-        setName(profile.name || "Dr. João Silva");
-        setTitle(profile.title || "Advogado Senior");
-        setEmail(profile.email || "joao.silva@escritorio.com");
-        setPhone(profile.phone || "(11) 99999-9999");
+        setName(profile.name || "");
+        setEmail(profile.email || "");
+        setPhone(profile.phone || "");
+        setTitle(profile.title || "");
         setAvatar(profile.avatar_url || "");
+      } else {
+        // Tentar carregar do localStorage como fallback
+        const savedProfile = localStorage.getItem('userProfile');
+        if (savedProfile) {
+          const parsed = JSON.parse(savedProfile);
+          setName(parsed.name || "");
+          setEmail(parsed.email || "");
+          setPhone(parsed.phone || "");
+          setTitle(parsed.title || "");
+          setAvatar(parsed.avatar || "");
+        }
       }
     } catch (error) {
       console.error('Erro ao carregar perfil:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleSave = async () => {
+    if (!name.trim()) {
+      toast({
+        title: "Campo obrigatório",
+        description: "O nome é obrigatório.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const profileData = {
-        name,
-        title,
-        email,
-        phone,
-        avatar_url: avatar
-      };
-
-      let error;
-
-      if (profileId) {
-        // Atualizar perfil existente
-        const { error: updateError } = await supabase
-          .from('user_profiles')
-          .update(profileData)
-          .eq('id', profileId);
-        error = updateError;
-      } else {
-        // Criar novo perfil
-        const { data, error: insertError } = await supabase
-          .from('user_profiles')
-          .insert([profileData])
-          .select()
-          .single();
-        
-        if (data) {
-          setProfileId(data.id);
-        }
-        error = insertError;
-      }
+      const { error } = await supabase
+        .from('user_profiles')
+        .upsert({
+          name: name.trim(),
+          email: email.trim() || null,
+          phone: phone.trim() || null,
+          title: title.trim() || null,
+          avatar_url: avatar.trim() || null,
+        });
 
       if (error) {
         console.error('Erro ao salvar perfil:', error);
         toast({
           title: "Erro",
-          description: "Não foi possível salvar o perfil. Tente novamente.",
+          description: "Não foi possível salvar o perfil.",
           variant: "destructive",
         });
         return;
       }
 
-      // Também salvar no localStorage como fallback
+      // Salvar também no localStorage como backup
       localStorage.setItem('userProfile', JSON.stringify({
-        name,
-        title,
-        email,
-        phone,
-        avatar
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        title: title.trim(),
+        avatar: avatar.trim(),
       }));
 
       toast({
@@ -118,10 +122,10 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
 
       onClose();
     } catch (error) {
-      console.error('Erro ao salvar perfil:', error);
+      console.error('Erro inesperado ao salvar perfil:', error);
       toast({
         title: "Erro",
-        description: "Não foi possível salvar o perfil. Tente novamente.",
+        description: "Ocorreu um erro inesperado ao salvar o perfil.",
         variant: "destructive",
       });
     } finally {
@@ -129,173 +133,171 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
     }
   };
 
-  const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    // Verificar tamanho do arquivo (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: "Erro",
-        description: "A imagem deve ter no máximo 5MB.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Verificar tipo do arquivo
-    if (!file.type.startsWith('image/')) {
-      toast({
-        title: "Erro",
-        description: "Apenas arquivos de imagem são permitidos.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-
-      // Gerar nome único para o arquivo
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
-
-      // Upload para o Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file);
-
-      if (uploadError) {
-        console.error('Erro no upload:', uploadError);
-        toast({
-          title: "Erro",
-          description: "Não foi possível fazer upload da imagem.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Obter URL pública da imagem
-      const { data: publicUrlData } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-
-      if (publicUrlData) {
-        setAvatar(publicUrlData.publicUrl);
-        toast({
-          title: "Sucesso",
-          description: "Imagem carregada com sucesso!",
-        });
-      }
-    } catch (error) {
-      console.error('Erro ao fazer upload:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível fazer upload da imagem.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(word => word.charAt(0))
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">Meus Dados</DialogTitle>
-        </DialogHeader>
-        
-        <div className="space-y-6 py-4">
-          {/* Avatar Section */}
-          <div className="flex flex-col items-center space-y-4">
-            <div className="relative">
-              <Avatar className="w-24 h-24">
-                <AvatarImage src={avatar} />
-                <AvatarFallback className="bg-blue-600 text-white text-lg">
-                  <User className="h-8 w-8" />
-                </AvatarFallback>
-              </Avatar>
-              <label
-                htmlFor="avatar-upload"
-                className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full cursor-pointer hover:bg-blue-700 transition-colors"
-              >
-                <Camera className="h-4 w-4" />
-              </label>
-              <input
-                id="avatar-upload"
-                type="file"
-                accept="image/*"
-                onChange={handleAvatarChange}
-                className="hidden"
-                disabled={isLoading}
-              />
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold">Perfil do Usuário</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-6 py-4">
+            {/* Avatar Section */}
+            <div className="flex flex-col items-center space-y-3">
+              <div className="relative">
+                <Avatar className="w-20 h-20">
+                  <AvatarImage src={avatar} />
+                  <AvatarFallback className="bg-primary text-primary-foreground text-lg">
+                    {getInitials(name || "U")}
+                  </AvatarFallback>
+                </Avatar>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="absolute -bottom-2 -right-2 rounded-full w-8 h-8"
+                  onClick={() => {
+                    // TODO: Implementar upload de imagem
+                    toast({
+                      title: "Em desenvolvimento",
+                      description: "Funcionalidade de upload será implementada em breve.",
+                    });
+                  }}
+                >
+                  <Camera className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-            <p className="text-sm text-gray-500">
-              {isLoading ? "Carregando..." : "Clique na câmera para alterar a foto"}
-            </p>
+
+            {/* Personal Information */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Informações Pessoais</h3>
+              
+              <div className="space-y-2">
+                <Label htmlFor="name">Nome *</Label>
+                <Input
+                  id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Seu nome completo"
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email">E-mail</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="seu@email.com"
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="phone">Telefone</Label>
+                <Input
+                  id="phone"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="(XX) XXXXX-XXXX"
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="title">Cargo</Label>
+                <Input
+                  id="title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Seu cargo na empresa"
+                  disabled={isLoading}
+                />
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Company Information */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium">Informações da Empresa</h3>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsCompanyModalOpen(true)}
+                  className="gap-2"
+                  disabled={isCompanyLoading}
+                >
+                  <Building2 className="h-4 w-4" />
+                  {companyInfo ? "Editar" : "Cadastrar"}
+                </Button>
+              </div>
+
+              {companyInfo ? (
+                <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium">Empresa:</span>
+                      <p className="text-muted-foreground">{companyInfo.company_name}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium">CNPJ:</span>
+                      <p className="text-muted-foreground">{companyInfo.cnpj}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium">Telefone:</span>
+                      <p className="text-muted-foreground">{companyInfo.phone}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium">E-mail:</span>
+                      <p className="text-muted-foreground">{companyInfo.email}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-sm">Endereço:</span>
+                    <p className="text-muted-foreground text-sm">{companyInfo.address}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 bg-muted/30 rounded-lg text-center">
+                  <p className="text-muted-foreground text-sm">
+                    Nenhuma informação da empresa cadastrada
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={onClose} disabled={isLoading}>
+                Cancelar
+              </Button>
+              <Button onClick={handleSave} disabled={isLoading}>
+                {isLoading ? "Salvando..." : "Salvar"}
+              </Button>
+            </div>
           </div>
+        </DialogContent>
+      </Dialog>
 
-          {/* Form Fields */}
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nome completo</Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Digite seu nome completo"
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="title">Cargo/Título</Label>
-              <Input
-                id="title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Digite seu cargo ou título"
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">E-mail</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Digite seu e-mail"
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="phone">Telefone</Label>
-              <Input
-                id="phone"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="Digite seu telefone"
-                disabled={isLoading}
-              />
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-3 pt-4">
-            <Button variant="outline" onClick={onClose} className="flex-1" disabled={isLoading}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSave} className="flex-1" disabled={isLoading}>
-              {isLoading ? "Salvando..." : "Salvar alterações"}
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+      <EditCompanyModal
+        isOpen={isCompanyModalOpen}
+        onClose={() => setIsCompanyModalOpen(false)}
+        companyInfo={companyInfo}
+        onSave={updateCompanyInfo}
+        isLoading={isCompanyLoading}
+      />
+    </>
   );
 }
