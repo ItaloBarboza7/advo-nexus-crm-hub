@@ -33,16 +33,16 @@ export function DeleteButton({
 
   const handleConfirmDelete = async () => {
     console.log('🔥 Confirmando exclusão de:', itemName);
+    setIsDeleting(true);
+    
     try {
-      setIsDeleting(true);
       await onDelete();
       console.log('✅ Item excluído com sucesso');
-      setShowConfirmDialog(false);
     } catch (error) {
       console.error('❌ Erro ao excluir item:', error);
-      setShowConfirmDialog(false);
     } finally {
       setIsDeleting(false);
+      setShowConfirmDialog(false);
     }
   };
 
