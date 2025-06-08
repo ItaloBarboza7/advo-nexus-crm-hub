@@ -45,7 +45,7 @@ const menuItems = [
     view: "optimization" as ActiveView,
   },
   {
-    title: "Ações",
+    title: "Configurações",
     icon: Settings,
     view: "settings" as ActiveView,
   },
