@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,14 +16,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
 
-const LEAD_STATUSES = [
-  { id: "Novo", title: "Novo", color: "bg-blue-100 text-blue-800" },
-  { id: "Proposta", title: "Proposta", color: "bg-purple-100 text-purple-800" },
-  { id: "Reunião", title: "Reunião", color: "bg-orange-100 text-orange-800" },
-  { id: "Contrato Fechado", title: "Contrato Fechado", color: "bg-green-100 text-green-800" },
-  { id: "Perdido", title: "Perdido", color: "bg-red-100 text-red-800" },
-  { id: "Finalizado", title: "Finalizado", color: "bg-gray-100 text-gray-800" },
-];
+interface KanbanColumn {
+  id: string;
+  name: string;
+  color: string;
+  order_position: number;
+  is_default: boolean;
+}
 
 export function ClientsContent() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -36,6 +36,7 @@ export function ClientsContent() {
   const [leadToDelete, setLeadToDelete] = useState<{ id: string; name: string } | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([]);
   const [filters, setFilters] = useState<FilterOptions>({
     status: [],
     source: [],
@@ -82,6 +83,24 @@ export function ClientsContent() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchKanbanColumns = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('kanban_columns')
+        .select('*')
+        .order('order_position', { ascending: true });
+
+      if (error) {
+        console.error('Erro ao carregar colunas do Kanban:', error);
+        return;
+      }
+
+      setKanbanColumns(data || []);
+    } catch (error) {
+      console.error('Erro inesperado ao carregar colunas:', error);
     }
   };
 
@@ -153,6 +172,7 @@ export function ClientsContent() {
 
   useEffect(() => {
     fetchLeads();
+    fetchKanbanColumns();
   }, []);
 
   // Aplicar filtros e busca
@@ -180,9 +200,16 @@ export function ClientsContent() {
     return matchesSearch && matchesStatus && matchesSource && matchesState && matchesActionType && matchesValueMin && matchesValueMax;
   });
 
+  // Converter colunas do banco para o formato esperado pelo KanbanView
+  const kanbanStatuses = kanbanColumns.map(column => ({
+    id: column.name,
+    title: column.name,
+    color: `bg-blue-100 text-blue-800` // Pode ser customizado baseado na cor da coluna
+  }));
+
   const getStatusColor = (status: string) => {
-    const statusConfig = LEAD_STATUSES.find(s => s.id === status);
-    return statusConfig ? statusConfig.color : 'bg-gray-100 text-gray-800';
+    const column = kanbanColumns.find(col => col.name === status);
+    return column ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800';
   };
 
   const getInitials = (name: string) => {
@@ -291,7 +318,7 @@ export function ClientsContent() {
       ) : viewMode === "kanban" ? (
         <KanbanView 
           leads={transformedLeads} 
-          statuses={LEAD_STATUSES} 
+          statuses={kanbanStatuses} 
           onLeadUpdated={fetchLeads}
           onViewDetails={handleViewDetails}
           originalLeads={filteredLeads}

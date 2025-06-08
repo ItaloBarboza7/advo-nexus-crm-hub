@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,14 @@ import { EditMemberModal } from "@/components/EditMemberModal";
 import { AddColumnDialog } from "@/components/AddColumnDialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+
+interface KanbanColumn {
+  id: string;
+  name: string;
+  color: string;
+  order_position: number;
+  is_default: boolean;
+}
 
 export function SettingsContent() {
   const [activeTab, setActiveTab] = useState("company");
@@ -34,19 +42,49 @@ export function SettingsContent() {
   });
 
   // Estados para gerenciar colunas do Kanban
-  const [kanbanColumns, setKanbanColumns] = useState([
-    { id: 1, name: "Novo", order: 1, color: "#3B82F6", isDefault: true },
-    { id: 2, name: "Proposta", order: 2, color: "#F59E0B", isDefault: true },
-    { id: 3, name: "Reunião", order: 3, color: "#8B5CF6", isDefault: true },
-    { id: 4, name: "Contrato Fechado", order: 4, color: "#10B981", isDefault: true },
-    { id: 5, name: "Perdido", order: 5, color: "#EF4444", isDefault: true },
-    { id: 6, name: "Finalizado", order: 6, color: "#6B7280", isDefault: true },
-  ]);
+  const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([]);
+  const [isLoadingColumns, setIsLoadingColumns] = useState(true);
 
-  const [editingColumn, setEditingColumn] = useState<number | null>(null);
+  const [editingColumn, setEditingColumn] = useState<string | null>(null);
   const [editingColumnName, setEditingColumnName] = useState("");
 
   const { toast } = useToast();
+
+  // Carregar colunas do banco de dados
+  const fetchKanbanColumns = async () => {
+    try {
+      setIsLoadingColumns(true);
+      const { data, error } = await supabase
+        .from('kanban_columns')
+        .select('*')
+        .order('order_position', { ascending: true });
+
+      if (error) {
+        console.error('Erro ao carregar colunas do Kanban:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar as colunas do Kanban.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setKanbanColumns(data || []);
+    } catch (error) {
+      console.error('Erro inesperado ao carregar colunas:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado ao carregar as colunas.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingColumns(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchKanbanColumns();
+  }, []);
 
   // Define tabs based on admin status
   const allTabs = [
@@ -115,12 +153,12 @@ export function SettingsContent() {
     });
   };
 
-  const handleEditColumnName = (columnId: number, currentName: string) => {
+  const handleEditColumnName = (columnId: string, currentName: string) => {
     setEditingColumn(columnId);
     setEditingColumnName(currentName);
   };
 
-  const handleSaveColumnName = async (columnId: number) => {
+  const handleSaveColumnName = async (columnId: string) => {
     if (!editingColumnName.trim()) {
       toast({
         title: "Erro",
@@ -131,16 +169,25 @@ export function SettingsContent() {
     }
 
     try {
+      const { error } = await supabase
+        .from('kanban_columns')
+        .update({ name: editingColumnName.trim() })
+        .eq('id', columnId);
+
+      if (error) {
+        console.error('Erro ao atualizar coluna:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível atualizar o nome da coluna.",
+          variant: "destructive"
+        });
+        return;
+      }
+
       // Atualizar na lista local
       setKanbanColumns(prev => prev.map(col => 
         col.id === columnId ? { ...col, name: editingColumnName.trim() } : col
       ));
-
-      // Aqui você poderia salvar no Supabase se necessário
-      // const { error } = await supabase
-      //   .from('kanban_columns')
-      //   .update({ name: editingColumnName.trim() })
-      //   .eq('id', columnId);
 
       setEditingColumn(null);
       setEditingColumnName("");
@@ -150,11 +197,11 @@ export function SettingsContent() {
         description: "Nome da coluna atualizado com sucesso.",
       });
     } catch (error) {
-      console.error('Erro ao atualizar coluna:', error);
+      console.error('Erro inesperado ao atualizar coluna:', error);
       toast({
         title: "Erro",
-        description: "Não foi possível atualizar o nome da coluna.",
-        variant: "destructive",
+        description: "Ocorreu um erro inesperado ao atualizar a coluna.",
+        variant: "destructive"
       });
     }
   };
@@ -167,64 +214,92 @@ export function SettingsContent() {
   const handleAddColumn = async (columnData: { name: string; color: string; order: number }) => {
     try {
       // Reordenar colunas existentes se necessário
-      const updatedColumns = kanbanColumns.map(col => {
-        if (col.order >= columnData.order) {
-          return { ...col, order: col.order + 1 };
+      const columnsToUpdate = kanbanColumns.filter(col => col.order_position >= columnData.order);
+      
+      if (columnsToUpdate.length > 0) {
+        const { error: updateError } = await supabase
+          .from('kanban_columns')
+          .update({ order_position: supabase.sql`order_position + 1` })
+          .in('id', columnsToUpdate.map(col => col.id));
+
+        if (updateError) {
+          console.error('Erro ao reordenar colunas:', updateError);
+          toast({
+            title: "Erro",
+            description: "Não foi possível reordenar as colunas existentes.",
+            variant: "destructive"
+          });
+          return;
         }
-        return col;
-      });
+      }
 
-      const newColumn = {
-        id: Math.max(...kanbanColumns.map(col => col.id)) + 1,
-        name: columnData.name,
-        order: columnData.order,
-        color: columnData.color,
-        isDefault: false
-      };
+      // Inserir nova coluna
+      const { error: insertError } = await supabase
+        .from('kanban_columns')
+        .insert({
+          name: columnData.name,
+          color: columnData.color,
+          order_position: columnData.order,
+          is_default: false
+        });
 
-      // Inserir nova coluna e reordenar
-      const allColumns = [...updatedColumns, newColumn].sort((a, b) => a.order - b.order);
-      setKanbanColumns(allColumns);
+      if (insertError) {
+        console.error('Erro ao criar coluna:', insertError);
+        toast({
+          title: "Erro",
+          description: "Não foi possível criar a nova coluna.",
+          variant: "destructive"
+        });
+        return;
+      }
 
-      // Aqui você poderia salvar no Supabase
-      // const { error } = await supabase
-      //   .from('kanban_columns')
-      //   .insert(newColumn);
+      // Recarregar as colunas
+      await fetchKanbanColumns();
 
       toast({
         title: "Sucesso",
         description: "Nova coluna criada com sucesso.",
       });
     } catch (error) {
-      console.error('Erro ao criar coluna:', error);
+      console.error('Erro inesperado ao criar coluna:', error);
       toast({
         title: "Erro",
-        description: "Não foi possível criar a nova coluna.",
-        variant: "destructive",
+        description: "Ocorreu um erro inesperado ao criar a coluna.",
+        variant: "destructive"
       });
     }
   };
 
-  const handleDeleteColumn = async (columnId: number) => {
+  const handleDeleteColumn = async (columnId: string) => {
     try {
-      setKanbanColumns(prev => prev.filter(col => col.id !== columnId));
+      const { error } = await supabase
+        .from('kanban_columns')
+        .delete()
+        .eq('id', columnId);
 
-      // Aqui você poderia deletar do Supabase
-      // const { error } = await supabase
-      //   .from('kanban_columns')
-      //   .delete()
-      //   .eq('id', columnId);
+      if (error) {
+        console.error('Erro ao excluir coluna:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível excluir a coluna.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Atualizar lista local
+      setKanbanColumns(prev => prev.filter(col => col.id !== columnId));
 
       toast({
         title: "Sucesso",
         description: "Coluna excluída com sucesso.",
       });
     } catch (error) {
-      console.error('Erro ao excluir coluna:', error);
+      console.error('Erro inesperado ao excluir coluna:', error);
       toast({
         title: "Erro",
-        description: "Não foi possível excluir a coluna.",
-        variant: "destructive",
+        description: "Ocorreu um erro inesperado ao excluir a coluna.",
+        variant: "destructive"
       });
     }
   };
@@ -566,72 +641,76 @@ export function SettingsContent() {
         </Button>
       </div>
       
-      <div className="space-y-4">
-        {kanbanColumns
-          .sort((a, b) => a.order - b.order)
-          .map((column) => (
-          <Card key={column.id} className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div 
-                  className="w-4 h-4 rounded"
-                  style={{ backgroundColor: column.color }}
-                ></div>
-                <div className="flex-1">
-                  {editingColumn === column.id ? (
-                    <div className="flex items-center gap-2">
-                      <Input
-                        value={editingColumnName}
-                        onChange={(e) => setEditingColumnName(e.target.value)}
-                        className="max-w-xs"
-                        placeholder="Nome da coluna"
-                      />
-                      <Button 
-                        size="sm" 
-                        onClick={() => handleSaveColumnName(column.id)}
-                      >
-                        <Check className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={handleCancelEditColumn}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <div>
-                      <h4 className="font-medium text-gray-900">{column.name}</h4>
-                      <p className="text-sm text-gray-600">Posição: {column.order}</p>
-                    </div>
-                  )}
+      {isLoadingColumns ? (
+        <Card className="p-6 text-center">
+          <p className="text-gray-500">Carregando colunas...</p>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {kanbanColumns.map((column) => (
+            <Card key={column.id} className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div 
+                    className="w-4 h-4 rounded"
+                    style={{ backgroundColor: column.color }}
+                  ></div>
+                  <div className="flex-1">
+                    {editingColumn === column.id ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={editingColumnName}
+                          onChange={(e) => setEditingColumnName(e.target.value)}
+                          className="max-w-xs"
+                          placeholder="Nome da coluna"
+                        />
+                        <Button 
+                          size="sm" 
+                          onClick={() => handleSaveColumnName(column.id)}
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={handleCancelEditColumn}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div>
+                        <h4 className="font-medium text-gray-900">{column.name}</h4>
+                        <p className="text-sm text-gray-600">Posição: {column.order_position}</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-              {editingColumn !== column.id && (
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => handleEditColumnName(column.id, column.name)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  {!column.isDefault && (
+                {editingColumn !== column.id && (
+                  <div className="flex gap-2">
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => handleDeleteColumn(column.id)}
+                      onClick={() => handleEditColumnName(column.id, column.name)}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Edit className="h-4 w-4" />
                     </Button>
-                  )}
-                </div>
-              )}
-            </div>
-          </Card>
-        ))}
-      </div>
+                    {!column.is_default && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleDeleteColumn(column.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 
@@ -805,7 +884,7 @@ export function SettingsContent() {
         isOpen={isAddColumnDialogOpen}
         onClose={() => setIsAddColumnDialogOpen(false)}
         onAddColumn={handleAddColumn}
-        maxOrder={Math.max(...kanbanColumns.map(col => col.order))}
+        maxOrder={kanbanColumns.length > 0 ? Math.max(...kanbanColumns.map(col => col.order_position)) : 0}
       />
     </div>
   );
