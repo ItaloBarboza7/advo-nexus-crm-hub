@@ -106,12 +106,12 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
   const handleDeleteClick = (e: React.MouseEvent, source: LeadSource) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('🗑️ Delete button clicked for source:', source.label);
-    console.log('🔍 Setting sourceToDelete:', source);
+    console.log('🗑️ Botão delete clicado para fonte:', source.label);
+    console.log('🔍 Definindo sourceToDelete:', source);
     setSourceToDelete(source);
-    console.log('📋 Opening delete dialog...');
+    console.log('📋 Abrindo dialog de confirmação...');
     setDeleteDialogOpen(true);
-    console.log('✅ Delete dialog state set to true');
+    console.log('✅ Estado deleteDialogOpen definido como true');
   };
 
   const handleDeleteConfirm = async () => {
@@ -162,10 +162,10 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
   };
 
   const handleDeleteDialogClose = (open: boolean) => {
-    console.log('🔄 Delete dialog onOpenChange called with:', open);
+    console.log('🔄 Dialog onOpenChange chamado com:', open);
+    setDeleteDialogOpen(open);
     if (!open) {
-      console.log('❌ Fechando dialog de exclusão');
-      setDeleteDialogOpen(false);
+      console.log('❌ Limpando sourceToDelete');
       setSourceToDelete(null);
     }
   };

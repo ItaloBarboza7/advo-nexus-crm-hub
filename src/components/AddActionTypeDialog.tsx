@@ -124,12 +124,12 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
   const handleDeleteClick = (e: React.MouseEvent, type: ActionType) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('🗑️ Delete button clicked for type:', type.name);
-    console.log('🔍 Setting typeToDelete:', type);
+    console.log('🗑️ Botão delete clicado para tipo:', type.name);
+    console.log('🔍 Definindo typeToDelete:', type);
     setTypeToDelete(type);
-    console.log('📋 Opening delete dialog...');
+    console.log('📋 Abrindo dialog de confirmação...');
     setDeleteDialogOpen(true);
-    console.log('✅ Delete dialog state set to true');
+    console.log('✅ Estado deleteDialogOpen definido como true');
   };
 
   const handleDeleteConfirm = async () => {
@@ -180,10 +180,10 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
   };
 
   const handleDeleteDialogClose = (open: boolean) => {
-    console.log('🔄 Delete dialog onOpenChange called with:', open);
+    console.log('🔄 Dialog onOpenChange chamado com:', open);
+    setDeleteDialogOpen(open);
     if (!open) {
-      console.log('❌ Fechando dialog de exclusão de tipo');
-      setDeleteDialogOpen(false);
+      console.log('❌ Limpando typeToDelete');
       setTypeToDelete(null);
     }
   };

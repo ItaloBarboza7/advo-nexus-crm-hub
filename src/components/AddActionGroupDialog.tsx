@@ -106,12 +106,12 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
   const handleDeleteClick = (e: React.MouseEvent, group: ActionGroup) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('🗑️ Delete button clicked for group:', group.description);
-    console.log('🔍 Setting groupToDelete:', group);
+    console.log('🗑️ Botão delete clicado para grupo:', group.description);
+    console.log('🔍 Definindo groupToDelete:', group);
     setGroupToDelete(group);
-    console.log('📋 Opening delete dialog...');
+    console.log('📋 Abrindo dialog de confirmação...');
     setDeleteDialogOpen(true);
-    console.log('✅ Delete dialog state set to true');
+    console.log('✅ Estado deleteDialogOpen definido como true');
   };
 
   const handleDeleteConfirm = async () => {
@@ -162,10 +162,10 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
   };
 
   const handleDeleteDialogClose = (open: boolean) => {
-    console.log('🔄 Delete dialog onOpenChange called with:', open);
+    console.log('🔄 Dialog onOpenChange chamado com:', open);
+    setDeleteDialogOpen(open);
     if (!open) {
-      console.log('❌ Fechando dialog de exclusão de grupo');
-      setDeleteDialogOpen(false);
+      console.log('❌ Limpando groupToDelete');
       setGroupToDelete(null);
     }
   };
