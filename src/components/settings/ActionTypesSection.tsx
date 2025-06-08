@@ -71,7 +71,6 @@ export function ActionTypesSection() {
             onClick={() => setShowAddDialog(true)}
             size="sm"
             className="bg-blue-600 hover:bg-blue-700"
-            disabled={!selectedGroup}
           >
             <Plus className="h-4 w-4 mr-2" />
             Adicionar
@@ -127,7 +126,6 @@ export function ActionTypesSection() {
           refreshData();
           setShowAddDialog(false);
         }}
-        selectedGroupName={selectedGroup}
       />
     </>
   );

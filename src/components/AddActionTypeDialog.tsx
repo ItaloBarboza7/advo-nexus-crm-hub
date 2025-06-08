@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { DeleteButton } from "@/components/DeleteButton";
+import { useFilterOptions } from "@/hooks/useFilterOptions";
 
 interface ActionGroup {
   id: string;
@@ -26,16 +27,16 @@ interface AddActionTypeDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onTypeAdded: () => void;
-  actionGroups: ActionGroup[];
 }
 
-export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups }: AddActionTypeDialogProps) {
+export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded }: AddActionTypeDialogProps) {
   const [name, setName] = useState("");
   const [selectedGroupId, setSelectedGroupId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [actionTypes, setActionTypes] = useState<ActionType[]>([]);
   const [isLoadingTypes, setIsLoadingTypes] = useState(false);
   const { toast } = useToast();
+  const { actionGroups } = useFilterOptions();
 
   const fetchActionTypes = async () => {
     setIsLoadingTypes(true);
@@ -177,7 +178,7 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
                   <SelectValue placeholder="Selecione um grupo" />
                 </SelectTrigger>
                 <SelectContent>
-                  {actionGroups.map((group) => (
+                  {actionGroups?.map((group) => (
                     <SelectItem key={group.id} value={group.id}>
                       {group.description || group.name}
                     </SelectItem>

@@ -8,111 +8,18 @@ import { ActionTypesSection } from "@/components/settings/ActionTypesSection";
 import { KanbanColumnsSection } from "@/components/settings/KanbanColumnsSection";
 import { CompanyInfoModal } from "@/components/CompanyInfoModal";
 import { EditCompanyModal } from "@/components/EditCompanyModal";
-import { AddMemberModal } from "@/components/AddMemberModal";
-import { EditMemberModal } from "@/components/EditMemberModal";
 import { UserProfileModal } from "@/components/UserProfileModal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Building2, Users, User, Settings2, Database, Target, Tags, Layers, Plus, Pencil, Eye, Trash2 } from "lucide-react";
+import { Building2, Users, User, Settings2, Database, Eye, Pencil } from "lucide-react";
 import { useCompanyInfo } from "@/hooks/useCompanyInfo";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-
-interface TeamMember {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  avatar_url?: string;
-  created_at: string;
-}
 
 export function SettingsContent() {
   const [showCompanyInfo, setShowCompanyInfo] = useState(false);
   const [showEditCompany, setShowEditCompany] = useState(false);
-  const [showAddMember, setShowAddMember] = useState(false);
-  const [showEditMember, setShowEditMember] = useState(false);
   const [showUserProfile, setShowUserProfile] = useState(false);
-  const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [loadingMembers, setLoadingMembers] = useState(false);
 
-  const { companyInfo, loading: companyLoading } = useCompanyInfo();
-  const { toast } = useToast();
-
-  const fetchTeamMembers = async () => {
-    setLoadingMembers(true);
-    try {
-      const { data, error } = await supabase
-        .from('team_members')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Erro ao buscar membros da equipe:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível carregar os membros da equipe.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      setTeamMembers(data || []);
-    } catch (error) {
-      console.error('Erro inesperado ao buscar membros:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado ao carregar os membros.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoadingMembers(false);
-    }
-  };
-
-  const handleDeleteMember = async (memberId: string) => {
-    if (!confirm('Tem certeza que deseja excluir este membro?')) {
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('team_members')
-        .delete()
-        .eq('id', memberId);
-
-      if (error) {
-        console.error('Erro ao excluir membro:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível excluir o membro.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      toast({
-        title: "Sucesso",
-        description: "Membro excluído com sucesso.",
-      });
-
-      fetchTeamMembers();
-    } catch (error) {
-      console.error('Erro inesperado ao excluir membro:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleEditMember = (member: TeamMember) => {
-    setSelectedMember(member);
-    setShowEditMember(true);
-  };
+  const { companyInfo, isLoading: companyLoading, fetchCompanyInfo, updateCompanyInfo } = useCompanyInfo();
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -122,14 +29,10 @@ export function SettingsContent() {
       </div>
 
       <Tabs defaultValue="company" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="company" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             Empresa
-          </TabsTrigger>
-          <TabsTrigger value="team" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Equipe
           </TabsTrigger>
           <TabsTrigger value="profile" className="flex items-center gap-2">
             <User className="h-4 w-4" />
@@ -180,7 +83,7 @@ export function SettingsContent() {
                 <div className="space-y-4">
                   <div>
                     <h3 className="font-semibold text-lg">{companyInfo.company_name}</h3>
-                    <p className="text-gray-600">{companyInfo.industry}</p>
+                    <p className="text-gray-600">Empresa</p>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
@@ -193,77 +96,12 @@ export function SettingsContent() {
                       <span className="font-medium">Email:</span> {companyInfo.email}
                     </div>
                     <div>
-                      <span className="font-medium">Cidade:</span> {companyInfo.city}, {companyInfo.state}
+                      <span className="font-medium">Endereço:</span> {companyInfo.address}
                     </div>
                   </div>
                 </div>
               ) : (
                 <p className="text-gray-500">Nenhuma informação da empresa cadastrada.</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="team" className="space-y-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Equipe
-              </CardTitle>
-              <Button 
-                onClick={() => {
-                  setShowAddMember(true);
-                  fetchTeamMembers();
-                }}
-                size="sm"
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Adicionar Membro
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {loadingMembers ? (
-                <div className="flex items-center justify-center p-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                </div>
-              ) : teamMembers.length === 0 ? (
-                <p className="text-gray-500 text-sm">Nenhum membro da equipe cadastrado.</p>
-              ) : (
-                <div className="space-y-3">
-                  {teamMembers.map((member) => (
-                    <div key={member.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                          <User className="h-5 w-5 text-blue-600" />
-                        </div>
-                        <div>
-                          <h4 className="font-medium">{member.name}</h4>
-                          <p className="text-sm text-gray-600">{member.email}</p>
-                        </div>
-                        <Badge variant="secondary">{member.role}</Badge>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEditMember(member)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDeleteMember(member.id)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
               )}
             </CardContent>
           </Card>
@@ -316,22 +154,9 @@ export function SettingsContent() {
       <EditCompanyModal 
         isOpen={showEditCompany}
         onClose={() => setShowEditCompany(false)}
-      />
-
-      <AddMemberModal 
-        isOpen={showAddMember}
-        onClose={() => setShowAddMember(false)}
-        onMemberAdded={fetchTeamMembers}
-      />
-
-      <EditMemberModal 
-        isOpen={showEditMember}
-        onClose={() => {
-          setShowEditMember(false);
-          setSelectedMember(null);
-        }}
-        member={selectedMember}
-        onMemberUpdated={fetchTeamMembers}
+        companyInfo={companyInfo}
+        onSave={updateCompanyInfo}
+        isLoading={companyLoading}
       />
 
       <UserProfileModal 
