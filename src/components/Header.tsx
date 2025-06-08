@@ -5,13 +5,15 @@ import { GlobalSearch } from "./GlobalSearch"
 import { Button } from "@/components/ui/button"
 import { User, LogOut } from "lucide-react"
 import { User as SupabaseUser } from "@supabase/supabase-js"
+import { Lead } from "@/types/lead"
 
 interface HeaderProps {
   user?: SupabaseUser | null
   onLogout?: () => void
+  onLeadSelect?: (lead: Lead) => void
 }
 
-export function Header({ user, onLogout }: HeaderProps) {
+export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
   return (
     <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
       <div className="flex items-center gap-2 px-4">
@@ -20,7 +22,7 @@ export function Header({ user, onLogout }: HeaderProps) {
       </div>
       
       <div className="flex-1">
-        <GlobalSearch />
+        {onLeadSelect && <GlobalSearch onLeadSelect={onLeadSelect} />}
       </div>
       
       {user && (

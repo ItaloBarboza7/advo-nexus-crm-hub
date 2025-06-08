@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client"
 import { User, Session } from "@supabase/supabase-js"
 import { Button } from "@/components/ui/button"
 import { Link } from "react-router-dom"
+import { Lead } from "@/types/lead"
 
 export type ActiveView = 'dashboard' | 'clients' | 'cases' | 'calendar' | 'optimization' | 'settings'
 
@@ -43,9 +44,9 @@ const Index = () => {
     await supabase.auth.signOut()
   }
 
-  const handleLeadSelect = (leadId: string) => {
+  const handleLeadSelect = (lead: Lead) => {
     // Placeholder for lead selection functionality
-    console.log('Lead selected:', leadId)
+    console.log('Lead selected:', lead)
   }
 
   // If not authenticated, show login prompt
