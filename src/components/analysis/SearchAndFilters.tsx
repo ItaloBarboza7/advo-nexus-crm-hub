@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Search } from "lucide-react";
 import { AdvancedFilters, FilterOptions } from "@/components/AdvancedFilters";
 import { ActionToggleDropdown } from "@/components/analysis/ActionToggleDropdown";
+import { ViewToggleDropdown } from "@/components/analysis/ViewToggleDropdown";
 
 interface SearchAndFiltersProps {
   searchTerm: string;
@@ -13,6 +14,9 @@ interface SearchAndFiltersProps {
   setAdvancedFilters: (filters: FilterOptions) => void;
   lossReasons: Array<{ id: string; reason: string; }>;
   onCategoryChange: (category: string) => void;
+  // Novas props para o gráfico de leads
+  leadsViewMode?: 'weekly' | 'monthly';
+  onLeadsViewChange?: (view: 'weekly' | 'monthly') => void;
 }
 
 export function SearchAndFilters({
@@ -22,7 +26,9 @@ export function SearchAndFilters({
   advancedFilters,
   setAdvancedFilters,
   lossReasons,
-  onCategoryChange
+  onCategoryChange,
+  leadsViewMode = 'weekly',
+  onLeadsViewChange
 }: SearchAndFiltersProps) {
   return (
     <Card className="p-6">
@@ -44,6 +50,15 @@ export function SearchAndFilters({
               activeFilters={advancedFilters}
               selectedCategory={selectedCategory}
               lossReasons={lossReasons}
+            />
+          )}
+          
+          {/* Dropdown para visualização de leads quando categoria for "all" */}
+          {selectedCategory === "all" && onLeadsViewChange && (
+            <ViewToggleDropdown
+              currentView={leadsViewMode}
+              onViewChange={onLeadsViewChange}
+              label="Leads"
             />
           )}
           

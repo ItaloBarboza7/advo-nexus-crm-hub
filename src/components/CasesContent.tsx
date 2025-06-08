@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { DateRange } from "react-day-picker";
 import { DateFilter } from "@/components/DateFilter";
@@ -31,6 +32,7 @@ export function CasesContent() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
+  const [leadsViewMode, setLeadsViewMode] = useState<'weekly' | 'monthly'>('weekly');
   const [advancedFilters, setAdvancedFilters] = useState<FilterOptions>({
     status: [],
     source: [],
@@ -180,6 +182,8 @@ export function CasesContent() {
         setAdvancedFilters={setAdvancedFilters}
         lossReasons={lossReasons}
         onCategoryChange={handleCategoryChange}
+        leadsViewMode={leadsViewMode}
+        onLeadsViewChange={setLeadsViewMode}
       />
 
       <ChartsSection
@@ -191,6 +195,7 @@ export function CasesContent() {
         shouldShowActionGroupChart={shouldShowActionGroupChart()}
         shouldShowStateChart={shouldShowStateChart()}
         hasLeadPassedThroughStatus={hasLeadPassedThroughStatus}
+        leadsViewMode={leadsViewMode}
       />
 
       <LeadsSection
