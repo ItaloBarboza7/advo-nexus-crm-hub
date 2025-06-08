@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronRight, Users } from "lucide-react";
 import { Lead } from "@/types/lead";
+import { useFilterOptions } from "@/hooks/useFilterOptions";
 
 interface GroupedLeadsListProps {
   leads: Lead[];
@@ -14,13 +15,53 @@ interface GroupedLeadsListProps {
 
 export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEditLead }: GroupedLeadsListProps) {
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  const { actionTypes, actionGroups } = useFilterOptions();
 
   const handleLeadClick = (lead: Lead) => {
     onViewDetails(lead);
   };
 
+  const getActionTypeLabel = (actionType: string): string => {
+    console.log(`🔍 getActionTypeLabel - buscando: ${actionType}`);
+    console.log(`🔍 actionTypes disponíveis:`, actionTypes.map(at => `${at.name} -> ${at.name}`));
+    
+    const actionTypeData = actionTypes.find(at => at.name === actionType);
+    if (actionTypeData) {
+      // Converte nome do tipo para label mais legível
+      const label = actionTypeData.name.split('-').map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1)
+      ).join(' ');
+      console.log(`✅ Mapeamento encontrado: ${actionType} -> ${label}`);
+      return label;
+    }
+    
+    console.log(`❌ Tipo de ação não encontrado: ${actionType}, usando "Outros"`);
+    return "Outros";
+  };
+
+  const getActionGroupLabel = (actionType: string): string => {
+    console.log(`🔍 getActionGroupLabel - buscando actionType: ${actionType}`);
+    console.log(`🔍 actionTypes disponíveis:`, actionTypes.map(at => `${at.name} (grupo: ${at.action_group_id})`));
+    console.log(`🔍 actionGroups disponíveis:`, actionGroups.map(ag => `${ag.id} -> ${ag.description || ag.name}`));
+    
+    const actionTypeData = actionTypes.find(at => at.name === actionType);
+    if (actionTypeData) {
+      const actionGroup = actionGroups.find(ag => ag.id === actionTypeData.action_group_id);
+      if (actionGroup) {
+        const label = actionGroup.description || actionGroup.name;
+        console.log(`✅ Grupo encontrado: ${actionType} -> ${label}`);
+        return label;
+      }
+    }
+    
+    console.log(`❌ Grupo de ação não encontrado para: ${actionType}, usando "Outros Serviços"`);
+    return "Outros Serviços";
+  };
+
   const groupedLeads = () => {
     console.log(`🔍 GroupedLeadsList - selectedCategory: ${selectedCategory}`);
+    console.log(`🔍 Total de leads para agrupar: ${leads.length}`);
+    console.log(`🔍 Sample lead action_types:`, leads.slice(0, 3).map(l => `${l.name}: ${l.action_type}`));
     
     // Para perdas com tipo de ação, agrupar por action_type
     if (selectedCategory === "perdas-tipo-acao") {
@@ -33,6 +74,7 @@ export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEdi
         acc[groupName].push(lead);
         return acc;
       }, {} as Record<string, Lead[]>);
+      console.log(`📊 Grupos gerados (perdas-tipo-acao):`, Object.keys(groups));
       return groups;
     }
     // Para perdas com grupo de ação, agrupar por action_group
@@ -46,6 +88,7 @@ export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEdi
         acc[groupName].push(lead);
         return acc;
       }, {} as Record<string, Lead[]>);
+      console.log(`📊 Grupos gerados (perdas-grupo-acao):`, Object.keys(groups));
       return groups;
     }
     // Para perdas simples, agrupar por loss_reason
@@ -58,6 +101,7 @@ export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEdi
         acc[lossReason].push(lead);
         return acc;
       }, {} as Record<string, Lead[]>);
+      console.log(`📊 Grupos gerados (perdas):`, Object.keys(groups));
       return groups;
     }
     // Para contratos com tipo de ação, agrupar por action_type
@@ -71,6 +115,7 @@ export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEdi
         acc[groupName].push(lead);
         return acc;
       }, {} as Record<string, Lead[]>);
+      console.log(`📊 Grupos gerados (contratos-tipo-acao):`, Object.keys(groups));
       return groups;
     }
     // Para contratos com grupo de ação, agrupar por action_group
@@ -84,6 +129,7 @@ export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEdi
         acc[groupName].push(lead);
         return acc;
       }, {} as Record<string, Lead[]>);
+      console.log(`📊 Grupos gerados (contratos-grupo-acao):`, Object.keys(groups));
       return groups;
     }
     // Para oportunidades com tipo de ação, agrupar por action_type
@@ -97,6 +143,7 @@ export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEdi
         acc[groupName].push(lead);
         return acc;
       }, {} as Record<string, Lead[]>);
+      console.log(`📊 Grupos gerados (oportunidades-tipo-acao):`, Object.keys(groups));
       return groups;
     }
     // Para oportunidades com grupo de ação, agrupar por action_group
@@ -110,41 +157,14 @@ export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEdi
         acc[groupName].push(lead);
         return acc;
       }, {} as Record<string, Lead[]>);
+      console.log(`📊 Grupos gerados (oportunidades-grupo-acao):`, Object.keys(groups));
       return groups;
     }
     // Para todas as outras categorias, não agrupar - mostrar lista simples
     else {
+      console.log(`📊 Sem agrupamento para categoria: ${selectedCategory}`);
       return { "Todos os Leads": leads };
     }
-  };
-
-  const getActionTypeLabel = (actionType: string): string => {
-    const labels: Record<string, string> = {
-      "consultoria": "Consultoria Jurídica",
-      "contratos": "Contratos",
-      "trabalhista": "Trabalhista", 
-      "compliance": "Compliance",
-      "tributario": "Tributário",
-      "civil": "Civil",
-      "criminal": "Criminal",
-      "outros": "Outros"
-    };
-    return labels[actionType] || "Outros";
-  };
-
-  // Mapear tipos de ação para grupos de ação (igual aos gráficos)
-  const getActionGroupLabel = (actionType: string): string => {
-    const actionGroupMapping: Record<string, string> = {
-      "consultoria": "Consultoria",
-      "contratos": "Contratos", 
-      "trabalhista": "Direito do Trabalho",
-      "compliance": "Compliance",
-      "tributario": "Direito Tributário",
-      "civil": "Direito Civil",
-      "criminal": "Direito Criminal",
-      "outros": "Outros Serviços"
-    };
-    return actionGroupMapping[actionType] || "Outros Serviços";
   };
 
   const toggleGroup = (groupName: string) => {
