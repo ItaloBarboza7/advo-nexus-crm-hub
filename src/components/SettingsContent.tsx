@@ -59,28 +59,22 @@ export function SettingsContent() {
     },
   ]);
 
-  const handleAddMember = (memberData: { name: string; email: string; role: string }) => {
+  const handleMemberAdded = (memberData: any) => {
     const newMember: Member = {
       id: Date.now(),
-      ...memberData,
+      name: memberData.name,
+      email: memberData.email,
+      role: memberData.role,
       avatar: "/placeholder.svg",
       active: true,
     };
     setMembers([...members, newMember]);
-    toast({
-      title: "Membro adicionado",
-      description: `${memberData.name} foi adicionado à equipe.`,
-    });
   };
 
-  const handleEditMember = (updatedMember: Member) => {
+  const handleMemberUpdated = (updatedMember: any) => {
     setMembers(members.map(member => 
       member.id === updatedMember.id ? updatedMember : member
     ));
-    toast({
-      title: "Membro atualizado",
-      description: `${updatedMember.name} foi atualizado com sucesso.`,
-    });
   };
 
   const handleRemoveMember = (id: number) => {
@@ -367,14 +361,14 @@ export function SettingsContent() {
       <AddMemberModal
         isOpen={isAddMemberModalOpen}
         onClose={() => setIsAddMemberModalOpen(false)}
-        onAddMember={handleAddMember}
+        onMemberAdded={handleMemberAdded}
       />
 
       <EditMemberModal
         isOpen={isEditMemberModalOpen}
         onClose={() => setIsEditMemberModalOpen(false)}
         member={selectedMember}
-        onEditMember={handleEditMember}
+        onMemberUpdated={handleMemberUpdated}
       />
 
       <UserProfileModal
