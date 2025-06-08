@@ -217,19 +217,22 @@ export function SettingsContent() {
       const columnsToUpdate = kanbanColumns.filter(col => col.order_position >= columnData.order);
       
       if (columnsToUpdate.length > 0) {
-        const { error: updateError } = await supabase
-          .from('kanban_columns')
-          .update({ order_position: supabase.sql`order_position + 1` })
-          .in('id', columnsToUpdate.map(col => col.id));
+        // Update each column individually to increment their order position
+        for (const column of columnsToUpdate) {
+          const { error: updateError } = await supabase
+            .from('kanban_columns')
+            .update({ order_position: column.order_position + 1 })
+            .eq('id', column.id);
 
-        if (updateError) {
-          console.error('Erro ao reordenar colunas:', updateError);
-          toast({
-            title: "Erro",
-            description: "Não foi possível reordenar as colunas existentes.",
-            variant: "destructive"
-          });
-          return;
+          if (updateError) {
+            console.error('Erro ao reordenar coluna:', updateError);
+            toast({
+              title: "Erro",
+              description: "Não foi possível reordenar as colunas existentes.",
+              variant: "destructive"
+            });
+            return;
+          }
         }
       }
 
