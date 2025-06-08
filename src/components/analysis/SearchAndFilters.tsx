@@ -37,6 +37,34 @@ export function SearchAndFilters({
   onOpportunitiesViewChange,
   onLossReasonUpdate
 }: SearchAndFiltersProps) {
+  // Determine which view mode to use based on selected category
+  const getCurrentView = (): 'weekly' | 'monthly' => {
+    switch (selectedCategory) {
+      case 'leads':
+        return leadsViewMode as 'weekly' | 'monthly';
+      case 'contracts':
+        return contractsViewMode as 'weekly' | 'monthly';
+      case 'opportunities':
+        return opportunitiesViewMode as 'weekly' | 'monthly';
+      default:
+        return 'weekly';
+    }
+  };
+
+  const handleViewChange = (view: 'weekly' | 'monthly') => {
+    switch (selectedCategory) {
+      case 'leads':
+        onLeadsViewChange(view);
+        break;
+      case 'contracts':
+        onContractsViewChange(view);
+        break;
+      case 'opportunities':
+        onOpportunitiesViewChange(view);
+        break;
+    }
+  };
+
   return (
     <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
       <div className="relative flex-1 max-w-md">
@@ -59,14 +87,9 @@ export function SearchAndFilters({
         />
         
         <ViewToggleDropdown
-          selectedCategory={selectedCategory}
-          onCategoryChange={onCategoryChange}
-          leadsViewMode={leadsViewMode}
-          onLeadsViewChange={onLeadsViewChange}
-          contractsViewMode={contractsViewMode}
-          onContractsViewChange={onContractsViewChange}
-          opportunitiesViewMode={opportunitiesViewMode}
-          onOpportunitiesViewChange={onOpportunitiesViewChange}
+          currentView={getCurrentView()}
+          onViewChange={handleViewChange}
+          label="Visualização"
         />
       </div>
     </div>
