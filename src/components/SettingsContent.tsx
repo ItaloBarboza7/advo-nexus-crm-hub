@@ -85,7 +85,8 @@ export function SettingsContent() {
     lossReasons, 
     loading: lossReasonsLoading, 
     updateLossReason,
-    deleteLossReason
+    deleteLossReason,
+    refreshData: refreshLossReasons
   } = useLossReasonsGlobal();
 
   // Estados para edição inline
@@ -146,6 +147,15 @@ export function SettingsContent() {
   useEffect(() => {
     fetchKanbanColumns();
   }, []);
+
+  // Atualizar dados quando o componente for montado ou a aba de configurações for ativada
+  useEffect(() => {
+    console.log(`🔄 SettingsContent - Componente montado/aba alterada: ${activeTab}`);
+    if (activeTab === "configurations") {
+      console.log(`🔄 SettingsContent - Aba "configurations" ativa, forçando refresh dos motivos de perda...`);
+      refreshLossReasons();
+    }
+  }, [activeTab, refreshLossReasons]);
 
   // Define tabs based on admin status - Dashboard movido para segunda posição
   const allTabs = [
@@ -989,6 +999,7 @@ export function SettingsContent() {
     console.log('🔄 SettingsContent - Renderizando aba Configurações/Ações');
     console.log(`📊 SettingsContent - Estados de loading: optionsLoading=${optionsLoading}, lossReasonsLoading=${lossReasonsLoading}`);
     console.log(`📊 SettingsContent - Dados carregados: actionGroups=${actionGroups.length}, actionTypes=${actionTypes.length}, leadSources=${leadSources.length}, lossReasons=${lossReasons.length}`);
+    console.log(`📋 SettingsContent - Motivos de perda atuais:`, lossReasons.map(r => r.reason));
     
     return (
       <div className="space-y-6">
@@ -1284,6 +1295,13 @@ export function SettingsContent() {
                 {lossReasons.length === 0 ? (
                   <div className="text-center py-4">
                     <p className="text-gray-500">Nenhum motivo de perda encontrado.</p>
+                    <Button 
+                      variant="outline"
+                      onClick={refreshLossReasons}
+                      className="mt-2"
+                    >
+                      🔄 Tentar Novamente
+                    </Button>
                   </div>
                 ) : (
                   lossReasons.map((reason) => {
@@ -1315,6 +1333,7 @@ export function SettingsContent() {
                             ) : (
                               <div>
                                 <h5 className="font-medium text-gray-900">{reason.reason}</h5>
+                                <p className="text-xs text-gray-500">ID: {reason.id}</p>
                               </div>
                             )}
                           </div>

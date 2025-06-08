@@ -16,6 +16,7 @@ const subscribers = new Set<() => void>();
 
 // Função para notificar todos os subscribers sobre mudanças
 const notifySubscribers = () => {
+  console.log(`🔔 useLossReasonsGlobal - Notificando ${subscribers.size} subscribers sobre mudanças`);
   subscribers.forEach(callback => callback());
 };
 
@@ -50,6 +51,7 @@ const updateGlobalState = async () => {
     globalInitialized = true;
     
     console.log(`✅ useLossReasonsGlobal - Estado global atualizado com ${globalLossReasons.length} motivos`);
+    console.log(`📋 useLossReasonsGlobal - Motivos atuais:`, globalLossReasons.map(r => r.reason));
     notifySubscribers();
   } catch (error) {
     globalLoading = false;
@@ -69,6 +71,7 @@ export function useLossReasonsGlobal() {
   // Função de callback para atualizar o estado local quando o global mudar
   const updateLocalState = useCallback(() => {
     console.log(`🔄 useLossReasonsGlobal - Atualizando estado local. Global: ${globalLossReasons.length} motivos, Loading: ${globalLoading}, Initialized: ${globalInitialized}`);
+    console.log(`📋 useLossReasonsGlobal - Motivos globais para sincronizar:`, globalLossReasons.map(r => r.reason));
     setLocalLossReasons([...globalLossReasons]);
     setLocalLoading(globalLoading);
   }, []);
@@ -106,6 +109,7 @@ export function useLossReasonsGlobal() {
     console.log(`🔄 useLossReasonsGlobal - Forçando atualização global dos dados...`);
     try {
       await updateGlobalState();
+      console.log(`✅ useLossReasonsGlobal - Refresh global concluído`);
     } catch (error) {
       console.error('❌ Erro ao atualizar dados:', error);
       toast({
@@ -134,7 +138,9 @@ export function useLossReasonsGlobal() {
         return false;
       }
 
+      console.log(`✅ useLossReasonsGlobal - Motivo "${reason}" inserido no banco. Atualizando estado global...`);
       await updateGlobalState();
+      
       toast({
         title: "Sucesso",
         description: "Motivo de perda adicionado com sucesso.",
@@ -170,7 +176,9 @@ export function useLossReasonsGlobal() {
         return false;
       }
 
+      console.log(`✅ useLossReasonsGlobal - Motivo atualizado no banco. Atualizando estado global...`);
       await updateGlobalState();
+      
       toast({
         title: "Sucesso",
         description: "Motivo de perda atualizado com sucesso.",
@@ -209,7 +217,9 @@ export function useLossReasonsGlobal() {
         return false;
       }
 
+      console.log(`✅ useLossReasonsGlobal - Motivo excluído do banco. Atualizando estado global...`);
       await updateGlobalState();
+      
       toast({
         title: "Sucesso",
         description: "Motivo de perda excluído com sucesso.",
@@ -225,6 +235,8 @@ export function useLossReasonsGlobal() {
       return false;
     }
   }, [toast]);
+
+  console.log(`🔍 useLossReasonsGlobal - Hook retornando ${localLossReasons.length} motivos:`, localLossReasons.map(r => r.reason));
 
   return {
     lossReasons: localLossReasons,
