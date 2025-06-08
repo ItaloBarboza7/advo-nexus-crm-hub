@@ -10,9 +10,15 @@ export function LossReasonManager({ lossReason, onDeleted }: LossReasonManagerPr
   const handleDelete = async () => {
     console.log('🔥 [LossReasonManager] Solicitando exclusão do motivo:', lossReason.reason);
     
-    // Chamar a função de callback que irá lidar com a exclusão
-    // passando os parâmetros necessários
-    await onDeleted(lossReason.id, lossReason.reason);
+    try {
+      // Chamar a função de callback que irá lidar com a exclusão
+      const success = await onDeleted(lossReason.id, lossReason.reason);
+      console.log('✅ [LossReasonManager] Resultado da exclusão:', success);
+      return success;
+    } catch (error) {
+      console.error('❌ [LossReasonManager] Erro durante exclusão:', error);
+      throw error;
+    }
   };
 
   return (

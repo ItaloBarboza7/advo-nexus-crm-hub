@@ -95,13 +95,10 @@ export function LeadsChart({ leads, title, filterFunction, viewMode: externalVie
           <CardTitle className="text-lg font-semibold text-gray-900">
             {title} - {currentViewMode === 'weekly' ? 'Por Dia da Semana' : 'Por Mês'}
           </CardTitle>
-          {/* Só mostrar o dropdown interno se não receber viewMode como prop */}
-          {!externalViewMode && (
-            <ViewToggleDropdown 
-              currentView={currentViewMode}
-              onViewChange={handleViewChange}
-            />
-          )}
+          <ViewToggleDropdown 
+            currentView={currentViewMode}
+            onViewChange={handleViewChange}
+          />
         </div>
       </CardHeader>
       

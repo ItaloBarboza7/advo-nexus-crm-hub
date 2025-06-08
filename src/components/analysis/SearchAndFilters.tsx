@@ -2,7 +2,6 @@
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { AdvancedFilters, FilterOptions } from "@/components/AdvancedFilters";
-import { ViewToggleDropdown } from "./ViewToggleDropdown";
 
 interface SearchAndFiltersProps {
   searchTerm: string;
@@ -41,33 +40,6 @@ export function SearchAndFilters({
   onDeleteLossReason,
   onAddLossReason
 }: SearchAndFiltersProps) {
-  // Determine which view mode to use based on selected category
-  const getCurrentView = (): 'weekly' | 'monthly' => {
-    switch (selectedCategory) {
-      case 'leads':
-        return leadsViewMode as 'weekly' | 'monthly';
-      case 'contracts':
-        return contractsViewMode as 'weekly' | 'monthly';
-      case 'opportunities':
-        return opportunitiesViewMode as 'weekly' | 'monthly';
-      default:
-        return 'weekly';
-    }
-  };
-
-  const handleViewChange = (view: 'weekly' | 'monthly') => {
-    switch (selectedCategory) {
-      case 'leads':
-        onLeadsViewChange(view);
-        break;
-      case 'contracts':
-        onContractsViewChange(view);
-        break;
-      case 'opportunities':
-        onOpportunitiesViewChange(view);
-        break;
-    }
-  };
 
   return (
     <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
@@ -90,12 +62,6 @@ export function SearchAndFilters({
           onLossReasonUpdate={onLossReasonUpdate}
           onDeleteLossReason={onDeleteLossReason}
           onAddLossReason={onAddLossReason}
-        />
-        
-        <ViewToggleDropdown
-          currentView={getCurrentView()}
-          onViewChange={handleViewChange}
-          label="Visualização"
         />
       </div>
     </div>
