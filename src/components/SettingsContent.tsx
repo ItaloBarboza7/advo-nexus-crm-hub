@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,6 @@ import { DeleteButton } from "@/components/DeleteButton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useFilterOptions } from "@/hooks/useFilterOptions";
-import { useLossReasons } from "@/hooks/useLossReasons";
 import { useDashboardSettings } from "@/hooks/useDashboardSettings";
 import { useCompanyInfo } from "@/hooks/useCompanyInfo";
 import { useLossReasonsGlobal } from "@/hooks/useLossReasonsGlobal";
@@ -85,8 +85,7 @@ export function SettingsContent() {
     lossReasons, 
     loading: lossReasonsLoading, 
     updateLossReason,
-    deleteLossReason,
-    addLossReason 
+    deleteLossReason
   } = useLossReasonsGlobal();
 
   // Estados para edição inline
@@ -623,7 +622,15 @@ export function SettingsContent() {
   };
 
   const handleDeleteLossReason = async (reasonId: string) => {
-    await deleteLossReason(reasonId);
+    console.log(`🗑️ SettingsContent - Iniciando exclusão do motivo de perda ID: ${reasonId}`);
+    try {
+      const success = await deleteLossReason(reasonId);
+      console.log(`✅ SettingsContent - Resultado da exclusão: ${success}`);
+      return success;
+    } catch (error) {
+      console.error(`❌ SettingsContent - Erro ao excluir motivo:`, error);
+      throw error;
+    }
   };
 
   const handleAddLossReasonFromDialog = async () => {
