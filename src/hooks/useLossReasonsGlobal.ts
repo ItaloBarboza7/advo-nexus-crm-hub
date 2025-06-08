@@ -160,6 +160,16 @@ export function useLossReasonsGlobal() {
   // Função para atualizar um motivo (atualiza globalmente)
   const updateLossReason = useCallback(async (id: string, newReason: string) => {
     console.log(`📝 useLossReasonsGlobal - Atualizando motivo ID: ${id} para: ${newReason}`);
+    
+    // Otimisticamente atualizar o estado local primeiro
+    const previousReasons = [...globalLossReasons];
+    const reasonIndex = globalLossReasons.findIndex(r => r.id === id);
+    
+    if (reasonIndex !== -1) {
+      globalLossReasons[reasonIndex] = { ...globalLossReasons[reasonIndex], reason: newReason.trim() };
+      notifySubscribers();
+    }
+
     try {
       const { error } = await supabase
         .from('loss_reasons')
@@ -168,6 +178,11 @@ export function useLossReasonsGlobal() {
 
       if (error) {
         console.error('❌ Erro ao atualizar motivo:', error);
+        
+        // Reverter mudança otimística em caso de erro
+        globalLossReasons.splice(0, globalLossReasons.length, ...previousReasons);
+        notifySubscribers();
+        
         toast({
           title: "Erro",
           description: "Não foi possível atualizar o motivo de perda.",
@@ -176,8 +191,7 @@ export function useLossReasonsGlobal() {
         return false;
       }
 
-      console.log(`✅ useLossReasonsGlobal - Motivo atualizado no banco. Atualizando estado global...`);
-      await updateGlobalState();
+      console.log(`✅ useLossReasonsGlobal - Motivo atualizado no banco com sucesso`);
       
       toast({
         title: "Sucesso",
@@ -186,6 +200,11 @@ export function useLossReasonsGlobal() {
       return true;
     } catch (error) {
       console.error('❌ Erro inesperado ao atualizar motivo:', error);
+      
+      // Reverter mudança otimística em caso de erro
+      globalLossReasons.splice(0, globalLossReasons.length, ...previousReasons);
+      notifySubscribers();
+      
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado.",
@@ -198,10 +217,26 @@ export function useLossReasonsGlobal() {
   // Função para excluir um motivo (atualiza globalmente)
   const deleteLossReason = useCallback(async (id: string) => {
     console.log(`🗑️ useLossReasonsGlobal - Excluindo motivo ID: ${id}`);
-    try {
-      const reasonToDelete = globalLossReasons.find(reason => reason.id === id);
-      console.log(`🔍 Motivo a ser excluído:`, reasonToDelete);
+    
+    const reasonToDelete = globalLossReasons.find(reason => reason.id === id);
+    console.log(`🔍 Motivo a ser excluído:`, reasonToDelete);
 
+    if (!reasonToDelete) {
+      console.error(`❌ Motivo com ID ${id} não encontrado na lista global`);
+      toast({
+        title: "Erro",
+        description: "Motivo não encontrado.",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    // Otimisticamente remover do estado local primeiro
+    const previousReasons = [...globalLossReasons];
+    globalLossReasons = globalLossReasons.filter(reason => reason.id !== id);
+    notifySubscribers();
+
+    try {
       const { error } = await supabase
         .from('loss_reasons')
         .delete()
@@ -209,6 +244,11 @@ export function useLossReasonsGlobal() {
 
       if (error) {
         console.error('❌ Erro ao excluir motivo:', error);
+        
+        // Reverter mudança otimística em caso de erro
+        globalLossReasons = previousReasons;
+        notifySubscribers();
+        
         toast({
           title: "Erro",
           description: "Não foi possível excluir o motivo de perda.",
@@ -217,8 +257,7 @@ export function useLossReasonsGlobal() {
         return false;
       }
 
-      console.log(`✅ useLossReasonsGlobal - Motivo excluído do banco. Atualizando estado global...`);
-      await updateGlobalState();
+      console.log(`✅ useLossReasonsGlobal - Motivo "${reasonToDelete.reason}" excluído do banco com sucesso`);
       
       toast({
         title: "Sucesso",
@@ -227,6 +266,11 @@ export function useLossReasonsGlobal() {
       return true;
     } catch (error) {
       console.error('❌ Erro inesperado ao excluir motivo:', error);
+      
+      // Reverter mudança otimística em caso de erro
+      globalLossReasons = previousReasons;
+      notifySubscribers();
+      
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado.",
