@@ -6,8 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
-import { Trash2 } from "lucide-react";
+import { DeleteButton } from "@/components/DeleteButton";
 
 interface LeadSource {
   id: string;
@@ -26,8 +25,6 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
   const [isLoading, setIsLoading] = useState(false);
   const [leadSources, setLeadSources] = useState<LeadSource[]>([]);
   const [isLoadingSources, setIsLoadingSources] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [sourceToDelete, setSourceToDelete] = useState<LeadSource | null>(null);
   const { toast } = useToast();
 
   const fetchLeadSources = async () => {
@@ -103,71 +100,32 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
     }
   };
 
-  const handleDeleteClick = (e: React.MouseEvent, source: LeadSource) => {
-    e.preventDefault();
-    e.stopPropagation();
-    console.log('🗑️ Botão delete clicado para fonte:', source.label);
-    console.log('🔍 Definindo sourceToDelete:', source);
-    setSourceToDelete(source);
-    console.log('📋 Abrindo dialog de confirmação...');
-    setDeleteDialogOpen(true);
-    console.log('✅ Estado deleteDialogOpen definido como true');
-  };
+  const handleDeleteSource = async (sourceId: string) => {
+    console.log('🗑️ Iniciando exclusão da fonte com ID:', sourceId);
+    
+    const { error } = await supabase
+      .from('lead_sources')
+      .delete()
+      .eq('id', sourceId);
 
-  const handleDeleteConfirm = async () => {
-    console.log('🔥 handleDeleteConfirm chamado');
-    if (!sourceToDelete) {
-      console.log('❌ Nenhuma fonte selecionada para exclusão');
-      return;
-    }
-
-    console.log('🗑️ Confirmando exclusão da fonte:', sourceToDelete.label);
-
-    try {
-      const { error } = await supabase
-        .from('lead_sources')
-        .delete()
-        .eq('id', sourceToDelete.id);
-
-      if (error) {
-        console.error('❌ Erro ao excluir fonte:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível excluir a fonte de lead.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      console.log('✅ Fonte excluída com sucesso');
-      toast({
-        title: "Sucesso",
-        description: "Fonte de lead excluída com sucesso.",
-      });
-
-      fetchLeadSources();
-      onSourceAdded();
-    } catch (error) {
-      console.error('❌ Erro inesperado ao excluir fonte:', error);
+    if (error) {
+      console.error('❌ Erro ao excluir fonte:', error);
       toast({
         title: "Erro",
-        description: "Ocorreu um erro inesperado.",
+        description: "Não foi possível excluir a fonte de lead.",
         variant: "destructive"
       });
-    } finally {
-      console.log('🔄 Fechando dialog e limpando estado');
-      setDeleteDialogOpen(false);
-      setSourceToDelete(null);
+      throw error;
     }
-  };
 
-  const handleDeleteDialogClose = (open: boolean) => {
-    console.log('🔄 Dialog onOpenChange chamado com:', open);
-    setDeleteDialogOpen(open);
-    if (!open) {
-      console.log('❌ Limpando sourceToDelete');
-      setSourceToDelete(null);
-    }
+    console.log('✅ Fonte excluída com sucesso');
+    toast({
+      title: "Sucesso",
+      description: "Fonte de lead excluída com sucesso.",
+    });
+
+    fetchLeadSources();
+    onSourceAdded();
   };
 
   const handleClose = () => {
@@ -182,77 +140,63 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
   }, [isOpen]);
 
   return (
-    <>
-      <Dialog open={isOpen} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Gerenciar Fontes de Lead</DialogTitle>
-            <DialogDescription>
-              Crie novas fontes de lead ou gerencie as existentes.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <form onSubmit={handleSubmit}>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="name">Nome da Nova Fonte</Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Ex: Site, Indicação, Facebook..."
-                  required
-                />
-              </div>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Gerenciar Fontes de Lead</DialogTitle>
+          <DialogDescription>
+            Crie novas fontes de lead ou gerencie as existentes.
+          </DialogDescription>
+        </DialogHeader>
+        
+        <form onSubmit={handleSubmit}>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Nome da Nova Fonte</Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Ex: Site, Indicação, Facebook..."
+                required
+              />
             </div>
-            <DialogFooter>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Criando..." : "Criar Fonte"}
-              </Button>
-            </DialogFooter>
-          </form>
-
-          <div className="border-t pt-4">
-            <h4 className="text-sm font-medium mb-3">Fontes Existentes</h4>
-            {isLoadingSources ? (
-              <div className="text-sm text-gray-500">Carregando...</div>
-            ) : leadSources.length === 0 ? (
-              <div className="text-sm text-gray-500">Nenhuma fonte cadastrada</div>
-            ) : (
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {leadSources.map((source) => (
-                  <div key={source.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                    <span className="text-sm">{source.label}</span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => handleDeleteClick(e, source)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
-
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose}>
-              Fechar
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? "Criando..." : "Criar Fonte"}
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </form>
 
-      <ConfirmDeleteDialog
-        open={deleteDialogOpen}
-        onOpenChange={handleDeleteDialogClose}
-        itemName={sourceToDelete?.label || ""}
-        itemType="a fonte de lead"
-        onConfirm={handleDeleteConfirm}
-      />
-    </>
+        <div className="border-t pt-4">
+          <h4 className="text-sm font-medium mb-3">Fontes Existentes</h4>
+          {isLoadingSources ? (
+            <div className="text-sm text-gray-500">Carregando...</div>
+          ) : leadSources.length === 0 ? (
+            <div className="text-sm text-gray-500">Nenhuma fonte cadastrada</div>
+          ) : (
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {leadSources.map((source) => (
+                <div key={source.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                  <span className="text-sm">{source.label}</span>
+                  <DeleteButton
+                    onDelete={() => handleDeleteSource(source.id)}
+                    itemName={source.label}
+                    itemType="a fonte de lead"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={handleClose}>
+            Fechar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

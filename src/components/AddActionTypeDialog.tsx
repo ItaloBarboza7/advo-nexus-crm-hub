@@ -7,8 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
-import { Trash2 } from "lucide-react";
+import { DeleteButton } from "@/components/DeleteButton";
 
 interface ActionGroup {
   id: string;
@@ -36,8 +35,6 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
   const [isLoading, setIsLoading] = useState(false);
   const [actionTypes, setActionTypes] = useState<ActionType[]>([]);
   const [isLoadingTypes, setIsLoadingTypes] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [typeToDelete, setTypeToDelete] = useState<ActionType | null>(null);
   const { toast } = useToast();
 
   const fetchActionTypes = async () => {
@@ -121,71 +118,32 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
     }
   };
 
-  const handleDeleteClick = (e: React.MouseEvent, type: ActionType) => {
-    e.preventDefault();
-    e.stopPropagation();
-    console.log('🗑️ Botão delete clicado para tipo:', type.name);
-    console.log('🔍 Definindo typeToDelete:', type);
-    setTypeToDelete(type);
-    console.log('📋 Abrindo dialog de confirmação...');
-    setDeleteDialogOpen(true);
-    console.log('✅ Estado deleteDialogOpen definido como true');
-  };
+  const handleDeleteType = async (typeId: string) => {
+    console.log('🗑️ Iniciando exclusão do tipo com ID:', typeId);
+    
+    const { error } = await supabase
+      .from('action_types')
+      .delete()
+      .eq('id', typeId);
 
-  const handleDeleteConfirm = async () => {
-    console.log('🔥 handleDeleteConfirm chamado para tipo');
-    if (!typeToDelete) {
-      console.log('❌ Nenhum tipo selecionado para exclusão');
-      return;
-    }
-
-    console.log('🗑️ Confirmando exclusão do tipo:', typeToDelete.name);
-
-    try {
-      const { error } = await supabase
-        .from('action_types')
-        .delete()
-        .eq('id', typeToDelete.id);
-
-      if (error) {
-        console.error('❌ Erro ao excluir tipo:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível excluir o tipo de ação.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      console.log('✅ Tipo excluído com sucesso');
-      toast({
-        title: "Sucesso",
-        description: "Tipo de ação excluído com sucesso.",
-      });
-
-      fetchActionTypes();
-      onTypeAdded();
-    } catch (error) {
-      console.error('❌ Erro inesperado ao excluir tipo:', error);
+    if (error) {
+      console.error('❌ Erro ao excluir tipo:', error);
       toast({
         title: "Erro",
-        description: "Ocorreu um erro inesperado.",
+        description: "Não foi possível excluir o tipo de ação.",
         variant: "destructive"
       });
-    } finally {
-      console.log('🔄 Fechando dialog e limpando estado');
-      setDeleteDialogOpen(false);
-      setTypeToDelete(null);
+      throw error;
     }
-  };
 
-  const handleDeleteDialogClose = (open: boolean) => {
-    console.log('🔄 Dialog onOpenChange chamado com:', open);
-    setDeleteDialogOpen(open);
-    if (!open) {
-      console.log('❌ Limpando typeToDelete');
-      setTypeToDelete(null);
-    }
+    console.log('✅ Tipo excluído com sucesso');
+    toast({
+      title: "Sucesso",
+      description: "Tipo de ação excluído com sucesso.",
+    });
+
+    fetchActionTypes();
+    onTypeAdded();
   };
 
   const handleClose = () => {
@@ -201,97 +159,83 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
   }, [isOpen]);
 
   return (
-    <>
-      <Dialog open={isOpen} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Gerenciar Tipos de Ação</DialogTitle>
-            <DialogDescription>
-              Crie novos tipos de ação ou gerencie os existentes.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <form onSubmit={handleSubmit}>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="group">Grupo de Ação</Label>
-                <Select value={selectedGroupId} onValueChange={setSelectedGroupId} required>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione um grupo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {actionGroups.map((group) => (
-                      <SelectItem key={group.id} value={group.id}>
-                        {group.description || group.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="name">Nome do Novo Tipo</Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Ex: Ligação, Email, Reunião..."
-                  required
-                />
-              </div>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Gerenciar Tipos de Ação</DialogTitle>
+          <DialogDescription>
+            Crie novos tipos de ação ou gerencie os existentes.
+          </DialogDescription>
+        </DialogHeader>
+        
+        <form onSubmit={handleSubmit}>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="group">Grupo de Ação</Label>
+              <Select value={selectedGroupId} onValueChange={setSelectedGroupId} required>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um grupo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {actionGroups.map((group) => (
+                    <SelectItem key={group.id} value={group.id}>
+                      {group.description || group.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <DialogFooter>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Criando..." : "Criar Tipo"}
-              </Button>
-            </DialogFooter>
-          </form>
-
-          <div className="border-t pt-4">
-            <h4 className="text-sm font-medium mb-3">Tipos Existentes</h4>
-            {isLoadingTypes ? (
-              <div className="text-sm text-gray-500">Carregando...</div>
-            ) : actionTypes.length === 0 ? (
-              <div className="text-sm text-gray-500">Nenhum tipo cadastrado</div>
-            ) : (
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {actionTypes.map((type) => (
-                  <div key={type.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium">{type.name}</span>
-                      <span className="text-xs text-gray-500">
-                        {type.action_groups?.description || 'Grupo não encontrado'}
-                      </span>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => handleDeleteClick(e, type)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="grid gap-2">
+              <Label htmlFor="name">Nome do Novo Tipo</Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Ex: Ligação, Email, Reunião..."
+                required
+              />
+            </div>
           </div>
-
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose}>
-              Fechar
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? "Criando..." : "Criar Tipo"}
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </form>
 
-      <ConfirmDeleteDialog
-        open={deleteDialogOpen}
-        onOpenChange={handleDeleteDialogClose}
-        itemName={typeToDelete?.name || ""}
-        itemType="o tipo de ação"
-        onConfirm={handleDeleteConfirm}
-      />
-    </>
+        <div className="border-t pt-4">
+          <h4 className="text-sm font-medium mb-3">Tipos Existentes</h4>
+          {isLoadingTypes ? (
+            <div className="text-sm text-gray-500">Carregando...</div>
+          ) : actionTypes.length === 0 ? (
+            <div className="text-sm text-gray-500">Nenhum tipo cadastrado</div>
+          ) : (
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {actionTypes.map((type) => (
+                <div key={type.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium">{type.name}</span>
+                    <span className="text-xs text-gray-500">
+                      {type.action_groups?.description || 'Grupo não encontrado'}
+                    </span>
+                  </div>
+                  <DeleteButton
+                    onDelete={() => handleDeleteType(type.id)}
+                    itemName={type.name}
+                    itemType="o tipo de ação"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={handleClose}>
+            Fechar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
