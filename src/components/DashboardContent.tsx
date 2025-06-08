@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserPlus, UserX, DollarSign, TrendingUp, Target, BarChart3 } from "lucide-react";
@@ -12,7 +11,6 @@ export function DashboardContent() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [conversionView, setConversionView] = useState<'weekly' | 'monthly'>('weekly');
   const [leadsView, setLeadsView] = useState<'weekly' | 'monthly'>('weekly');
-  const [proposalsView, setProposalsView] = useState<'weekly' | 'monthly'>('weekly');
   const [actionView, setActionView] = useState<'type' | 'group'>('type');
 
   const stats = [
@@ -134,31 +132,6 @@ export function DashboardContent() {
     { month: "Dez", leads: 295 },
   ];
 
-  const weeklyProposalsData = [
-    { day: "Segunda", proposals: 14 },
-    { day: "Terça", proposals: 12 },
-    { day: "Quarta", proposals: 18 },
-    { day: "Quinta", proposals: 11 },
-    { day: "Sexta", proposals: 9 },
-    { day: "Sábado", proposals: 7 },
-    { day: "Domingo", proposals: 4 },
-  ];
-
-  const monthlyProposalsData = [
-    { month: "Jan", proposals: 73 },
-    { month: "Fev", proposals: 68 },
-    { month: "Mar", proposals: 82 },
-    { month: "Abr", proposals: 59 },
-    { month: "Mai", proposals: 95 },
-    { month: "Jun", proposals: 76 },
-    { month: "Jul", proposals: 84 },
-    { month: "Ago", proposals: 71 },
-    { month: "Set", proposals: 78 },
-    { month: "Out", proposals: 89 },
-    { month: "Nov", proposals: 74 },
-    { month: "Dez", proposals: 77 },
-  ];
-
   const actionTypeData = [
     { type: "Marketing Digital", opportunities: 45, closures: 28 },
     { type: "Vendas Diretas", opportunities: 38, closures: 22 },
@@ -206,10 +179,6 @@ export function DashboardContent() {
     return leadsView === 'weekly' ? weeklyLeadsData : monthlyLeadsData;
   };
 
-  const getProposalsData = () => {
-    return proposalsView === 'weekly' ? weeklyProposalsData : monthlyProposalsData;
-  };
-
   const getActionData = () => {
     return actionView === 'type' ? actionTypeData : actionGroupData;
   };
@@ -220,10 +189,6 @@ export function DashboardContent() {
 
   const getLeadsDataKey = () => {
     return leadsView === 'weekly' ? 'day' : 'month';
-  };
-
-  const getProposalsDataKey = () => {
-    return proposalsView === 'weekly' ? 'day' : 'month';
   };
 
   const getActionDataKey = () => {
@@ -250,17 +215,6 @@ export function DashboardContent() {
     const periodValue = best[periodKey as keyof typeof best];
     const suffix = leadsView === 'weekly' ? '-feira' : '';
     return `${periodValue}${suffix} (${best.leads} leads)`;
-  };
-
-  const getBestProposalsPeriod = () => {
-    const data = getProposalsData();
-    const best = data.reduce((prev, current) => 
-      current.proposals > prev.proposals ? current : prev
-    );
-    const periodKey = proposalsView === 'weekly' ? 'day' : 'month';
-    const periodValue = best[periodKey as keyof typeof best];
-    const suffix = proposalsView === 'weekly' ? '-feira' : '';
-    return `${periodValue}${suffix} (${best.proposals} propostas)`;
   };
 
   const getBestActionPeriod = () => {
@@ -313,97 +267,7 @@ export function DashboardContent() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Team Results */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Resultado do Time</h3>
-            <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
-              Ver detalhes
-            </button>
-          </div>
-          <div className="space-y-4">
-            {teamResults.map((member) => (
-              <div key={member.id} className="border-l-4 border-blue-500 pl-4 py-2">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h4 className="font-medium text-gray-900">{member.name}</h4>
-                    <div className="grid grid-cols-4 gap-4 mt-2 text-sm text-gray-600">
-                      <div>
-                        <span className="font-medium text-blue-600">{member.leads}</span>
-                        <p className="text-xs">Leads</p>
-                      </div>
-                      <div>
-                        <span className="font-medium text-orange-600">{member.proposals}</span>
-                        <p className="text-xs">Propostas</p>
-                      </div>
-                      <div>
-                        <span className="font-medium text-green-600">{member.sales}</span>
-                        <p className="text-xs">Vendas</p>
-                      </div>
-                      <div>
-                        <span className="font-medium text-purple-600">{member.score}</span>
-                        <p className="text-xs">Pontuação</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        {/* Conversion Rate */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Taxa de Conversão</h3>
-            <Target className="h-5 w-5 text-blue-600" />
-          </div>
-          <div className="space-y-4">
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <div className="text-center mb-4">
-                <p className="text-3xl font-bold text-blue-600">{conversionData[0].overallConversion}</p>
-                <p className="text-sm text-gray-600">Taxa Geral de Conversão</p>
-              </div>
-              
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Total de Leads</span>
-                  <span className="font-medium">{conversionData[0].totalLeads}</span>
-                </div>
-                
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Oportunidades Geradas</span>
-                  <div className="text-right">
-                    <span className="font-medium">{conversionData[0].opportunities}</span>
-                    <span className="text-xs text-orange-600 ml-2">({conversionData[0].opportunityRate})</span>
-                  </div>
-                </div>
-                
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Vendas Realizadas</span>
-                  <div className="text-right">
-                    <span className="font-medium">{conversionData[0].sales}</span>
-                    <span className="text-xs text-green-600 ml-2">({conversionData[0].salesRate})</span>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="mt-4 pt-3 border-t border-gray-200">
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                    style={{ width: conversionData[0].overallConversion }}
-                  ></div>
-                </div>
-                <p className="text-xs text-gray-500 mt-1 text-center">
-                  Meta: 75% | Atual: {conversionData[0].overallConversion}
-                </p>
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        {/* Weekly Conversion Chart */}
+        {/* Conversion Chart - Moved to where Team Results was */}
         <Card className="p-6 flex flex-col">
           <CardHeader className="p-0 mb-3">
             <div className="flex items-center justify-between">
@@ -469,11 +333,168 @@ export function DashboardContent() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Conversion Rate - Central panel */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Taxa de Conversão</h3>
+            <Target className="h-5 w-5 text-blue-600" />
+          </div>
+          <div className="space-y-4">
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="text-center mb-4">
+                <p className="text-3xl font-bold text-blue-600">{conversionData[0].overallConversion}</p>
+                <p className="text-sm text-gray-600">Taxa Geral de Conversão</p>
+              </div>
+              
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Total de Leads</span>
+                  <span className="font-medium">{conversionData[0].totalLeads}</span>
+                </div>
+                
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Oportunidades Geradas</span>
+                  <div className="text-right">
+                    <span className="font-medium">{conversionData[0].opportunities}</span>
+                    <span className="text-xs text-orange-600 ml-2">({conversionData[0].opportunityRate})</span>
+                  </div>
+                </div>
+                
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Vendas Realizadas</span>
+                  <div className="text-right">
+                    <span className="font-medium">{conversionData[0].sales}</span>
+                    <span className="text-xs text-green-600 ml-2">({conversionData[0].salesRate})</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-4 pt-3 border-t border-gray-200">
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                    style={{ width: conversionData[0].overallConversion }}
+                  ></div>
+                </div>
+                <p className="text-xs text-gray-500 mt-1 text-center">
+                  Meta: 75% | Atual: {conversionData[0].overallConversion}
+                </p>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* New Leads Chart - Moved to top right */}
+        <Card className="p-6 flex flex-col">
+          <CardHeader className="p-0 mb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-lg text-gray-900">
+                <Users className="h-5 w-5 text-green-600" />
+                Leads Novos por {leadsView === 'weekly' ? 'Dia da Semana' : 'Mês'}
+              </CardTitle>
+              <Select value={leadsView} onValueChange={(value: 'weekly' | 'monthly') => setLeadsView(value)}>
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="weekly">Semanal</SelectItem>
+                  <SelectItem value="monthly">Mensal</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0 flex-1 flex flex-col">
+            <div className="h-48 flex-1">
+              <ChartContainer config={chartConfig} className="h-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={getLeadsData()} margin={{ top: 5, right: 5, left: 5, bottom: 25 }}>
+                    <defs>
+                      <linearGradient id="leadsGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#10b981" stopOpacity={1}/>
+                        <stop offset="100%" stopColor="#059669" stopOpacity={1}/>
+                      </linearGradient>
+                    </defs>
+                    <XAxis 
+                      dataKey={getLeadsDataKey()}
+                      tick={{ fontSize: 9, fill: '#6b7280' }}
+                      angle={-45}
+                      textAnchor="end"
+                      height={25}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 9, fill: '#6b7280' }}
+                      width={20}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <ChartTooltip 
+                      content={<ChartTooltipContent />}
+                      formatter={(value, name) => [value, 'Leads']}
+                      labelFormatter={(label) => leadsView === 'weekly' ? `${label}-feira` : label}
+                    />
+                    <Bar 
+                      dataKey="leads" 
+                      fill="url(#leadsGradient)"
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </div>
+            <div className="mt-3 pt-2 border-t border-gray-200">
+              <p className="text-sm text-gray-600 text-center">
+                Melhor período: <span className="font-medium text-green-600">{getBestLeadsPeriod()}</span>
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Charts Row */}
+      {/* Bottom Row - Team Results and Action Chart */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Action Chart with toggle */}
+        {/* Team Results - Now takes 2 spaces (cols 1-2) */}
+        <Card className="p-6 lg:col-span-2">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Resultado do Time</h3>
+            <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
+              Ver detalhes
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {teamResults.map((member) => (
+              <div key={member.id} className="border-l-4 border-blue-500 pl-4 py-2">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h4 className="font-medium text-gray-900">{member.name}</h4>
+                    <div className="grid grid-cols-2 gap-4 mt-2 text-sm text-gray-600">
+                      <div>
+                        <span className="font-medium text-blue-600">{member.leads}</span>
+                        <p className="text-xs">Leads</p>
+                      </div>
+                      <div>
+                        <span className="font-medium text-orange-600">{member.proposals}</span>
+                        <p className="text-xs">Propostas</p>
+                      </div>
+                      <div>
+                        <span className="font-medium text-green-600">{member.sales}</span>
+                        <p className="text-xs">Vendas</p>
+                      </div>
+                      <div>
+                        <span className="font-medium text-purple-600">{member.score}</span>
+                        <p className="text-xs">Pontuação</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        {/* Action Chart - Moved to bottom right */}
         <Card className="p-6 flex flex-col">
           <CardHeader className="p-0 mb-3">
             <div className="flex items-center justify-between">
@@ -543,140 +564,6 @@ export function DashboardContent() {
             <div className="mt-3 pt-2 border-t border-gray-200">
               <p className="text-sm text-gray-600 text-center">
                 Melhor {actionView === 'type' ? 'tipo' : 'grupo'}: <span className="font-medium text-purple-600">{getBestActionPeriod()}</span>
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Weekly Leads Chart */}
-        <Card className="p-6 flex flex-col">
-          <CardHeader className="p-0 mb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-lg text-gray-900">
-                <Users className="h-5 w-5 text-green-600" />
-                Leads Novos por {leadsView === 'weekly' ? 'Dia da Semana' : 'Mês'}
-              </CardTitle>
-              <Select value={leadsView} onValueChange={(value: 'weekly' | 'monthly') => setLeadsView(value)}>
-                <SelectTrigger className="w-[120px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="weekly">Semanal</SelectItem>
-                  <SelectItem value="monthly">Mensal</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0 flex-1 flex flex-col">
-            <div className="h-48 flex-1">
-              <ChartContainer config={chartConfig} className="h-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={getLeadsData()} margin={{ top: 5, right: 5, left: 5, bottom: 25 }}>
-                    <defs>
-                      <linearGradient id="leadsGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#10b981" stopOpacity={1}/>
-                        <stop offset="100%" stopColor="#059669" stopOpacity={1}/>
-                      </linearGradient>
-                    </defs>
-                    <XAxis 
-                      dataKey={getLeadsDataKey()}
-                      tick={{ fontSize: 9, fill: '#6b7280' }}
-                      angle={-45}
-                      textAnchor="end"
-                      height={25}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis 
-                      tick={{ fontSize: 9, fill: '#6b7280' }}
-                      width={20}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <ChartTooltip 
-                      content={<ChartTooltipContent />}
-                      formatter={(value, name) => [value, 'Leads']}
-                      labelFormatter={(label) => leadsView === 'weekly' ? `${label}-feira` : label}
-                    />
-                    <Bar 
-                      dataKey="leads" 
-                      fill="url(#leadsGradient)"
-                      radius={[4, 4, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </ChartContainer>
-            </div>
-            <div className="mt-3 pt-2 border-t border-gray-200">
-              <p className="text-sm text-gray-600 text-center">
-                Melhor período: <span className="font-medium text-green-600">{getBestLeadsPeriod()}</span>
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Weekly Proposals Chart */}
-        <Card className="p-6 flex flex-col">
-          <CardHeader className="p-0 mb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-lg text-gray-900">
-                <UserPlus className="h-5 w-5 text-orange-600" />
-                Propostas/Reuniões por {proposalsView === 'weekly' ? 'Dia da Semana' : 'Mês'}
-              </CardTitle>
-              <Select value={proposalsView} onValueChange={(value: 'weekly' | 'monthly') => setProposalsView(value)}>
-                <SelectTrigger className="w-[120px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="weekly">Semanal</SelectItem>
-                  <SelectItem value="monthly">Mensal</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0 flex-1 flex flex-col">
-            <div className="h-48 flex-1">
-              <ChartContainer config={chartConfig} className="h-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={getProposalsData()} margin={{ top: 5, right: 5, left: 5, bottom: 25 }}>
-                    <defs>
-                      <linearGradient id="proposalsGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#f59e0b" stopOpacity={1}/>
-                        <stop offset="100%" stopColor="#d97706" stopOpacity={1}/>
-                      </linearGradient>
-                    </defs>
-                    <XAxis 
-                      dataKey={getProposalsDataKey()}
-                      tick={{ fontSize: 9, fill: '#6b7280' }}
-                      angle={-45}
-                      textAnchor="end"
-                      height={25}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis 
-                      tick={{ fontSize: 9, fill: '#6b7280' }}
-                      width={20}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <ChartTooltip 
-                      content={<ChartTooltipContent />}
-                      formatter={(value, name) => [value, 'Propostas']}
-                      labelFormatter={(label) => proposalsView === 'weekly' ? `${label}-feira` : label}
-                    />
-                    <Bar 
-                      dataKey="proposals" 
-                      fill="url(#proposalsGradient)"
-                      radius={[4, 4, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </ChartContainer>
-            </div>
-            <div className="mt-3 pt-2 border-t border-gray-200">
-              <p className="text-sm text-gray-600 text-center">
-                Melhor período: <span className="font-medium text-orange-600">{getBestProposalsPeriod()}</span>
               </p>
             </div>
           </CardContent>
