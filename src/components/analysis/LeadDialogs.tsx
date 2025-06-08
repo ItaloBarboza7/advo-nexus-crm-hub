@@ -2,6 +2,7 @@
 import { LeadDetailsDialog } from "@/components/LeadDetailsDialog";
 import { EditLeadForm } from "@/components/EditLeadForm";
 import { Lead } from "@/types/lead";
+import { useLeadsData } from "@/hooks/useLeadsData";
 
 interface LeadDialogsProps {
   selectedLead: Lead | null;
@@ -11,6 +12,8 @@ interface LeadDialogsProps {
   setIsEditFormOpen: (open: boolean) => void;
   onEditLead: (lead: Lead) => void;
   onLeadUpdated: () => void;
+  lossReasons?: Array<{ id: string; reason: string }>;
+  onAddLossReason?: (reason: string) => Promise<boolean>;
 }
 
 export function LeadDialogs({
@@ -20,8 +23,18 @@ export function LeadDialogs({
   isEditFormOpen,
   setIsEditFormOpen,
   onEditLead,
-  onLeadUpdated
+  onLeadUpdated,
+  lossReasons: externalLossReasons,
+  onAddLossReason: externalOnAddLossReason
 }: LeadDialogsProps) {
+  // Se não receber os dados como props, usar o hook centralizado
+  const { lossReasons: centralLossReasons, addLossReason: centralAddLossReason } = useLeadsData();
+  
+  const lossReasons = externalLossReasons || centralLossReasons;
+  const onAddLossReason = externalOnAddLossReason || centralAddLossReason;
+
+  console.log("🎯 LeadDialogs - Motivos de perda disponíveis:", lossReasons?.length || 0);
+
   return (
     <>
       <LeadDetailsDialog
@@ -36,6 +49,8 @@ export function LeadDialogs({
         open={isEditFormOpen}
         onOpenChange={setIsEditFormOpen}
         onLeadUpdated={onLeadUpdated}
+        lossReasons={lossReasons}
+        onAddLossReason={onAddLossReason}
       />
     </>
   );
