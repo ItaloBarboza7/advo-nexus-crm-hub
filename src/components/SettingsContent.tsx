@@ -12,10 +12,13 @@ import { AddColumnDialog } from "@/components/AddColumnDialog";
 import { AddActionGroupDialog } from "@/components/AddActionGroupDialog";
 import { AddActionTypeDialog } from "@/components/AddActionTypeDialog";
 import { AddLeadSourceDialog } from "@/components/AddLeadSourceDialog";
+import { AddLossReasonDialog } from "@/components/AddLossReasonDialog";
 import { EditCompanyModal } from "@/components/EditCompanyModal";
+import { DeleteButton } from "@/components/DeleteButton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useFilterOptions } from "@/hooks/useFilterOptions";
+import { useLossReasons } from "@/hooks/useLossReasons";
 import { useDashboardSettings } from "@/hooks/useDashboardSettings";
 import { useCompanyInfo } from "@/hooks/useCompanyInfo";
 
@@ -42,6 +45,7 @@ export function SettingsContent() {
   const [isAddActionGroupDialogOpen, setIsAddActionGroupDialogOpen] = useState(false);
   const [isAddActionTypeDialogOpen, setIsAddActionTypeDialogOpen] = useState(false);
   const [isAddLeadSourceDialogOpen, setIsAddLeadSourceDialogOpen] = useState(false);
+  const [isAddLossReasonDialogOpen, setIsAddLossReasonDialogOpen] = useState(false);
   const [isEditCompanyModalOpen, setIsEditCompanyModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
   const [teamMembers, setTeamMembers] = useState([
@@ -75,13 +79,18 @@ export function SettingsContent() {
     refreshData 
   } = useFilterOptions();
 
+  // Hook para motivos de perda
+  const { lossReasons, loading: lossReasonsLoading, refreshData: refreshLossReasons } = useLossReasons();
+
   // Estados para edição inline
   const [editingActionGroup, setEditingActionGroup] = useState<string | null>(null);
   const [editingActionType, setEditingActionType] = useState<string | null>(null);
   const [editingLeadSource, setEditingLeadSource] = useState<string | null>(null);
+  const [editingLossReason, setEditingLossReason] = useState<string | null>(null);
   const [editingActionGroupName, setEditingActionGroupName] = useState("");
   const [editingActionTypeName, setEditingActionTypeName] = useState("");
   const [editingLeadSourceName, setEditingLeadSourceName] = useState("");
+  const [editingLossReasonName, setEditingLossReasonName] = useState("");
 
   const { toast } = useToast();
 
@@ -583,6 +592,88 @@ export function SettingsContent() {
     }
   };
 
+  // Funções para gerenciar motivos de perda
+  const handleEditLossReason = (reasonId: string, currentReason: string) => {
+    setEditingLossReason(reasonId);
+    setEditingLossReasonName(currentReason);
+  };
+
+  const handleSaveLossReason = async () => {
+    if (!editingLossReasonName.trim() || !editingLossReason) {
+      toast({
+        title: "Erro",
+        description: "O motivo da perda não pode estar vazio.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('loss_reasons')
+        .update({ reason: editingLossReasonName.trim() })
+        .eq('id', editingLossReason);
+
+      if (error) {
+        console.error('Erro ao atualizar motivo de perda:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível atualizar o motivo de perda.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      await refreshLossReasons();
+      setEditingLossReason(null);
+      setEditingLossReasonName("");
+
+      toast({
+        title: "Sucesso",
+        description: "Motivo de perda atualizado com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro inesperado:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteLossReason = async (reasonId: string) => {
+    try {
+      const { error } = await supabase
+        .from('loss_reasons')
+        .delete()
+        .eq('id', reasonId);
+
+      if (error) {
+        console.error('Erro ao excluir motivo de perda:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível excluir o motivo de perda.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      await refreshLossReasons();
+      toast({
+        title: "Sucesso",
+        description: "Motivo de perda excluído com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro inesperado:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const renderCompanyTab = () => (
     <div className="space-y-6">
       <h3 className="text-lg font-semibold text-gray-900">Configurações e Pagamento</h3>
@@ -895,7 +986,7 @@ export function SettingsContent() {
     <div className="space-y-6">
       <h3 className="text-lg font-semibold text-gray-900">Configurações do Sistema</h3>
       
-      {optionsLoading ? (
+      {optionsLoading || lossReasonsLoading ? (
         <Card className="p-6 text-center">
           <p className="text-gray-500">Carregando configurações...</p>
         </Card>
@@ -1123,13 +1214,84 @@ export function SettingsContent() {
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
+                          <DeleteButton
+                            onDelete={() => handleDeleteLeadSource(source.id)}
+                            itemName={source.label}
+                            itemType="fonte"
+                            size="sm"
+                            variant="outline"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </Card>
+
+          {/* Tipos de Perdas */}
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-md font-semibold text-gray-900">Tipos de Perdas</h4>
+              <Button 
+                className="bg-blue-600 hover:bg-blue-700"
+                onClick={() => setIsAddLossReasonDialogOpen(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Motivo
+              </Button>
+            </div>
+            <ScrollArea className="h-64 w-full rounded-md border p-4">
+              <div className="space-y-3">
+                {lossReasons.map((reason) => (
+                  <div key={reason.id} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        {editingLossReason === reason.id ? (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={editingLossReasonName}
+                              onChange={(e) => setEditingLossReasonName(e.target.value)}
+                              className="max-w-xs"
+                              placeholder="Motivo da perda"
+                            />
+                            <Button size="sm" onClick={handleSaveLossReason}>
+                              <Check className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => {
+                                setEditingLossReason(null);
+                                setEditingLossReasonName("");
+                              }}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div>
+                            <h5 className="font-medium text-gray-900">{reason.reason}</h5>
+                          </div>
+                        )}
+                      </div>
+                      {editingLossReason !== reason.id && (
+                        <div className="flex gap-2">
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => handleDeleteLeadSource(source.id)}
+                            onClick={() => handleEditLossReason(reason.id, reason.reason)}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Edit className="h-4 w-4" />
                           </Button>
+                          <DeleteButton
+                            onDelete={() => handleDeleteLossReason(reason.id)}
+                            itemName={reason.reason}
+                            itemType="motivo de perda"
+                            size="sm"
+                            variant="outline"
+                          />
                         </div>
                       )}
                     </div>
@@ -1211,6 +1373,12 @@ export function SettingsContent() {
         isOpen={isAddLeadSourceDialogOpen}
         onClose={() => setIsAddLeadSourceDialogOpen(false)}
         onSourceAdded={refreshData}
+      />
+
+      <AddLossReasonDialog
+        isOpen={isAddLossReasonDialogOpen}
+        onClose={() => setIsAddLossReasonDialogOpen(false)}
+        onReasonAdded={refreshLossReasons}
       />
 
       <EditCompanyModal

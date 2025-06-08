@@ -73,6 +73,11 @@ export function useLeadsData() {
     }
   };
 
+  const refreshData = () => {
+    fetchLossReasons();
+    fetchLeads();
+  };
+
   useEffect(() => {
     fetchLossReasons();
     fetchLeads();
@@ -82,6 +87,7 @@ export function useLeadsData() {
     leads,
     lossReasons,
     isLoading,
-    fetchLeads
+    fetchLeads,
+    refreshData
   };
 }
