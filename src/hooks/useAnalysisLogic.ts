@@ -70,6 +70,10 @@ export const useAnalysisLogic = (
     } else if (selectedCategory === "estados") {
       categoryFilteredLeads = leads;
     }
+    // Para categoria "all", retornar todos os leads
+    else if (selectedCategory === "all") {
+      categoryFilteredLeads = leads;
+    }
     
     console.log(`🎯 Total de leads filtrados para ${selectedCategory}:`, categoryFilteredLeads.length);
     console.log(`📋 Leads incluídos:`, categoryFilteredLeads.map(l => `${l.name} (${l.status})`));
@@ -77,7 +81,8 @@ export const useAnalysisLogic = (
     return categoryFilteredLeads;
   }, [leads, selectedCategory, statusHistory, hasLeadPassedThroughStatus]);
 
-  const shouldShowChart = () => selectedCategory !== "all";
+  // CORREÇÃO: Permitir exibição de gráficos também para categoria "all"
+  const shouldShowChart = () => true;
   
   const shouldShowLossReasonsChart = () => {
     console.log(`🔍 shouldShowLossReasonsChart - selectedCategory: ${selectedCategory}`);

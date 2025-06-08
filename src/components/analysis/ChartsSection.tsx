@@ -57,6 +57,9 @@ export function ChartsSection({
     return hasPassedThroughTargetStatuses;
   };
 
+  console.log(`🎨 ChartsSection - selectedCategory: ${selectedCategory}`);
+  console.log(`📊 ChartsSection - showLeadsChart: ${showLeadsChart}, showContractsChart: ${showContractsChart}, showOpportunitiesChart: ${showOpportunitiesChart}`);
+
   return (
     <>
       {/* Gráfico de Leads Gerais - só aparece na categoria "all" e quando showLeadsChart for true */}
@@ -85,30 +88,35 @@ export function ChartsSection({
         />
       )}
 
-      {shouldShowLossReasonsChart && (
-        <LossReasonsChart leads={leads} />
-      )}
-      
-      {shouldShowActionTypesChart && (
-        <ActionTypesChart 
-          leads={leads} 
-          selectedCategory={selectedCategory}
-        />
-      )}
+      {/* Gráficos de análise só aparecem quando NÃO há gráfico de leads sendo exibido */}
+      {!showLeadsChart && !showContractsChart && !showOpportunitiesChart && (
+        <>
+          {shouldShowLossReasonsChart && (
+            <LossReasonsChart leads={leads} />
+          )}
+          
+          {shouldShowActionTypesChart && (
+            <ActionTypesChart 
+              leads={leads} 
+              selectedCategory={selectedCategory}
+            />
+          )}
 
-      {shouldShowActionGroupChart && (
-        <ActionGroupChart 
-          leads={leads} 
-          selectedCategory={selectedCategory}
-        />
-      )}
+          {shouldShowActionGroupChart && (
+            <ActionGroupChart 
+              leads={leads} 
+              selectedCategory={selectedCategory}
+            />
+          )}
 
-      {shouldShowStateChart && (
-        <StateStatsChart 
-          leads={leads} 
-          selectedCategory={selectedCategory}
-          hasLeadPassedThroughStatus={hasLeadPassedThroughStatus}
-        />
+          {shouldShowStateChart && (
+            <StateStatsChart 
+              leads={leads} 
+              selectedCategory={selectedCategory}
+              hasLeadPassedThroughStatus={hasLeadPassedThroughStatus}
+            />
+          )}
+        </>
       )}
     </>
   );
