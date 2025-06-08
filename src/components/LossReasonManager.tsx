@@ -14,7 +14,7 @@ export function LossReasonManager({ lossReason, onDeleted }: LossReasonManagerPr
       // Chamar a função de callback que irá lidar com a exclusão
       const success = await onDeleted(lossReason.id, lossReason.reason);
       console.log('✅ [LossReasonManager] Resultado da exclusão:', success);
-      return success;
+      // Note: DeleteButton expects Promise<void>, so we don't return the success value
     } catch (error) {
       console.error('❌ [LossReasonManager] Erro durante exclusão:', error);
       throw error;
