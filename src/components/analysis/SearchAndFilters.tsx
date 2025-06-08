@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { AdvancedFilters, FilterOptions } from "@/components/AdvancedFilters";
 import { ViewToggleDropdown } from "./ViewToggleDropdown";
+import { ActionToggleDropdown } from "./ActionToggleDropdown";
 
 interface SearchAndFiltersProps {
   searchTerm: string;
@@ -74,6 +75,9 @@ export function SearchAndFilters({
   // Mostrar dropdown apenas para categorias que têm gráficos de leads
   const shouldShowViewToggle = ['all', 'contratos', 'oportunidades'].includes(selectedCategory);
 
+  // Mostrar dropdown de ação apenas para categorias de contratos e oportunidades
+  const shouldShowActionToggle = ['contratos', 'oportunidades', 'perdas'].includes(selectedCategory.split('-')[0]);
+
   return (
     <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
       <div className="relative flex-1 max-w-md">
@@ -91,6 +95,13 @@ export function SearchAndFilters({
           <ViewToggleDropdown 
             currentView={getCurrentViewMode()}
             onViewChange={handleViewChange}
+          />
+        )}
+        
+        {shouldShowActionToggle && (
+          <ActionToggleDropdown 
+            selectedCategory={selectedCategory}
+            onCategoryChange={onCategoryChange}
           />
         )}
         
