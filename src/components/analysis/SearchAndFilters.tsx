@@ -2,6 +2,7 @@
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { AdvancedFilters, FilterOptions } from "@/components/AdvancedFilters";
+import { ViewToggleDropdown } from "./ViewToggleDropdown";
 
 interface SearchAndFiltersProps {
   searchTerm: string;
@@ -41,6 +42,38 @@ export function SearchAndFilters({
   onAddLossReason
 }: SearchAndFiltersProps) {
 
+  // Função para determinar qual viewMode usar baseado na categoria
+  const getCurrentViewMode = (): 'weekly' | 'monthly' => {
+    switch (selectedCategory) {
+      case 'contratos':
+        return contractsViewMode as 'weekly' | 'monthly';
+      case 'oportunidades':
+        return opportunitiesViewMode as 'weekly' | 'monthly';
+      default:
+        return leadsViewMode as 'weekly' | 'monthly';
+    }
+  };
+
+  // Função para lidar com mudança de visualização
+  const handleViewChange = (view: 'weekly' | 'monthly') => {
+    console.log(`📊 [SearchAndFilters] Mudança de visualização para categoria ${selectedCategory}: ${view}`);
+    
+    switch (selectedCategory) {
+      case 'contratos':
+        onContractsViewChange(view);
+        break;
+      case 'oportunidades':
+        onOpportunitiesViewChange(view);
+        break;
+      default:
+        onLeadsViewChange(view);
+        break;
+    }
+  };
+
+  // Mostrar dropdown apenas para categorias que têm gráficos de leads
+  const shouldShowViewToggle = ['all', 'contratos', 'oportunidades'].includes(selectedCategory);
+
   return (
     <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
       <div className="relative flex-1 max-w-md">
@@ -54,6 +87,13 @@ export function SearchAndFilters({
       </div>
       
       <div className="flex flex-wrap gap-2 items-center">
+        {shouldShowViewToggle && (
+          <ViewToggleDropdown 
+            currentView={getCurrentViewMode()}
+            onViewChange={handleViewChange}
+          />
+        )}
+        
         <AdvancedFilters
           onFiltersChange={setAdvancedFilters}
           activeFilters={advancedFilters}
