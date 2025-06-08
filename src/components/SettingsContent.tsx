@@ -599,6 +599,7 @@ export function SettingsContent() {
 
   // Funções para gerenciar motivos de perda - agora usando o hook global
   const handleEditLossReason = (reasonId: string, currentReason: string) => {
+    console.log(`✏️ SettingsContent - Iniciando edição do motivo ID: ${reasonId}, valor atual: ${currentReason}`);
     setEditingLossReason(reasonId);
     setEditingLossReasonName(currentReason);
   };
@@ -613,27 +614,39 @@ export function SettingsContent() {
       return;
     }
 
+    console.log(`💾 SettingsContent - Salvando edição do motivo ID: ${editingLossReason}, novo valor: ${editingLossReasonName}`);
+    
     const success = await updateLossReason(editingLossReason, editingLossReasonName.trim());
     if (success) {
       setEditingLossReason(null);
       setEditingLossReasonName("");
+      console.log(`✅ SettingsContent - Edição salva com sucesso`);
     }
   };
 
-  const handleDeleteLossReason = async (reasonId: string): Promise<void> => {
-    console.log(`🗑️ SettingsContent - Iniciando exclusão do motivo de perda ID: ${reasonId}`);
+  const handleCancelEditLossReason = () => {
+    console.log(`❌ SettingsContent - Cancelando edição do motivo ID: ${editingLossReason}`);
+    setEditingLossReason(null);
+    setEditingLossReasonName("");
+  };
+
+  const handleDeleteLossReason = async (reasonId: string, reasonName: string) => {
+    console.log(`🗑️ SettingsContent - Iniciando exclusão do motivo ID: ${reasonId}, nome: ${reasonName}`);
     try {
       const success = await deleteLossReason(reasonId);
-      console.log(`✅ SettingsContent - Resultado da exclusão: ${success}`);
+      if (success) {
+        console.log(`✅ SettingsContent - Motivo "${reasonName}" excluído com sucesso`);
+      } else {
+        console.log(`❌ SettingsContent - Falha ao excluir motivo "${reasonName}"`);
+      }
     } catch (error) {
-      console.error(`❌ SettingsContent - Erro ao excluir motivo:`, error);
-      throw error;
+      console.error(`❌ SettingsContent - Erro ao excluir motivo "${reasonName}":`, error);
     }
   };
 
   const handleAddLossReasonFromDialog = async () => {
-    // Quando um novo motivo é adicionado via dialog, apenas refresh o hook global
-    // O hook global já cuida de notificar todos os subscribers
+    console.log(`➕ SettingsContent - Novo motivo adicionado via dialog`);
+    // O hook global já cuida da atualização automática
   };
 
   const renderCompanyTab = () => (
@@ -953,8 +966,6 @@ export function SettingsContent() {
       <div className="space-y-6">
         <h3 className="text-lg font-semibold text-gray-900">Configurações do Sistema</h3>
         
-        {/* Sempre mostrar o conteúdo, mas com indicadores de loading quando necessário */}
-        
         {/* Grupos e Tipos de Ação - Painel Unificado */}
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
@@ -1268,10 +1279,7 @@ export function SettingsContent() {
                                 <Button 
                                   size="sm" 
                                   variant="outline" 
-                                  onClick={() => {
-                                    setEditingLossReason(null);
-                                    setEditingLossReasonName("");
-                                  }}
+                                  onClick={handleCancelEditLossReason}
                                 >
                                   <X className="h-4 w-4" />
                                 </Button>
@@ -1291,13 +1299,14 @@ export function SettingsContent() {
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>
-                              <DeleteButton
-                                onDelete={() => handleDeleteLossReason(reason.id)}
-                                itemName={reason.reason}
-                                itemType="motivo de perda"
+                              <Button 
+                                variant="outline" 
                                 size="sm"
-                                variant="outline"
-                              />
+                                onClick={() => handleDeleteLossReason(reason.id, reason.reason)}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           )}
                         </div>
