@@ -15,6 +15,7 @@ import { AddLeadSourceDialog } from "@/components/AddLeadSourceDialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useFilterOptions } from "@/hooks/useFilterOptions";
+import { useDashboardSettings } from "@/hooks/useDashboardSettings";
 
 interface KanbanColumn {
   id: string;
@@ -64,14 +65,8 @@ export function SettingsContent() {
   const [editingColumn, setEditingColumn] = useState<string | null>(null);
   const [editingColumnName, setEditingColumnName] = useState("");
 
-  // Estados para componentes do dashboard
-  const [dashboardComponents, setDashboardComponents] = useState<DashboardComponent[]>([
-    { id: "1", name: "Gráfico de Leads por Status", description: "Mostra a distribuição dos leads por status", visible: true },
-    { id: "2", name: "Estatísticas de Conversão", description: "Métricas de conversão de leads", visible: true },
-    { id: "3", name: "Atividades Recentes", description: "Lista das últimas atividades do sistema", visible: true },
-    { id: "4", name: "Comparação Individual", description: "Gráfico de comparação de performance individual", visible: false },
-    { id: "5", name: "Metas da Equipe", description: "Progresso das metas mensais da equipe", visible: true }
-  ]);
+  // Hook para configurações do dashboard
+  const { components, toggleComponentVisibility } = useDashboardSettings();
 
   // Usar o hook para obter os dados sincronizados
   const { 
@@ -341,13 +336,11 @@ export function SettingsContent() {
     }
   };
 
-  // Funções para gerenciar componentes do dashboard
+  // Função para gerenciar visibilidade dos componentes do dashboard
   const handleToggleComponentVisibility = (componentId: string) => {
-    setDashboardComponents(prev => prev.map(comp => 
-      comp.id === componentId ? { ...comp, visible: !comp.visible } : comp
-    ));
+    toggleComponentVisibility(componentId);
     
-    const component = dashboardComponents.find(comp => comp.id === componentId);
+    const component = components.find(comp => comp.id === componentId);
     if (component) {
       toast({
         title: "Visibilidade alterada",
@@ -877,7 +870,7 @@ export function SettingsContent() {
       <Card className="p-6">
         <h4 className="text-md font-semibold text-gray-900 mb-4">Componentes Disponíveis</h4>
         <div className="space-y-4">
-          {dashboardComponents.map((component) => (
+          {components.map((component) => (
             <div key={component.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <div>
                 <h5 className="font-medium text-gray-900">{component.name}</h5>
