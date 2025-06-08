@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 interface LossReason {
   id: string;
   reason: string;
+  is_fixed: boolean;
 }
 
 // Estado global compartilhado entre todos os componentes
@@ -126,7 +127,7 @@ export function useLossReasonsGlobal() {
     try {
       const { error } = await supabase
         .from('loss_reasons')
-        .insert({ reason: reason.trim() });
+        .insert({ reason: reason.trim(), is_fixed: false });
 
       if (error) {
         console.error('❌ Erro ao adicionar motivo:', error);
@@ -160,6 +161,17 @@ export function useLossReasonsGlobal() {
   // Função para atualizar um motivo (atualiza globalmente)
   const updateLossReason = useCallback(async (id: string, newReason: string) => {
     console.log(`📝 useLossReasonsGlobal - Atualizando motivo ID: ${id} para: ${newReason}`);
+    
+    // Verificar se o motivo é fixo
+    const reasonToUpdate = globalLossReasons.find(r => r.id === id);
+    if (reasonToUpdate?.is_fixed) {
+      toast({
+        title: "Erro",
+        description: "Este motivo não pode ser editado pois é um motivo base do sistema.",
+        variant: "destructive"
+      });
+      return false;
+    }
     
     // Otimisticamente atualizar o estado local primeiro
     const previousReasons = [...globalLossReasons];
@@ -214,7 +226,7 @@ export function useLossReasonsGlobal() {
     }
   }, [toast]);
 
-  // Função para excluir um motivo (atualiza globalmente) - CORRIGIDA
+  // Função para excluir um motivo (atualiza globalmente)
   const deleteLossReason = useCallback(async (id: string) => {
     console.log(`🗑️ useLossReasonsGlobal - Excluindo motivo ID: ${id}`);
     
@@ -231,6 +243,16 @@ export function useLossReasonsGlobal() {
       return false;
     }
 
+    // Verificar se é um motivo fixo
+    if (reasonToDelete.is_fixed) {
+      toast({
+        title: "Erro",
+        description: "Este motivo não pode ser excluído pois é um motivo base do sistema.",
+        variant: "destructive"
+      });
+      return false;
+    }
+
     try {
       console.log(`🔄 useLossReasonsGlobal - Iniciando exclusão no banco de dados para ID: ${id}`);
       
@@ -238,7 +260,7 @@ export function useLossReasonsGlobal() {
         .from('loss_reasons')
         .delete()
         .eq('id', id)
-        .select(); // Adicionar select para confirmar a exclusão
+        .select();
 
       console.log(`📊 useLossReasonsGlobal - Resposta da exclusão:`, { data, error });
 

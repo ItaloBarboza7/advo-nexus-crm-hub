@@ -63,7 +63,7 @@ export function useLeadsData() {
 
   return {
     leads,
-    lossReasons, // Agora vem do hook global
+    lossReasons, // Agora vem do hook global com is_fixed
     isLoading,
     fetchLeads,
     refreshData

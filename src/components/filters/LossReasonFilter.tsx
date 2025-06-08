@@ -2,7 +2,7 @@
 import { Checkbox } from "@/components/ui/checkbox";
 
 interface LossReasonFilterProps {
-  lossReasons: Array<{ id: string; reason: string }>;
+  lossReasons: Array<{ id: string; reason: string; is_fixed: boolean }>;
   activeFilters: string[];
   onLossReasonChange: (lossReason: string, checked: boolean) => void;
 }

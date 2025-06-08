@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
 import { useFilterOptions } from "@/hooks/useFilterOptions";
+import { useLossReasonsGlobal } from "@/hooks/useLossReasonsGlobal";
 
 interface EditLeadFormProps {
   lead: Lead | null;
@@ -34,11 +35,6 @@ const BRAZILIAN_STATES = [
   "Roraima", "Santa Catarina", "São Paulo", "Sergipe", "Tocantins"
 ];
 
-interface LossReason {
-  id: string;
-  reason: string;
-}
-
 export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLeadFormProps) {
   const [formData, setFormData] = useState({
     name: "",
@@ -60,7 +56,6 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
   const [isLoading, setIsLoading] = useState(false);
   const [showNewOptionInput, setShowNewOptionInput] = useState<string | null>(null);
   const [newOptionValue, setNewOptionValue] = useState("");
-  const [lossReasons, setLossReasons] = useState<LossReason[]>([]);
   const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([]);
   const { toast } = useToast();
   const { 
@@ -71,6 +66,9 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
     loading: optionsLoading,
     refreshData 
   } = useFilterOptions();
+
+  // Usar o hook global para motivos de perda
+  const { lossReasons, addLossReason } = useLossReasonsGlobal();
 
   const fetchKanbanColumns = async () => {
     try {
@@ -87,24 +85,6 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
       setKanbanColumns(data || []);
     } catch (error) {
       console.error('Erro inesperado ao buscar colunas:', error);
-    }
-  };
-
-  const fetchLossReasons = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('loss_reasons')
-        .select('*')
-        .order('reason', { ascending: true });
-
-      if (error) {
-        console.error('Erro ao buscar motivos de perda:', error);
-        return;
-      }
-
-      setLossReasons(data || []);
-    } catch (error) {
-      console.error('Erro inesperado ao buscar motivos de perda:', error);
     }
   };
 
@@ -138,7 +118,6 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
   useEffect(() => {
     if (open) {
       fetchKanbanColumns();
-      fetchLossReasons();
     }
   }, [open]);
 
@@ -376,36 +355,14 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
         return;
       }
     } else if (field === 'loss_reason') {
-      try {
-        const { error } = await supabase
-          .from('loss_reasons')
-          .insert({ reason: newOptionValue.trim() });
-
-        if (error) {
-          console.error('Erro ao adicionar motivo de perda:', error);
-          toast({
-            title: "Erro",
-            description: "Não foi possível adicionar o novo motivo.",
-            variant: "destructive"
-          });
-          return;
-        }
-
-        await fetchLossReasons();
+      const success = await addLossReason(newOptionValue.trim());
+      
+      if (success) {
         handleInputChange(field, newOptionValue.trim());
-        
         toast({
           title: "Sucesso",
           description: "Novo motivo de perda adicionado com sucesso.",
         });
-      } catch (error) {
-        console.error('Erro inesperado ao adicionar motivo:', error);
-        toast({
-          title: "Erro",
-          description: "Ocorreu um erro inesperado.",
-          variant: "destructive"
-        });
-        return;
       }
     }
 

@@ -245,16 +245,19 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_fixed: boolean
           reason: string
         }
         Insert: {
           created_at?: string
           id?: string
+          is_fixed?: boolean
           reason: string
         }
         Update: {
           created_at?: string
           id?: string
+          is_fixed?: boolean
           reason?: string
         }
         Relationships: []
