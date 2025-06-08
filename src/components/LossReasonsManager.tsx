@@ -21,7 +21,7 @@ export function LossReasonsManager() {
   const { toast } = useToast();
 
   console.log(`🔍 LossReasonsManager - Renderizando com ${lossReasons.length} motivos de perda`);
-  console.log(`📋 LossReasonsManager - Motivos:`, lossReasons.map(r => `${r.reason} (fixed: ${r.is_fixed})`));
+  console.log(`📋 LossReasonsManager - Motivos:`, lossReasons.map(r => `${r.reason} (fixed: ${r.is_fixed}, ID: ${r.id})`));
 
   const handleAddNew = async () => {
     if (!newReason.trim()) return;
@@ -84,22 +84,29 @@ export function LossReasonsManager() {
   };
 
   const handleConfirmDelete = async () => {
-    if (!reasonToDelete) return;
+    if (!reasonToDelete) {
+      console.log(`❌ LossReasonsManager - Nenhum motivo selecionado para exclusão`);
+      return;
+    }
 
     console.log(`✅ LossReasonsManager - Confirmando exclusão do motivo ID: ${reasonToDelete.id}, motivo: ${reasonToDelete.reason}`);
     setIsLoading(true);
     
-    const success = await deleteLossReason(reasonToDelete.id);
-    
-    if (success) {
-      console.log(`✅ LossReasonsManager - Motivo excluído com sucesso`);
-      setReasonToDelete(null);
-      setDeleteDialogOpen(false);
-    } else {
-      console.error(`❌ LossReasonsManager - Falha ao excluir motivo`);
+    try {
+      const success = await deleteLossReason(reasonToDelete.id);
+      
+      if (success) {
+        console.log(`✅ LossReasonsManager - Motivo excluído com sucesso via hook`);
+        setReasonToDelete(null);
+        setDeleteDialogOpen(false);
+      } else {
+        console.error(`❌ LossReasonsManager - Falha ao excluir motivo via hook`);
+      }
+    } catch (error) {
+      console.error(`❌ LossReasonsManager - Erro ao excluir motivo:`, error);
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   };
 
   const handleCancelDelete = () => {
@@ -243,7 +250,7 @@ export function LossReasonsManager() {
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
         itemName={reasonToDelete?.reason || ""}
-        itemType="o motivo de perda"
+        itemType="motivo de perda"
         onConfirm={handleConfirmDelete}
       />
     </>

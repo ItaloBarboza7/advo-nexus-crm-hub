@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -51,7 +52,7 @@ const updateGlobalState = async () => {
     globalInitialized = true;
     
     console.log(`✅ useLossReasonsGlobal - Estado global atualizado com ${globalLossReasons.length} motivos`);
-    console.log(`📋 useLossReasonsGlobal - Motivos atuais:`, globalLossReasons.map(r => r.reason));
+    console.log(`📋 useLossReasonsGlobal - Motivos atuais:`, globalLossReasons.map(r => `${r.reason} (ID: ${r.id})`));
     notifySubscribers();
   } catch (error) {
     globalLoading = false;
@@ -71,7 +72,7 @@ export function useLossReasonsGlobal() {
   // Função de callback para atualizar o estado local quando o global mudar
   const updateLocalState = useCallback(() => {
     console.log(`🔄 useLossReasonsGlobal - Atualizando estado local. Global: ${globalLossReasons.length} motivos, Loading: ${globalLoading}, Initialized: ${globalInitialized}`);
-    console.log(`📋 useLossReasonsGlobal - Motivos globais para sincronizar:`, globalLossReasons.map(r => r.reason));
+    console.log(`📋 useLossReasonsGlobal - Motivos globais para sincronizar:`, globalLossReasons.map(r => `${r.reason} (ID: ${r.id})`));
     setLocalLossReasons([...globalLossReasons]);
     setLocalLoading(globalLoading);
   }, []);
@@ -237,15 +238,35 @@ export function useLossReasonsGlobal() {
     try {
       console.log(`🔄 useLossReasonsGlobal - Iniciando exclusão no banco de dados para ID: ${id}`);
       
-      const { error } = await supabase
+      // Primeiro verificar se existe no banco antes de tentar deletar
+      const { data: existingReason, error: checkError } = await supabase
+        .from('loss_reasons')
+        .select('id, reason, is_fixed')
+        .eq('id', id)
+        .single();
+
+      if (checkError) {
+        console.error('❌ Erro ao verificar existência do motivo:', checkError);
+        toast({
+          title: "Erro",
+          description: "Não foi possível verificar o motivo de perda.",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      console.log(`✅ Motivo encontrado no banco:`, existingReason);
+
+      // Agora fazer a exclusão
+      const { error: deleteError } = await supabase
         .from('loss_reasons')
         .delete()
         .eq('id', id);
 
-      console.log(`📊 useLossReasonsGlobal - Resposta da exclusão:`, { error });
+      console.log(`📊 useLossReasonsGlobal - Resposta da exclusão:`, { error: deleteError });
 
-      if (error) {
-        console.error('❌ Erro ao excluir motivo no banco:', error);
+      if (deleteError) {
+        console.error('❌ Erro ao excluir motivo no banco:', deleteError);
         toast({
           title: "Erro",
           description: "Não foi possível excluir o motivo de perda.",
@@ -254,16 +275,30 @@ export function useLossReasonsGlobal() {
         return false;
       }
 
-      console.log(`✅ useLossReasonsGlobal - Motivo "${reasonToDelete.reason}" excluído do banco com sucesso. Atualizando estado global...`);
+      console.log(`✅ useLossReasonsGlobal - Motivo "${reasonToDelete.reason}" excluído do banco com sucesso.`);
       
-      // Após sucesso no banco, atualizar todo o estado global buscando dados frescos
+      // Forçar atualização do estado global buscando dados frescos do banco
+      console.log(`🔄 useLossReasonsGlobal - Forçando busca de dados frescos do banco...`);
       await updateGlobalState();
       
-      toast({
-        title: "Sucesso",
-        description: "Motivo de perda excluído com sucesso.",
-      });
-      return true;
+      // Verificar se realmente foi removido
+      const updatedReason = globalLossReasons.find(r => r.id === id);
+      if (!updatedReason) {
+        console.log(`✅ useLossReasonsGlobal - Confirmado: motivo "${reasonToDelete.reason}" removido do estado global`);
+        toast({
+          title: "Sucesso",
+          description: "Motivo de perda excluído com sucesso.",
+        });
+        return true;
+      } else {
+        console.error(`❌ useLossReasonsGlobal - ERRO: motivo ainda existe no estado global após exclusão!`);
+        toast({
+          title: "Erro",
+          description: "Falha na sincronização após exclusão.",
+          variant: "destructive"
+        });
+        return false;
+      }
     } catch (error) {
       console.error('❌ Erro inesperado ao excluir motivo:', error);
       toast({
@@ -275,7 +310,7 @@ export function useLossReasonsGlobal() {
     }
   }, [toast]);
 
-  console.log(`🔍 useLossReasonsGlobal - Hook retornando ${localLossReasons.length} motivos:`, localLossReasons.map(r => r.reason));
+  console.log(`🔍 useLossReasonsGlobal - Hook retornando ${localLossReasons.length} motivos:`, localLossReasons.map(r => `${r.reason} (ID: ${r.id})`));
 
   return {
     lossReasons: localLossReasons,

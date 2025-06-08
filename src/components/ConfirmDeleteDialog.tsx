@@ -27,11 +27,19 @@ export function ConfirmDeleteDialog({
 }: ConfirmDeleteDialogProps) {
   console.log(`🔍 ConfirmDeleteDialog - Renderizado: open=${open}, item="${itemName}", tipo="${itemType}"`);
 
-  const handleConfirm = (e: React.MouseEvent) => {
+  const handleConfirm = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     console.log(`✅ ConfirmDeleteDialog - Usuário confirmou a exclusão de: ${itemName} (${itemType})`);
-    onConfirm();
+    console.log(`🔄 ConfirmDeleteDialog - Chamando onConfirm...`);
+    
+    // Chamar a função de confirmação
+    await onConfirm();
+    
+    console.log(`✅ ConfirmDeleteDialog - onConfirm executado. Fechando diálogo...`);
+    
+    // Fechar o diálogo após a confirmação
+    onOpenChange(false);
   };
 
   const handleCancel = (e: React.MouseEvent) => {
