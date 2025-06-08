@@ -267,7 +267,7 @@ export function DashboardContent() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Conversion Chart - Reduced height */}
+        {/* Conversion Chart - Adjusted size and margins */}
         <Card className="p-6 flex flex-col">
           <CardHeader className="p-0 mb-3">
             <div className="flex items-center justify-between">
@@ -287,22 +287,22 @@ export function DashboardContent() {
             </div>
           </CardHeader>
           <CardContent className="p-0 flex-1 flex flex-col">
-            <div className="h-24 flex-1">
-              <ChartContainer config={chartConfig} className="h-full">
+            <div className="h-20 flex-1 px-4">
+              <ChartContainer config={chartConfig} className="h-full w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={getConversionData()} margin={{ top: 5, right: 10, left: 5, bottom: 5 }}>
+                  <LineChart data={getConversionData()} margin={{ top: 10, right: 20, left: 20, bottom: 10 }}>
                     <XAxis 
                       dataKey={getConversionDataKey()}
-                      tick={{ fontSize: 7, fill: '#6b7280' }}
+                      tick={{ fontSize: 8, fill: '#6b7280' }}
                       angle={-45}
                       textAnchor="end"
-                      height={15}
+                      height={20}
                       axisLine={false}
                       tickLine={false}
                     />
                     <YAxis 
-                      tick={{ fontSize: 7, fill: '#6b7280' }}
-                      width={25}
+                      tick={{ fontSize: 8, fill: '#6b7280' }}
+                      width={30}
                       axisLine={false}
                       tickLine={false}
                     />
@@ -316,8 +316,8 @@ export function DashboardContent() {
                       dataKey="conversion" 
                       stroke="#3b82f6"
                       strokeWidth={2}
-                      dot={{ fill: '#3b82f6', strokeWidth: 2, r: 3 }}
-                      activeDot={{ r: 4, stroke: '#3b82f6', strokeWidth: 2 }}
+                      dot={{ fill: '#3b82f6', strokeWidth: 2, r: 2 }}
+                      activeDot={{ r: 3, stroke: '#3b82f6', strokeWidth: 2 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -382,7 +382,7 @@ export function DashboardContent() {
           </div>
         </Card>
 
-        {/* New Leads Chart - Reduced height */}
+        {/* New Leads Chart - Adjusted size and margins */}
         <Card className="p-6 flex flex-col">
           <CardHeader className="p-0 mb-3">
             <div className="flex items-center justify-between">
@@ -402,22 +402,22 @@ export function DashboardContent() {
             </div>
           </CardHeader>
           <CardContent className="p-0 flex-1 flex flex-col">
-            <div className="h-24 flex-1">
-              <ChartContainer config={chartConfig} className="h-full">
+            <div className="h-20 flex-1 px-4">
+              <ChartContainer config={chartConfig} className="h-full w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={getLeadsData()} margin={{ top: 5, right: 10, left: 5, bottom: 5 }}>
+                  <LineChart data={getLeadsData()} margin={{ top: 10, right: 20, left: 20, bottom: 10 }}>
                     <XAxis 
                       dataKey={getLeadsDataKey()}
-                      tick={{ fontSize: 7, fill: '#6b7280' }}
+                      tick={{ fontSize: 8, fill: '#6b7280' }}
                       angle={-45}
                       textAnchor="end"
-                      height={15}
+                      height={20}
                       axisLine={false}
                       tickLine={false}
                     />
                     <YAxis 
-                      tick={{ fontSize: 7, fill: '#6b7280' }}
-                      width={25}
+                      tick={{ fontSize: 8, fill: '#6b7280' }}
+                      width={30}
                       axisLine={false}
                       tickLine={false}
                     />
@@ -431,8 +431,8 @@ export function DashboardContent() {
                       dataKey="leads" 
                       stroke="#10b981"
                       strokeWidth={2}
-                      dot={{ fill: '#10b981', strokeWidth: 2, r: 3 }}
-                      activeDot={{ r: 4, stroke: '#10b981', strokeWidth: 2 }}
+                      dot={{ fill: '#10b981', strokeWidth: 2, r: 2 }}
+                      activeDot={{ r: 3, stroke: '#10b981', strokeWidth: 2 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -488,7 +488,7 @@ export function DashboardContent() {
           </div>
         </Card>
 
-        {/* Action Chart - Reduced height and added legend */}
+        {/* Action Chart - Adjusted size and margins */}
         <Card className="p-6 flex flex-col">
           <CardHeader className="p-0 mb-3">
             <div className="flex items-center justify-between">
@@ -508,22 +508,22 @@ export function DashboardContent() {
             </div>
           </CardHeader>
           <CardContent className="p-0 flex-1 flex flex-col">
-            <div className="h-24 flex-1">
-              <ChartContainer config={chartConfig} className="h-full">
+            <div className="h-20 flex-1 px-4">
+              <ChartContainer config={chartConfig} className="h-full w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={getActionData()} margin={{ top: 5, right: 10, left: 5, bottom: 5 }}>
+                  <LineChart data={getActionData()} margin={{ top: 15, right: 20, left: 20, bottom: 10 }}>
                     <XAxis 
                       dataKey={getActionDataKey()}
-                      tick={{ fontSize: 6, fill: '#6b7280' }}
+                      tick={{ fontSize: 7, fill: '#6b7280' }}
                       angle={-45}
                       textAnchor="end"
-                      height={15}
+                      height={20}
                       axisLine={false}
                       tickLine={false}
                     />
                     <YAxis 
-                      tick={{ fontSize: 7, fill: '#6b7280' }}
-                      width={25}
+                      tick={{ fontSize: 8, fill: '#6b7280' }}
+                      width={30}
                       axisLine={false}
                       tickLine={false}
                     />
@@ -533,8 +533,8 @@ export function DashboardContent() {
                     />
                     <Legend 
                       verticalAlign="top" 
-                      height={20}
-                      wrapperStyle={{ fontSize: '10px', paddingBottom: '10px' }}
+                      height={15}
+                      wrapperStyle={{ fontSize: '8px', paddingBottom: '5px' }}
                       iconType="line"
                     />
                     <Line 
@@ -542,8 +542,8 @@ export function DashboardContent() {
                       dataKey="opportunities" 
                       stroke="#8b5cf6"
                       strokeWidth={2}
-                      dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 3 }}
-                      activeDot={{ r: 4, stroke: '#8b5cf6', strokeWidth: 2 }}
+                      dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 2 }}
+                      activeDot={{ r: 3, stroke: '#8b5cf6', strokeWidth: 2 }}
                       name="Oportunidades"
                     />
                     <Line 
@@ -551,8 +551,8 @@ export function DashboardContent() {
                       dataKey="closures" 
                       stroke="#ef4444"
                       strokeWidth={2}
-                      dot={{ fill: '#ef4444', strokeWidth: 2, r: 3 }}
-                      activeDot={{ r: 4, stroke: '#ef4444', strokeWidth: 2 }}
+                      dot={{ fill: '#ef4444', strokeWidth: 2, r: 2 }}
+                      activeDot={{ r: 3, stroke: '#ef4444', strokeWidth: 2 }}
                       name="Fechamentos"
                     />
                   </LineChart>
