@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Edit, Trash2, Users, Building, Columns, UserPlus, Settings, CreditCard, X, Check } from "lucide-react";
 import { AddMemberModal } from "@/components/AddMemberModal";
 import { EditMemberModal } from "@/components/EditMemberModal";
+import { AddColumnDialog } from "@/components/AddColumnDialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -13,6 +14,7 @@ export function SettingsContent() {
   const [activeTab, setActiveTab] = useState("company");
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
   const [isEditMemberModalOpen, setIsEditMemberModalOpen] = useState(false);
+  const [isAddColumnDialogOpen, setIsAddColumnDialogOpen] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
   const [teamMembers, setTeamMembers] = useState([
     { id: 1, name: "Maria Silva", email: "maria@empresa.com", role: "Atendimento - SDR", avatar: "MS" },
@@ -43,9 +45,6 @@ export function SettingsContent() {
 
   const [editingColumn, setEditingColumn] = useState<number | null>(null);
   const [editingColumnName, setEditingColumnName] = useState("");
-  const [isAddingColumn, setIsAddingColumn] = useState(false);
-  const [newColumnName, setNewColumnName] = useState("");
-  const [newColumnColor, setNewColumnColor] = useState("#3B82F6");
 
   const { toast } = useToast();
 
@@ -165,35 +164,32 @@ export function SettingsContent() {
     setEditingColumnName("");
   };
 
-  const handleAddColumn = async () => {
-    if (!newColumnName.trim()) {
-      toast({
-        title: "Erro",
-        description: "O nome da coluna não pode estar vazio.",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const handleAddColumn = async (columnData: { name: string; color: string; order: number }) => {
     try {
+      // Reordenar colunas existentes se necessário
+      const updatedColumns = kanbanColumns.map(col => {
+        if (col.order >= columnData.order) {
+          return { ...col, order: col.order + 1 };
+        }
+        return col;
+      });
+
       const newColumn = {
         id: Math.max(...kanbanColumns.map(col => col.id)) + 1,
-        name: newColumnName.trim(),
-        order: kanbanColumns.length + 1,
-        color: newColumnColor,
+        name: columnData.name,
+        order: columnData.order,
+        color: columnData.color,
         isDefault: false
       };
 
-      setKanbanColumns(prev => [...prev, newColumn]);
+      // Inserir nova coluna e reordenar
+      const allColumns = [...updatedColumns, newColumn].sort((a, b) => a.order - b.order);
+      setKanbanColumns(allColumns);
 
       // Aqui você poderia salvar no Supabase
       // const { error } = await supabase
       //   .from('kanban_columns')
       //   .insert(newColumn);
-
-      setIsAddingColumn(false);
-      setNewColumnName("");
-      setNewColumnColor("#3B82F6");
 
       toast({
         title: "Sucesso",
@@ -564,7 +560,7 @@ export function SettingsContent() {
         <h3 className="text-lg font-semibold text-gray-900">Colunas do Kanban</h3>
         <Button 
           className="bg-blue-600 hover:bg-blue-700"
-          onClick={() => setIsAddingColumn(true)}
+          onClick={() => setIsAddColumnDialogOpen(true)}
         >
           <Plus className="h-4 w-4 mr-2" />
           Nova Coluna
@@ -572,7 +568,9 @@ export function SettingsContent() {
       </div>
       
       <div className="space-y-4">
-        {kanbanColumns.map((column) => (
+        {kanbanColumns
+          .sort((a, b) => a.order - b.order)
+          .map((column) => (
           <Card key={column.id} className="p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -606,7 +604,7 @@ export function SettingsContent() {
                   ) : (
                     <div>
                       <h4 className="font-medium text-gray-900">{column.name}</h4>
-                      <p className="text-sm text-gray-600">Ordem: {column.order}</p>
+                      <p className="text-sm text-gray-600">Posição: {column.order}</p>
                     </div>
                   )}
                 </div>
@@ -634,48 +632,6 @@ export function SettingsContent() {
             </div>
           </Card>
         ))}
-
-        {/* Formulário para adicionar nova coluna */}
-        {isAddingColumn && (
-          <Card className="p-4 border-2 border-dashed border-blue-300">
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nome da Nova Coluna
-                </label>
-                <Input
-                  value={newColumnName}
-                  onChange={(e) => setNewColumnName(e.target.value)}
-                  placeholder="Digite o nome da nova coluna"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Cor da Coluna
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={newColumnColor}
-                    onChange={(e) => setNewColumnColor(e.target.value)}
-                    className="w-10 h-10 border border-gray-300 rounded cursor-pointer"
-                  />
-                  <span className="text-sm text-gray-600">{newColumnColor}</span>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={handleAddColumn}>
-                  <Check className="h-4 w-4 mr-2" />
-                  Criar Coluna
-                </Button>
-                <Button variant="outline" onClick={handleCancelAddColumn}>
-                  <X className="h-4 w-4 mr-2" />
-                  Cancelar
-                </Button>
-              </div>
-            </div>
-          </Card>
-        )}
       </div>
     </div>
   );
@@ -844,6 +800,13 @@ export function SettingsContent() {
         onClose={() => setIsEditMemberModalOpen(false)}
         member={editingMember}
         onMemberUpdated={handleUpdateMember}
+      />
+
+      <AddColumnDialog
+        isOpen={isAddColumnDialogOpen}
+        onClose={() => setIsAddColumnDialogOpen(false)}
+        onAddColumn={handleAddColumn}
+        maxOrder={Math.max(...kanbanColumns.map(col => col.order))}
       />
     </div>
   );
