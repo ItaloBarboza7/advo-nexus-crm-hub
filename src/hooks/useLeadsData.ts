@@ -17,19 +17,21 @@ export function useLeadsData() {
 
   const fetchLossReasons = async () => {
     try {
+      console.log('🔄 [useLeadsData] Buscando motivos de perda...');
       const { data, error } = await supabase
         .from('loss_reasons')
         .select('*')
         .order('reason', { ascending: true });
 
       if (error) {
-        console.error('Erro ao buscar motivos de perda:', error);
+        console.error('❌ [useLeadsData] Erro ao buscar motivos de perda:', error);
         return;
       }
 
+      console.log('✅ [useLeadsData] Motivos de perda carregados:', data?.length || 0);
       setLossReasons(data || []);
     } catch (error) {
-      console.error('Erro inesperado ao buscar motivos de perda:', error);
+      console.error('❌ [useLeadsData] Erro inesperado ao buscar motivos de perda:', error);
     }
   };
 
@@ -73,6 +75,12 @@ export function useLeadsData() {
     }
   };
 
+  // Função para recarregar apenas os motivos de perda
+  const refreshLossReasons = async () => {
+    console.log('🔄 [useLeadsData] refreshLossReasons chamado - atualizando motivos de perda...');
+    await fetchLossReasons();
+  };
+
   useEffect(() => {
     fetchLossReasons();
     fetchLeads();
@@ -82,6 +90,7 @@ export function useLeadsData() {
     leads,
     lossReasons,
     isLoading,
-    fetchLeads
+    fetchLeads,
+    refreshLossReasons
   };
 }

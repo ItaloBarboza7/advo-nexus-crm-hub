@@ -9,6 +9,7 @@ import { Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { LossReason } from "@/types/leadStatusHistory";
+import { dispatchLossReasonUpdate } from "@/utils/lossReasonEvents";
 
 interface LossReasonDialogProps {
   open: boolean;
@@ -79,6 +80,9 @@ export function LossReasonDialog({ open, onOpenChange, onReasonSelected, onCance
       setNewReason("");
       setIsAddingNew(false);
       await fetchLossReasons();
+      
+      // Disparar evento de atualização
+      dispatchLossReasonUpdate();
     } catch (error) {
       console.error('Erro inesperado ao adicionar motivo:', error);
       toast({

@@ -1,6 +1,6 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { subscribeLossReasonUpdate } from "@/utils/lossReasonEvents";
 
 interface ActionGroup {
   id: string;
@@ -34,6 +34,14 @@ export const useFilterOptions = () => {
 
   useEffect(() => {
     fetchAllData();
+    
+    // Subscrever aos eventos de atualização de motivos de perda
+    const unsubscribe = subscribeLossReasonUpdate(() => {
+      console.log('📨 [useFilterOptions] Recebido evento de atualização de motivos de perda');
+      refreshLossReasons();
+    });
+
+    return unsubscribe;
   }, []);
 
   const fetchAllData = async () => {
@@ -83,30 +91,8 @@ export const useFilterOptions = () => {
         setLeadSources(sourcesData || []);
       }
 
-      // Buscar motivos de perda - COM LOG DETALHADO
-      console.log('📊 [useFilterOptions] Buscando motivos de perda...');
-      const { data: lossData, error: lossError } = await supabase
-        .from('loss_reasons')
-        .select('*')
-        .order('reason');
-
-      console.log('📋 [useFilterOptions] Resposta do banco para motivos de perda:');
-      console.log('   - Data:', lossData);
-      console.log('   - Error:', lossError);
-      console.log('   - Quantidade de registros:', lossData?.length || 0);
-
-      if (lossError) {
-        console.error('❌ [useFilterOptions] Erro ao buscar motivos de perda:', lossError);
-      } else {
-        console.log('✅ [useFilterOptions] Motivos de perda carregados com sucesso');
-        
-        // Log detalhado de cada motivo de perda
-        lossData?.forEach((reason, index) => {
-          console.log(`   [${index + 1}] ID: ${reason.id} | Motivo: "${reason.reason}"`);
-        });
-        
-        setLossReasons(lossData || []);
-      }
+      // Buscar motivos de perda
+      await refreshLossReasons();
     } catch (error) {
       console.error('❌ [useFilterOptions] Erro inesperado ao buscar dados:', error);
     } finally {
@@ -120,7 +106,7 @@ export const useFilterOptions = () => {
     await fetchAllData();
   };
 
-  // Função específica para atualizar motivos de perda após exclusão
+  // Função específica para atualizar motivos de perda
   const refreshLossReasons = async () => {
     try {
       console.log('🔄 [useFilterOptions] Atualizando apenas motivos de perda...');

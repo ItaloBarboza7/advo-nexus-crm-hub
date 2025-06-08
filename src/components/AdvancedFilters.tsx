@@ -22,6 +22,7 @@ interface AdvancedFiltersProps {
   activeFilters: FilterOptions;
   selectedCategory?: string;
   lossReasons?: Array<{ id: string; reason: string; }>;
+  onLossReasonUpdate?: () => void;
 }
 
 export interface FilterOptions {
@@ -33,7 +34,13 @@ export interface FilterOptions {
   valueRange: { min: number | null; max: number | null };
 }
 
-export function AdvancedFilters({ onFiltersChange, activeFilters, selectedCategory, lossReasons = [] }: AdvancedFiltersProps) {
+export function AdvancedFilters({ 
+  onFiltersChange, 
+  activeFilters, 
+  selectedCategory, 
+  lossReasons = [],
+  onLossReasonUpdate 
+}: AdvancedFiltersProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { statusOptions, sourceOptions, actionGroupOptions, stateOptions } = useFilterOptions();
 
@@ -75,6 +82,12 @@ export function AdvancedFilters({ onFiltersChange, activeFilters, selectedCatego
       : activeFilters.lossReason.filter(l => l !== lossReason);
     
     onFiltersChange({ ...activeFilters, lossReason: newLossReason });
+    
+    // Notificar sobre mudança nos motivos de perda para sincronizar dados
+    if (onLossReasonUpdate) {
+      console.log('🔄 [AdvancedFilters] Notificando mudança nos motivos de perda...');
+      onLossReasonUpdate();
+    }
   };
 
   const clearAllFilters = () => {

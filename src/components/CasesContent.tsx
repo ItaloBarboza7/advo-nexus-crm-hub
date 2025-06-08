@@ -15,6 +15,7 @@ import { useLeadFiltering } from "@/components/analysis/useLeadFiltering";
 import { useChartStates } from "@/hooks/useChartStates";
 import { useLeadsData } from "@/hooks/useLeadsData";
 import { useLeadDialogs } from "@/hooks/useLeadDialogs";
+import { useFilterOptions } from "@/hooks/useFilterOptions";
 import { FilterOptions } from "@/components/AdvancedFilters";
 
 export function CasesContent() {
@@ -31,7 +32,8 @@ export function CasesContent() {
   });
   
   // Custom hooks
-  const { leads, lossReasons, isLoading, fetchLeads } = useLeadsData();
+  const { leads, isLoading, fetchLeads, refreshLossReasons: refreshLeadsDataLossReasons } = useLeadsData();
+  const { lossReasons, refreshLossReasons: refreshFilterOptionsLossReasons } = useFilterOptions();
   const { statusHistory, hasLeadPassedThroughStatus } = useLeadStatusHistory();
   const { isOpportunityLead } = useOpportunityLogic(hasLeadPassedThroughStatus);
   const {
@@ -88,6 +90,16 @@ export function CasesContent() {
     });
   };
 
+  // Função para sincronizar atualização de motivos de perda
+  const handleLossReasonUpdate = async () => {
+    console.log('🔄 [CasesContent] Sincronizando atualização de motivos de perda...');
+    await Promise.all([
+      refreshLeadsDataLossReasons(),
+      refreshFilterOptionsLossReasons()
+    ]);
+    console.log('✅ [CasesContent] Motivos de perda sincronizados');
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -124,6 +136,7 @@ export function CasesContent() {
         onContractsViewChange={handleContractsViewChange}
         opportunitiesViewMode={opportunitiesViewMode}
         onOpportunitiesViewChange={handleOpportunitiesViewChange}
+        onLossReasonUpdate={handleLossReasonUpdate}
       />
 
       <ChartsSection
