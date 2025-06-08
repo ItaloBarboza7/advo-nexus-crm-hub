@@ -242,8 +242,7 @@ export function useLossReasonsGlobal() {
       const { data: leadsUsingReason, error: leadsError } = await supabase
         .from('leads')
         .select('id, name')
-        .eq('loss_reason', reasonToDelete.reason)
-        .limit(1);
+        .eq('loss_reason', reasonToDelete.reason);
 
       if (leadsError) {
         console.error('❌ Erro ao verificar leads vinculados:', leadsError);
@@ -256,16 +255,33 @@ export function useLossReasonsGlobal() {
       }
 
       if (leadsUsingReason && leadsUsingReason.length > 0) {
-        console.warn(`⚠️ Existem leads usando este motivo:`, leadsUsingReason);
-        toast({
-          title: "Erro",
-          description: "Este motivo não pode ser excluído pois está sendo usado por leads.",
-          variant: "destructive"
-        });
-        return false;
-      }
+        console.log(`🔄 useLossReasonsGlobal - Encontrados ${leadsUsingReason.length} leads usando este motivo. Atualizando para "Outros"...`);
+        
+        // Atualizar todos os leads que usam este motivo para "Outros"
+        const { error: updateError } = await supabase
+          .from('leads')
+          .update({ loss_reason: 'Outros' })
+          .eq('loss_reason', reasonToDelete.reason);
 
-      console.log(`✅ Nenhum lead está usando este motivo. Procedendo com a exclusão...`);
+        if (updateError) {
+          console.error('❌ Erro ao atualizar leads para "Outros":', updateError);
+          toast({
+            title: "Erro",
+            description: "Erro ao atualizar leads vinculados ao motivo.",
+            variant: "destructive"
+          });
+          return false;
+        }
+
+        console.log(`✅ useLossReasonsGlobal - ${leadsUsingReason.length} leads atualizados para "Outros" com sucesso`);
+        
+        toast({
+          title: "Leads atualizados",
+          description: `${leadsUsingReason.length} leads foram atualizados para usar o motivo "Outros".`,
+        });
+      } else {
+        console.log(`✅ Nenhum lead está usando este motivo. Procedendo com a exclusão...`);
+      }
       
       // Fazer a exclusão no banco de dados
       const { error: deleteError, count } = await supabase
