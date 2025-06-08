@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -19,14 +18,13 @@ interface EditLeadFormProps {
   onLeadUpdated: () => void;
 }
 
-const LEAD_STATUSES = [
-  { id: "Novo", title: "Novo" },
-  { id: "Proposta", title: "Proposta" },
-  { id: "Reunião", title: "Reunião" },
-  { id: "Contrato Fechado", title: "Contrato Fechado" },
-  { id: "Perdido", title: "Perdido" },
-  { id: "Finalizado", title: "Finalizado" },
-];
+interface KanbanColumn {
+  id: string;
+  name: string;
+  color: string;
+  order_position: number;
+  is_default: boolean;
+}
 
 const BRAZILIAN_STATES = [
   "Acre", "Alagoas", "Amapá", "Amazonas", "Bahia", "Ceará", "Distrito Federal",
@@ -70,8 +68,27 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
   const [customActionGroups, setCustomActionGroups] = useState<string[]>([]);
   const [customActionTypes, setCustomActionTypes] = useState<string[]>([]);
   const [lossReasons, setLossReasons] = useState<LossReason[]>([]);
+  const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([]);
   const { toast } = useToast();
   const { actionGroupOptions, getActionTypeOptions } = useFilterOptions();
+
+  const fetchKanbanColumns = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('kanban_columns')
+        .select('*')
+        .order('order_position', { ascending: true });
+
+      if (error) {
+        console.error('Erro ao buscar colunas do Kanban:', error);
+        return;
+      }
+
+      setKanbanColumns(data || []);
+    } catch (error) {
+      console.error('Erro inesperado ao buscar colunas:', error);
+    }
+  };
 
   const fetchLossReasons = async () => {
     try {
@@ -120,6 +137,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
 
   useEffect(() => {
     if (open) {
+      fetchKanbanColumns();
       fetchLossReasons();
     }
   }, [open]);
@@ -224,7 +242,6 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
       [field]: value
     }));
     
-    // Se mudou o grupo de ação, limpar o tipo de ação
     if (field === 'action_group') {
       setFormData(prev => ({
         ...prev,
@@ -452,9 +469,9 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
                   <SelectValue placeholder="Selecione o status" />
                 </SelectTrigger>
                 <SelectContent className="bg-white border shadow-lg z-50">
-                  {LEAD_STATUSES.map((status) => (
-                    <SelectItem key={status.id} value={status.id}>
-                      {status.title}
+                  {kanbanColumns.map((column) => (
+                    <SelectItem key={column.id} value={column.name}>
+                      {column.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -523,7 +540,6 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
               )}
             </div>
 
-            {/* Campo Tipo de Ação - aparece quando há um grupo selecionado */}
             {formData.action_group && (
               <div className="space-y-2 relative">
                 <Label htmlFor="action_type">Tipo de Ação</Label>
