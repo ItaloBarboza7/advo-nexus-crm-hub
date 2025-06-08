@@ -19,6 +19,8 @@ interface SearchAndFiltersProps {
   opportunitiesViewMode: string;
   onOpportunitiesViewChange: (mode: string) => void;
   onLossReasonUpdate?: () => void;
+  onDeleteLossReason?: (lossReasonId: string, lossReasonName: string) => Promise<boolean>;
+  onAddLossReason?: (reason: string) => Promise<boolean>;
 }
 
 export function SearchAndFilters({
@@ -35,7 +37,9 @@ export function SearchAndFilters({
   onContractsViewChange,
   opportunitiesViewMode,
   onOpportunitiesViewChange,
-  onLossReasonUpdate
+  onLossReasonUpdate,
+  onDeleteLossReason,
+  onAddLossReason
 }: SearchAndFiltersProps) {
   // Determine which view mode to use based on selected category
   const getCurrentView = (): 'weekly' | 'monthly' => {
@@ -84,6 +88,8 @@ export function SearchAndFilters({
           selectedCategory={selectedCategory}
           lossReasons={lossReasons}
           onLossReasonUpdate={onLossReasonUpdate}
+          onDeleteLossReason={onDeleteLossReason}
+          onAddLossReason={onAddLossReason}
         />
         
         <ViewToggleDropdown
