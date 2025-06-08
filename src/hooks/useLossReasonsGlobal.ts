@@ -236,27 +236,65 @@ export function useLossReasonsGlobal() {
     }
 
     try {
-      console.log(`🔄 useLossReasonsGlobal - Excluindo motivo "${reasonToDelete.reason}" do banco de dados...`);
+      console.log(`🔄 useLossReasonsGlobal - Tentando excluir motivo "${reasonToDelete.reason}" (ID: ${id}) do banco de dados...`);
+      
+      // Verificar se existem leads usando este motivo
+      const { data: leadsUsingReason, error: leadsError } = await supabase
+        .from('leads')
+        .select('id, name')
+        .eq('loss_reason', reasonToDelete.reason)
+        .limit(1);
+
+      if (leadsError) {
+        console.error('❌ Erro ao verificar leads vinculados:', leadsError);
+        toast({
+          title: "Erro",
+          description: "Erro ao verificar dependências do motivo.",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      if (leadsUsingReason && leadsUsingReason.length > 0) {
+        console.warn(`⚠️ Existem leads usando este motivo:`, leadsUsingReason);
+        toast({
+          title: "Erro",
+          description: "Este motivo não pode ser excluído pois está sendo usado por leads.",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      console.log(`✅ Nenhum lead está usando este motivo. Procedendo com a exclusão...`);
       
       // Fazer a exclusão no banco de dados
-      const { error: deleteError } = await supabase
+      const { error: deleteError, count } = await supabase
         .from('loss_reasons')
-        .delete()
+        .delete({ count: 'exact' })
         .eq('id', id);
 
       if (deleteError) {
         console.error('❌ Erro ao excluir motivo no banco:', deleteError);
         toast({
           title: "Erro",
-          description: "Não foi possível excluir o motivo de perda.",
+          description: `Não foi possível excluir o motivo de perda: ${deleteError.message}`,
           variant: "destructive"
         });
         return false;
       }
 
-      console.log(`✅ useLossReasonsGlobal - Motivo "${reasonToDelete.reason}" excluído do banco com sucesso.`);
+      console.log(`✅ useLossReasonsGlobal - Motivo "${reasonToDelete.reason}" excluído do banco. Linhas afetadas: ${count}`);
       
-      // Atualizar o estado global
+      if (count === 0) {
+        console.warn(`⚠️ Nenhuma linha foi excluída. O motivo pode já ter sido removido.`);
+        toast({
+          title: "Aviso",
+          description: "O motivo pode já ter sido removido.",
+          variant: "default"
+        });
+      }
+      
+      // Atualizar o estado global após exclusão
       console.log(`🔄 useLossReasonsGlobal - Atualizando estado global após exclusão...`);
       await updateGlobalState();
       
