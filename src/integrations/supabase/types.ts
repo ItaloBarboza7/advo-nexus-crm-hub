@@ -65,6 +65,39 @@ export type Database = {
           },
         ]
       }
+      company_info: {
+        Row: {
+          address: string
+          cnpj: string
+          company_name: string
+          created_at: string
+          email: string
+          id: string
+          phone: string
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          cnpj: string
+          company_name: string
+          created_at?: string
+          email: string
+          id?: string
+          phone: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          cnpj?: string
+          company_name?: string
+          created_at?: string
+          email?: string
+          id?: string
+          phone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       kanban_columns: {
         Row: {
           color: string
