@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -97,6 +98,8 @@ export function EditLeadForm({
   useEffect(() => {
     if (lead && open) {
       console.log("🔄 EditLeadForm - Carregando dados do lead:", lead);
+      console.log("📊 EditLeadForm - Motivos de perda recebidos:", lossReasons?.length || 0);
+      console.log("📋 EditLeadForm - Lista de motivos:", lossReasons);
       
       // Salvar dados originais do lead
       setOriginalLeadData(lead);
@@ -118,7 +121,7 @@ export function EditLeadForm({
       console.log("📋 EditLeadForm - Dados iniciais do formulário:", initialData);
       setFormData(initialData);
     }
-  }, [lead, open]);
+  }, [lead, open, lossReasons]);
 
   useEffect(() => {
     if (open) {
@@ -221,6 +224,13 @@ export function EditLeadForm({
 
   const handleInputChange = (field: string, value: string) => {
     console.log(`📝 EditLeadForm - Alterando ${field} para:`, value);
+    
+    // Se mudando o status, verificar se é para um status de perda
+    if (field === 'status') {
+      console.log(`📊 EditLeadForm - Status alterado para: "${value}"`);
+      console.log(`📊 EditLeadForm - É status de perda? ${value.toLowerCase().includes('perdido') || value.toLowerCase().includes('lost')}`);
+    }
+    
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -239,6 +249,7 @@ export function EditLeadForm({
 
     if (field === 'loss_reason' && onAddLossReason) {
       try {
+        console.log('➕ EditLeadForm - Adicionando novo motivo de perda:', newOptionValue.trim());
         const success = await onAddLossReason(newOptionValue.trim());
         
         if (success) {
@@ -399,6 +410,15 @@ export function EditLeadForm({
       </Dialog>
     );
   }
+
+  // Verificar se deve mostrar o campo de motivo da perda
+  const shouldShowLossReasonField = formData.status && (
+    formData.status.toLowerCase().includes('perdido') || 
+    formData.status.toLowerCase().includes('lost') ||
+    formData.status === 'Perdido'
+  );
+
+  console.log(`🎯 EditLeadForm - Deve mostrar campo de motivo da perda? ${shouldShowLossReasonField} (Status: "${formData.status}")`);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -674,42 +694,53 @@ export function EditLeadForm({
             </div>
           </div>
 
-          {formData.status === "Perdido" && (
-            <div className="space-y-2 relative">
-              <Label htmlFor="loss_reason">Motivo da Perda</Label>
+          {shouldShowLossReasonField && (
+            <div className="space-y-2 relative border-l-4 border-red-500 pl-4 bg-red-50 p-4 rounded">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-red-600 font-medium">⚠️ Lead Perdido</span>
+              </div>
+              <Label htmlFor="loss_reason" className="text-red-700 font-medium">Motivo da Perda *</Label>
               <div className="flex gap-2">
                 <Select value={formData.loss_reason} onValueChange={(value) => handleInputChange('loss_reason', value)}>
-                  <SelectTrigger className="flex-1">
+                  <SelectTrigger className="flex-1 border-red-200 focus:border-red-400">
                     <SelectValue placeholder="Selecione o motivo da perda" />
                   </SelectTrigger>
                   <SelectContent className="bg-white border shadow-lg max-h-60 overflow-y-auto z-50">
-                    {lossReasons.map((reason) => (
-                      <SelectItem key={reason.id} value={reason.reason}>
-                        {reason.reason}
+                    {lossReasons && lossReasons.length > 0 ? (
+                      lossReasons.map((reason) => (
+                        <SelectItem key={reason.id} value={reason.reason}>
+                          {reason.reason}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="" disabled>
+                        Nenhum motivo disponível
                       </SelectItem>
-                    ))}
+                    )}
                   </SelectContent>
                 </Select>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowNewOptionInput('loss_reason')}
-                  className="px-2"
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
+                {onAddLossReason && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowNewOptionInput('loss_reason')}
+                    className="px-2 border-red-200 text-red-600 hover:bg-red-50"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
               
               {showNewOptionInput === 'loss_reason' && (
-                <div className="absolute top-full left-0 right-0 mt-2 p-3 bg-white border rounded-lg shadow-lg z-50">
+                <div className="absolute top-full left-0 right-0 mt-2 p-3 bg-white border rounded-lg shadow-lg z-50 border-red-200">
                   <div className="space-y-3">
                     <Input
                       placeholder="Novo motivo da perda..."
                       value={newOptionValue}
                       onChange={(e) => setNewOptionValue(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && handleAddNewOption('loss_reason')}
-                      className="text-sm"
+                      className="text-sm border-red-200 focus:border-red-400"
                     />
                     <div className="flex gap-2 justify-end">
                       <Button
@@ -727,7 +758,7 @@ export function EditLeadForm({
                         type="button"
                         size="sm"
                         onClick={() => handleAddNewOption('loss_reason')}
-                        className="bg-blue-600 hover:bg-blue-700"
+                        className="bg-red-600 hover:bg-red-700 text-white"
                       >
                         Adicionar
                       </Button>
@@ -735,6 +766,12 @@ export function EditLeadForm({
                   </div>
                 </div>
               )}
+              
+              {!lossReasons || lossReasons.length === 0 ? (
+                <p className="text-sm text-red-600 mt-2">
+                  ⚠️ Nenhum motivo de perda cadastrado. Use o botão "+" para adicionar um novo motivo.
+                </p>
+              ) : null}
             </div>
           )}
 
