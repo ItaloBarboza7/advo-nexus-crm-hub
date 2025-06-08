@@ -39,63 +39,111 @@ export const useFilterOptions = () => {
   const fetchAllData = async () => {
     try {
       setLoading(true);
+      console.log('🔄 [useFilterOptions] Iniciando busca de todos os dados...');
       
       // Buscar grupos de ação
+      console.log('📊 [useFilterOptions] Buscando grupos de ação...');
       const { data: groupsData, error: groupsError } = await supabase
         .from('action_groups')
         .select('*')
         .order('name');
 
       if (groupsError) {
-        console.error('Erro ao buscar grupos de ação:', groupsError);
+        console.error('❌ [useFilterOptions] Erro ao buscar grupos de ação:', groupsError);
       } else {
+        console.log('✅ [useFilterOptions] Grupos de ação carregados:', groupsData?.length || 0);
         setActionGroups(groupsData || []);
       }
 
       // Buscar tipos de ação
+      console.log('📊 [useFilterOptions] Buscando tipos de ação...');
       const { data: typesData, error: typesError } = await supabase
         .from('action_types')
         .select('*')
         .order('name');
 
       if (typesError) {
-        console.error('Erro ao buscar tipos de ação:', typesError);
+        console.error('❌ [useFilterOptions] Erro ao buscar tipos de ação:', typesError);
       } else {
+        console.log('✅ [useFilterOptions] Tipos de ação carregados:', typesData?.length || 0);
         setActionTypes(typesData || []);
       }
 
       // Buscar fontes de leads
+      console.log('📊 [useFilterOptions] Buscando fontes de leads...');
       const { data: sourcesData, error: sourcesError } = await supabase
         .from('lead_sources')
         .select('*')
         .order('label');
 
       if (sourcesError) {
-        console.error('Erro ao buscar fontes de leads:', sourcesError);
+        console.error('❌ [useFilterOptions] Erro ao buscar fontes de leads:', sourcesError);
       } else {
+        console.log('✅ [useFilterOptions] Fontes de leads carregadas:', sourcesData?.length || 0);
         setLeadSources(sourcesData || []);
       }
 
-      // Buscar motivos de perda
+      // Buscar motivos de perda - COM LOG DETALHADO
+      console.log('📊 [useFilterOptions] Buscando motivos de perda...');
       const { data: lossData, error: lossError } = await supabase
         .from('loss_reasons')
         .select('*')
         .order('reason');
 
+      console.log('📋 [useFilterOptions] Resposta do banco para motivos de perda:');
+      console.log('   - Data:', lossData);
+      console.log('   - Error:', lossError);
+      console.log('   - Quantidade de registros:', lossData?.length || 0);
+
       if (lossError) {
-        console.error('Erro ao buscar motivos de perda:', lossError);
+        console.error('❌ [useFilterOptions] Erro ao buscar motivos de perda:', lossError);
       } else {
+        console.log('✅ [useFilterOptions] Motivos de perda carregados com sucesso');
+        
+        // Log detalhado de cada motivo de perda
+        lossData?.forEach((reason, index) => {
+          console.log(`   [${index + 1}] ID: ${reason.id} | Motivo: "${reason.reason}"`);
+        });
+        
         setLossReasons(lossData || []);
       }
     } catch (error) {
-      console.error('Erro inesperado ao buscar dados:', error);
+      console.error('❌ [useFilterOptions] Erro inesperado ao buscar dados:', error);
     } finally {
       setLoading(false);
+      console.log('🏁 [useFilterOptions] Busca de dados finalizada');
     }
   };
 
-  const refreshData = () => {
-    fetchAllData();
+  const refreshData = async () => {
+    console.log('🔄 [useFilterOptions] refreshData() chamado - forçando nova busca...');
+    await fetchAllData();
+  };
+
+  // Função específica para atualizar motivos de perda após exclusão
+  const refreshLossReasons = async () => {
+    try {
+      console.log('🔄 [useFilterOptions] Atualizando apenas motivos de perda...');
+      
+      const { data: lossData, error: lossError } = await supabase
+        .from('loss_reasons')
+        .select('*')
+        .order('reason');
+
+      console.log('📋 [useFilterOptions] Nova busca de motivos de perda:');
+      console.log('   - Data:', lossData);
+      console.log('   - Error:', lossError);
+      console.log('   - Quantidade de registros:', lossData?.length || 0);
+
+      if (lossError) {
+        console.error('❌ [useFilterOptions] Erro ao atualizar motivos de perda:', lossError);
+      } else {
+        console.log('✅ [useFilterOptions] Motivos de perda atualizados');
+        setLossReasons(lossData || []);
+      }
+    } catch (error) {
+      console.error('❌ [useFilterOptions] Erro inesperado ao atualizar motivos de perda:', error);
+    }
   };
 
   // Converter para formato compatível com os selects existentes
@@ -183,6 +231,7 @@ export const useFilterOptions = () => {
     leadSources,
     lossReasons,
     loading,
-    refreshData
+    refreshData,
+    refreshLossReasons
   };
 };

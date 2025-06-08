@@ -73,14 +73,15 @@ export function SettingsContent() {
   // Hook para informações da empresa
   const { companyInfo, isLoading: isLoadingCompany, updateCompanyInfo } = useCompanyInfo();
 
-  // Usar o hook para obter os dados sincronizados
+  // Usar o hook para obter os dados sincronizados - ATUALIZADO
   const { 
     actionGroups = [], 
     actionTypes = [], 
     leadSources = [], 
     lossReasons = [],
     loading: optionsLoading,
-    refreshData 
+    refreshData,
+    refreshLossReasons  // Nova função específica
   } = useFilterOptions();
 
   // Estados para edição inline
@@ -394,57 +395,119 @@ export function SettingsContent() {
     }
   };
 
-  // Função CORRIGIDA para deletar motivos de perda - sem throw de error
+  // Função ATUALIZADA para deletar motivos de perda com diagnóstico completo
   const handleDeleteLossReason = async (reasonId: string) => {
-    console.log('🗑️ [STEP 1] Iniciando exclusão do motivo de perda com ID:', reasonId);
-    console.log('📋 [STEP 2] Motivos de perda antes da exclusão:', lossReasons);
+    console.log('🗑️ [SettingsContent] ===== INÍCIO DA EXCLUSÃO =====');
+    console.log('🗑️ [SettingsContent] ID recebido para exclusão:', reasonId);
+    console.log('📋 [SettingsContent] Estado atual de lossReasons:', lossReasons);
     
+    // Verificar conexão com o banco antes de tentar deletar
+    console.log('🔍 [SettingsContent] Testando conexão com o banco...');
+    try {
+      const { data: testConnection, error: connectionError } = await supabase
+        .from('loss_reasons')
+        .select('count')
+        .limit(1);
+      
+      if (connectionError) {
+        console.error('❌ [SettingsContent] ERRO DE CONEXÃO:', connectionError);
+        toast({
+          title: "Erro de Conexão",
+          description: "Não foi possível conectar ao banco de dados.",
+          variant: "destructive"
+        });
+        return;
+      }
+      console.log('✅ [SettingsContent] Conexão com banco OK');
+    } catch (error) {
+      console.error('❌ [SettingsContent] ERRO DE REDE:', error);
+      toast({
+        title: "Erro de Rede",
+        description: "Problemas de conectividade detectados.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     // Verificar se o ID existe
     const reasonToDelete = lossReasons.find(reason => reason.id === reasonId);
-    console.log('🔍 [STEP 3] Motivo encontrado para exclusão:', reasonToDelete);
+    console.log('🔍 [SettingsContent] Motivo encontrado para exclusão:', reasonToDelete);
     
     if (!reasonToDelete) {
-      console.error('❌ [STEP 4] Motivo de perda não encontrado com ID:', reasonId);
+      console.error('❌ [SettingsContent] Motivo de perda não encontrado com ID:', reasonId);
       toast({
         title: "Erro",
         description: "Motivo de perda não encontrado.",
         variant: "destructive"
       });
-      return; // Não throw error, só return
+      return;
     }
 
-    console.log('🔥 [STEP 5] Executando delete no Supabase...');
-    const { data, error } = await supabase
-      .from('loss_reasons')
-      .delete()
-      .eq('id', reasonId)
-      .select(); // Adicionar select para verificar o que foi deletado
+    console.log('🔥 [SettingsContent] Executando delete no Supabase...');
+    
+    try {
+      const { data, error } = await supabase
+        .from('loss_reasons')
+        .delete()
+        .eq('id', reasonId)
+        .select();
 
-    console.log('📊 [STEP 6] Resposta do Supabase - data:', data);
-    console.log('📊 [STEP 7] Resposta do Supabase - error:', error);
+      console.log('📊 [SettingsContent] Resposta do delete:');
+      console.log('   - Data:', data);
+      console.log('   - Error:', error);
 
-    if (error) {
-      console.error('❌ [STEP 8] Erro do Supabase ao excluir motivo de perda:', error);
+      if (error) {
+        console.error('❌ [SettingsContent] Erro do Supabase:', error);
+        toast({
+          title: "Erro",
+          description: `Erro no banco: ${error.message}`,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      console.log('✅ [SettingsContent] Delete executado com sucesso no banco');
+      
+      // Aguardar um pouco antes de atualizar para garantir consistência
+      console.log('⏳ [SettingsContent] Aguardando 500ms para garantir consistência...');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Usar a função específica de atualização
+      console.log('🔄 [SettingsContent] Chamando refreshLossReasons...');
+      await refreshLossReasons();
+      
+      // Aguardar mais um pouco e verificar se os dados foram atualizados
+      console.log('⏳ [SettingsContent] Aguardando mais 500ms...');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Fazer uma verificação adicional
+      console.log('🔍 [SettingsContent] Verificação final - buscando dados atualizados...');
+      const { data: verificationData, error: verificationError } = await supabase
+        .from('loss_reasons')
+        .select('*')
+        .order('reason');
+      
+      console.log('📋 [SettingsContent] Dados após exclusão:', verificationData);
+      console.log('📋 [SettingsContent] Quantidade de registros:', verificationData?.length || 0);
+      
+      if (verificationError) {
+        console.error('❌ [SettingsContent] Erro na verificação:', verificationError);
+      }
+
+      console.log('✅ [SettingsContent] ===== EXCLUSÃO FINALIZADA =====');
+
+      toast({
+        title: "Sucesso",
+        description: "Motivo de perda excluído com sucesso.",
+      });
+    } catch (error) {
+      console.error('❌ [SettingsContent] Erro inesperado:', error);
       toast({
         title: "Erro",
-        description: `Não foi possível excluir o motivo de perda: ${error.message}`,
+        description: "Erro inesperado ao excluir o motivo.",
         variant: "destructive"
       });
-      return; // Não throw error, só return
     }
-
-    console.log('✅ [STEP 9] Motivo de perda excluído com sucesso do banco');
-    console.log('🔄 [STEP 10] Atualizando dados locais...');
-    
-    // Forçar atualização dos dados
-    await refreshData();
-    
-    console.log('✅ [STEP 11] Dados atualizados com sucesso');
-
-    toast({
-      title: "Sucesso",
-      description: "Motivo de perda excluído com sucesso.",
-    });
   };
 
   // Carregar colunas do banco de dados
@@ -1257,7 +1320,7 @@ export function SettingsContent() {
             </ScrollArea>
           </Card>
 
-          {/* Tipos de Perdas - CORRIGIDO COM DEBUG DETALHADO */}
+          {/* Tipos de Perdas - ATUALIZADO COM LOGS EXTRAS */}
           <Card className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-md font-semibold text-gray-900">Tipos de Perdas</h4>
@@ -1275,7 +1338,7 @@ export function SettingsContent() {
                   <p className="text-center text-gray-500 py-4">Nenhum motivo de perda cadastrado</p>
                 ) : (
                   lossReasons.map((reason) => {
-                    console.log('🔄 [RENDER] Renderizando motivo de perda:', reason);
+                    console.log('🔄 [SettingsContent-RENDER] Renderizando motivo:', reason);
                     return (
                       <div key={reason.id} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
                         <div className="flex items-center justify-between">
@@ -1320,7 +1383,7 @@ export function SettingsContent() {
                               </Button>
                               <DeleteButton
                                 onDelete={() => {
-                                  console.log('🔥 [CLICK] DeleteButton chamando handleDeleteLossReason com ID:', reason.id);
+                                  console.log('🔥 [SettingsContent-RENDER] DeleteButton clicado para ID:', reason.id);
                                   return handleDeleteLossReason(reason.id);
                                 }}
                                 itemName={reason.reason}
