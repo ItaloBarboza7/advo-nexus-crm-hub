@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,23 +7,31 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 
-interface AddMemberModalProps {
+interface EditMemberModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onMemberAdded: (member: any) => void;
+  member: any;
+  onMemberUpdated: (member: any) => void;
 }
 
-export function AddMemberModal({ isOpen, onClose, onMemberAdded }: AddMemberModalProps) {
+export function EditMemberModal({ isOpen, onClose, member, onMemberUpdated }: EditMemberModalProps) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("");
-  const [password, setPassword] = useState("");
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (member) {
+      setName(member.name || "");
+      setEmail(member.email || "");
+      setRole(member.role || "");
+    }
+  }, [member]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name || !email || !role || !password) {
+    if (!name || !email || !role) {
       toast({
         title: "Erro",
         description: "Todos os campos são obrigatórios.",
@@ -32,26 +40,21 @@ export function AddMemberModal({ isOpen, onClose, onMemberAdded }: AddMemberModa
       return;
     }
 
-    const newMember = {
-      id: Date.now(),
+    const updatedMember = {
+      ...member,
       name,
       email,
       role,
       avatar: name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     };
 
-    onMemberAdded(newMember);
+    onMemberUpdated(updatedMember);
     
     toast({
-      title: "Membro adicionado",
-      description: `${name} foi adicionado à equipe com sucesso.`,
+      title: "Membro atualizado",
+      description: `${name} foi atualizado com sucesso.`,
     });
 
-    // Reset form
-    setName("");
-    setEmail("");
-    setRole("");
-    setPassword("");
     onClose();
   };
 
@@ -59,14 +62,14 @@ export function AddMemberModal({ isOpen, onClose, onMemberAdded }: AddMemberModa
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Adicionar Novo Membro</DialogTitle>
+          <DialogTitle>Editar Membro</DialogTitle>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Nome completo</Label>
+            <Label htmlFor="edit-name">Nome completo</Label>
             <Input
-              id="name"
+              id="edit-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Digite o nome completo"
@@ -75,9 +78,9 @@ export function AddMemberModal({ isOpen, onClose, onMemberAdded }: AddMemberModa
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email">E-mail</Label>
+            <Label htmlFor="edit-email">E-mail</Label>
             <Input
-              id="email"
+              id="edit-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -87,19 +90,7 @@ export function AddMemberModal({ isOpen, onClose, onMemberAdded }: AddMemberModa
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Senha</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Digite a senha"
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="role">Cargo</Label>
+            <Label htmlFor="edit-role">Cargo</Label>
             <Select value={role} onValueChange={setRole} required>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione o cargo" />
@@ -118,7 +109,7 @@ export function AddMemberModal({ isOpen, onClose, onMemberAdded }: AddMemberModa
               Cancelar
             </Button>
             <Button type="submit" className="flex-1">
-              Adicionar Membro
+              Salvar Alterações
             </Button>
           </div>
         </form>

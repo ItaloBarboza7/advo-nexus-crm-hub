@@ -5,15 +5,18 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Edit, Trash2, Users, Building, Columns, UserPlus, Settings, CreditCard } from "lucide-react";
 import { AddMemberModal } from "@/components/AddMemberModal";
+import { EditMemberModal } from "@/components/EditMemberModal";
 import { useToast } from "@/hooks/use-toast";
 
 export function SettingsContent() {
   const [activeTab, setActiveTab] = useState("company");
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
+  const [isEditMemberModalOpen, setIsEditMemberModalOpen] = useState(false);
+  const [editingMember, setEditingMember] = useState(null);
   const [teamMembers, setTeamMembers] = useState([
-    { id: 1, name: "Maria Silva", email: "maria@empresa.com", role: "Gerente", avatar: "MS" },
-    { id: 2, name: "João Santos", email: "joao@empresa.com", role: "Vendedor", avatar: "JS" },
-    { id: 3, name: "Ana Costa", email: "ana@empresa.com", role: "Vendedor", avatar: "AC" },
+    { id: 1, name: "Maria Silva", email: "maria@empresa.com", role: "Atendimento - SDR", avatar: "MS" },
+    { id: 2, name: "João Santos", email: "joao@empresa.com", role: "Fechamento - Closer", avatar: "JS" },
+    { id: 3, name: "Ana Costa", email: "ana@empresa.com", role: "Atendimento - SDR", avatar: "AC" },
   ]);
 
   // Simulating admin check - in real implementation this would come from auth context
@@ -61,6 +64,26 @@ export function SettingsContent() {
 
   const handleAddMember = (newMember: any) => {
     setTeamMembers(prev => [...prev, newMember]);
+  };
+
+  const handleEditMember = (member: any) => {
+    setEditingMember(member);
+    setIsEditMemberModalOpen(true);
+  };
+
+  const handleUpdateMember = (updatedMember: any) => {
+    setTeamMembers(prev => prev.map(member => 
+      member.id === updatedMember.id ? updatedMember : member
+    ));
+    setEditingMember(null);
+  };
+
+  const handleDeleteMember = (memberId: number) => {
+    setTeamMembers(prev => prev.filter(member => member.id !== memberId));
+    toast({
+      title: "Membro removido",
+      description: "O membro foi removido da equipe com sucesso.",
+    });
   };
 
   const handleEditActions = () => {
@@ -174,32 +197,16 @@ export function SettingsContent() {
         </h4>
         
         <div className="space-y-6">
-          {/* Monthly Payments */}
+          {/* Plan Information */}
           <div>
-            <h5 className="font-medium text-gray-900 mb-3">Histórico de Pagamentos</h5>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <h5 className="font-medium text-gray-900 mb-3">Plano Atual</h5>
+            <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+              <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-sm font-medium text-gray-900">Janeiro 2024</span>
-                  <p className="text-sm text-gray-600">Plano Premium - R$ 99,90</p>
+                  <h6 className="font-medium text-gray-900">Plano Premium</h6>
+                  <p className="text-sm text-gray-600">Valor mensal: R$ 99,90</p>
                 </div>
-                <Badge className="bg-green-100 text-green-800">Pago</Badge>
-              </div>
-              
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <span className="text-sm font-medium text-gray-900">Dezembro 2023</span>
-                  <p className="text-sm text-gray-600">Plano Premium - R$ 99,90</p>
-                </div>
-                <Badge className="bg-green-100 text-green-800">Pago</Badge>
-              </div>
-              
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <span className="text-sm font-medium text-gray-900">Novembro 2023</span>
-                  <p className="text-sm text-gray-600">Plano Premium - R$ 99,90</p>
-                </div>
-                <Badge className="bg-green-100 text-green-800">Pago</Badge>
+                <Badge className="bg-green-100 text-green-800">Ativo</Badge>
               </div>
             </div>
           </div>
@@ -260,10 +267,18 @@ export function SettingsContent() {
                 <Badge variant="outline">{member.role}</Badge>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handleEditMember(member)}
+                >
                   <Edit className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handleDeleteMember(member.id)}
+                >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
@@ -607,6 +622,13 @@ export function SettingsContent() {
         isOpen={isAddMemberModalOpen}
         onClose={() => setIsAddMemberModalOpen(false)}
         onMemberAdded={handleAddMember}
+      />
+
+      <EditMemberModal
+        isOpen={isEditMemberModalOpen}
+        onClose={() => setIsEditMemberModalOpen(false)}
+        member={editingMember}
+        onMemberUpdated={handleUpdateMember}
       />
     </div>
   );
