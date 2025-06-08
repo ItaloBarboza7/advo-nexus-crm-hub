@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -122,12 +121,22 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
   };
 
   const handleDeleteClick = (type: ActionType) => {
+    console.log('🗑️ Delete button clicked for type:', type.name);
+    console.log('🔍 Setting typeToDelete:', type);
     setTypeToDelete(type);
+    console.log('📋 Opening delete dialog...');
     setDeleteDialogOpen(true);
+    console.log('✅ Delete dialog state set to true');
   };
 
   const handleDeleteConfirm = async () => {
-    if (!typeToDelete) return;
+    console.log('🔥 handleDeleteConfirm chamado para tipo');
+    if (!typeToDelete) {
+      console.log('❌ Nenhum tipo selecionado para exclusão');
+      return;
+    }
+
+    console.log('🗑️ Confirmando exclusão do tipo:', typeToDelete.name);
 
     try {
       const { error } = await supabase
@@ -136,7 +145,7 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
         .eq('id', typeToDelete.id);
 
       if (error) {
-        console.error('Erro ao excluir tipo:', error);
+        console.error('❌ Erro ao excluir tipo:', error);
         toast({
           title: "Erro",
           description: "Não foi possível excluir o tipo de ação.",
@@ -145,6 +154,7 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
         return;
       }
 
+      console.log('✅ Tipo excluído com sucesso');
       toast({
         title: "Sucesso",
         description: "Tipo de ação excluído com sucesso.",
@@ -153,12 +163,25 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
       fetchActionTypes();
       onTypeAdded();
     } catch (error) {
-      console.error('Erro inesperado ao excluir tipo:', error);
+      console.error('❌ Erro inesperado ao excluir tipo:', error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado.",
         variant: "destructive"
       });
+    } finally {
+      console.log('🔄 Fechando dialog e limpando estado');
+      setDeleteDialogOpen(false);
+      setTypeToDelete(null);
+    }
+  };
+
+  const handleDeleteDialogClose = (open: boolean) => {
+    console.log('🔄 Delete dialog onOpenChange called with:', open);
+    if (!open) {
+      console.log('❌ Fechando dialog de exclusão de tipo');
+      setDeleteDialogOpen(false);
+      setTypeToDelete(null);
     }
   };
 
@@ -168,7 +191,6 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
     onClose();
   };
 
-  // Carregar tipos quando o diálogo abre
   React.useEffect(() => {
     if (isOpen) {
       fetchActionTypes();
@@ -261,7 +283,7 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
 
       <ConfirmDeleteDialog
         open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
+        onOpenChange={handleDeleteDialogClose}
         itemName={typeToDelete?.name || ""}
         itemType="o tipo de ação"
         onConfirm={handleDeleteConfirm}

@@ -30,7 +30,7 @@ export function ConfirmDeleteDialog({
   const handleConfirm = () => {
     console.log('✅ Usuário confirmou a exclusão');
     onConfirm();
-    onOpenChange(false);
+    // Não fechar aqui - deixar o componente pai gerenciar
   };
 
   const handleCancel = () => {
@@ -38,8 +38,13 @@ export function ConfirmDeleteDialog({
     onOpenChange(false);
   };
 
+  const handleOpenChange = (newOpen: boolean) => {
+    console.log('🔄 AlertDialog onOpenChange chamado com:', newOpen);
+    onOpenChange(newOpen);
+  };
+
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>

@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -104,12 +103,22 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
   };
 
   const handleDeleteClick = (group: ActionGroup) => {
+    console.log('🗑️ Delete button clicked for group:', group.description);
+    console.log('🔍 Setting groupToDelete:', group);
     setGroupToDelete(group);
+    console.log('📋 Opening delete dialog...');
     setDeleteDialogOpen(true);
+    console.log('✅ Delete dialog state set to true');
   };
 
   const handleDeleteConfirm = async () => {
-    if (!groupToDelete) return;
+    console.log('🔥 handleDeleteConfirm chamado para grupo');
+    if (!groupToDelete) {
+      console.log('❌ Nenhum grupo selecionado para exclusão');
+      return;
+    }
+
+    console.log('🗑️ Confirmando exclusão do grupo:', groupToDelete.description);
 
     try {
       const { error } = await supabase
@@ -118,7 +127,7 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
         .eq('id', groupToDelete.id);
 
       if (error) {
-        console.error('Erro ao excluir grupo:', error);
+        console.error('❌ Erro ao excluir grupo:', error);
         toast({
           title: "Erro",
           description: "Não foi possível excluir o grupo de ação.",
@@ -127,6 +136,7 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
         return;
       }
 
+      console.log('✅ Grupo excluído com sucesso');
       toast({
         title: "Sucesso",
         description: "Grupo de ação excluído com sucesso.",
@@ -135,12 +145,25 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
       fetchActionGroups();
       onGroupAdded();
     } catch (error) {
-      console.error('Erro inesperado ao excluir grupo:', error);
+      console.error('❌ Erro inesperado ao excluir grupo:', error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado.",
         variant: "destructive"
       });
+    } finally {
+      console.log('🔄 Fechando dialog e limpando estado');
+      setDeleteDialogOpen(false);
+      setGroupToDelete(null);
+    }
+  };
+
+  const handleDeleteDialogClose = (open: boolean) => {
+    console.log('🔄 Delete dialog onOpenChange called with:', open);
+    if (!open) {
+      console.log('❌ Fechando dialog de exclusão de grupo');
+      setDeleteDialogOpen(false);
+      setGroupToDelete(null);
     }
   };
 
@@ -149,7 +172,6 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
     onClose();
   };
 
-  // Carregar grupos quando o diálogo abre
   React.useEffect(() => {
     if (isOpen) {
       fetchActionGroups();
@@ -222,7 +244,7 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
 
       <ConfirmDeleteDialog
         open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
+        onOpenChange={handleDeleteDialogClose}
         itemName={groupToDelete?.description || ""}
         itemType="o grupo de ação"
         onConfirm={handleDeleteConfirm}

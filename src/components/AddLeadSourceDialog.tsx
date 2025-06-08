@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -160,6 +161,15 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
     }
   };
 
+  const handleDeleteDialogClose = (open: boolean) => {
+    console.log('🔄 Delete dialog onOpenChange called with:', open);
+    if (!open) {
+      console.log('❌ Fechando dialog de exclusão');
+      setDeleteDialogOpen(false);
+      setSourceToDelete(null);
+    }
+  };
+
   const handleDeleteCancel = () => {
     console.log('❌ Exclusão cancelada pelo usuário');
     setDeleteDialogOpen(false);
@@ -246,7 +256,7 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
       {/* Dialog de Confirmação de Exclusão */}
       <ConfirmDeleteDialog
         open={deleteDialogOpen}
-        onOpenChange={handleDeleteCancel}
+        onOpenChange={handleDeleteDialogClose}
         itemName={sourceToDelete?.label || ""}
         itemType="a fonte de lead"
         onConfirm={handleDeleteConfirm}
