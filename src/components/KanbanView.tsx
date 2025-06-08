@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
 import { LossReasonDialog } from "@/components/LossReasonDialog";
+import { DeleteLeadDialog } from "@/components/DeleteLeadDialog";
 import { useLeadStatusHistory } from "@/hooks/useLeadStatusHistory";
 
 interface TransformedLead {
@@ -44,6 +45,8 @@ export function KanbanView({ leads, statuses, onLeadUpdated, onViewDetails, orig
   const { toast } = useToast();
   const [pendingStatusChange, setPendingStatusChange] = useState<{leadId: string, newStatus: string} | null>(null);
   const [isLossReasonDialogOpen, setIsLossReasonDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [leadToDelete, setLeadToDelete] = useState<{ id: string; name: string } | null>(null);
   const { hasLeadPassedThroughStatus } = useLeadStatusHistory();
 
   const getLeadsByStatus = (status: string) => {
@@ -104,38 +107,36 @@ export function KanbanView({ leads, statuses, onLeadUpdated, onViewDetails, orig
     }
   };
 
-  const deleteLead = async (leadId: string, leadName: string) => {
-    if (window.confirm(`Tem certeza que deseja excluir o lead "${leadName}"?`)) {
-      try {
-        const { error } = await supabase
-          .from('leads')
-          .delete()
-          .eq('id', leadId);
+  const deleteLead = async (leadId: string) => {
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .delete()
+        .eq('id', leadId);
 
-        if (error) {
-          console.error('Erro ao excluir lead:', error);
-          toast({
-            title: "Erro",
-            description: "Não foi possível excluir o lead.",
-            variant: "destructive"
-          });
-          return;
-        }
-
-        toast({
-          title: "Sucesso",
-          description: "Lead excluído com sucesso.",
-        });
-
-        onLeadUpdated();
-      } catch (error) {
-        console.error('Erro inesperado ao excluir lead:', error);
+      if (error) {
+        console.error('Erro ao excluir lead:', error);
         toast({
           title: "Erro",
-          description: "Ocorreu um erro inesperado ao excluir o lead.",
+          description: "Não foi possível excluir o lead.",
           variant: "destructive"
         });
+        return;
       }
+
+      toast({
+        title: "Sucesso",
+        description: "Lead excluído com sucesso.",
+      });
+
+      onLeadUpdated();
+    } catch (error) {
+      console.error('Erro inesperado ao excluir lead:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado ao excluir o lead.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -143,6 +144,18 @@ export function KanbanView({ leads, statuses, onLeadUpdated, onViewDetails, orig
     const originalLead = originalLeads.find(lead => lead.id === transformedLead.originalId);
     if (originalLead) {
       onViewDetails(originalLead);
+    }
+  };
+
+  const handleDeleteLead = (leadId: string, leadName: string) => {
+    setLeadToDelete({ id: leadId, name: leadName });
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteLead = () => {
+    if (leadToDelete) {
+      deleteLead(leadToDelete.id);
+      setLeadToDelete(null);
     }
   };
 
@@ -273,7 +286,7 @@ export function KanbanView({ leads, statuses, onLeadUpdated, onViewDetails, orig
                       variant="destructive"
                       size="sm" 
                       className="flex-1 text-xs"
-                      onClick={() => deleteLead(lead.originalId, lead.name)}
+                      onClick={() => handleDeleteLead(lead.originalId, lead.name)}
                     >
                       <Trash2 className="h-3 w-3 mr-1" />
                       Excluir
@@ -291,6 +304,13 @@ export function KanbanView({ leads, statuses, onLeadUpdated, onViewDetails, orig
         onOpenChange={setIsLossReasonDialogOpen}
         onReasonSelected={handleLossReasonSelected}
         onCancel={handleLossReasonCancel}
+      />
+
+      <DeleteLeadDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        leadName={leadToDelete?.name || ""}
+        onConfirm={confirmDeleteLead}
       />
     </>
   );
