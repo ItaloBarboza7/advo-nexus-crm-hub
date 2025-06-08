@@ -15,6 +15,7 @@ import { AddLeadSourceDialog } from "@/components/AddLeadSourceDialog";
 import { AddLossReasonDialog } from "@/components/AddLossReasonDialog";
 import { EditCompanyModal } from "@/components/EditCompanyModal";
 import { DeleteButton } from "@/components/DeleteButton";
+import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useFilterOptions } from "@/hooks/useFilterOptions";
@@ -96,6 +97,17 @@ export function SettingsContent() {
   const [editingActionTypeName, setEditingActionTypeName] = useState("");
   const [editingLeadSourceName, setEditingLeadSourceName] = useState("");
   const [editingLossReasonName, setEditingLossReasonName] = useState("");
+
+  // Estado para controlar o diálogo de confirmação de exclusão dos motivos de perda
+  const [deleteConfirmDialog, setDeleteConfirmDialog] = useState<{
+    open: boolean;
+    reasonId: string;
+    reasonName: string;
+  }>({
+    open: false,
+    reasonId: "",
+    reasonName: ""
+  });
 
   const { toast } = useToast();
 
@@ -630,18 +642,34 @@ export function SettingsContent() {
     setEditingLossReasonName("");
   };
 
-  const handleDeleteLossReason = async (reasonId: string, reasonName: string) => {
-    console.log(`🗑️ SettingsContent - Iniciando exclusão do motivo ID: ${reasonId}, nome: ${reasonName}`);
+  const handleDeleteLossReasonClick = (reasonId: string, reasonName: string) => {
+    console.log(`🗑️ SettingsContent - Abrindo diálogo de confirmação para exclusão do motivo ID: ${reasonId}, nome: ${reasonName}`);
+    setDeleteConfirmDialog({
+      open: true,
+      reasonId,
+      reasonName
+    });
+  };
+
+  const handleConfirmDeleteLossReason = async () => {
+    console.log(`🔥 SettingsContent - Confirmando exclusão do motivo ID: ${deleteConfirmDialog.reasonId}, nome: ${deleteConfirmDialog.reasonName}`);
     try {
-      const success = await deleteLossReason(reasonId);
+      const success = await deleteLossReason(deleteConfirmDialog.reasonId);
       if (success) {
-        console.log(`✅ SettingsContent - Motivo "${reasonName}" excluído com sucesso`);
+        console.log(`✅ SettingsContent - Motivo "${deleteConfirmDialog.reasonName}" excluído com sucesso`);
       } else {
-        console.log(`❌ SettingsContent - Falha ao excluir motivo "${reasonName}"`);
+        console.log(`❌ SettingsContent - Falha ao excluir motivo "${deleteConfirmDialog.reasonName}"`);
       }
     } catch (error) {
-      console.error(`❌ SettingsContent - Erro ao excluir motivo "${reasonName}":`, error);
+      console.error(`❌ SettingsContent - Erro ao excluir motivo "${deleteConfirmDialog.reasonName}":`, error);
+    } finally {
+      setDeleteConfirmDialog({ open: false, reasonId: "", reasonName: "" });
     }
+  };
+
+  const handleCancelDeleteLossReason = () => {
+    console.log(`❌ SettingsContent - Cancelando exclusão do motivo: ${deleteConfirmDialog.reasonName}`);
+    setDeleteConfirmDialog({ open: false, reasonId: "", reasonName: "" });
   };
 
   const handleAddLossReasonFromDialog = async () => {
@@ -1302,7 +1330,7 @@ export function SettingsContent() {
                               <Button 
                                 variant="outline" 
                                 size="sm"
-                                onClick={() => handleDeleteLossReason(reason.id, reason.reason)}
+                                onClick={() => handleDeleteLossReasonClick(reason.id, reason.reason)}
                                 className="text-red-600 hover:text-red-700 hover:bg-red-50"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -1404,6 +1432,15 @@ export function SettingsContent() {
         companyInfo={companyInfo}
         onSave={updateCompanyInfo}
         isLoading={isLoadingCompany}
+      />
+
+      {/* Diálogo de confirmação para exclusão de motivos de perda */}
+      <ConfirmDeleteDialog
+        open={deleteConfirmDialog.open}
+        onOpenChange={handleCancelDeleteLossReason}
+        itemName={deleteConfirmDialog.reasonName}
+        itemType="motivo de perda"
+        onConfirm={handleConfirmDeleteLossReason}
       />
     </div>
   );
