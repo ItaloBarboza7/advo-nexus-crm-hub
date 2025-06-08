@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,47 +22,44 @@ export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEdi
   const groupedLeads = () => {
     console.log(`🔍 GroupedLeadsList - selectedCategory: ${selectedCategory}`);
     
-    // CORREÇÃO: Verificar se a categoria inclui subcategorias de ação
-    if (selectedCategory === "perdas" || selectedCategory.startsWith("perdas-")) {
-      // Para perdas com tipo de ação, agrupar por action_type
-      if (selectedCategory === "perdas-tipo-acao") {
-        const groups = leads.reduce((acc, lead) => {
-          const actionType = lead.action_type || "outros";
-          const groupName = getActionTypeLabel(actionType);
-          if (!acc[groupName]) {
-            acc[groupName] = [];
-          }
-          acc[groupName].push(lead);
-          return acc;
-        }, {} as Record<string, Lead[]>);
-        return groups;
-      }
-      // Para perdas com grupo de ação, agrupar por action_group (ou mapear action_type para grupos)
-      else if (selectedCategory === "perdas-grupo-acao") {
-        const groups = leads.reduce((acc, lead) => {
-          const actionType = lead.action_type || "outros";
-          const groupName = getActionGroupLabel(actionType);
-          if (!acc[groupName]) {
-            acc[groupName] = [];
-          }
-          acc[groupName].push(lead);
-          return acc;
-        }, {} as Record<string, Lead[]>);
-        return groups;
-      }
-      // Para perdas simples, agrupar por loss_reason
-      else if (selectedCategory === "perdas") {
-        const groups = leads.reduce((acc, lead) => {
-          const lossReason = lead.loss_reason || "Sem motivo especificado";
-          if (!acc[lossReason]) {
-            acc[lossReason] = [];
-          }
-          acc[lossReason].push(lead);
-          return acc;
-        }, {} as Record<string, Lead[]>);
-        return groups;
-      }
-    } 
+    // Para perdas com tipo de ação, agrupar por action_type
+    if (selectedCategory === "perdas-tipo-acao") {
+      const groups = leads.reduce((acc, lead) => {
+        const actionType = lead.action_type || "outros";
+        const groupName = getActionTypeLabel(actionType);
+        if (!acc[groupName]) {
+          acc[groupName] = [];
+        }
+        acc[groupName].push(lead);
+        return acc;
+      }, {} as Record<string, Lead[]>);
+      return groups;
+    }
+    // Para perdas com grupo de ação, agrupar por action_group
+    else if (selectedCategory === "perdas-grupo-acao") {
+      const groups = leads.reduce((acc, lead) => {
+        const actionType = lead.action_type || "outros";
+        const groupName = getActionGroupLabel(actionType);
+        if (!acc[groupName]) {
+          acc[groupName] = [];
+        }
+        acc[groupName].push(lead);
+        return acc;
+      }, {} as Record<string, Lead[]>);
+      return groups;
+    }
+    // Para perdas simples, agrupar por loss_reason
+    else if (selectedCategory === "perdas") {
+      const groups = leads.reduce((acc, lead) => {
+        const lossReason = lead.loss_reason || "Sem motivo especificado";
+        if (!acc[lossReason]) {
+          acc[lossReason] = [];
+        }
+        acc[lossReason].push(lead);
+        return acc;
+      }, {} as Record<string, Lead[]>);
+      return groups;
+    }
     // Para contratos com tipo de ação, agrupar por action_type
     else if (selectedCategory === "contratos-tipo-acao") {
       const groups = leads.reduce((acc, lead) => {
@@ -114,10 +112,7 @@ export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEdi
       }, {} as Record<string, Lead[]>);
       return groups;
     }
-    // Para categorias principais simples (contratos, oportunidades), não agrupar
-    else if (selectedCategory === "contratos" || selectedCategory === "oportunidades") {
-      return { "Todos os Leads": leads };
-    } 
+    // Para todas as outras categorias, não agrupar - mostrar lista simples
     else {
       return { "Todos os Leads": leads };
     }
@@ -189,14 +184,15 @@ export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEdi
   const groups = groupedLeads();
   const groupNames = Object.keys(groups);
   
-  // CORREÇÃO: Mostrar agrupamento para todas as subcategorias que incluem ação E para perdas simples
-  const shouldShowGrouping = (
-    selectedCategory === "perdas" || 
-    selectedCategory.includes("-tipo-acao") || 
-    selectedCategory.includes("-grupo-acao")
-  ) && groupNames.length > 1;
+  // Definir quando mostrar agrupamento: 
+  // - Sempre quando há mais de um grupo
+  // - OU quando é uma categoria específica que deve agrupar (perdas, tipo-acao, grupo-acao)
+  const shouldShowGrouping = groupNames.length > 1 || 
+                            selectedCategory === "perdas" ||
+                            selectedCategory.includes("-tipo-acao") ||
+                            selectedCategory.includes("-grupo-acao");
 
-  console.log(`📊 GroupedLeadsList - shouldShowGrouping: ${shouldShowGrouping}, groups: ${groupNames.length}`);
+  console.log(`📊 GroupedLeadsList - shouldShowGrouping: ${shouldShowGrouping}, groups: ${groupNames.length}, selectedCategory: ${selectedCategory}`);
 
   if (leads.length === 0) {
     return (
