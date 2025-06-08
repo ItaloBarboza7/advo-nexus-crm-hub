@@ -238,12 +238,13 @@ export function useLossReasonsGlobal() {
     try {
       console.log(`🔄 useLossReasonsGlobal - Iniciando exclusão no banco de dados para ID: ${id}`);
       
-      const { error: deleteError } = await supabase
+      // Fazer a exclusão no banco de dados
+      const { error: deleteError, count } = await supabase
         .from('loss_reasons')
-        .delete()
+        .delete({ count: 'exact' })
         .eq('id', id);
 
-      console.log(`📊 useLossReasonsGlobal - Resposta da exclusão:`, { error: deleteError });
+      console.log(`📊 useLossReasonsGlobal - Resposta da exclusão:`, { error: deleteError, count });
 
       if (deleteError) {
         console.error('❌ Erro ao excluir motivo no banco:', deleteError);
@@ -255,15 +256,36 @@ export function useLossReasonsGlobal() {
         return false;
       }
 
-      console.log(`✅ useLossReasonsGlobal - Motivo "${reasonToDelete.reason}" excluído do banco com sucesso.`);
+      // Verificar se algum registro foi realmente deletado
+      if (count === 0) {
+        console.warn('⚠️ Nenhum registro foi deletado do banco de dados');
+        toast({
+          title: "Aviso",
+          description: "O motivo não foi encontrado no banco de dados.",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      console.log(`✅ useLossReasonsGlobal - ${count} motivo(s) excluído(s) do banco com sucesso.`);
       
-      // Atualizar o estado global imediatamente removendo o item
-      globalLossReasons = globalLossReasons.filter(r => r.id !== id);
-      console.log(`✅ useLossReasonsGlobal - Motivo removido do estado global. ${globalLossReasons.length} motivos restantes`);
+      // Buscar dados atualizados do banco para garantir sincronização
+      console.log(`🔄 useLossReasonsGlobal - Buscando dados atualizados do banco...`);
+      await updateGlobalState();
       
-      // Notificar subscribers sobre a mudança
-      notifySubscribers();
+      // Verificar se realmente foi removido do estado global
+      const stillExists = globalLossReasons.find(r => r.id === id);
+      if (stillExists) {
+        console.error(`❌ ERRO: Motivo ainda existe no estado global após exclusão!`, stillExists);
+        toast({
+          title: "Erro",
+          description: "Falha na sincronização após exclusão.",
+          variant: "destructive"
+        });
+        return false;
+      }
       
+      console.log(`✅ useLossReasonsGlobal - Confirmado: motivo "${reasonToDelete.reason}" foi completamente removido`);
       toast({
         title: "Sucesso",
         description: "Motivo de perda excluído com sucesso.",
