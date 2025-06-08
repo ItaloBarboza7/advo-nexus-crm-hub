@@ -708,12 +708,14 @@ export function EditLeadForm({
                   <SelectContent className="bg-white border shadow-lg max-h-60 overflow-y-auto z-50">
                     {lossReasons && lossReasons.length > 0 ? (
                       lossReasons.map((reason) => (
-                        <SelectItem key={reason.id} value={reason.reason}>
-                          {reason.reason}
-                        </SelectItem>
+                        reason.reason && reason.reason.trim() !== "" ? (
+                          <SelectItem key={reason.id} value={reason.reason}>
+                            {reason.reason}
+                          </SelectItem>
+                        ) : null
                       ))
                     ) : (
-                      <SelectItem value="" disabled>
+                      <SelectItem value="no_reasons_available" disabled>
                         Nenhum motivo disponível
                       </SelectItem>
                     )}
