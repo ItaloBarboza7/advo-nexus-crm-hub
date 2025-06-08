@@ -12,10 +12,12 @@ import { AddColumnDialog } from "@/components/AddColumnDialog";
 import { AddActionGroupDialog } from "@/components/AddActionGroupDialog";
 import { AddActionTypeDialog } from "@/components/AddActionTypeDialog";
 import { AddLeadSourceDialog } from "@/components/AddLeadSourceDialog";
+import { EditCompanyModal } from "@/components/EditCompanyModal";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useFilterOptions } from "@/hooks/useFilterOptions";
 import { useDashboardSettings } from "@/hooks/useDashboardSettings";
+import { useCompanyInfo } from "@/hooks/useCompanyInfo";
 
 interface KanbanColumn {
   id: string;
@@ -40,6 +42,7 @@ export function SettingsContent() {
   const [isAddActionGroupDialogOpen, setIsAddActionGroupDialogOpen] = useState(false);
   const [isAddActionTypeDialogOpen, setIsAddActionTypeDialogOpen] = useState(false);
   const [isAddLeadSourceDialogOpen, setIsAddLeadSourceDialogOpen] = useState(false);
+  const [isEditCompanyModalOpen, setIsEditCompanyModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
   const [teamMembers, setTeamMembers] = useState([
     { id: 1, name: "Maria Silva", email: "maria@empresa.com", role: "Atendimento - SDR", avatar: "MS" },
@@ -49,14 +52,6 @@ export function SettingsContent() {
 
   // Simulating admin check - in real implementation this would come from auth context
   const isAdmin = true; // This should be replaced with actual admin check logic
-
-  const [companyInfo, setCompanyInfo] = useState({
-    name: "",
-    cnpj: "",
-    phone: "",
-    email: "",
-    address: ""
-  });
 
   // Estados para gerenciar colunas do Kanban
   const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([]);
@@ -68,11 +63,14 @@ export function SettingsContent() {
   // Hook para configurações do dashboard
   const { components, toggleComponentVisibility } = useDashboardSettings();
 
+  // Hook para informações da empresa
+  const { companyInfo, isLoading: isLoadingCompany, updateCompanyInfo } = useCompanyInfo();
+
   // Usar o hook para obter os dados sincronizados
   const { 
-    actionGroups, 
-    actionTypes, 
-    leadSources, 
+    actionGroups = [], 
+    actionTypes = [], 
+    leadSources = [], 
     loading: optionsLoading,
     refreshData 
   } = useFilterOptions();
@@ -155,23 +153,6 @@ export function SettingsContent() {
     toast({
       title: "Membro removido",
       description: "O membro foi removido da equipe com sucesso.",
-    });
-  };
-
-  const handleSaveCompanyInfo = () => {
-    // Validate required fields
-    if (!companyInfo.name || !companyInfo.cnpj || !companyInfo.phone || !companyInfo.email || !companyInfo.address) {
-      toast({
-        title: "Erro",
-        description: "Todos os campos são obrigatórios.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    toast({
-      title: "Informações salvas",
-      description: "As informações da empresa foram salvas com sucesso.",
     });
   };
 
@@ -608,70 +589,79 @@ export function SettingsContent() {
       
       {/* Company Information */}
       <Card className="p-6">
-        <h4 className="text-md font-semibold text-gray-900 mb-4">Informações da Empresa</h4>
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nome da Empresa <span className="text-red-500">*</span>
-              </label>
-              <Input 
-                placeholder="LeadsCRM" 
-                value={companyInfo.name}
-                onChange={(e) => setCompanyInfo(prev => ({ ...prev, name: e.target.value }))}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                CNPJ <span className="text-red-500">*</span>
-              </label>
-              <Input 
-                placeholder="00.000.000/0001-00" 
-                value={companyInfo.cnpj}
-                onChange={(e) => setCompanyInfo(prev => ({ ...prev, cnpj: e.target.value }))}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Telefone <span className="text-red-500">*</span>
-              </label>
-              <Input 
-                placeholder="(11) 99999-9999" 
-                value={companyInfo.phone}
-                onChange={(e) => setCompanyInfo(prev => ({ ...prev, phone: e.target.value }))}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                E-mail <span className="text-red-500">*</span>
-              </label>
-              <Input 
-                placeholder="contato@empresa.com" 
-                type="email"
-                value={companyInfo.email}
-                onChange={(e) => setCompanyInfo(prev => ({ ...prev, email: e.target.value }))}
-                required
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Endereço <span className="text-red-500">*</span>
-            </label>
-            <Input 
-              placeholder="Rua das Empresas, 123 - São Paulo, SP" 
-              value={companyInfo.address}
-              onChange={(e) => setCompanyInfo(prev => ({ ...prev, address: e.target.value }))}
-              required
-            />
-          </div>
-          <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSaveCompanyInfo}>
-            Salvar Informações
+        <div className="flex items-center justify-between mb-4">
+          <h4 className="text-md font-semibold text-gray-900">Informações da Empresa</h4>
+          <Button 
+            variant="outline"
+            onClick={() => setIsEditCompanyModalOpen(true)}
+            disabled={isLoadingCompany}
+          >
+            <Edit className="h-4 w-4 mr-2" />
+            Editar
           </Button>
         </div>
+        
+        {isLoadingCompany ? (
+          <div className="text-center py-8">
+            <p className="text-gray-500">Carregando informações da empresa...</p>
+          </div>
+        ) : companyInfo ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nome da Empresa
+                </label>
+                <div className="bg-gray-50 border border-gray-200 px-3 py-2 rounded-md">
+                  {companyInfo.company_name}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  CNPJ
+                </label>
+                <div className="bg-gray-50 border border-gray-200 px-3 py-2 rounded-md">
+                  {companyInfo.cnpj}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Telefone
+                </label>
+                <div className="bg-gray-50 border border-gray-200 px-3 py-2 rounded-md">
+                  {companyInfo.phone}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  E-mail
+                </label>
+                <div className="bg-gray-50 border border-gray-200 px-3 py-2 rounded-md">
+                  {companyInfo.email}
+                </div>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Endereço
+              </label>
+              <div className="bg-gray-50 border border-gray-200 px-3 py-2 rounded-md">
+                {companyInfo.address}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-gray-500 mb-4">Nenhuma informação da empresa encontrada.</p>
+            <Button 
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={() => setIsEditCompanyModalOpen(true)}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Cadastrar Informações
+            </Button>
+          </div>
+        )}
       </Card>
 
       {/* Subscription and Payment Panel */}
@@ -1221,6 +1211,14 @@ export function SettingsContent() {
         isOpen={isAddLeadSourceDialogOpen}
         onClose={() => setIsAddLeadSourceDialogOpen(false)}
         onSourceAdded={refreshData}
+      />
+
+      <EditCompanyModal
+        isOpen={isEditCompanyModalOpen}
+        onClose={() => setIsEditCompanyModalOpen(false)}
+        companyInfo={companyInfo}
+        onSave={updateCompanyInfo}
+        isLoading={isLoadingCompany}
       />
     </div>
   );
