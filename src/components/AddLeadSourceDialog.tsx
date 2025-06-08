@@ -15,17 +15,16 @@ interface AddLeadSourceDialogProps {
 
 export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadSourceDialogProps) {
   const [name, setName] = useState("");
-  const [label, setLabel] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name.trim() || !label.trim()) {
+    if (!name.trim()) {
       toast({
         title: "Erro",
-        description: "Nome e rótulo são obrigatórios.",
+        description: "Nome é obrigatório.",
         variant: "destructive",
       });
       return;
@@ -38,7 +37,7 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
         .from('lead_sources')
         .insert({
           name: name.toLowerCase().replace(/\s+/g, '-'),
-          label: label.trim()
+          label: name.trim()
         });
 
       if (error) {
@@ -57,7 +56,6 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
       });
 
       setName("");
-      setLabel("");
       onSourceAdded();
       onClose();
     } catch (error) {
@@ -74,7 +72,6 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
 
   const handleClose = () => {
     setName("");
-    setLabel("");
     onClose();
   };
 
@@ -90,21 +87,11 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="name">Nome (ID)</Label>
+              <Label htmlFor="name">Nome da Fonte</Label>
               <Input
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder=""
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="label">Rótulo de Exibição</Label>
-              <Input
-                id="label"
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
                 placeholder=""
                 required
               />
