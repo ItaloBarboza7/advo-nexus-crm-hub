@@ -1,10 +1,11 @@
 
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { AdvancedFilters, FilterOptions } from "@/components/AdvancedFilters";
 import { ActionToggleDropdown } from "@/components/analysis/ActionToggleDropdown";
 import { ViewToggleDropdown } from "@/components/analysis/ViewToggleDropdown";
+import { Button } from "@/components/ui/button";
 
 interface SearchAndFiltersProps {
   searchTerm: string;
@@ -21,6 +22,11 @@ interface SearchAndFiltersProps {
   onContractsViewChange?: (view: 'weekly' | 'monthly') => void;
   opportunitiesViewMode?: 'weekly' | 'monthly';
   onOpportunitiesViewChange?: (view: 'weekly' | 'monthly') => void;
+  // Props para controlar quando mostrar gráficos
+  showLeadsChart?: boolean;
+  showContractsChart?: boolean;
+  showOpportunitiesChart?: boolean;
+  onCloseCharts?: () => void;
 }
 
 export function SearchAndFilters({
@@ -36,7 +42,11 @@ export function SearchAndFilters({
   contractsViewMode = 'weekly',
   onContractsViewChange,
   opportunitiesViewMode = 'weekly',
-  onOpportunitiesViewChange
+  onOpportunitiesViewChange,
+  showLeadsChart = false,
+  showContractsChart = false,
+  showOpportunitiesChart = false,
+  onCloseCharts
 }: SearchAndFiltersProps) {
 
   console.log(`🔍 SearchAndFilters - selectedCategory: ${selectedCategory}`);
@@ -45,6 +55,15 @@ export function SearchAndFilters({
     onContractsViewChange: !!onContractsViewChange,
     onOpportunitiesViewChange: !!onOpportunitiesViewChange
   });
+
+  const mainCategory = selectedCategory.split('-')[0];
+  const shouldShowViewToggle = (category: string) => {
+    return category === "all" || 
+           (category === "contratos" && (selectedCategory === "contratos" || selectedCategory.startsWith("contratos-"))) ||
+           (category === "oportunidades" && (selectedCategory === "oportunidades" || selectedCategory.startsWith("oportunidades-")));
+  };
+
+  const anyChartVisible = showLeadsChart || showContractsChart || showOpportunitiesChart;
 
   return (
     <Card className="p-6">
@@ -70,7 +89,7 @@ export function SearchAndFilters({
           )}
           
           {/* Dropdown para visualização de leads quando categoria for "all" */}
-          {selectedCategory === "all" && onLeadsViewChange && (
+          {shouldShowViewToggle("all") && selectedCategory === "all" && onLeadsViewChange && (
             <ViewToggleDropdown
               currentView={leadsViewMode}
               onViewChange={(view) => {
@@ -81,8 +100,8 @@ export function SearchAndFilters({
             />
           )}
 
-          {/* Dropdown para visualização de contratos quando categoria for "contratos" */}
-          {selectedCategory === "contratos" && onContractsViewChange && (
+          {/* Dropdown para visualização de contratos - SEMPRE mostrar quando categoria for "contratos" ou subcategorias */}
+          {shouldShowViewToggle("contratos") && mainCategory === "contratos" && onContractsViewChange && (
             <ViewToggleDropdown
               currentView={contractsViewMode}
               onViewChange={(view) => {
@@ -93,8 +112,8 @@ export function SearchAndFilters({
             />
           )}
 
-          {/* Dropdown para visualização de oportunidades quando categoria for "oportunidades" */}
-          {selectedCategory === "oportunidades" && onOpportunitiesViewChange && (
+          {/* Dropdown para visualização de oportunidades - SEMPRE mostrar quando categoria for "oportunidades" ou subcategorias */}
+          {shouldShowViewToggle("oportunidades") && mainCategory === "oportunidades" && onOpportunitiesViewChange && (
             <ViewToggleDropdown
               currentView={opportunitiesViewMode}
               onViewChange={(view) => {
@@ -109,6 +128,19 @@ export function SearchAndFilters({
             selectedCategory={selectedCategory}
             onCategoryChange={onCategoryChange}
           />
+
+          {/* Botão para fechar gráficos */}
+          {anyChartVisible && onCloseCharts && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onCloseCharts}
+              className="h-8 gap-2"
+            >
+              <X className="h-4 w-4" />
+              Fechar Gráfico
+            </Button>
+          )}
         </div>
       </div>
     </Card>
