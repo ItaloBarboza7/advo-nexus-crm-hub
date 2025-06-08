@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 
 interface AddMemberModalProps {
@@ -18,6 +19,7 @@ export function AddMemberModal({ isOpen, onClose, onMemberAdded }: AddMemberModa
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("");
   const [password, setPassword] = useState("");
+  const [hasAnalysisAccess, setHasAnalysisAccess] = useState(false);
   const { toast } = useToast();
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -37,6 +39,7 @@ export function AddMemberModal({ isOpen, onClose, onMemberAdded }: AddMemberModa
       name,
       email,
       role,
+      hasAnalysisAccess,
       avatar: name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     };
 
@@ -52,6 +55,7 @@ export function AddMemberModal({ isOpen, onClose, onMemberAdded }: AddMemberModa
     setEmail("");
     setRole("");
     setPassword("");
+    setHasAnalysisAccess(false);
     onClose();
   };
 
@@ -107,10 +111,25 @@ export function AddMemberModal({ isOpen, onClose, onMemberAdded }: AddMemberModa
               <SelectContent>
                 <SelectItem value="Atendimento - SDR">Atendimento - SDR</SelectItem>
                 <SelectItem value="Fechamento - Closer">Fechamento - Closer</SelectItem>
+                <SelectItem value="Vendedor">Vendedor</SelectItem>
                 <SelectItem value="Analista">Analista</SelectItem>
                 <SelectItem value="Assistente">Assistente</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-3">
+            <Label>Acesso</Label>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="analysis-access"
+                checked={hasAnalysisAccess}
+                onCheckedChange={(checked) => setHasAnalysisAccess(checked as boolean)}
+              />
+              <Label htmlFor="analysis-access" className="text-sm font-normal">
+                Acesso a análises
+              </Label>
+            </div>
           </div>
 
           <div className="flex gap-3 pt-4">

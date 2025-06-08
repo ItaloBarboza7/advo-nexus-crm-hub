@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 
 interface EditMemberModalProps {
@@ -18,6 +19,8 @@ export function EditMemberModal({ isOpen, onClose, member, onMemberUpdated }: Ed
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("");
+  const [password, setPassword] = useState("");
+  const [hasAnalysisAccess, setHasAnalysisAccess] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -25,6 +28,8 @@ export function EditMemberModal({ isOpen, onClose, member, onMemberUpdated }: Ed
       setName(member.name || "");
       setEmail(member.email || "");
       setRole(member.role || "");
+      setPassword("");
+      setHasAnalysisAccess(member.hasAnalysisAccess || false);
     }
   }, [member]);
 
@@ -34,7 +39,7 @@ export function EditMemberModal({ isOpen, onClose, member, onMemberUpdated }: Ed
     if (!name || !email || !role) {
       toast({
         title: "Erro",
-        description: "Todos os campos são obrigatórios.",
+        description: "Nome, e-mail e cargo são obrigatórios.",
         variant: "destructive",
       });
       return;
@@ -45,7 +50,10 @@ export function EditMemberModal({ isOpen, onClose, member, onMemberUpdated }: Ed
       name,
       email,
       role,
-      avatar: name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+      hasAnalysisAccess,
+      avatar: name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
+      // Only update password if a new one was provided
+      ...(password && { password })
     };
 
     onMemberUpdated(updatedMember);
@@ -90,6 +98,17 @@ export function EditMemberModal({ isOpen, onClose, member, onMemberUpdated }: Ed
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="edit-password">Senha</Label>
+            <Input
+              id="edit-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Digite uma nova senha (deixe em branco para manter a atual)"
+            />
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="edit-role">Cargo</Label>
             <Select value={role} onValueChange={setRole} required>
               <SelectTrigger>
@@ -98,10 +117,25 @@ export function EditMemberModal({ isOpen, onClose, member, onMemberUpdated }: Ed
               <SelectContent>
                 <SelectItem value="Atendimento - SDR">Atendimento - SDR</SelectItem>
                 <SelectItem value="Fechamento - Closer">Fechamento - Closer</SelectItem>
+                <SelectItem value="Vendedor">Vendedor</SelectItem>
                 <SelectItem value="Analista">Analista</SelectItem>
                 <SelectItem value="Assistente">Assistente</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-3">
+            <Label>Acesso</Label>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="edit-analysis-access"
+                checked={hasAnalysisAccess}
+                onCheckedChange={(checked) => setHasAnalysisAccess(checked as boolean)}
+              />
+              <Label htmlFor="edit-analysis-access" className="text-sm font-normal">
+                Acesso a análises
+              </Label>
+            </div>
           </div>
 
           <div className="flex gap-3 pt-4">
