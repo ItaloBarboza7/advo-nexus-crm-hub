@@ -23,6 +23,8 @@ interface AdvancedFiltersProps {
   selectedCategory?: string;
   lossReasons?: Array<{ id: string; reason: string; }>;
   onLossReasonUpdate?: () => void;
+  onDeleteLossReason?: (lossReasonId: string, lossReasonName: string) => Promise<boolean>;
+  onAddLossReason?: (reason: string) => Promise<boolean>;
 }
 
 export interface FilterOptions {
@@ -39,7 +41,9 @@ export function AdvancedFilters({
   activeFilters, 
   selectedCategory, 
   lossReasons = [],
-  onLossReasonUpdate 
+  onLossReasonUpdate,
+  onDeleteLossReason,
+  onAddLossReason
 }: AdvancedFiltersProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { statusOptions, sourceOptions, actionGroupOptions, stateOptions } = useFilterOptions();
@@ -177,6 +181,8 @@ export function AdvancedFilters({
                   lossReasons={lossReasons}
                   activeFilters={activeFilters.lossReason}
                   onLossReasonChange={handleLossReasonChange}
+                  onDeleteLossReason={onDeleteLossReason}
+                  onAddLossReason={onAddLossReason}
                 />
                 <Separator />
               </>
