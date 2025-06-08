@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -120,7 +121,9 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
     }
   };
 
-  const handleDeleteClick = (type: ActionType) => {
+  const handleDeleteClick = (e: React.MouseEvent, type: ActionType) => {
+    e.preventDefault();
+    e.stopPropagation();
     console.log('🗑️ Delete button clicked for type:', type.name);
     console.log('🔍 Setting typeToDelete:', type);
     setTypeToDelete(type);
@@ -260,9 +263,10 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
                       </span>
                     </div>
                     <Button
+                      type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleDeleteClick(type)}
+                      onClick={(e) => handleDeleteClick(e, type)}
                       className="text-red-600 hover:text-red-700 hover:bg-red-50"
                     >
                       <Trash2 className="h-4 w-4" />

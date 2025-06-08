@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -102,7 +103,9 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
     }
   };
 
-  const handleDeleteClick = (group: ActionGroup) => {
+  const handleDeleteClick = (e: React.MouseEvent, group: ActionGroup) => {
+    e.preventDefault();
+    e.stopPropagation();
     console.log('🗑️ Delete button clicked for group:', group.description);
     console.log('🔍 Setting groupToDelete:', group);
     setGroupToDelete(group);
@@ -221,9 +224,10 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
                   <div key={group.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                     <span className="text-sm">{group.description}</span>
                     <Button
+                      type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleDeleteClick(group)}
+                      onClick={(e) => handleDeleteClick(e, group)}
                       className="text-red-600 hover:text-red-700 hover:bg-red-50"
                     >
                       <Trash2 className="h-4 w-4" />

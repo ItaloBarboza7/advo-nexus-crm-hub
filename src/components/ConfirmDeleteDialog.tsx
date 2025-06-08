@@ -27,13 +27,16 @@ export function ConfirmDeleteDialog({
 }: ConfirmDeleteDialogProps) {
   console.log('🔍 ConfirmDeleteDialog renderizado com:', { open, itemName, itemType });
 
-  const handleConfirm = () => {
+  const handleConfirm = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     console.log('✅ Usuário confirmou a exclusão');
     onConfirm();
-    // Não fechar aqui - deixar o componente pai gerenciar
   };
 
-  const handleCancel = () => {
+  const handleCancel = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     console.log('❌ Usuário cancelou a exclusão');
     onOpenChange(false);
   };
@@ -45,7 +48,7 @@ export function ConfirmDeleteDialog({
 
   return (
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
-      <AlertDialogContent>
+      <AlertDialogContent className="z-[60]">
         <AlertDialogHeader>
           <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
           <AlertDialogDescription>

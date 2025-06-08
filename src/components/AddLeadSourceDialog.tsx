@@ -170,18 +170,11 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
     }
   };
 
-  const handleDeleteCancel = () => {
-    console.log('❌ Exclusão cancelada pelo usuário');
-    setDeleteDialogOpen(false);
-    setSourceToDelete(null);
-  };
-
   const handleClose = () => {
     setName("");
     onClose();
   };
 
-  // Carregar fontes quando o diálogo abre
   React.useEffect(() => {
     if (isOpen) {
       fetchLeadSources();
@@ -253,7 +246,6 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de Confirmação de Exclusão */}
       <ConfirmDeleteDialog
         open={deleteDialogOpen}
         onOpenChange={handleDeleteDialogClose}
