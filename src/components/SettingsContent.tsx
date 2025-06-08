@@ -12,9 +12,7 @@ import { AddColumnDialog } from "@/components/AddColumnDialog";
 import { AddActionGroupDialog } from "@/components/AddActionGroupDialog";
 import { AddActionTypeDialog } from "@/components/AddActionTypeDialog";
 import { AddLeadSourceDialog } from "@/components/AddLeadSourceDialog";
-import { AddLossReasonDialog } from "@/components/AddLossReasonDialog";
 import { EditCompanyModal } from "@/components/EditCompanyModal";
-import { DeleteButton } from "@/components/DeleteButton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useFilterOptions } from "@/hooks/useFilterOptions";
@@ -44,7 +42,6 @@ export function SettingsContent() {
   const [isAddActionGroupDialogOpen, setIsAddActionGroupDialogOpen] = useState(false);
   const [isAddActionTypeDialogOpen, setIsAddActionTypeDialogOpen] = useState(false);
   const [isAddLeadSourceDialogOpen, setIsAddLeadSourceDialogOpen] = useState(false);
-  const [isAddLossReasonDialogOpen, setIsAddLossReasonDialogOpen] = useState(false);
   const [isEditCompanyModalOpen, setIsEditCompanyModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
   const [teamMembers, setTeamMembers] = useState([
@@ -63,452 +60,30 @@ export function SettingsContent() {
   const [editingColumn, setEditingColumn] = useState<string | null>(null);
   const [editingColumnName, setEditingColumnName] = useState("");
 
-  // Hook para configurações do dashboard - atualizar para usar nova funcionalidade
-  const { 
-    components, 
-    toggleComponentVisibility, 
-    saveDashboardSettings 
-  } = useDashboardSettings();
+  // Hook para configurações do dashboard
+  const { components, toggleComponentVisibility } = useDashboardSettings();
 
   // Hook para informações da empresa
   const { companyInfo, isLoading: isLoadingCompany, updateCompanyInfo } = useCompanyInfo();
 
-  // Usar o hook para obter os dados sincronizados - ATUALIZADO
+  // Usar o hook para obter os dados sincronizados
   const { 
     actionGroups = [], 
     actionTypes = [], 
     leadSources = [], 
-    lossReasons = [],
     loading: optionsLoading,
-    refreshData,
-    refreshLossReasons  // Nova função específica
+    refreshData 
   } = useFilterOptions();
 
   // Estados para edição inline
   const [editingActionGroup, setEditingActionGroup] = useState<string | null>(null);
   const [editingActionType, setEditingActionType] = useState<string | null>(null);
   const [editingLeadSource, setEditingLeadSource] = useState<string | null>(null);
-  const [editingLossReason, setEditingLossReason] = useState<string | null>(null);
   const [editingActionGroupName, setEditingActionGroupName] = useState("");
   const [editingActionTypeName, setEditingActionTypeName] = useState("");
   const [editingLeadSourceName, setEditingLeadSourceName] = useState("");
-  const [editingLossReasonName, setEditingLossReasonName] = useState("");
 
   const { toast } = useToast();
-
-  // Funções para gerenciar grupos de ação
-  const handleEditActionGroup = (groupId: string, currentName: string) => {
-    setEditingActionGroup(groupId);
-    setEditingActionGroupName(currentName);
-  };
-
-  const handleSaveActionGroup = async () => {
-    if (!editingActionGroup || !editingActionGroupName.trim()) {
-      toast({
-        title: "Erro",
-        description: "O nome do grupo não pode estar vazio.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('action_groups')
-        .update({ description: editingActionGroupName.trim() })
-        .eq('id', editingActionGroup);
-
-      if (error) {
-        console.error('Erro ao atualizar grupo:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível atualizar o grupo de ação.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      setEditingActionGroup(null);
-      setEditingActionGroupName("");
-      refreshData();
-
-      toast({
-        title: "Sucesso",
-        description: "Grupo de ação atualizado com sucesso.",
-      });
-    } catch (error) {
-      console.error('Erro inesperado ao atualizar grupo:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado ao atualizar o grupo.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleDeleteActionGroup = async (groupId: string) => {
-    try {
-      const { error } = await supabase
-        .from('action_groups')
-        .delete()
-        .eq('id', groupId);
-
-      if (error) {
-        console.error('Erro ao excluir grupo:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível excluir o grupo de ação.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      refreshData();
-
-      toast({
-        title: "Sucesso",
-        description: "Grupo de ação excluído com sucesso.",
-      });
-    } catch (error) {
-      console.error('Erro inesperado ao excluir grupo:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado ao excluir o grupo.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Funções para gerenciar tipos de ação
-  const handleEditActionType = (typeId: string, currentName: string) => {
-    setEditingActionType(typeId);
-    setEditingActionTypeName(currentName);
-  };
-
-  const handleSaveActionType = async () => {
-    if (!editingActionType || !editingActionTypeName.trim()) {
-      toast({
-        title: "Erro",
-        description: "O nome do tipo não pode estar vazio.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('action_types')
-        .update({ name: editingActionTypeName.trim() })
-        .eq('id', editingActionType);
-
-      if (error) {
-        console.error('Erro ao atualizar tipo:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível atualizar o tipo de ação.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      setEditingActionType(null);
-      setEditingActionTypeName("");
-      refreshData();
-
-      toast({
-        title: "Sucesso",
-        description: "Tipo de ação atualizado com sucesso.",
-      });
-    } catch (error) {
-      console.error('Erro inesperado ao atualizar tipo:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado ao atualizar o tipo.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleDeleteActionType = async (typeId: string) => {
-    try {
-      const { error } = await supabase
-        .from('action_types')
-        .delete()
-        .eq('id', typeId);
-
-      if (error) {
-        console.error('Erro ao excluir tipo:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível excluir o tipo de ação.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      refreshData();
-
-      toast({
-        title: "Sucesso",
-        description: "Tipo de ação excluído com sucesso.",
-      });
-    } catch (error) {
-      console.error('Erro inesperado ao excluir tipo:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado ao excluir o tipo.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Funções para gerenciar fontes de leads
-  const handleEditLeadSource = (sourceId: string, currentName: string) => {
-    setEditingLeadSource(sourceId);
-    setEditingLeadSourceName(currentName);
-  };
-
-  const handleSaveLeadSource = async () => {
-    if (!editingLeadSource || !editingLeadSourceName.trim()) {
-      toast({
-        title: "Erro",
-        description: "O nome da fonte não pode estar vazio.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('lead_sources')
-        .update({ label: editingLeadSourceName.trim() })
-        .eq('id', editingLeadSource);
-
-      if (error) {
-        console.error('Erro ao atualizar fonte:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível atualizar a fonte de leads.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      setEditingLeadSource(null);
-      setEditingLeadSourceName("");
-      refreshData();
-
-      toast({
-        title: "Sucesso",
-        description: "Fonte de leads atualizada com sucesso.",
-      });
-    } catch (error) {
-      console.error('Erro inesperado ao atualizar fonte:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado ao atualizar a fonte.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleDeleteLeadSource = async (sourceId: string) => {
-    try {
-      const { error } = await supabase
-        .from('lead_sources')
-        .delete()
-        .eq('id', sourceId);
-
-      if (error) {
-        console.error('Erro ao excluir fonte:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível excluir a fonte de leads.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      refreshData();
-
-      toast({
-        title: "Sucesso",
-        description: "Fonte de leads excluída com sucesso.",
-      });
-    } catch (error) {
-      console.error('Erro inesperado ao excluir fonte:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado ao excluir a fonte.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Funções para gerenciar motivos de perda
-  const handleEditLossReason = (reasonId: string, currentReason: string) => {
-    setEditingLossReason(reasonId);
-    setEditingLossReasonName(currentReason);
-  };
-
-  const handleSaveLossReason = async () => {
-    if (!editingLossReason || !editingLossReasonName.trim()) {
-      toast({
-        title: "Erro",
-        description: "O motivo da perda não pode estar vazio.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('loss_reasons')
-        .update({ reason: editingLossReasonName.trim() })
-        .eq('id', editingLossReason);
-
-      if (error) {
-        console.error('Erro ao atualizar motivo de perda:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível atualizar o motivo de perda.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      setEditingLossReason(null);
-      setEditingLossReasonName("");
-      refreshData();
-
-      toast({
-        title: "Sucesso",
-        description: "Motivo de perda atualizado com sucesso.",
-      });
-    } catch (error) {
-      console.error('Erro inesperado ao atualizar motivo de perda:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado ao atualizar o motivo.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Função ATUALIZADA para deletar motivos de perda com diagnóstico completo
-  const handleDeleteLossReason = async (reasonId: string) => {
-    console.log('🗑️ [SettingsContent] ===== INÍCIO DA EXCLUSÃO =====');
-    console.log('🗑️ [SettingsContent] ID recebido para exclusão:', reasonId);
-    console.log('📋 [SettingsContent] Estado atual de lossReasons:', lossReasons);
-    
-    // Verificar conexão com o banco antes de tentar deletar
-    console.log('🔍 [SettingsContent] Testando conexão com o banco...');
-    try {
-      const { data: testConnection, error: connectionError } = await supabase
-        .from('loss_reasons')
-        .select('count')
-        .limit(1);
-      
-      if (connectionError) {
-        console.error('❌ [SettingsContent] ERRO DE CONEXÃO:', connectionError);
-        toast({
-          title: "Erro de Conexão",
-          description: "Não foi possível conectar ao banco de dados.",
-          variant: "destructive"
-        });
-        return;
-      }
-      console.log('✅ [SettingsContent] Conexão com banco OK');
-    } catch (error) {
-      console.error('❌ [SettingsContent] ERRO DE REDE:', error);
-      toast({
-        title: "Erro de Rede",
-        description: "Problemas de conectividade detectados.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Verificar se o ID existe
-    const reasonToDelete = lossReasons.find(reason => reason.id === reasonId);
-    console.log('🔍 [SettingsContent] Motivo encontrado para exclusão:', reasonToDelete);
-    
-    if (!reasonToDelete) {
-      console.error('❌ [SettingsContent] Motivo de perda não encontrado com ID:', reasonId);
-      toast({
-        title: "Erro",
-        description: "Motivo de perda não encontrado.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    console.log('🔥 [SettingsContent] Executando delete no Supabase...');
-    
-    try {
-      const { data, error } = await supabase
-        .from('loss_reasons')
-        .delete()
-        .eq('id', reasonId)
-        .select();
-
-      console.log('📊 [SettingsContent] Resposta do delete:');
-      console.log('   - Data:', data);
-      console.log('   - Error:', error);
-
-      if (error) {
-        console.error('❌ [SettingsContent] Erro do Supabase:', error);
-        toast({
-          title: "Erro",
-          description: `Erro no banco: ${error.message}`,
-          variant: "destructive"
-        });
-        return;
-      }
-
-      console.log('✅ [SettingsContent] Delete executado com sucesso no banco');
-      
-      // Aguardar um pouco antes de atualizar para garantir consistência
-      console.log('⏳ [SettingsContent] Aguardando 500ms para garantir consistência...');
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Usar a função específica de atualização
-      console.log('🔄 [SettingsContent] Chamando refreshLossReasons...');
-      await refreshLossReasons();
-      
-      // Aguardar mais um pouco e verificar se os dados foram atualizados
-      console.log('⏳ [SettingsContent] Aguardando mais 500ms...');
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Fazer uma verificação adicional
-      console.log('🔍 [SettingsContent] Verificação final - buscando dados atualizados...');
-      const { data: verificationData, error: verificationError } = await supabase
-        .from('loss_reasons')
-        .select('*')
-        .order('reason');
-      
-      console.log('📋 [SettingsContent] Dados após exclusão:', verificationData);
-      console.log('📋 [SettingsContent] Quantidade de registros:', verificationData?.length || 0);
-      
-      if (verificationError) {
-        console.error('❌ [SettingsContent] Erro na verificação:', verificationError);
-      }
-
-      console.log('✅ [SettingsContent] ===== EXCLUSÃO FINALIZADA =====');
-
-      toast({
-        title: "Sucesso",
-        description: "Motivo de perda excluído com sucesso.",
-      });
-    } catch (error) {
-      console.error('❌ [SettingsContent] Erro inesperado:', error);
-      toast({
-        title: "Erro",
-        description: "Erro inesperado ao excluir o motivo.",
-        variant: "destructive"
-      });
-    }
-  };
 
   // Carregar colunas do banco de dados
   const fetchKanbanColumns = async () => {
@@ -552,7 +127,7 @@ export function SettingsContent() {
     { id: "dashboard", title: "Dashboard", icon: Building },
     { id: "team", title: "Equipe", icon: Users },
     { id: "kanban", title: "Quadro Kanban", icon: Columns },
-    { id: "configurations", title: "Ações", icon: Settings },
+    { id: "configurations", title: "Configurações", icon: Settings },
   ];
 
   const tabs = isAdmin ? allTabs : allTabs.filter(tab => tab.id !== "company");
@@ -751,6 +326,259 @@ export function SettingsContent() {
       toast({
         title: "Visibilidade alterada",
         description: `${component.name} foi ${component.visible ? 'ocultado' : 'exibido'}.`,
+      });
+    }
+  };
+
+  const handleSaveDashboardSettings = () => {
+    toast({
+      title: "Configurações salvas",
+      description: "As configurações do dashboard foram salvas com sucesso.",
+    });
+  };
+
+  // Funções para gerenciar grupos de ação
+  const handleEditActionGroup = (groupId: string, currentName: string) => {
+    setEditingActionGroup(groupId);
+    setEditingActionGroupName(currentName);
+  };
+
+  const handleSaveActionGroup = async () => {
+    if (!editingActionGroupName.trim() || !editingActionGroup) {
+      toast({
+        title: "Erro",
+        description: "O nome do grupo não pode estar vazio.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('action_groups')
+        .update({ description: editingActionGroupName.trim() })
+        .eq('id', editingActionGroup);
+
+      if (error) {
+        console.error('Erro ao atualizar grupo:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível atualizar o grupo.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      await refreshData();
+      setEditingActionGroup(null);
+      setEditingActionGroupName("");
+
+      toast({
+        title: "Sucesso",
+        description: "Nome do grupo atualizado com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro inesperado:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteActionGroup = async (groupId: string) => {
+    try {
+      const { error } = await supabase
+        .from('action_groups')
+        .delete()
+        .eq('id', groupId);
+
+      if (error) {
+        console.error('Erro ao excluir grupo:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível excluir o grupo.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      await refreshData();
+      toast({
+        title: "Sucesso",
+        description: "Grupo de ação excluído com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro inesperado:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Funções para gerenciar tipos de ação
+  const handleEditActionType = (typeId: string, currentName: string) => {
+    setEditingActionType(typeId);
+    setEditingActionTypeName(currentName);
+  };
+
+  const handleSaveActionType = async () => {
+    if (!editingActionTypeName.trim() || !editingActionType) {
+      toast({
+        title: "Erro",
+        description: "O nome do tipo não pode estar vazio.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('action_types')
+        .update({ name: editingActionTypeName.toLowerCase().replace(/\s+/g, '-') })
+        .eq('id', editingActionType);
+
+      if (error) {
+        console.error('Erro ao atualizar tipo:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível atualizar o tipo.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      await refreshData();
+      setEditingActionType(null);
+      setEditingActionTypeName("");
+
+      toast({
+        title: "Sucesso",
+        description: "Nome do tipo atualizado com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro inesperado:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteActionType = async (typeId: string) => {
+    try {
+      const { error } = await supabase
+        .from('action_types')
+        .delete()
+        .eq('id', typeId);
+
+      if (error) {
+        console.error('Erro ao excluir tipo:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível excluir o tipo.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      await refreshData();
+      toast({
+        title: "Sucesso",
+        description: "Tipo de ação excluído com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro inesperado:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Funções para gerenciar fontes de leads
+  const handleEditLeadSource = (sourceId: string, currentLabel: string) => {
+    setEditingLeadSource(sourceId);
+    setEditingLeadSourceName(currentLabel);
+  };
+
+  const handleSaveLeadSource = async () => {
+    if (!editingLeadSourceName.trim() || !editingLeadSource) {
+      toast({
+        title: "Erro",
+        description: "O nome da fonte não pode estar vazio.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('lead_sources')
+        .update({ label: editingLeadSourceName.trim() })
+        .eq('id', editingLeadSource);
+
+      if (error) {
+        console.error('Erro ao atualizar fonte:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível atualizar a fonte.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      await refreshData();
+      setEditingLeadSource(null);
+      setEditingLeadSourceName("");
+
+      toast({
+        title: "Sucesso",
+        description: "Fonte atualizada com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro inesperado:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteLeadSource = async (sourceId: string) => {
+    try {
+      const { error } = await supabase
+        .from('lead_sources')
+        .delete()
+        .eq('id', sourceId);
+
+      if (error) {
+        console.error('Erro ao excluir fonte:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível excluir a fonte.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      await refreshData();
+      toast({
+        title: "Sucesso",
+        description: "Fonte excluída com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro inesperado:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado.",
+        variant: "destructive"
       });
     }
   };
@@ -1045,7 +873,7 @@ export function SettingsContent() {
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={() => toggleComponentVisibility(component.id)}
+                  onClick={() => handleToggleComponentVisibility(component.id)}
                 >
                   {component.visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
@@ -1055,16 +883,7 @@ export function SettingsContent() {
         </div>
         
         <div className="mt-6 pt-4 border-t">
-          <Button 
-            className="bg-blue-600 hover:bg-blue-700" 
-            onClick={() => {
-              saveDashboardSettings();
-              toast({
-                title: "Configurações salvas",
-                description: "As configurações do dashboard foram salvas com sucesso.",
-              });
-            }}
-          >
+          <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSaveDashboardSettings}>
             Salvar Configurações
           </Button>
         </div>
@@ -1304,100 +1123,18 @@ export function SettingsContent() {
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <DeleteButton
-                            onDelete={() => handleDeleteLeadSource(source.id)}
-                            itemName={source.label}
-                            itemType="fonte de leads"
+                          <Button 
+                            variant="outline" 
                             size="sm"
-                            variant="outline"
-                          />
+                            onClick={() => handleDeleteLeadSource(source.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       )}
                     </div>
                   </div>
                 ))}
-              </div>
-            </ScrollArea>
-          </Card>
-
-          {/* Tipos de Perdas - ATUALIZADO COM LOGS EXTRAS */}
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="text-md font-semibold text-gray-900">Tipos de Perdas</h4>
-              <Button 
-                className="bg-blue-600 hover:bg-blue-700"
-                onClick={() => setIsAddLossReasonDialogOpen(true)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Tipo
-              </Button>
-            </div>
-            <ScrollArea className="h-64 w-full rounded-md border p-4">
-              <div className="space-y-3">
-                {lossReasons.length === 0 ? (
-                  <p className="text-center text-gray-500 py-4">Nenhum motivo de perda cadastrado</p>
-                ) : (
-                  lossReasons.map((reason) => {
-                    console.log('🔄 [SettingsContent-RENDER] Renderizando motivo:', reason);
-                    return (
-                      <div key={reason.id} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            {editingLossReason === reason.id ? (
-                              <div className="flex items-center gap-2">
-                                <Input
-                                  value={editingLossReasonName}
-                                  onChange={(e) => setEditingLossReasonName(e.target.value)}
-                                  className="max-w-xs"
-                                  placeholder="Motivo da perda"
-                                />
-                                <Button size="sm" onClick={handleSaveLossReason}>
-                                  <Check className="h-4 w-4" />
-                                </Button>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline" 
-                                  onClick={() => {
-                                    setEditingLossReason(null);
-                                    setEditingLossReasonName("");
-                                  }}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <div>
-                                <h5 className="font-medium text-gray-900">{reason.reason}</h5>
-                                <p className="text-xs text-gray-500">ID: {reason.id}</p>
-                              </div>
-                            )}
-                          </div>
-                          {editingLossReason !== reason.id && (
-                            <div className="flex gap-2">
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => handleEditLossReason(reason.id, reason.reason)}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <DeleteButton
-                                onDelete={() => {
-                                  console.log('🔥 [SettingsContent-RENDER] DeleteButton clicado para ID:', reason.id);
-                                  return handleDeleteLossReason(reason.id);
-                                }}
-                                itemName={reason.reason}
-                                itemType="motivo de perda"
-                                size="sm"
-                                variant="outline"
-                              />
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
               </div>
             </ScrollArea>
           </Card>
@@ -1474,12 +1211,6 @@ export function SettingsContent() {
         isOpen={isAddLeadSourceDialogOpen}
         onClose={() => setIsAddLeadSourceDialogOpen(false)}
         onSourceAdded={refreshData}
-      />
-
-      <AddLossReasonDialog
-        isOpen={isAddLossReasonDialogOpen}
-        onClose={() => setIsAddLossReasonDialogOpen(false)}
-        onReasonAdded={refreshData}
       />
 
       <EditCompanyModal

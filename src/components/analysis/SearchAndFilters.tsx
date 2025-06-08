@@ -1,9 +1,10 @@
 
 import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
 import { Search } from "lucide-react";
 import { AdvancedFilters, FilterOptions } from "@/components/AdvancedFilters";
-import { ViewToggleDropdown } from "./ViewToggleDropdown";
-import { ActionToggleDropdown } from "./ActionToggleDropdown";
+import { ActionToggleDropdown } from "@/components/analysis/ActionToggleDropdown";
+import { ViewToggleDropdown } from "@/components/analysis/ViewToggleDropdown";
 
 interface SearchAndFiltersProps {
   searchTerm: string;
@@ -11,17 +12,15 @@ interface SearchAndFiltersProps {
   selectedCategory: string;
   advancedFilters: FilterOptions;
   setAdvancedFilters: (filters: FilterOptions) => void;
-  lossReasons: Array<{ id: string; reason: string }>;
+  lossReasons: Array<{ id: string; reason: string; }>;
   onCategoryChange: (category: string) => void;
-  leadsViewMode: string;
-  onLeadsViewChange: (mode: string) => void;
-  contractsViewMode: string;
-  onContractsViewChange: (mode: string) => void;
-  opportunitiesViewMode: string;
-  onOpportunitiesViewChange: (mode: string) => void;
-  onLossReasonUpdate?: () => void;
-  onDeleteLossReason?: (lossReasonId: string, lossReasonName: string) => Promise<boolean>;
-  onAddLossReason?: (reason: string) => Promise<boolean>;
+  // Props para visualizações
+  leadsViewMode?: 'weekly' | 'monthly';
+  onLeadsViewChange?: (view: 'weekly' | 'monthly') => void;
+  contractsViewMode?: 'weekly' | 'monthly';
+  onContractsViewChange?: (view: 'weekly' | 'monthly') => void;
+  opportunitiesViewMode?: 'weekly' | 'monthly';
+  onOpportunitiesViewChange?: (view: 'weekly' | 'monthly') => void;
 }
 
 export function SearchAndFilters({
@@ -32,89 +31,93 @@ export function SearchAndFilters({
   setAdvancedFilters,
   lossReasons,
   onCategoryChange,
-  leadsViewMode,
+  leadsViewMode = 'weekly',
   onLeadsViewChange,
-  contractsViewMode,
+  contractsViewMode = 'weekly',
   onContractsViewChange,
-  opportunitiesViewMode,
-  onOpportunitiesViewChange,
-  onLossReasonUpdate,
-  onDeleteLossReason,
-  onAddLossReason
+  opportunitiesViewMode = 'weekly',
+  onOpportunitiesViewChange
 }: SearchAndFiltersProps) {
 
-  // Função para determinar qual viewMode usar baseado na categoria
-  const getCurrentViewMode = (): 'weekly' | 'monthly' => {
-    switch (selectedCategory) {
-      case 'contratos':
-        return contractsViewMode as 'weekly' | 'monthly';
-      case 'oportunidades':
-        return opportunitiesViewMode as 'weekly' | 'monthly';
-      default:
-        return leadsViewMode as 'weekly' | 'monthly';
-    }
+  console.log(`🔍 SearchAndFilters - selectedCategory: ${selectedCategory}`);
+  console.log(`📊 SearchAndFilters - handlers:`, {
+    onLeadsViewChange: !!onLeadsViewChange,
+    onContractsViewChange: !!onContractsViewChange,
+    onOpportunitiesViewChange: !!onOpportunitiesViewChange
+  });
+
+  const mainCategory = selectedCategory.split('-')[0];
+  const shouldShowViewToggle = (category: string) => {
+    return category === "all" || 
+           (category === "contratos" && (selectedCategory === "contratos" || selectedCategory.startsWith("contratos-"))) ||
+           (category === "oportunidades" && (selectedCategory === "oportunidades" || selectedCategory.startsWith("oportunidades-")));
   };
-
-  // Função para lidar com mudança de visualização
-  const handleViewChange = (view: 'weekly' | 'monthly') => {
-    console.log(`📊 [SearchAndFilters] Mudança de visualização para categoria ${selectedCategory}: ${view}`);
-    
-    switch (selectedCategory) {
-      case 'contratos':
-        onContractsViewChange(view);
-        break;
-      case 'oportunidades':
-        onOpportunitiesViewChange(view);
-        break;
-      default:
-        onLeadsViewChange(view);
-        break;
-    }
-  };
-
-  // Mostrar dropdown apenas para categorias que têm gráficos de leads
-  const shouldShowViewToggle = ['all', 'contratos', 'oportunidades'].includes(selectedCategory);
-
-  // Mostrar dropdown de ação apenas para categorias de contratos e oportunidades
-  const shouldShowActionToggle = ['contratos', 'oportunidades', 'perdas'].includes(selectedCategory.split('-')[0]);
 
   return (
-    <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-      <div className="relative flex-1 max-w-md">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-        <Input
-          placeholder="Buscar leads..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
-        />
-      </div>
-      
-      <div className="flex flex-wrap gap-2 items-center">
-        {shouldShowViewToggle && (
-          <ViewToggleDropdown 
-            currentView={getCurrentViewMode()}
-            onViewChange={handleViewChange}
+    <Card className="p-6">
+      <div className="flex items-center gap-4 flex-wrap">
+        <div className="relative flex-1 max-w-md min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Input
+            placeholder="Buscar leads..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
           />
-        )}
+        </div>
         
-        {shouldShowActionToggle && (
-          <ActionToggleDropdown 
+        <div className="flex items-center gap-2">
+          {selectedCategory !== "estados" && (
+            <AdvancedFilters 
+              onFiltersChange={setAdvancedFilters}
+              activeFilters={advancedFilters}
+              selectedCategory={selectedCategory}
+              lossReasons={lossReasons}
+            />
+          )}
+          
+          {/* Dropdown para visualização de leads quando categoria for "all" */}
+          {shouldShowViewToggle("all") && selectedCategory === "all" && onLeadsViewChange && (
+            <ViewToggleDropdown
+              currentView={leadsViewMode}
+              onViewChange={(view) => {
+                console.log(`🎯 ViewToggleDropdown (all) - view: ${view}`);
+                onLeadsViewChange(view);
+              }}
+              label="Leads"
+            />
+          )}
+
+          {/* Dropdown para visualização de contratos - SEMPRE mostrar quando categoria for "contratos" ou subcategorias */}
+          {shouldShowViewToggle("contratos") && mainCategory === "contratos" && onContractsViewChange && (
+            <ViewToggleDropdown
+              currentView={contractsViewMode}
+              onViewChange={(view) => {
+                console.log(`🎯 ViewToggleDropdown (contratos) - view: ${view}`);
+                onContractsViewChange(view);
+              }}
+              label="Contratos"
+            />
+          )}
+
+          {/* Dropdown para visualização de oportunidades - SEMPRE mostrar quando categoria for "oportunidades" ou subcategorias */}
+          {shouldShowViewToggle("oportunidades") && mainCategory === "oportunidades" && onOpportunitiesViewChange && (
+            <ViewToggleDropdown
+              currentView={opportunitiesViewMode}
+              onViewChange={(view) => {
+                console.log(`🎯 ViewToggleDropdown (oportunidades) - view: ${view}`);
+                onOpportunitiesViewChange(view);
+              }}
+              label="Oportunidades"
+            />
+          )}
+          
+          <ActionToggleDropdown
             selectedCategory={selectedCategory}
             onCategoryChange={onCategoryChange}
           />
-        )}
-        
-        <AdvancedFilters
-          onFiltersChange={setAdvancedFilters}
-          activeFilters={advancedFilters}
-          selectedCategory={selectedCategory}
-          lossReasons={lossReasons}
-          onLossReasonUpdate={onLossReasonUpdate}
-          onDeleteLossReason={onDeleteLossReason}
-          onAddLossReason={onAddLossReason}
-        />
+        </div>
       </div>
-    </div>
+    </Card>
   );
 }

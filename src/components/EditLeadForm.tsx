@@ -16,8 +16,6 @@ interface EditLeadFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onLeadUpdated: () => void;
-  lossReasons?: Array<{ id: string; reason: string }>;
-  onAddLossReason?: (reason: string) => Promise<boolean>;
 }
 
 interface KanbanColumn {
@@ -36,14 +34,12 @@ const BRAZILIAN_STATES = [
   "Roraima", "Santa Catarina", "São Paulo", "Sergipe", "Tocantins"
 ];
 
-export function EditLeadForm({ 
-  lead, 
-  open, 
-  onOpenChange, 
-  onLeadUpdated,
-  lossReasons: propLossReasons = [],
-  onAddLossReason
-}: EditLeadFormProps) {
+interface LossReason {
+  id: string;
+  reason: string;
+}
+
+export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLeadFormProps) {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -64,8 +60,8 @@ export function EditLeadForm({
   const [isLoading, setIsLoading] = useState(false);
   const [showNewOptionInput, setShowNewOptionInput] = useState<string | null>(null);
   const [newOptionValue, setNewOptionValue] = useState("");
+  const [lossReasons, setLossReasons] = useState<LossReason[]>([]);
   const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([]);
-  const [localLossReasons, setLocalLossReasons] = useState<Array<{ id: string; reason: string }>>([]);
   const { toast } = useToast();
   const { 
     sourceOptions, 
@@ -75,34 +71,6 @@ export function EditLeadForm({
     loading: optionsLoading,
     refreshData 
   } = useFilterOptions();
-
-  // Buscar motivos de perda diretamente da base se não recebidos via props
-  const fetchLossReasons = async () => {
-    try {
-      console.log('🔄 EditLeadForm - Buscando motivos de perda diretamente...');
-      const { data, error } = await supabase
-        .from('loss_reasons')
-        .select('*')
-        .order('reason', { ascending: true });
-
-      if (error) {
-        console.error('❌ EditLeadForm - Erro ao buscar motivos de perda:', error);
-        return;
-      }
-
-      console.log('✅ EditLeadForm - Motivos de perda buscados:', data?.length || 0, data);
-      setLocalLossReasons(data || []);
-    } catch (error) {
-      console.error('❌ EditLeadForm - Erro inesperado ao buscar motivos:', error);
-    }
-  };
-
-  // Combinar motivos de perda das props e locais
-  const availableLossReasons = propLossReasons.length > 0 ? propLossReasons : localLossReasons;
-
-  console.log('🎯 EditLeadForm - Props lossReasons:', propLossReasons?.length || 0);
-  console.log('🎯 EditLeadForm - Local lossReasons:', localLossReasons?.length || 0);
-  console.log('🎯 EditLeadForm - Available lossReasons:', availableLossReasons?.length || 0);
 
   const fetchKanbanColumns = async () => {
     try {
@@ -122,12 +90,28 @@ export function EditLeadForm({
     }
   };
 
+  const fetchLossReasons = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('loss_reasons')
+        .select('*')
+        .order('reason', { ascending: true });
+
+      if (error) {
+        console.error('Erro ao buscar motivos de perda:', error);
+        return;
+      }
+
+      setLossReasons(data || []);
+    } catch (error) {
+      console.error('Erro inesperado ao buscar motivos de perda:', error);
+    }
+  };
+
   // Update form data when lead changes
   useEffect(() => {
     if (lead && open) {
       console.log("🔄 EditLeadForm - Carregando dados do lead:", lead);
-      console.log("📊 EditLeadForm - Motivos de perda recebidos:", propLossReasons?.length || 0);
-      console.log("📋 EditLeadForm - Lista de motivos:", propLossReasons);
       
       // Salvar dados originais do lead
       setOriginalLeadData(lead);
@@ -149,17 +133,14 @@ export function EditLeadForm({
       console.log("📋 EditLeadForm - Dados iniciais do formulário:", initialData);
       setFormData(initialData);
     }
-  }, [lead, open, propLossReasons]);
+  }, [lead, open]);
 
   useEffect(() => {
     if (open) {
       fetchKanbanColumns();
-      // Buscar motivos de perda se não recebidos via props
-      if (propLossReasons.length === 0) {
-        fetchLossReasons();
-      }
+      fetchLossReasons();
     }
-  }, [open, propLossReasons.length]);
+  }, [open]);
 
   // Função para restaurar dados originais
   const restoreOriginalData = () => {
@@ -204,22 +185,6 @@ export function EditLeadForm({
 
     console.log("💾 EditLeadForm - Salvando lead com dados:", formData);
 
-    // Verificar se status é "Perdido" e não há motivo da perda
-    const isLostStatus = formData.status && (
-      formData.status.toLowerCase().includes('perdido') || 
-      formData.status.toLowerCase().includes('lost') ||
-      formData.status === 'Perdido'
-    );
-
-    if (isLostStatus && !formData.loss_reason) {
-      toast({
-        title: "Erro",
-        description: "Para marcar como perdido, é necessário informar o motivo da perda.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     setIsLoading(true);
     try {
       const { error } = await supabase
@@ -235,7 +200,7 @@ export function EditLeadForm({
           action_type: formData.action_type || null,
           value: formData.value ? parseFloat(formData.value) : null,
           description: formData.description || null,
-          loss_reason: isLostStatus ? formData.loss_reason : null,
+          loss_reason: formData.loss_reason || null,
         })
         .eq('id', lead.id);
 
@@ -272,28 +237,6 @@ export function EditLeadForm({
 
   const handleInputChange = (field: string, value: string) => {
     console.log(`📝 EditLeadForm - Alterando ${field} para:`, value);
-    
-    // Se mudando o status, verificar se é para um status de perda
-    if (field === 'status') {
-      console.log(`📊 EditLeadForm - Status alterado para: "${value}"`);
-      const isLostStatus = value && (
-        value.toLowerCase().includes('perdido') || 
-        value.toLowerCase().includes('lost') ||
-        value === 'Perdido'
-      );
-      console.log(`📊 EditLeadForm - É status de perda? ${isLostStatus}`);
-      
-      // Se não é status de perda, limpar o motivo da perda
-      if (!isLostStatus) {
-        setFormData(prev => ({
-          ...prev,
-          [field]: value,
-          loss_reason: ""
-        }));
-        return;
-      }
-    }
-    
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -309,65 +252,6 @@ export function EditLeadForm({
 
   const handleAddNewOption = async (field: string) => {
     if (!newOptionValue.trim()) return;
-
-    if (field === 'loss_reason' && onAddLossReason) {
-      try {
-        console.log('➕ EditLeadForm - Adicionando novo motivo de perda:', newOptionValue.trim());
-        const success = await onAddLossReason(newOptionValue.trim());
-        
-        if (success) {
-          handleInputChange(field, newOptionValue.trim());
-          setNewOptionValue("");
-          setShowNewOptionInput(null);
-          // Recarregar motivos de perda locais
-          await fetchLossReasons();
-        }
-        return;
-      } catch (error) {
-        console.error('Erro inesperado ao adicionar motivo:', error);
-        return;
-      }
-    }
-
-    // Se não há função de adicionar via props, adicionar diretamente
-    if (field === 'loss_reason' && !onAddLossReason) {
-      try {
-        console.log('➕ EditLeadForm - Adicionando motivo diretamente na base:', newOptionValue.trim());
-        const { error } = await supabase
-          .from('loss_reasons')
-          .insert([{ reason: newOptionValue.trim() }]);
-
-        if (error) {
-          console.error('Erro ao adicionar motivo de perda:', error);
-          toast({
-            title: "Erro",
-            description: "Não foi possível adicionar o novo motivo.",
-            variant: "destructive"
-          });
-          return;
-        }
-
-        toast({
-          title: "Sucesso",
-          description: "Novo motivo adicionado com sucesso.",
-        });
-
-        handleInputChange(field, newOptionValue.trim());
-        setNewOptionValue("");
-        setShowNewOptionInput(null);
-        // Recarregar motivos de perda locais
-        await fetchLossReasons();
-        return;
-      } catch (error) {
-        console.error('Erro inesperado ao adicionar motivo:', error);
-        toast({
-          title: "Erro",
-          description: "Ocorreu um erro inesperado.",
-          variant: "destructive"
-        });
-        return;
-      }
-    }
 
     if (field === 'source') {
       try {
@@ -445,6 +329,7 @@ export function EditLeadForm({
       }
     } else if (field === 'action_type') {
       try {
+        // Find the selected action group
         const actionGroup = actionGroups.find(group => group.name === formData.action_group);
         if (!actionGroup) {
           toast({
@@ -490,6 +375,38 @@ export function EditLeadForm({
         });
         return;
       }
+    } else if (field === 'loss_reason') {
+      try {
+        const { error } = await supabase
+          .from('loss_reasons')
+          .insert({ reason: newOptionValue.trim() });
+
+        if (error) {
+          console.error('Erro ao adicionar motivo de perda:', error);
+          toast({
+            title: "Erro",
+            description: "Não foi possível adicionar o novo motivo.",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        await fetchLossReasons();
+        handleInputChange(field, newOptionValue.trim());
+        
+        toast({
+          title: "Sucesso",
+          description: "Novo motivo de perda adicionado com sucesso.",
+        });
+      } catch (error) {
+        console.error('Erro inesperado ao adicionar motivo:', error);
+        toast({
+          title: "Erro",
+          description: "Ocorreu um erro inesperado.",
+          variant: "destructive"
+        });
+        return;
+      }
     }
 
     setNewOptionValue("");
@@ -515,16 +432,6 @@ export function EditLeadForm({
       </Dialog>
     );
   }
-
-  // Verificar se deve mostrar o campo de motivo da perda
-  const shouldShowLossReasonField = formData.status && (
-    formData.status.toLowerCase().includes('perdido') || 
-    formData.status.toLowerCase().includes('lost') ||
-    formData.status === 'Perdido'
-  );
-
-  console.log(`🎯 EditLeadForm - Deve mostrar campo de motivo da perda? ${shouldShowLossReasonField} (Status: "${formData.status}")`);
-  console.log(`🎯 EditLeadForm - Motivos disponíveis para renderizar:`, availableLossReasons);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -646,7 +553,7 @@ export function EditLeadForm({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="status">Status *</Label>
+              <Label htmlFor="status">Status</Label>
               <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o status" />
@@ -800,31 +707,20 @@ export function EditLeadForm({
             </div>
           </div>
 
-          {shouldShowLossReasonField && (
-            <div className="space-y-2 relative border-l-4 border-red-500 pl-4 bg-red-50 p-4 rounded">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-red-600 font-medium">⚠️ Lead Perdido</span>
-              </div>
-              <Label htmlFor="loss_reason" className="text-red-700 font-medium">Motivo da Perda *</Label>
+          {formData.status === "Perdido" && (
+            <div className="space-y-2 relative">
+              <Label htmlFor="loss_reason">Motivo da Perda</Label>
               <div className="flex gap-2">
                 <Select value={formData.loss_reason} onValueChange={(value) => handleInputChange('loss_reason', value)}>
-                  <SelectTrigger className="flex-1 border-red-200 focus:border-red-400">
+                  <SelectTrigger className="flex-1">
                     <SelectValue placeholder="Selecione o motivo da perda" />
                   </SelectTrigger>
                   <SelectContent className="bg-white border shadow-lg max-h-60 overflow-y-auto z-50">
-                    {availableLossReasons && availableLossReasons.length > 0 ? (
-                      availableLossReasons.map((reason) => (
-                        reason.reason && reason.reason.trim() !== "" ? (
-                          <SelectItem key={reason.id} value={reason.reason}>
-                            {reason.reason}
-                          </SelectItem>
-                        ) : null
-                      ))
-                    ) : (
-                      <SelectItem value="no_reasons_available" disabled>
-                        Nenhum motivo disponível
+                    {lossReasons.map((reason) => (
+                      <SelectItem key={reason.id} value={reason.reason}>
+                        {reason.reason}
                       </SelectItem>
-                    )}
+                    ))}
                   </SelectContent>
                 </Select>
                 <Button
@@ -832,21 +728,21 @@ export function EditLeadForm({
                   variant="outline"
                   size="sm"
                   onClick={() => setShowNewOptionInput('loss_reason')}
-                  className="px-2 border-red-200 text-red-600 hover:bg-red-50"
+                  className="px-2"
                 >
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
               
               {showNewOptionInput === 'loss_reason' && (
-                <div className="absolute top-full left-0 right-0 mt-2 p-3 bg-white border rounded-lg shadow-lg z-50 border-red-200">
+                <div className="absolute top-full left-0 right-0 mt-2 p-3 bg-white border rounded-lg shadow-lg z-50">
                   <div className="space-y-3">
                     <Input
                       placeholder="Novo motivo da perda..."
                       value={newOptionValue}
                       onChange={(e) => setNewOptionValue(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && handleAddNewOption('loss_reason')}
-                      className="text-sm border-red-200 focus:border-red-400"
+                      className="text-sm"
                     />
                     <div className="flex gap-2 justify-end">
                       <Button
@@ -864,7 +760,7 @@ export function EditLeadForm({
                         type="button"
                         size="sm"
                         onClick={() => handleAddNewOption('loss_reason')}
-                        className="bg-red-600 hover:bg-red-700 text-white"
+                        className="bg-blue-600 hover:bg-blue-700"
                       >
                         Adicionar
                       </Button>
@@ -872,12 +768,6 @@ export function EditLeadForm({
                   </div>
                 </div>
               )}
-              
-              {!availableLossReasons || availableLossReasons.length === 0 ? (
-                <p className="text-sm text-red-600 mt-2">
-                  ⚠️ Nenhum motivo de perda cadastrado. Use o botão "+" para adicionar um novo motivo.
-                </p>
-              ) : null}
             </div>
           )}
 
@@ -903,7 +793,7 @@ export function EditLeadForm({
             </Button>
             <Button 
               type="submit" 
-              disabled={isLoading || (shouldShowLossReasonField && !formData.loss_reason)}
+              disabled={isLoading}
               className="flex-1 bg-blue-600 hover:bg-blue-700"
             >
               {isLoading ? "Salvando..." : "Salvar Alterações"}

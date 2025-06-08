@@ -25,20 +25,29 @@ export function ConfirmDeleteDialog({
   itemType,
   onConfirm
 }: ConfirmDeleteDialogProps) {
-  console.log('🔍 [ConfirmDeleteDialog] Renderizado com:', { open, itemName, itemType });
+  console.log('🔍 ConfirmDeleteDialog renderizado com:', { open, itemName, itemType });
 
-  const handleConfirm = () => {
-    console.log('✅ [ConfirmDeleteDialog] Usuário confirmou a exclusão');
+  const handleConfirm = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('✅ Usuário confirmou a exclusão');
     onConfirm();
   };
 
-  const handleCancel = () => {
-    console.log('❌ [ConfirmDeleteDialog] Usuário cancelou a exclusão');
+  const handleCancel = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('❌ Usuário cancelou a exclusão');
     onOpenChange(false);
   };
 
+  const handleOpenChange = (newOpen: boolean) => {
+    console.log('🔄 AlertDialog onOpenChange chamado com:', newOpen);
+    onOpenChange(newOpen);
+  };
+
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogContent className="z-[60]">
         <AlertDialogHeader>
           <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>

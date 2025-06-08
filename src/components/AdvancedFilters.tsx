@@ -22,9 +22,6 @@ interface AdvancedFiltersProps {
   activeFilters: FilterOptions;
   selectedCategory?: string;
   lossReasons?: Array<{ id: string; reason: string; }>;
-  onLossReasonUpdate?: () => void;
-  onDeleteLossReason?: (lossReasonId: string, lossReasonName: string) => Promise<boolean>;
-  onAddLossReason?: (reason: string) => Promise<boolean>;
 }
 
 export interface FilterOptions {
@@ -36,15 +33,7 @@ export interface FilterOptions {
   valueRange: { min: number | null; max: number | null };
 }
 
-export function AdvancedFilters({ 
-  onFiltersChange, 
-  activeFilters, 
-  selectedCategory, 
-  lossReasons = [],
-  onLossReasonUpdate,
-  onDeleteLossReason,
-  onAddLossReason
-}: AdvancedFiltersProps) {
+export function AdvancedFilters({ onFiltersChange, activeFilters, selectedCategory, lossReasons = [] }: AdvancedFiltersProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { statusOptions, sourceOptions, actionGroupOptions, stateOptions } = useFilterOptions();
 
@@ -86,12 +75,6 @@ export function AdvancedFilters({
       : activeFilters.lossReason.filter(l => l !== lossReason);
     
     onFiltersChange({ ...activeFilters, lossReason: newLossReason });
-    
-    // Notificar sobre mudança nos motivos de perda para sincronizar dados
-    if (onLossReasonUpdate) {
-      console.log('🔄 [AdvancedFilters] Notificando mudança nos motivos de perda...');
-      onLossReasonUpdate();
-    }
   };
 
   const clearAllFilters = () => {
@@ -181,8 +164,6 @@ export function AdvancedFilters({
                   lossReasons={lossReasons}
                   activeFilters={activeFilters.lossReason}
                   onLossReasonChange={handleLossReasonChange}
-                  onDeleteLossReason={onDeleteLossReason}
-                  onAddLossReason={onAddLossReason}
                 />
                 <Separator />
               </>

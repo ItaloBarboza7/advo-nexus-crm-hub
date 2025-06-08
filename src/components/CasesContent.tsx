@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { DateRange } from "react-day-picker";
 import { DateFilter } from "@/components/DateFilter";
@@ -14,7 +15,6 @@ import { useLeadFiltering } from "@/components/analysis/useLeadFiltering";
 import { useChartStates } from "@/hooks/useChartStates";
 import { useLeadsData } from "@/hooks/useLeadsData";
 import { useLeadDialogs } from "@/hooks/useLeadDialogs";
-import { useFilterOptions } from "@/hooks/useFilterOptions";
 import { FilterOptions } from "@/components/AdvancedFilters";
 
 export function CasesContent() {
@@ -30,19 +30,8 @@ export function CasesContent() {
     valueRange: { min: null, max: null }
   });
   
-  // Custom hooks - leads data é a fonte principal
-  const { 
-    leads, 
-    lossReasons: centralLossReasons, 
-    isLoading, 
-    fetchLeads, 
-    addLossReason, 
-    deleteLossReason 
-  } = useLeadsData();
-  
-  // Usar os dados centralizados de motivos de perda
-  const filterOptions = useFilterOptions(centralLossReasons);
-  
+  // Custom hooks
+  const { leads, lossReasons, isLoading, fetchLeads } = useLeadsData();
   const { statusHistory, hasLeadPassedThroughStatus } = useLeadStatusHistory();
   const { isOpportunityLead } = useOpportunityLogic(hasLeadPassedThroughStatus);
   const {
@@ -127,7 +116,7 @@ export function CasesContent() {
         selectedCategory={selectedCategory}
         advancedFilters={advancedFilters}
         setAdvancedFilters={setAdvancedFilters}
-        lossReasons={centralLossReasons}
+        lossReasons={lossReasons}
         onCategoryChange={handleCategoryChange}
         leadsViewMode={leadsViewMode}
         onLeadsViewChange={handleLeadsViewChange}
@@ -135,9 +124,6 @@ export function CasesContent() {
         onContractsViewChange={handleContractsViewChange}
         opportunitiesViewMode={opportunitiesViewMode}
         onOpportunitiesViewChange={handleOpportunitiesViewChange}
-        onLossReasonUpdate={async () => {}}
-        onDeleteLossReason={deleteLossReason}
-        onAddLossReason={addLossReason}
       />
 
       <ChartsSection

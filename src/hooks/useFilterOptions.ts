@@ -1,7 +1,6 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { subscribeLossReasonUpdate } from "@/utils/lossReasonEvents";
 
 interface ActionGroup {
   id: string;
@@ -21,131 +20,64 @@ interface LeadSource {
   label: string;
 }
 
-interface LossReason {
-  id: string;
-  reason: string;
-}
-
-export const useFilterOptions = (centralLossReasons?: LossReason[]) => {
+export const useFilterOptions = () => {
   const [actionGroups, setActionGroups] = useState<ActionGroup[]>([]);
   const [actionTypes, setActionTypes] = useState<ActionType[]>([]);
   const [leadSources, setLeadSources] = useState<LeadSource[]>([]);
-  const [lossReasons, setLossReasons] = useState<LossReason[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchAllData();
-    
-    // Subscrever aos eventos de atualização de motivos de perda
-    const unsubscribe = subscribeLossReasonUpdate(() => {
-      console.log('📨 [useFilterOptions] Recebido evento de atualização de motivos de perda');
-      if (centralLossReasons) {
-        console.log('📋 [useFilterOptions] Usando motivos de perda centralizados');
-        setLossReasons(centralLossReasons);
-      } else {
-        refreshLossReasons();
-      }
-    });
-
-    return unsubscribe;
   }, []);
-
-  // Atualizar os motivos de perda quando os dados centralizados mudarem
-  useEffect(() => {
-    if (centralLossReasons) {
-      console.log('🔄 [useFilterOptions] Atualizando com motivos de perda centralizados:', centralLossReasons.length);
-      setLossReasons(centralLossReasons);
-    }
-  }, [centralLossReasons]);
 
   const fetchAllData = async () => {
     try {
       setLoading(true);
-      console.log('🔄 [useFilterOptions] Iniciando busca de todos os dados...');
       
       // Buscar grupos de ação
-      console.log('📊 [useFilterOptions] Buscando grupos de ação...');
       const { data: groupsData, error: groupsError } = await supabase
         .from('action_groups')
         .select('*')
         .order('name');
 
       if (groupsError) {
-        console.error('❌ [useFilterOptions] Erro ao buscar grupos de ação:', groupsError);
+        console.error('Erro ao buscar grupos de ação:', groupsError);
       } else {
-        console.log('✅ [useFilterOptions] Grupos de ação carregados:', groupsData?.length || 0);
         setActionGroups(groupsData || []);
       }
 
       // Buscar tipos de ação
-      console.log('📊 [useFilterOptions] Buscando tipos de ação...');
       const { data: typesData, error: typesError } = await supabase
         .from('action_types')
         .select('*')
         .order('name');
 
       if (typesError) {
-        console.error('❌ [useFilterOptions] Erro ao buscar tipos de ação:', typesError);
+        console.error('Erro ao buscar tipos de ação:', typesError);
       } else {
-        console.log('✅ [useFilterOptions] Tipos de ação carregados:', typesData?.length || 0);
         setActionTypes(typesData || []);
       }
 
       // Buscar fontes de leads
-      console.log('📊 [useFilterOptions] Buscando fontes de leads...');
       const { data: sourcesData, error: sourcesError } = await supabase
         .from('lead_sources')
         .select('*')
         .order('label');
 
       if (sourcesError) {
-        console.error('❌ [useFilterOptions] Erro ao buscar fontes de leads:', sourcesError);
+        console.error('Erro ao buscar fontes de leads:', sourcesError);
       } else {
-        console.log('✅ [useFilterOptions] Fontes de leads carregadas:', sourcesData?.length || 0);
         setLeadSources(sourcesData || []);
       }
-
-      // Buscar motivos de perda apenas se não tivermos dados centralizados
-      if (!centralLossReasons) {
-        await refreshLossReasons();
-      }
     } catch (error) {
-      console.error('❌ [useFilterOptions] Erro inesperado ao buscar dados:', error);
+      console.error('Erro inesperado ao buscar dados:', error);
     } finally {
       setLoading(false);
-      console.log('🏁 [useFilterOptions] Busca de dados finalizada');
     }
   };
 
-  const refreshData = async () => {
-    console.log('🔄 [useFilterOptions] refreshData() chamado - forçando nova busca...');
-    await fetchAllData();
-  };
-
-  // Função específica para atualizar motivos de perda
-  const refreshLossReasons = async () => {
-    if (centralLossReasons) {
-      console.log('📋 [useFilterOptions] Usando motivos de perda centralizados, não buscar do banco');
-      return;
-    }
-
-    try {
-      console.log('🔄 [useFilterOptions] Atualizando apenas motivos de perda...');
-      
-      const { data: lossData, error: lossError } = await supabase
-        .from('loss_reasons')
-        .select('*')
-        .order('reason');
-
-      if (lossError) {
-        console.error('❌ [useFilterOptions] Erro ao atualizar motivos de perda:', lossError);
-      } else {
-        console.log('✅ [useFilterOptions] Motivos de perda atualizados');
-        setLossReasons(lossData || []);
-      }
-    } catch (error) {
-      console.error('❌ [useFilterOptions] Erro inesperado ao atualizar motivos de perda:', error);
-    }
+  const refreshData = () => {
+    fetchAllData();
   };
 
   // Converter para formato compatível com os selects existentes
@@ -231,9 +163,7 @@ export const useFilterOptions = (centralLossReasons?: LossReason[]) => {
     actionGroups,
     actionTypes,
     leadSources,
-    lossReasons,
     loading,
-    refreshData,
-    refreshLossReasons
+    refreshData
   };
 };

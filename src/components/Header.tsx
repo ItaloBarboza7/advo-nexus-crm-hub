@@ -8,7 +8,6 @@ import { User as SupabaseUser } from "@supabase/supabase-js"
 import { Lead } from "@/types/lead"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { UserProfileModal } from "./UserProfileModal"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useState, useEffect } from "react"
 import { supabase } from "@/integrations/supabase/client"
 
@@ -90,36 +89,35 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
         
         {user && (
           <div className="flex items-center gap-3 px-4">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="flex items-center gap-2 p-2 h-auto hover:bg-muted/50"
-                >
-                  <Avatar className="w-8 h-8">
-                    <AvatarImage src={userProfile.avatar_url} />
-                    <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                      {getInitials(userProfile.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="text-left">
-                    <div className="font-medium text-sm">{userProfile.name}</div>
-                  </div>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem onClick={() => setIsProfileModalOpen(true)}>
-                  Editar Perfil
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                {onLogout && (
-                  <DropdownMenuItem onClick={onLogout} className="text-red-600">
-                    <LogOut className="h-4 w-4 mr-2" />
-                    Sair
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                onClick={() => setIsProfileModalOpen(true)}
+                className="flex items-center gap-2 p-2 h-auto hover:bg-muted/50"
+              >
+                <Avatar className="w-8 h-8">
+                  <AvatarImage src={userProfile.avatar_url} />
+                  <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                    {getInitials(userProfile.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="text-left">
+                  <div className="font-medium text-sm">{userProfile.name}</div>
+                </div>
+              </Button>
+            </div>
+            
+            {onLogout && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onLogout}
+                className="gap-2"
+              >
+                <LogOut className="h-4 w-4" />
+                Sair
+              </Button>
+            )}
           </div>
         )}
       </header>
