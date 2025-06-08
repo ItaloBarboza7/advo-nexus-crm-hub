@@ -57,6 +57,45 @@ export function useLeadsData() {
     fetchLeads();
   };
 
+  // Atualizar um lead específico
+  const updateLead = async (leadId: string, updates: Partial<Lead>) => {
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .update(updates)
+        .eq('id', leadId);
+
+      if (error) {
+        console.error('Erro ao atualizar lead:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível atualizar o lead.",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      // Atualizar a lista local
+      setLeads(prev => prev.map(lead => 
+        lead.id === leadId ? { ...lead, ...updates } : lead
+      ));
+
+      toast({
+        title: "Sucesso",
+        description: "Lead atualizado com sucesso.",
+      });
+      return true;
+    } catch (error) {
+      console.error('Erro inesperado ao atualizar lead:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado ao atualizar o lead.",
+        variant: "destructive"
+      });
+      return false;
+    }
+  };
+
   useEffect(() => {
     fetchLeads();
   }, []);
@@ -66,6 +105,7 @@ export function useLeadsData() {
     lossReasons, // Agora vem do hook global com is_fixed
     isLoading,
     fetchLeads,
-    refreshData
+    refreshData,
+    updateLead
   };
 }

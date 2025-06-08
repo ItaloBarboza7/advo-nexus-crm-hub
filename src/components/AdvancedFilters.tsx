@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +37,10 @@ export function AdvancedFilters({ onFiltersChange, activeFilters, selectedCatego
   const [isOpen, setIsOpen] = useState(false);
   const { statusOptions, sourceOptions, actionGroupOptions, stateOptions } = useFilterOptions();
 
+  console.log(`🔍 AdvancedFilters - Categoria selecionada: ${selectedCategory}`);
+  console.log(`📊 AdvancedFilters - Motivos de perda recebidos: ${lossReasons.length}`);
+  console.log(`📋 AdvancedFilters - Lista de motivos:`, lossReasons.map(r => r.reason));
+
   const handleStatusChange = (status: string, checked: boolean) => {
     const newStatus = checked
       ? [...activeFilters.status, status]
@@ -69,10 +74,12 @@ export function AdvancedFilters({ onFiltersChange, activeFilters, selectedCatego
   };
 
   const handleLossReasonChange = (lossReason: string, checked: boolean) => {
+    console.log(`🔄 AdvancedFilters - Alterando filtro de motivo de perda: ${lossReason} = ${checked}`);
     const newLossReason = checked
       ? [...activeFilters.lossReason, lossReason]
       : activeFilters.lossReason.filter(l => l !== lossReason);
     
+    console.log(`📊 AdvancedFilters - Novos filtros de motivo de perda:`, newLossReason);
     onFiltersChange({ ...activeFilters, lossReason: newLossReason });
   };
 

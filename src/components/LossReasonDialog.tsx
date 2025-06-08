@@ -24,6 +24,8 @@ export function LossReasonDialog({ open, onOpenChange, onReasonSelected, onCance
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
+  console.log(`🔍 LossReasonDialog - Motivos de perda disponíveis:`, lossReasons.map(r => r.reason));
+
   useEffect(() => {
     if (open) {
       setSelectedReason("");
@@ -35,10 +37,12 @@ export function LossReasonDialog({ open, onOpenChange, onReasonSelected, onCance
   const handleAddNewReason = async () => {
     if (!newReason.trim()) return;
 
+    console.log(`➕ LossReasonDialog - Adicionando novo motivo: ${newReason.trim()}`);
     setIsLoading(true);
     const success = await addLossReason(newReason.trim());
     
     if (success) {
+      console.log(`✅ LossReasonDialog - Motivo adicionado com sucesso`);
       setNewReason("");
       setIsAddingNew(false);
     }
@@ -56,11 +60,13 @@ export function LossReasonDialog({ open, onOpenChange, onReasonSelected, onCance
       return;
     }
 
+    console.log(`✅ LossReasonDialog - Motivo selecionado: ${selectedReason}`);
     onReasonSelected(selectedReason);
     onOpenChange(false);
   };
 
   const handleCancel = () => {
+    console.log(`❌ LossReasonDialog - Operação cancelada`);
     onCancel();
     onOpenChange(false);
   };
@@ -83,6 +89,7 @@ export function LossReasonDialog({ open, onOpenChange, onReasonSelected, onCance
                 {lossReasons.map((reason) => (
                   <SelectItem key={reason.id} value={reason.reason}>
                     {reason.reason}
+                    {reason.is_fixed && <span className="text-xs text-gray-500 ml-2">(Sistema)</span>}
                   </SelectItem>
                 ))}
               </SelectContent>
