@@ -132,6 +132,20 @@ export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEdi
       console.log(`📊 Grupos gerados (contratos-grupo-acao):`, Object.keys(groups));
       return groups;
     }
+    // NOVO: Para contratos principais, agrupar automaticamente por action_type
+    else if (selectedCategory === "contratos") {
+      const groups = leads.reduce((acc, lead) => {
+        const actionType = lead.action_type || "outros";
+        const groupName = getActionTypeLabel(actionType);
+        if (!acc[groupName]) {
+          acc[groupName] = [];
+        }
+        acc[groupName].push(lead);
+        return acc;
+      }, {} as Record<string, Lead[]>);
+      console.log(`📊 Grupos gerados (contratos principais):`, Object.keys(groups));
+      return groups;
+    }
     // Para oportunidades com tipo de ação, agrupar por action_type
     else if (selectedCategory === "oportunidades-tipo-acao") {
       const groups = leads.reduce((acc, lead) => {
@@ -158,6 +172,20 @@ export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEdi
         return acc;
       }, {} as Record<string, Lead[]>);
       console.log(`📊 Grupos gerados (oportunidades-grupo-acao):`, Object.keys(groups));
+      return groups;
+    }
+    // NOVO: Para oportunidades principais, agrupar automaticamente por action_type
+    else if (selectedCategory === "oportunidades") {
+      const groups = leads.reduce((acc, lead) => {
+        const actionType = lead.action_type || "outros";
+        const groupName = getActionTypeLabel(actionType);
+        if (!acc[groupName]) {
+          acc[groupName] = [];
+        }
+        acc[groupName].push(lead);
+        return acc;
+      }, {} as Record<string, Lead[]>);
+      console.log(`📊 Grupos gerados (oportunidades principais):`, Object.keys(groups));
       return groups;
     }
     // Para todas as outras categorias, não agrupar - mostrar lista simples
@@ -204,11 +232,12 @@ export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEdi
   const groups = groupedLeads();
   const groupNames = Object.keys(groups);
   
-  // Definir quando mostrar agrupamento: 
-  // - Sempre quando há mais de um grupo
-  // - OU quando é uma categoria específica que deve agrupar (perdas, tipo-acao, grupo-acao)
+  // AJUSTE: Definir quando mostrar agrupamento
+  // Agora incluímos as categorias principais (contratos, oportunidades, perdas) para sempre agrupar
   const shouldShowGrouping = groupNames.length > 1 || 
                             selectedCategory === "perdas" ||
+                            selectedCategory === "contratos" ||
+                            selectedCategory === "oportunidades" ||
                             selectedCategory.includes("-tipo-acao") ||
                             selectedCategory.includes("-grupo-acao");
 
