@@ -11,6 +11,7 @@ interface LossReason {
 // Estado global compartilhado entre todos os componentes
 let globalLossReasons: LossReason[] = [];
 let globalLoading = true;
+let globalInitialized = false;
 const subscribers = new Set<() => void>();
 
 // Função para notificar todos os subscribers sobre mudanças
@@ -39,17 +40,21 @@ const fetchFromSupabase = async (): Promise<LossReason[]> => {
 // Função para atualizar o estado global
 const updateGlobalState = async () => {
   try {
+    console.log(`🔄 useLossReasonsGlobal - Iniciando atualização do estado global...`);
     globalLoading = true;
     notifySubscribers();
     
     const newData = await fetchFromSupabase();
     globalLossReasons = newData;
     globalLoading = false;
+    globalInitialized = true;
     
-    console.log(`🔄 useLossReasonsGlobal - Estado global atualizado com ${globalLossReasons.length} motivos`);
+    console.log(`✅ useLossReasonsGlobal - Estado global atualizado com ${globalLossReasons.length} motivos`);
     notifySubscribers();
   } catch (error) {
     globalLoading = false;
+    globalInitialized = true;
+    console.error('❌ Erro ao atualizar estado global:', error);
     notifySubscribers();
     throw error;
   }
@@ -63,7 +68,7 @@ export function useLossReasonsGlobal() {
 
   // Função de callback para atualizar o estado local quando o global mudar
   const updateLocalState = useCallback(() => {
-    console.log(`🔄 useLossReasonsGlobal - Atualizando estado local. Global: ${globalLossReasons.length} motivos, Loading: ${globalLoading}`);
+    console.log(`🔄 useLossReasonsGlobal - Atualizando estado local. Global: ${globalLossReasons.length} motivos, Loading: ${globalLoading}, Initialized: ${globalInitialized}`);
     setLocalLossReasons([...globalLossReasons]);
     setLocalLoading(globalLoading);
   }, []);
@@ -73,8 +78,9 @@ export function useLossReasonsGlobal() {
     console.log(`📝 useLossReasonsGlobal - Registrando subscriber`);
     subscribers.add(updateLocalState);
     
-    // Se ainda não temos dados, buscar
-    if (globalLossReasons.length === 0 && !globalLoading) {
+    // Se ainda não foi inicializado, buscar dados
+    if (!globalInitialized) {
+      console.log(`🚀 useLossReasonsGlobal - Primeira inicialização, buscando dados...`);
       updateGlobalState().catch(error => {
         console.error('❌ Erro ao carregar dados iniciais:', error);
         toast({
@@ -83,6 +89,10 @@ export function useLossReasonsGlobal() {
           variant: "destructive"
         });
       });
+    } else {
+      // Se já foi inicializado, apenas sincronizar o estado local
+      console.log(`🔄 useLossReasonsGlobal - Já inicializado, sincronizando estado local...`);
+      updateLocalState();
     }
 
     return () => {
