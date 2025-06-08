@@ -287,10 +287,10 @@ export function DashboardContent() {
             </div>
           </CardHeader>
           <CardContent className="p-0 flex-1 flex flex-col">
-            <div className="h-48 flex-1">
+            <div className="h-32 flex-1">
               <ChartContainer config={chartConfig} className="h-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={getConversionData()} margin={{ top: 5, right: 5, left: 5, bottom: 25 }}>
+                  <BarChart data={getConversionData()} margin={{ top: 5, right: 5, left: 5, bottom: 20 }}>
                     <defs>
                       <linearGradient id="conversionGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#3b82f6" stopOpacity={1}/>
@@ -299,16 +299,16 @@ export function DashboardContent() {
                     </defs>
                     <XAxis 
                       dataKey={getConversionDataKey()}
-                      tick={{ fontSize: 9, fill: '#6b7280' }}
+                      tick={{ fontSize: 8, fill: '#6b7280' }}
                       angle={-45}
                       textAnchor="end"
-                      height={25}
+                      height={20}
                       axisLine={false}
                       tickLine={false}
                     />
                     <YAxis 
-                      tick={{ fontSize: 9, fill: '#6b7280' }}
-                      width={20}
+                      tick={{ fontSize: 8, fill: '#6b7280' }}
+                      width={15}
                       axisLine={false}
                       tickLine={false}
                     />
@@ -320,14 +320,14 @@ export function DashboardContent() {
                     <Bar 
                       dataKey="conversion" 
                       fill="url(#conversionGradient)"
-                      radius={[4, 4, 0, 0]}
+                      radius={[2, 2, 0, 0]}
                     />
                   </BarChart>
                 </ResponsiveContainer>
               </ChartContainer>
             </div>
             <div className="mt-3 pt-2 border-t border-gray-200">
-              <p className="text-sm text-gray-600 text-center">
+              <p className="text-xs text-gray-600 text-center">
                 Melhor período: <span className="font-medium text-blue-600">{getBestConversionPeriod()}</span>
               </p>
             </div>
@@ -405,10 +405,10 @@ export function DashboardContent() {
             </div>
           </CardHeader>
           <CardContent className="p-0 flex-1 flex flex-col">
-            <div className="h-48 flex-1">
+            <div className="h-32 flex-1">
               <ChartContainer config={chartConfig} className="h-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={getLeadsData()} margin={{ top: 5, right: 5, left: 5, bottom: 25 }}>
+                  <BarChart data={getLeadsData()} margin={{ top: 5, right: 5, left: 5, bottom: 20 }}>
                     <defs>
                       <linearGradient id="leadsGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#10b981" stopOpacity={1}/>
@@ -417,16 +417,16 @@ export function DashboardContent() {
                     </defs>
                     <XAxis 
                       dataKey={getLeadsDataKey()}
-                      tick={{ fontSize: 9, fill: '#6b7280' }}
+                      tick={{ fontSize: 8, fill: '#6b7280' }}
                       angle={-45}
                       textAnchor="end"
-                      height={25}
+                      height={20}
                       axisLine={false}
                       tickLine={false}
                     />
                     <YAxis 
-                      tick={{ fontSize: 9, fill: '#6b7280' }}
-                      width={20}
+                      tick={{ fontSize: 8, fill: '#6b7280' }}
+                      width={15}
                       axisLine={false}
                       tickLine={false}
                     />
@@ -438,14 +438,14 @@ export function DashboardContent() {
                     <Bar 
                       dataKey="leads" 
                       fill="url(#leadsGradient)"
-                      radius={[4, 4, 0, 0]}
+                      radius={[2, 2, 0, 0]}
                     />
                   </BarChart>
                 </ResponsiveContainer>
               </ChartContainer>
             </div>
             <div className="mt-3 pt-2 border-t border-gray-200">
-              <p className="text-sm text-gray-600 text-center">
+              <p className="text-xs text-gray-600 text-center">
                 Melhor período: <span className="font-medium text-green-600">{getBestLeadsPeriod()}</span>
               </p>
             </div>
@@ -455,7 +455,7 @@ export function DashboardContent() {
 
       {/* Bottom Row - Team Results and Action Chart */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Team Results - Now takes 2 spaces (cols 1-2) */}
+        {/* Team Results - Now takes 2 spaces (cols 1-2) with vertical layout */}
         <Card className="p-6 lg:col-span-2">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900">Resultado do Time</h3>
@@ -463,27 +463,27 @@ export function DashboardContent() {
               Ver detalhes
             </button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-4">
             {teamResults.map((member) => (
-              <div key={member.id} className="border-l-4 border-blue-500 pl-4 py-2">
-                <div className="flex items-start justify-between">
+              <div key={member.id} className="border-l-4 border-blue-500 pl-4 py-3 bg-gray-50 rounded-r-lg">
+                <div className="flex items-center justify-between">
                   <div className="flex-1">
-                    <h4 className="font-medium text-gray-900">{member.name}</h4>
-                    <div className="grid grid-cols-2 gap-4 mt-2 text-sm text-gray-600">
-                      <div>
-                        <span className="font-medium text-blue-600">{member.leads}</span>
+                    <h4 className="font-medium text-gray-900 mb-2">{member.name}</h4>
+                    <div className="grid grid-cols-4 gap-4 text-sm text-gray-600">
+                      <div className="text-center">
+                        <span className="block font-medium text-blue-600 text-lg">{member.leads}</span>
                         <p className="text-xs">Leads</p>
                       </div>
-                      <div>
-                        <span className="font-medium text-orange-600">{member.proposals}</span>
+                      <div className="text-center">
+                        <span className="block font-medium text-orange-600 text-lg">{member.proposals}</span>
                         <p className="text-xs">Propostas</p>
                       </div>
-                      <div>
-                        <span className="font-medium text-green-600">{member.sales}</span>
+                      <div className="text-center">
+                        <span className="block font-medium text-green-600 text-lg">{member.sales}</span>
                         <p className="text-xs">Vendas</p>
                       </div>
-                      <div>
-                        <span className="font-medium text-purple-600">{member.score}</span>
+                      <div className="text-center">
+                        <span className="block font-medium text-purple-600 text-lg">{member.score}</span>
                         <p className="text-xs">Pontuação</p>
                       </div>
                     </div>
@@ -514,7 +514,7 @@ export function DashboardContent() {
             </div>
           </CardHeader>
           <CardContent className="p-0 flex-1 flex flex-col">
-            <div className="h-48 flex-1">
+            <div className="h-32 flex-1">
               <ChartContainer config={chartConfig} className="h-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={getActionData()} margin={{ top: 5, right: 5, left: 5, bottom: 25 }}>
@@ -530,16 +530,16 @@ export function DashboardContent() {
                     </defs>
                     <XAxis 
                       dataKey={getActionDataKey()}
-                      tick={{ fontSize: 8, fill: '#6b7280' }}
+                      tick={{ fontSize: 7, fill: '#6b7280' }}
                       angle={-45}
                       textAnchor="end"
-                      height={40}
+                      height={30}
                       axisLine={false}
                       tickLine={false}
                     />
                     <YAxis 
-                      tick={{ fontSize: 9, fill: '#6b7280' }}
-                      width={25}
+                      tick={{ fontSize: 8, fill: '#6b7280' }}
+                      width={20}
                       axisLine={false}
                       tickLine={false}
                     />
@@ -562,7 +562,7 @@ export function DashboardContent() {
               </ChartContainer>
             </div>
             <div className="mt-3 pt-2 border-t border-gray-200">
-              <p className="text-sm text-gray-600 text-center">
+              <p className="text-xs text-gray-600 text-center">
                 Melhor {actionView === 'type' ? 'tipo' : 'grupo'}: <span className="font-medium text-purple-600">{getBestActionPeriod()}</span>
               </p>
             </div>
