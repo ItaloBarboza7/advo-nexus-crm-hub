@@ -60,8 +60,12 @@ export function SettingsContent() {
   const [editingColumn, setEditingColumn] = useState<string | null>(null);
   const [editingColumnName, setEditingColumnName] = useState("");
 
-  // Hook para configurações do dashboard
-  const { components, toggleComponentVisibility } = useDashboardSettings();
+  // Hook para configurações do dashboard - atualizar para usar nova funcionalidade
+  const { 
+    components, 
+    toggleComponentVisibility, 
+    saveDashboardSettings 
+  } = useDashboardSettings();
 
   // Hook para informações da empresa
   const { companyInfo, isLoading: isLoadingCompany, updateCompanyInfo } = useCompanyInfo();
@@ -326,259 +330,6 @@ export function SettingsContent() {
       toast({
         title: "Visibilidade alterada",
         description: `${component.name} foi ${component.visible ? 'ocultado' : 'exibido'}.`,
-      });
-    }
-  };
-
-  const handleSaveDashboardSettings = () => {
-    toast({
-      title: "Configurações salvas",
-      description: "As configurações do dashboard foram salvas com sucesso.",
-    });
-  };
-
-  // Funções para gerenciar grupos de ação
-  const handleEditActionGroup = (groupId: string, currentName: string) => {
-    setEditingActionGroup(groupId);
-    setEditingActionGroupName(currentName);
-  };
-
-  const handleSaveActionGroup = async () => {
-    if (!editingActionGroupName.trim() || !editingActionGroup) {
-      toast({
-        title: "Erro",
-        description: "O nome do grupo não pode estar vazio.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('action_groups')
-        .update({ description: editingActionGroupName.trim() })
-        .eq('id', editingActionGroup);
-
-      if (error) {
-        console.error('Erro ao atualizar grupo:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível atualizar o grupo.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      await refreshData();
-      setEditingActionGroup(null);
-      setEditingActionGroupName("");
-
-      toast({
-        title: "Sucesso",
-        description: "Nome do grupo atualizado com sucesso.",
-      });
-    } catch (error) {
-      console.error('Erro inesperado:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleDeleteActionGroup = async (groupId: string) => {
-    try {
-      const { error } = await supabase
-        .from('action_groups')
-        .delete()
-        .eq('id', groupId);
-
-      if (error) {
-        console.error('Erro ao excluir grupo:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível excluir o grupo.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      await refreshData();
-      toast({
-        title: "Sucesso",
-        description: "Grupo de ação excluído com sucesso.",
-      });
-    } catch (error) {
-      console.error('Erro inesperado:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Funções para gerenciar tipos de ação
-  const handleEditActionType = (typeId: string, currentName: string) => {
-    setEditingActionType(typeId);
-    setEditingActionTypeName(currentName);
-  };
-
-  const handleSaveActionType = async () => {
-    if (!editingActionTypeName.trim() || !editingActionType) {
-      toast({
-        title: "Erro",
-        description: "O nome do tipo não pode estar vazio.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('action_types')
-        .update({ name: editingActionTypeName.toLowerCase().replace(/\s+/g, '-') })
-        .eq('id', editingActionType);
-
-      if (error) {
-        console.error('Erro ao atualizar tipo:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível atualizar o tipo.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      await refreshData();
-      setEditingActionType(null);
-      setEditingActionTypeName("");
-
-      toast({
-        title: "Sucesso",
-        description: "Nome do tipo atualizado com sucesso.",
-      });
-    } catch (error) {
-      console.error('Erro inesperado:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleDeleteActionType = async (typeId: string) => {
-    try {
-      const { error } = await supabase
-        .from('action_types')
-        .delete()
-        .eq('id', typeId);
-
-      if (error) {
-        console.error('Erro ao excluir tipo:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível excluir o tipo.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      await refreshData();
-      toast({
-        title: "Sucesso",
-        description: "Tipo de ação excluído com sucesso.",
-      });
-    } catch (error) {
-      console.error('Erro inesperado:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Funções para gerenciar fontes de leads
-  const handleEditLeadSource = (sourceId: string, currentLabel: string) => {
-    setEditingLeadSource(sourceId);
-    setEditingLeadSourceName(currentLabel);
-  };
-
-  const handleSaveLeadSource = async () => {
-    if (!editingLeadSourceName.trim() || !editingLeadSource) {
-      toast({
-        title: "Erro",
-        description: "O nome da fonte não pode estar vazio.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('lead_sources')
-        .update({ label: editingLeadSourceName.trim() })
-        .eq('id', editingLeadSource);
-
-      if (error) {
-        console.error('Erro ao atualizar fonte:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível atualizar a fonte.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      await refreshData();
-      setEditingLeadSource(null);
-      setEditingLeadSourceName("");
-
-      toast({
-        title: "Sucesso",
-        description: "Fonte atualizada com sucesso.",
-      });
-    } catch (error) {
-      console.error('Erro inesperado:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleDeleteLeadSource = async (sourceId: string) => {
-    try {
-      const { error } = await supabase
-        .from('lead_sources')
-        .delete()
-        .eq('id', sourceId);
-
-      if (error) {
-        console.error('Erro ao excluir fonte:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível excluir a fonte.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      await refreshData();
-      toast({
-        title: "Sucesso",
-        description: "Fonte excluída com sucesso.",
-      });
-    } catch (error) {
-      console.error('Erro inesperado:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado.",
-        variant: "destructive"
       });
     }
   };
@@ -873,7 +624,7 @@ export function SettingsContent() {
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={() => handleToggleComponentVisibility(component.id)}
+                  onClick={() => toggleComponentVisibility(component.id)}
                 >
                   {component.visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
@@ -883,7 +634,16 @@ export function SettingsContent() {
         </div>
         
         <div className="mt-6 pt-4 border-t">
-          <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSaveDashboardSettings}>
+          <Button 
+            className="bg-blue-600 hover:bg-blue-700" 
+            onClick={() => {
+              saveDashboardSettings();
+              toast({
+                title: "Configurações salvas",
+                description: "As configurações do dashboard foram salvas com sucesso.",
+              });
+            }}
+          >
             Salvar Configurações
           </Button>
         </div>

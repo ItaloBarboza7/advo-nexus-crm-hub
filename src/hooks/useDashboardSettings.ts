@@ -51,6 +51,7 @@ const STORAGE_KEY = 'dashboard-settings';
 
 export const useDashboardSettings = () => {
   const [components, setComponents] = useState<DashboardComponent[]>(defaultComponents);
+  const [tempComponents, setTempComponents] = useState<DashboardComponent[]>(defaultComponents);
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -58,30 +59,51 @@ export const useDashboardSettings = () => {
       try {
         const savedComponents = JSON.parse(saved);
         setComponents(savedComponents);
+        setTempComponents(savedComponents);
       } catch (error) {
         console.error('Erro ao carregar configurações do dashboard:', error);
       }
     }
   }, []);
 
-  const updateComponentVisibility = (componentId: string, visible: boolean) => {
-    const updatedComponents = components.map(comp =>
+  const updateTempComponentVisibility = (componentId: string, visible: boolean) => {
+    const updatedComponents = tempComponents.map(comp =>
       comp.id === componentId ? { ...comp, visible } : comp
     );
-    setComponents(updatedComponents);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedComponents));
+    setTempComponents(updatedComponents);
   };
 
-  const toggleComponentVisibility = (componentId: string) => {
-    const component = components.find(comp => comp.id === componentId);
+  const toggleTempComponentVisibility = (componentId: string) => {
+    const component = tempComponents.find(comp => comp.id === componentId);
     if (component) {
-      updateComponentVisibility(componentId, !component.visible);
+      updateTempComponentVisibility(componentId, !component.visible);
     }
   };
 
+  const saveDashboardSettings = () => {
+    setComponents(tempComponents);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(tempComponents));
+  };
+
+  const resetTempSettings = () => {
+    setTempComponents(components);
+  };
+
+  // Manter compatibilidade com código existente
+  const updateComponentVisibility = (componentId: string, visible: boolean) => {
+    updateTempComponentVisibility(componentId, visible);
+  };
+
+  const toggleComponentVisibility = (componentId: string) => {
+    toggleTempComponentVisibility(componentId);
+  };
+
   return {
-    components,
+    components: tempComponents, // Usar tempComponents para mostrar na interface
+    actualComponents: components, // Componentes realmente salvos
     updateComponentVisibility,
-    toggleComponentVisibility
+    toggleComponentVisibility,
+    saveDashboardSettings,
+    resetTempSettings
   };
 };
