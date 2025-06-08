@@ -19,7 +19,7 @@ export function DeleteButton({
   itemType, 
   disabled = false, 
   size = "sm",
-  variant = "ghost"
+  variant = "outline"
 }: DeleteButtonProps) {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -27,9 +27,8 @@ export function DeleteButton({
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('🗑️ Novo botão de excluir clicado para:', itemName);
+    console.log('🗑️ Botão de excluir clicado para:', itemName);
     setShowConfirmDialog(true);
-    console.log('✅ Dialog de confirmação aberto');
   };
 
   const handleConfirmDelete = async () => {
@@ -38,17 +37,13 @@ export function DeleteButton({
       setIsDeleting(true);
       await onDelete();
       console.log('✅ Item excluído com sucesso');
+      setShowConfirmDialog(false);
     } catch (error) {
       console.error('❌ Erro ao excluir item:', error);
+      setShowConfirmDialog(false);
     } finally {
       setIsDeleting(false);
-      setShowConfirmDialog(false);
     }
-  };
-
-  const handleDialogClose = () => {
-    console.log('❌ Dialog de confirmação cancelado');
-    setShowConfirmDialog(false);
   };
 
   return (

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +14,7 @@ import { AddActionTypeDialog } from "@/components/AddActionTypeDialog";
 import { AddLeadSourceDialog } from "@/components/AddLeadSourceDialog";
 import { AddLossReasonDialog } from "@/components/AddLossReasonDialog";
 import { EditCompanyModal } from "@/components/EditCompanyModal";
+import { DeleteButton } from "@/components/DeleteButton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useFilterOptions } from "@/hooks/useFilterOptions";
@@ -394,8 +394,9 @@ export function SettingsContent() {
     }
   };
 
+  // Função corrigida para deletar motivos de perda
   const handleDeleteLossReason = async (reasonId: string) => {
-    console.log('Tentando excluir motivo de perda com ID:', reasonId);
+    console.log('🗑️ Iniciando exclusão do motivo de perda com ID:', reasonId);
     
     try {
       const { error } = await supabase
@@ -404,29 +405,32 @@ export function SettingsContent() {
         .eq('id', reasonId);
 
       if (error) {
-        console.error('Erro ao excluir motivo de perda:', error);
+        console.error('❌ Erro ao excluir motivo de perda:', error);
         toast({
           title: "Erro",
           description: "Não foi possível excluir o motivo de perda.",
           variant: "destructive"
         });
-        return;
+        throw error;
       }
 
-      console.log('Motivo de perda excluído com sucesso');
-      refreshData();
+      console.log('✅ Motivo de perda excluído com sucesso do banco');
+      
+      // Atualizar os dados após exclusão bem-sucedida
+      await refreshData();
 
       toast({
         title: "Sucesso",
         description: "Motivo de perda excluído com sucesso.",
       });
     } catch (error) {
-      console.error('Erro inesperado ao excluir motivo de perda:', error);
+      console.error('❌ Erro inesperado ao excluir motivo de perda:', error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado ao excluir o motivo.",
         variant: "destructive"
       });
+      throw error; // Re-throw para que o DeleteButton possa lidar com o erro
     }
   };
 
@@ -1224,13 +1228,13 @@ export function SettingsContent() {
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button 
-                            variant="outline" 
+                          <DeleteButton
+                            onDelete={() => handleDeleteLeadSource(source.id)}
+                            itemName={source.label}
+                            itemType="fonte de leads"
                             size="sm"
-                            onClick={() => handleDeleteLeadSource(source.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                            variant="outline"
+                          />
                         </div>
                       )}
                     </div>
@@ -1240,7 +1244,7 @@ export function SettingsContent() {
             </ScrollArea>
           </Card>
 
-          {/* Tipos de Perdas */}
+          {/* Tipos de Perdas - CORRIGIDO */}
           <Card className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-md font-semibold text-gray-900">Tipos de Perdas</h4>
@@ -1295,13 +1299,13 @@ export function SettingsContent() {
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button 
-                            variant="outline" 
+                          <DeleteButton
+                            onDelete={() => handleDeleteLossReason(reason.id)}
+                            itemName={reason.reason}
+                            itemType="motivo de perda"
                             size="sm"
-                            onClick={() => handleDeleteLossReason(reason.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                            variant="outline"
+                          />
                         </div>
                       )}
                     </div>
