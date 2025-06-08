@@ -1,9 +1,8 @@
-
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Activity, Users, BarChart3, PieChart as PieChartIcon } from "lucide-react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from "recharts";
 import { Lead } from "@/types/lead";
 import { getChartTitle } from "@/components/analysis/ChartTitleProvider";
 
@@ -97,39 +96,59 @@ export function ActionTypesChart({ leads, selectedCategory = 'all' }: ActionType
 
       <div className="h-80">
         {viewType === 'bar' ? (
-          <div className="space-y-4 h-full overflow-y-auto px-2">
-            {chartData.map((item, index) => (
-              <div key={item.actionType} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div 
-                      className="w-3 h-3 rounded-full flex-shrink-0" 
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <span className="font-medium text-gray-800 truncate text-sm">
-                      {item.actionType}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 text-sm text-gray-600 ml-4">
-                    <span className="font-bold text-gray-900 min-w-[2rem] text-right">{item.count}</span>
-                    <span className="text-xs bg-blue-50 px-2 py-1 rounded-full font-medium min-w-[3rem] text-center text-blue-700">
-                      {item.percentage.toFixed(1)}%
-                    </span>
-                  </div>
-                </div>
-                <div className="relative">
-                  <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-500 ease-out"
-                      style={{ 
-                        width: `${item.percentage}%`,
-                        backgroundColor: item.color
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div className="h-full px-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart 
+                data={chartData} 
+                margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                barCategoryGap="20%"
+              >
+                <defs>
+                  {chartData.map((entry, index) => (
+                    <linearGradient key={index} id={`gradient-${index}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={entry.color} stopOpacity={1}/>
+                      <stop offset="100%" stopColor={entry.color} stopOpacity={0.8}/>
+                    </linearGradient>
+                  ))}
+                </defs>
+                <XAxis 
+                  dataKey="actionType"
+                  tick={{ fontSize: 10, fill: '#6b7280' }}
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis 
+                  tick={{ fontSize: 10, fill: '#6b7280' }}
+                  width={40}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'white', 
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                  }}
+                  formatter={(value: number, name: string, props: any) => [
+                    `${value} leads (${props.payload.percentage.toFixed(1)}%)`, 
+                    props.payload.actionType
+                  ]}
+                />
+                <Bar 
+                  dataKey="count" 
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={40}
+                >
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={`url(#gradient-${index})`} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
