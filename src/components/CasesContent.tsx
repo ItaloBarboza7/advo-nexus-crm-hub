@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { DateRange } from "react-day-picker";
 import { DateFilter } from "@/components/DateFilter";
@@ -32,7 +31,17 @@ export function CasesContent() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
+  
+  // Estados separados para cada tipo de visualização
   const [leadsViewMode, setLeadsViewMode] = useState<'weekly' | 'monthly'>('weekly');
+  const [contractsViewMode, setContractsViewMode] = useState<'weekly' | 'monthly'>('weekly');
+  const [opportunitiesViewMode, setOpportunitiesViewMode] = useState<'weekly' | 'monthly'>('weekly');
+  
+  // Estados para controlar quando mostrar os gráficos
+  const [showLeadsChart, setShowLeadsChart] = useState(false);
+  const [showContractsChart, setShowContractsChart] = useState(false);
+  const [showOpportunitiesChart, setShowOpportunitiesChart] = useState(false);
+
   const [advancedFilters, setAdvancedFilters] = useState<FilterOptions>({
     status: [],
     source: [],
@@ -136,6 +145,10 @@ export function CasesContent() {
 
   const handleCategoryChange = (category: string) => {
     setSelectedCategory(category);
+    // Resetar estados dos gráficos quando mudar de categoria
+    setShowLeadsChart(false);
+    setShowContractsChart(false);
+    setShowOpportunitiesChart(false);
     // Limpar filtros avançados quando mudar de categoria
     setAdvancedFilters({
       status: [],
@@ -145,6 +158,22 @@ export function CasesContent() {
       lossReason: [],
       valueRange: { min: null, max: null }
     });
+  };
+
+  // Handlers para mostrar gráficos quando o dropdown for usado
+  const handleLeadsViewChange = (view: 'weekly' | 'monthly') => {
+    setLeadsViewMode(view);
+    setShowLeadsChart(true);
+  };
+
+  const handleContractsViewChange = (view: 'weekly' | 'monthly') => {
+    setContractsViewMode(view);
+    setShowContractsChart(true);
+  };
+
+  const handleOpportunitiesViewChange = (view: 'weekly' | 'monthly') => {
+    setOpportunitiesViewMode(view);
+    setShowOpportunitiesChart(true);
   };
 
   useEffect(() => {
@@ -183,7 +212,11 @@ export function CasesContent() {
         lossReasons={lossReasons}
         onCategoryChange={handleCategoryChange}
         leadsViewMode={leadsViewMode}
-        onLeadsViewChange={setLeadsViewMode}
+        onLeadsViewChange={handleLeadsViewChange}
+        contractsViewMode={contractsViewMode}
+        onContractsViewChange={handleContractsViewChange}
+        opportunitiesViewMode={opportunitiesViewMode}
+        onOpportunitiesViewChange={handleOpportunitiesViewChange}
       />
 
       <ChartsSection
@@ -196,6 +229,11 @@ export function CasesContent() {
         shouldShowStateChart={shouldShowStateChart()}
         hasLeadPassedThroughStatus={hasLeadPassedThroughStatus}
         leadsViewMode={leadsViewMode}
+        contractsViewMode={contractsViewMode}
+        opportunitiesViewMode={opportunitiesViewMode}
+        showLeadsChart={showLeadsChart}
+        showContractsChart={showContractsChart}
+        showOpportunitiesChart={showOpportunitiesChart}
       />
 
       <LeadsSection

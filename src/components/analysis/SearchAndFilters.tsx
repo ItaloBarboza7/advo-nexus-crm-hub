@@ -14,9 +14,13 @@ interface SearchAndFiltersProps {
   setAdvancedFilters: (filters: FilterOptions) => void;
   lossReasons: Array<{ id: string; reason: string; }>;
   onCategoryChange: (category: string) => void;
-  // Novas props para o gráfico de leads
+  // Props para visualizações
   leadsViewMode?: 'weekly' | 'monthly';
   onLeadsViewChange?: (view: 'weekly' | 'monthly') => void;
+  contractsViewMode?: 'weekly' | 'monthly';
+  onContractsViewChange?: (view: 'weekly' | 'monthly') => void;
+  opportunitiesViewMode?: 'weekly' | 'monthly';
+  onOpportunitiesViewChange?: (view: 'weekly' | 'monthly') => void;
 }
 
 export function SearchAndFilters({
@@ -28,7 +32,11 @@ export function SearchAndFilters({
   lossReasons,
   onCategoryChange,
   leadsViewMode = 'weekly',
-  onLeadsViewChange
+  onLeadsViewChange,
+  contractsViewMode = 'weekly',
+  onContractsViewChange,
+  opportunitiesViewMode = 'weekly',
+  onOpportunitiesViewChange
 }: SearchAndFiltersProps) {
   return (
     <Card className="p-6">
@@ -59,6 +67,24 @@ export function SearchAndFilters({
               currentView={leadsViewMode}
               onViewChange={onLeadsViewChange}
               label="Leads"
+            />
+          )}
+
+          {/* Dropdown para visualização de contratos quando categoria for "contratos" */}
+          {selectedCategory === "contratos" && onContractsViewChange && (
+            <ViewToggleDropdown
+              currentView={contractsViewMode}
+              onViewChange={onContractsViewChange}
+              label="Contratos"
+            />
+          )}
+
+          {/* Dropdown para visualização de oportunidades quando categoria for "oportunidades" */}
+          {selectedCategory === "oportunidades" && onOpportunitiesViewChange && (
+            <ViewToggleDropdown
+              currentView={opportunitiesViewMode}
+              onViewChange={onOpportunitiesViewChange}
+              label="Oportunidades"
             />
           )}
           

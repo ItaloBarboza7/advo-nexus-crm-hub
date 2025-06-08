@@ -15,8 +15,14 @@ interface ChartsSectionProps {
   shouldShowActionGroupChart: boolean;
   shouldShowStateChart: boolean;
   hasLeadPassedThroughStatus: (leadId: string, statuses: string[]) => boolean;
-  // Nova prop para visualização de leads
+  // Props para visualizações
   leadsViewMode?: 'weekly' | 'monthly';
+  contractsViewMode?: 'weekly' | 'monthly';
+  opportunitiesViewMode?: 'weekly' | 'monthly';
+  // Props para controlar quando mostrar gráficos
+  showLeadsChart?: boolean;
+  showContractsChart?: boolean;
+  showOpportunitiesChart?: boolean;
 }
 
 export function ChartsSection({
@@ -28,7 +34,12 @@ export function ChartsSection({
   shouldShowActionGroupChart,
   shouldShowStateChart,
   hasLeadPassedThroughStatus,
-  leadsViewMode = 'weekly'
+  leadsViewMode = 'weekly',
+  contractsViewMode = 'weekly',
+  opportunitiesViewMode = 'weekly',
+  showLeadsChart = false,
+  showContractsChart = false,
+  showOpportunitiesChart = false
 }: ChartsSectionProps) {
   if (!shouldShowChart) {
     return null;
@@ -48,16 +59,16 @@ export function ChartsSection({
 
   return (
     <>
-      {/* Gráfico de Leads Gerais - só aparece na categoria "all" */}
-      {selectedCategory === "all" && (
+      {/* Gráfico de Leads Gerais - só aparece na categoria "all" e quando showLeadsChart for true */}
+      {selectedCategory === "all" && showLeadsChart && (
         <LeadsChart 
           leads={leads}
           title="Todos os Leads"
         />
       )}
 
-      {/* Gráfico de Contratos - só aparece na categoria "contratos" */}
-      {selectedCategory === "contratos" && (
+      {/* Gráfico de Contratos - só aparece na categoria "contratos" e quando showContractsChart for true */}
+      {selectedCategory === "contratos" && showContractsChart && (
         <LeadsChart 
           leads={leads}
           title="Novos Contratos"
@@ -65,8 +76,8 @@ export function ChartsSection({
         />
       )}
 
-      {/* Gráfico de Oportunidades - só aparece na categoria "oportunidades" */}
-      {selectedCategory === "oportunidades" && (
+      {/* Gráfico de Oportunidades - só aparece na categoria "oportunidades" e quando showOpportunitiesChart for true */}
+      {selectedCategory === "oportunidades" && showOpportunitiesChart && (
         <LeadsChart 
           leads={leads}
           title="Oportunidades"
