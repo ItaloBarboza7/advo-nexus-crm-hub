@@ -3,9 +3,6 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/AppSidebar"
 import { Header } from "@/components/Header"
 import { DashboardContent } from "@/components/DashboardContent"
-import { LeadsListView } from "@/components/LeadsListView"
-import { KanbanView } from "@/components/KanbanView"
-import { AnalysisContent } from "@/components/analysis/AnalysisContent"
 import { OptimizationContent } from "@/components/OptimizationContent"
 import { CalendarContent } from "@/components/CalendarContent"
 import { CasesContent } from "@/components/CasesContent"
@@ -17,8 +14,10 @@ import { User, Session } from "@supabase/supabase-js"
 import { Button } from "@/components/ui/button"
 import { Link } from "react-router-dom"
 
+export type ActiveView = 'dashboard' | 'clients' | 'cases' | 'calendar' | 'optimization' | 'settings'
+
 const Index = () => {
-  const [currentView, setCurrentView] = useState('dashboard')
+  const [activeView, setActiveView] = useState<ActiveView>('dashboard')
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
 
@@ -44,6 +43,11 @@ const Index = () => {
     await supabase.auth.signOut()
   }
 
+  const handleLeadSelect = (leadId: string) => {
+    // Placeholder for lead selection functionality
+    console.log('Lead selected:', leadId)
+  }
+
   // If not authenticated, show login prompt
   if (!user) {
     return (
@@ -60,23 +64,17 @@ const Index = () => {
   }
 
   const renderContent = () => {
-    switch (currentView) {
+    switch (activeView) {
       case 'dashboard':
         return <DashboardContent />
-      case 'leads-list':
-        return <LeadsListView />
-      case 'kanban':
-        return <KanbanView />
-      case 'analysis':
-        return <AnalysisContent />
-      case 'optimization':
-        return <OptimizationContent />
-      case 'calendar':
-        return <CalendarContent />
       case 'cases':
         return <CasesContent />
       case 'clients':
         return <ClientsContent />
+      case 'calendar':
+        return <CalendarContent />
+      case 'optimization':
+        return <OptimizationContent />
       case 'settings':
         return <SettingsContent />
       default:
@@ -86,11 +84,12 @@ const Index = () => {
 
   return (
     <SidebarProvider>
-      <AppSidebar currentView={currentView} onViewChange={setCurrentView} />
+      <AppSidebar activeView={activeView} setActiveView={setActiveView} />
       <SidebarInset>
         <Header 
           user={user}
           onLogout={handleLogout}
+          onLeadSelect={handleLeadSelect}
         />
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
           {renderContent()}
