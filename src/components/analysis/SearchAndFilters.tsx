@@ -12,7 +12,7 @@ interface SearchAndFiltersProps {
   selectedCategory: string;
   advancedFilters: FilterOptions;
   setAdvancedFilters: (filters: FilterOptions) => void;
-  lossReasons: Array<{ id: string; reason: string; }>;
+  lossReasons: Array<{ id: string; reason: string; is_fixed: boolean; }>;
   onCategoryChange: (category: string) => void;
   // Props para visualizações
   leadsViewMode?: 'weekly' | 'monthly';
