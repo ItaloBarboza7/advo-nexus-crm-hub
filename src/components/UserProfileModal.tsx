@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Camera, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface UserProfileModalProps {
   isOpen: boolean;
@@ -19,35 +20,183 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
   const [email, setEmail] = useState("joao.silva@escritorio.com");
   const [phone, setPhone] = useState("(11) 99999-9999");
   const [avatar, setAvatar] = useState("");
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleSave = () => {
-    // Aqui você pode implementar a lógica para salvar os dados
-    // Por exemplo, salvar no localStorage ou enviar para uma API
-    localStorage.setItem('userProfile', JSON.stringify({
-      name,
-      title,
-      email,
-      phone,
-      avatar
-    }));
+  // Carregar dados do perfil ao abrir o modal
+  useEffect(() => {
+    if (isOpen) {
+      loadUserProfile();
+    }
+  }, [isOpen]);
 
-    toast({
-      title: "Perfil atualizado",
-      description: "Suas informações foram salvas com sucesso.",
-    });
+  const loadUserProfile = async () => {
+    try {
+      // Tentar carregar dados do banco de dados
+      const { data: profiles, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .limit(1);
 
-    onClose();
+      if (error) {
+        console.error('Erro ao carregar perfil:', error);
+        return;
+      }
+
+      if (profiles && profiles.length > 0) {
+        const profile = profiles[0];
+        setProfileId(profile.id);
+        setName(profile.name || "Dr. João Silva");
+        setTitle(profile.title || "Advogado Senior");
+        setEmail(profile.email || "joao.silva@escritorio.com");
+        setPhone(profile.phone || "(11) 99999-9999");
+        setAvatar(profile.avatar_url || "");
+      }
+    } catch (error) {
+      console.error('Erro ao carregar perfil:', error);
+    }
   };
 
-  const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setAvatar(e.target?.result as string);
+  const handleSave = async () => {
+    setIsLoading(true);
+    try {
+      const profileData = {
+        name,
+        title,
+        email,
+        phone,
+        avatar_url: avatar
       };
-      reader.readAsDataURL(file);
+
+      let error;
+
+      if (profileId) {
+        // Atualizar perfil existente
+        const { error: updateError } = await supabase
+          .from('user_profiles')
+          .update(profileData)
+          .eq('id', profileId);
+        error = updateError;
+      } else {
+        // Criar novo perfil
+        const { data, error: insertError } = await supabase
+          .from('user_profiles')
+          .insert([profileData])
+          .select()
+          .single();
+        
+        if (data) {
+          setProfileId(data.id);
+        }
+        error = insertError;
+      }
+
+      if (error) {
+        console.error('Erro ao salvar perfil:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível salvar o perfil. Tente novamente.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Também salvar no localStorage como fallback
+      localStorage.setItem('userProfile', JSON.stringify({
+        name,
+        title,
+        email,
+        phone,
+        avatar
+      }));
+
+      toast({
+        title: "Perfil atualizado",
+        description: "Suas informações foram salvas com sucesso.",
+      });
+
+      onClose();
+    } catch (error) {
+      console.error('Erro ao salvar perfil:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível salvar o perfil. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Verificar tamanho do arquivo (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "Erro",
+        description: "A imagem deve ter no máximo 5MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Verificar tipo do arquivo
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Erro",
+        description: "Apenas arquivos de imagem são permitidos.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      // Gerar nome único para o arquivo
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      // Upload para o Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        console.error('Erro no upload:', uploadError);
+        toast({
+          title: "Erro",
+          description: "Não foi possível fazer upload da imagem.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Obter URL pública da imagem
+      const { data: publicUrlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      if (publicUrlData) {
+        setAvatar(publicUrlData.publicUrl);
+        toast({
+          title: "Sucesso",
+          description: "Imagem carregada com sucesso!",
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao fazer upload:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível fazer upload da imagem.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -80,9 +229,12 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
                 accept="image/*"
                 onChange={handleAvatarChange}
                 className="hidden"
+                disabled={isLoading}
               />
             </div>
-            <p className="text-sm text-gray-500">Clique na câmera para alterar a foto</p>
+            <p className="text-sm text-gray-500">
+              {isLoading ? "Carregando..." : "Clique na câmera para alterar a foto"}
+            </p>
           </div>
 
           {/* Form Fields */}
@@ -94,6 +246,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Digite seu nome completo"
+                disabled={isLoading}
               />
             </div>
 
@@ -104,6 +257,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Digite seu cargo ou título"
+                disabled={isLoading}
               />
             </div>
 
@@ -115,6 +269,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Digite seu e-mail"
+                disabled={isLoading}
               />
             </div>
 
@@ -125,17 +280,18 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="Digite seu telefone"
+                disabled={isLoading}
               />
             </div>
           </div>
 
           {/* Action Buttons */}
           <div className="flex gap-3 pt-4">
-            <Button variant="outline" onClick={onClose} className="flex-1">
+            <Button variant="outline" onClick={onClose} className="flex-1" disabled={isLoading}>
               Cancelar
             </Button>
-            <Button onClick={handleSave} className="flex-1">
-              Salvar alterações
+            <Button onClick={handleSave} className="flex-1" disabled={isLoading}>
+              {isLoading ? "Salvando..." : "Salvar alterações"}
             </Button>
           </div>
         </div>

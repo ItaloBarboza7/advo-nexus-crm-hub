@@ -4,7 +4,7 @@ import { Users, UserPlus, UserX, DollarSign, TrendingUp, Target, BarChart3 } fro
 import { DateRange } from "react-day-picker";
 import { DateFilter } from "@/components/DateFilter";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function DashboardContent() {
@@ -267,7 +267,7 @@ export function DashboardContent() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Conversion Chart - Moved to where Team Results was */}
+        {/* Conversion Chart - Now with LineChart */}
         <Card className="p-6 flex flex-col">
           <CardHeader className="p-0 mb-3">
             <div className="flex items-center justify-between">
@@ -290,13 +290,7 @@ export function DashboardContent() {
             <div className="h-32 flex-1">
               <ChartContainer config={chartConfig} className="h-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={getConversionData()} margin={{ top: 5, right: 5, left: 5, bottom: 20 }}>
-                    <defs>
-                      <linearGradient id="conversionGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#3b82f6" stopOpacity={1}/>
-                        <stop offset="100%" stopColor="#1e40af" stopOpacity={1}/>
-                      </linearGradient>
-                    </defs>
+                  <LineChart data={getConversionData()} margin={{ top: 5, right: 5, left: 5, bottom: 20 }}>
                     <XAxis 
                       dataKey={getConversionDataKey()}
                       tick={{ fontSize: 8, fill: '#6b7280' }}
@@ -317,12 +311,15 @@ export function DashboardContent() {
                       formatter={(value, name) => [`${value}%`, 'Taxa de Conversão']}
                       labelFormatter={(label) => conversionView === 'weekly' ? `${label}-feira` : label}
                     />
-                    <Bar 
+                    <Line 
+                      type="monotone"
                       dataKey="conversion" 
-                      fill="url(#conversionGradient)"
-                      radius={[2, 2, 0, 0]}
+                      stroke="#3b82f6"
+                      strokeWidth={2}
+                      dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
+                      activeDot={{ r: 6, stroke: '#3b82f6', strokeWidth: 2 }}
                     />
-                  </BarChart>
+                  </LineChart>
                 </ResponsiveContainer>
               </ChartContainer>
             </div>
@@ -385,7 +382,7 @@ export function DashboardContent() {
           </div>
         </Card>
 
-        {/* New Leads Chart - Moved to top right */}
+        {/* New Leads Chart - Now with LineChart */}
         <Card className="p-6 flex flex-col">
           <CardHeader className="p-0 mb-3">
             <div className="flex items-center justify-between">
@@ -408,13 +405,7 @@ export function DashboardContent() {
             <div className="h-32 flex-1">
               <ChartContainer config={chartConfig} className="h-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={getLeadsData()} margin={{ top: 5, right: 5, left: 5, bottom: 20 }}>
-                    <defs>
-                      <linearGradient id="leadsGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#10b981" stopOpacity={1}/>
-                        <stop offset="100%" stopColor="#059669" stopOpacity={1}/>
-                      </linearGradient>
-                    </defs>
+                  <LineChart data={getLeadsData()} margin={{ top: 5, right: 5, left: 5, bottom: 20 }}>
                     <XAxis 
                       dataKey={getLeadsDataKey()}
                       tick={{ fontSize: 8, fill: '#6b7280' }}
@@ -435,12 +426,15 @@ export function DashboardContent() {
                       formatter={(value, name) => [value, 'Leads']}
                       labelFormatter={(label) => leadsView === 'weekly' ? `${label}-feira` : label}
                     />
-                    <Bar 
+                    <Line 
+                      type="monotone"
                       dataKey="leads" 
-                      fill="url(#leadsGradient)"
-                      radius={[2, 2, 0, 0]}
+                      stroke="#10b981"
+                      strokeWidth={2}
+                      dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
+                      activeDot={{ r: 6, stroke: '#10b981', strokeWidth: 2 }}
                     />
-                  </BarChart>
+                  </LineChart>
                 </ResponsiveContainer>
               </ChartContainer>
             </div>
@@ -494,7 +488,7 @@ export function DashboardContent() {
           </div>
         </Card>
 
-        {/* Action Chart - Moved to bottom right */}
+        {/* Action Chart - Now with LineChart */}
         <Card className="p-6 flex flex-col">
           <CardHeader className="p-0 mb-3">
             <div className="flex items-center justify-between">
@@ -517,17 +511,7 @@ export function DashboardContent() {
             <div className="h-32 flex-1">
               <ChartContainer config={chartConfig} className="h-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={getActionData()} margin={{ top: 5, right: 5, left: 5, bottom: 25 }}>
-                    <defs>
-                      <linearGradient id="opportunitiesGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#8b5cf6" stopOpacity={1}/>
-                        <stop offset="100%" stopColor="#6d28d9" stopOpacity={1}/>
-                      </linearGradient>
-                      <linearGradient id="closuresGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#ef4444" stopOpacity={1}/>
-                        <stop offset="100%" stopColor="#dc2626" stopOpacity={1}/>
-                      </linearGradient>
-                    </defs>
+                  <LineChart data={getActionData()} margin={{ top: 5, right: 5, left: 5, bottom: 25 }}>
                     <XAxis 
                       dataKey={getActionDataKey()}
                       tick={{ fontSize: 7, fill: '#6b7280' }}
@@ -547,17 +531,23 @@ export function DashboardContent() {
                       content={<ChartTooltipContent />}
                       formatter={(value, name) => [value, name === 'opportunities' ? 'Oportunidades' : 'Fechamentos']}
                     />
-                    <Bar 
+                    <Line 
+                      type="monotone"
                       dataKey="opportunities" 
-                      fill="url(#opportunitiesGradient)"
-                      radius={[2, 2, 0, 0]}
+                      stroke="#8b5cf6"
+                      strokeWidth={2}
+                      dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 4 }}
+                      activeDot={{ r: 6, stroke: '#8b5cf6', strokeWidth: 2 }}
                     />
-                    <Bar 
+                    <Line 
+                      type="monotone"
                       dataKey="closures" 
-                      fill="url(#closuresGradient)"
-                      radius={[2, 2, 0, 0]}
+                      stroke="#ef4444"
+                      strokeWidth={2}
+                      dot={{ fill: '#ef4444', strokeWidth: 2, r: 4 }}
+                      activeDot={{ r: 6, stroke: '#ef4444', strokeWidth: 2 }}
                     />
-                  </BarChart>
+                  </LineChart>
                 </ResponsiveContainer>
               </ChartContainer>
             </div>

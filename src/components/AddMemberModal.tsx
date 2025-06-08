@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AddMemberModalProps {
   isOpen: boolean;
@@ -19,44 +20,86 @@ export function AddMemberModal({ isOpen, onClose, onMemberAdded }: AddMemberModa
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("");
   const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
   const [hasAnalysisAccess, setHasAnalysisAccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!name || !email || !role || !password) {
       toast({
         title: "Erro",
-        description: "Todos os campos são obrigatórios.",
+        description: "Todos os campos obrigatórios devem ser preenchidos.",
         variant: "destructive",
       });
       return;
     }
 
-    const newMember = {
-      id: Date.now(),
-      name,
-      email,
-      role,
-      hasAnalysisAccess,
-      avatar: name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-    };
+    setIsLoading(true);
 
-    onMemberAdded(newMember);
-    
-    toast({
-      title: "Membro adicionado",
-      description: `${name} foi adicionado à equipe com sucesso.`,
-    });
+    try {
+      // Criar perfil no banco de dados
+      const { data: profile, error: profileError } = await supabase
+        .from('user_profiles')
+        .insert([{
+          name,
+          email,
+          phone,
+          title: role,
+          avatar_url: null
+        }])
+        .select()
+        .single();
 
-    // Reset form
-    setName("");
-    setEmail("");
-    setRole("");
-    setPassword("");
-    setHasAnalysisAccess(false);
-    onClose();
+      if (profileError) {
+        console.error('Erro ao criar perfil:', profileError);
+        toast({
+          title: "Erro",
+          description: "Não foi possível criar o perfil do membro.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Criar objeto do membro para a lista local
+      const newMember = {
+        id: profile.id,
+        name,
+        email,
+        role,
+        phone,
+        hasAnalysisAccess,
+        avatar: name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
+        avatar_url: null
+      };
+
+      onMemberAdded(newMember);
+      
+      toast({
+        title: "Membro adicionado",
+        description: `${name} foi adicionado à equipe com sucesso.`,
+      });
+
+      // Reset form
+      setName("");
+      setEmail("");
+      setRole("");
+      setPassword("");
+      setPhone("");
+      setHasAnalysisAccess(false);
+      onClose();
+    } catch (error) {
+      console.error('Erro ao adicionar membro:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível adicionar o membro. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -75,6 +118,7 @@ export function AddMemberModal({ isOpen, onClose, onMemberAdded }: AddMemberModa
               onChange={(e) => setName(e.target.value)}
               placeholder="Digite o nome completo"
               required
+              disabled={isLoading}
             />
           </div>
 
@@ -87,6 +131,18 @@ export function AddMemberModal({ isOpen, onClose, onMemberAdded }: AddMemberModa
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Digite o e-mail"
               required
+              disabled={isLoading}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="phone">Telefone</Label>
+            <Input
+              id="phone"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="Digite o telefone"
+              disabled={isLoading}
             />
           </div>
 
@@ -99,12 +155,13 @@ export function AddMemberModal({ isOpen, onClose, onMemberAdded }: AddMemberModa
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Digite a senha"
               required
+              disabled={isLoading}
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="role">Cargo</Label>
-            <Select value={role} onValueChange={setRole} required>
+            <Select value={role} onValueChange={setRole} required disabled={isLoading}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione o cargo" />
               </SelectTrigger>
@@ -125,6 +182,7 @@ export function AddMemberModal({ isOpen, onClose, onMemberAdded }: AddMemberModa
                 id="analysis-access"
                 checked={hasAnalysisAccess}
                 onCheckedChange={(checked) => setHasAnalysisAccess(checked as boolean)}
+                disabled={isLoading}
               />
               <Label htmlFor="analysis-access" className="text-sm font-normal">
                 Acesso a análises
@@ -133,11 +191,11 @@ export function AddMemberModal({ isOpen, onClose, onMemberAdded }: AddMemberModa
           </div>
 
           <div className="flex gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1" disabled={isLoading}>
               Cancelar
             </Button>
-            <Button type="submit" className="flex-1">
-              Adicionar Membro
+            <Button type="submit" className="flex-1" disabled={isLoading}>
+              {isLoading ? "Adicionando..." : "Adicionar Membro"}
             </Button>
           </div>
         </form>
