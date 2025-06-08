@@ -48,6 +48,37 @@ export function SettingsContent() {
   const [editingColumn, setEditingColumn] = useState<string | null>(null);
   const [editingColumnName, setEditingColumnName] = useState("");
 
+  // Estados para gerenciar grupos de ação
+  const [actionGroups, setActionGroups] = useState([
+    { id: 1, name: "Ligações", description: "Ações relacionadas a chamadas telefônicas" },
+    { id: 2, name: "WhatsApp", description: "Ações relacionadas ao WhatsApp" },
+    { id: 3, name: "E-mail", description: "Ações relacionadas a e-mails" },
+  ]);
+
+  // Estados para gerenciar tipos de ação
+  const [actionTypes, setActionTypes] = useState([
+    { id: 1, name: "Ligação realizada", group: "Ligações" },
+    { id: 2, name: "Mensagem enviada", group: "WhatsApp" },
+    { id: 3, name: "E-mail enviado", group: "E-mail" },
+  ]);
+
+  // Estados para gerenciar opções de leads
+  const [leadOptions, setLeadOptions] = useState([
+    { id: 1, category: "Fonte", option: "Website" },
+    { id: 2, category: "Fonte", option: "LinkedIn" },
+    { id: 3, category: "Fonte", option: "Indicação" },
+    { id: 4, category: "Interesse", option: "Consultoria Jurídica" },
+    { id: 5, category: "Interesse", option: "Contratos" },
+    { id: 6, category: "Interesse", option: "Compliance" },
+  ]);
+
+  const [editingActionGroup, setEditingActionGroup] = useState<number | null>(null);
+  const [editingActionType, setEditingActionType] = useState<number | null>(null);
+  const [editingLeadOption, setEditingLeadOption] = useState<number | null>(null);
+  const [editingActionGroupName, setEditingActionGroupName] = useState("");
+  const [editingActionTypeName, setEditingActionTypeName] = useState("");
+  const [editingLeadOptionName, setEditingLeadOptionName] = useState("");
+
   const { toast } = useToast();
 
   // Carregar colunas do banco de dados
@@ -91,9 +122,8 @@ export function SettingsContent() {
     { id: "company", title: "Empresa", icon: Building },
     { id: "team", title: "Equipe", icon: Users },
     { id: "kanban", title: "Quadro Kanban", icon: Columns },
-    { id: "leads", title: "Opções de Leads", icon: UserPlus },
     { id: "dashboard", title: "Dashboard", icon: Building },
-    { id: "actions", title: "Editar Ações", icon: Settings },
+    { id: "configurations", title: "Configurações", icon: Settings },
   ];
 
   const tabs = isAdmin ? allTabs : allTabs.filter(tab => tab.id !== "company");
@@ -119,13 +149,6 @@ export function SettingsContent() {
     toast({
       title: "Membro removido",
       description: "O membro foi removido da equipe com sucesso.",
-    });
-  };
-
-  const handleEditActions = () => {
-    toast({
-      title: "Funcionalidade em desenvolvimento",
-      description: "A configuração de ações será implementada em breve.",
     });
   };
 
@@ -307,19 +330,122 @@ export function SettingsContent() {
     }
   };
 
-  const handleCancelAddColumn = () => {
-    // This function is no longer needed since we're using AddColumnDialog
-    // but keeping it for compatibility
+  // Funções para gerenciar grupos de ação
+  const handleEditActionGroup = (groupId: number, currentName: string) => {
+    setEditingActionGroup(groupId);
+    setEditingActionGroupName(currentName);
   };
 
-  const leadOptions = [
-    { id: 1, category: "Fonte", option: "Website" },
-    { id: 2, category: "Fonte", option: "LinkedIn" },
-    { id: 3, category: "Fonte", option: "Indicação" },
-    { id: 4, category: "Interesse", option: "Consultoria Jurídica" },
-    { id: 5, category: "Interesse", option: "Contratos" },
-    { id: 6, category: "Interesse", option: "Compliance" },
-  ];
+  const handleSaveActionGroup = () => {
+    if (!editingActionGroupName.trim()) {
+      toast({
+        title: "Erro",
+        description: "O nome do grupo não pode estar vazio.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setActionGroups(prev => prev.map(group => 
+      group.id === editingActionGroup 
+        ? { ...group, name: editingActionGroupName.trim() }
+        : group
+    ));
+
+    setEditingActionGroup(null);
+    setEditingActionGroupName("");
+
+    toast({
+      title: "Sucesso",
+      description: "Nome do grupo atualizado com sucesso.",
+    });
+  };
+
+  const handleDeleteActionGroup = (groupId: number) => {
+    setActionGroups(prev => prev.filter(group => group.id !== groupId));
+    toast({
+      title: "Sucesso",
+      description: "Grupo de ação excluído com sucesso.",
+    });
+  };
+
+  // Funções para gerenciar tipos de ação
+  const handleEditActionType = (typeId: number, currentName: string) => {
+    setEditingActionType(typeId);
+    setEditingActionTypeName(currentName);
+  };
+
+  const handleSaveActionType = () => {
+    if (!editingActionTypeName.trim()) {
+      toast({
+        title: "Erro",
+        description: "O nome do tipo não pode estar vazio.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setActionTypes(prev => prev.map(type => 
+      type.id === editingActionType 
+        ? { ...type, name: editingActionTypeName.trim() }
+        : type
+    ));
+
+    setEditingActionType(null);
+    setEditingActionTypeName("");
+
+    toast({
+      title: "Sucesso",
+      description: "Nome do tipo atualizado com sucesso.",
+    });
+  };
+
+  const handleDeleteActionType = (typeId: number) => {
+    setActionTypes(prev => prev.filter(type => type.id !== typeId));
+    toast({
+      title: "Sucesso",
+      description: "Tipo de ação excluído com sucesso.",
+    });
+  };
+
+  // Funções para gerenciar opções de leads
+  const handleEditLeadOption = (optionId: number, currentOption: string) => {
+    setEditingLeadOption(optionId);
+    setEditingLeadOptionName(currentOption);
+  };
+
+  const handleSaveLeadOption = () => {
+    if (!editingLeadOptionName.trim()) {
+      toast({
+        title: "Erro",
+        description: "O nome da opção não pode estar vazio.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLeadOptions(prev => prev.map(option => 
+      option.id === editingLeadOption 
+        ? { ...option, option: editingLeadOptionName.trim() }
+        : option
+    ));
+
+    setEditingLeadOption(null);
+    setEditingLeadOptionName("");
+
+    toast({
+      title: "Sucesso",
+      description: "Opção atualizada com sucesso.",
+    });
+  };
+
+  const handleDeleteLeadOption = (optionId: number) => {
+    setLeadOptions(prev => prev.filter(option => option.id !== optionId));
+    toast({
+      title: "Sucesso",
+      description: "Opção excluída com sucesso.",
+    });
+  };
 
   const renderCompanyTab = () => (
     <div className="space-y-6">
@@ -493,144 +619,6 @@ export function SettingsContent() {
     </div>
   );
 
-  const renderActionsTab = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">Configuração de Ações</h3>
-        <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleEditActions}>
-          <Settings className="h-4 w-4 mr-2" />
-          Configurar Ações
-        </Button>
-      </div>
-      
-      <Card className="p-6">
-        <h4 className="text-md font-semibold text-gray-900 mb-4">Grupos de Ação</h4>
-        <div className="space-y-3">
-          <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <h5 className="font-medium text-gray-900">Ligações</h5>
-                <p className="text-sm text-gray-600">Ações relacionadas a chamadas telefônicas</p>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm">
-                  <Edit className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <h5 className="font-medium text-gray-900">WhatsApp</h5>
-                <p className="text-sm text-gray-600">Ações relacionadas ao WhatsApp</p>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm">
-                  <Edit className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <h5 className="font-medium text-gray-900">E-mail</h5>
-                <p className="text-sm text-gray-600">Ações relacionadas a e-mails</p>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm">
-                  <Edit className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="mt-6">
-          <Button className="bg-blue-600 hover:bg-blue-700">
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Grupo de Ação
-          </Button>
-        </div>
-      </Card>
-
-      <Card className="p-6">
-        <h4 className="text-md font-semibold text-gray-900 mb-4">Tipos de Ação</h4>
-        <div className="space-y-3">
-          <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <h5 className="font-medium text-gray-900">Ligação realizada</h5>
-                <p className="text-sm text-gray-600">Grupo: Ligações</p>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm">
-                  <Edit className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <h5 className="font-medium text-gray-900">Mensagem enviada</h5>
-                <p className="text-sm text-gray-600">Grupo: WhatsApp</p>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm">
-                  <Edit className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <h5 className="font-medium text-gray-900">E-mail enviado</h5>
-                <p className="text-sm text-gray-600">Grupo: E-mail</p>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm">
-                  <Edit className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="mt-6">
-          <Button className="bg-blue-600 hover:bg-blue-700">
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Tipo de Ação
-          </Button>
-        </div>
-      </Card>
-    </div>
-  );
-
   const renderKanbanTab = () => (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -714,42 +702,6 @@ export function SettingsContent() {
           ))}
         </div>
       )}
-    </div>
-  );
-
-  const renderLeadsTab = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">Opções para Cadastro de Leads</h3>
-        <Button className="bg-blue-600 hover:bg-blue-700">
-          <Plus className="h-4 w-4 mr-2" />
-          Nova Opção
-        </Button>
-      </div>
-      <div className="space-y-4">
-        {["Fonte", "Interesse"].map((category) => (
-          <Card key={category} className="p-4">
-            <h4 className="font-medium text-gray-900 mb-3">{category}</h4>
-            <div className="space-y-2">
-              {leadOptions
-                .filter(option => option.category === category)
-                .map((option) => (
-                  <div key={option.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                    <span className="text-sm text-gray-700">{option.option}</span>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm">
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </Card>
-        ))}
-      </div>
     </div>
   );
 
@@ -838,6 +790,215 @@ export function SettingsContent() {
     </div>
   );
 
+  const renderConfigurationsTab = () => (
+    <div className="space-y-6">
+      <h3 className="text-lg font-semibold text-gray-900">Configurações do Sistema</h3>
+      
+      {/* Grupos de Ação */}
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h4 className="text-md font-semibold text-gray-900">Grupos de Ação</h4>
+          <Button className="bg-blue-600 hover:bg-blue-700">
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Grupo de Ação
+          </Button>
+        </div>
+        <div className="space-y-3">
+          {actionGroups.map((group) => (
+            <div key={group.id} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  {editingActionGroup === group.id ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={editingActionGroupName}
+                        onChange={(e) => setEditingActionGroupName(e.target.value)}
+                        className="max-w-xs"
+                        placeholder="Nome do grupo"
+                      />
+                      <Button size="sm" onClick={handleSaveActionGroup}>
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => {
+                          setEditingActionGroup(null);
+                          setEditingActionGroupName("");
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div>
+                      <h5 className="font-medium text-gray-900">{group.name}</h5>
+                      <p className="text-sm text-gray-600">{group.description}</p>
+                    </div>
+                  )}
+                </div>
+                {editingActionGroup !== group.id && (
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleEditActionGroup(group.id, group.name)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleDeleteActionGroup(group.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* Tipos de Ação */}
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h4 className="text-md font-semibold text-gray-900">Tipos de Ação</h4>
+          <Button className="bg-blue-600 hover:bg-blue-700">
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Tipo de Ação
+          </Button>
+        </div>
+        <div className="space-y-3">
+          {actionTypes.map((type) => (
+            <div key={type.id} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  {editingActionType === type.id ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={editingActionTypeName}
+                        onChange={(e) => setEditingActionTypeName(e.target.value)}
+                        className="max-w-xs"
+                        placeholder="Nome do tipo"
+                      />
+                      <Button size="sm" onClick={handleSaveActionType}>
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => {
+                          setEditingActionType(null);
+                          setEditingActionTypeName("");
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div>
+                      <h5 className="font-medium text-gray-900">{type.name}</h5>
+                      <p className="text-sm text-gray-600">Grupo: {type.group}</p>
+                    </div>
+                  )}
+                </div>
+                {editingActionType !== type.id && (
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleEditActionType(type.id, type.name)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleDeleteActionType(type.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* Opções para Cadastro de Leads */}
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h4 className="text-md font-semibold text-gray-900">Opções para Cadastro de Leads</h4>
+          <Button className="bg-blue-600 hover:bg-blue-700">
+            <Plus className="h-4 w-4 mr-2" />
+            Nova Opção
+          </Button>
+        </div>
+        <div className="space-y-4">
+          {["Fonte", "Interesse"].map((category) => (
+            <div key={category}>
+              <h5 className="font-medium text-gray-900 mb-3">{category}</h5>
+              <div className="space-y-2">
+                {leadOptions
+                  .filter(option => option.category === category)
+                  .map((option) => (
+                    <div key={option.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                      {editingLeadOption === option.id ? (
+                        <div className="flex items-center gap-2 flex-1">
+                          <Input
+                            value={editingLeadOptionName}
+                            onChange={(e) => setEditingLeadOptionName(e.target.value)}
+                            className="max-w-xs"
+                            placeholder="Nome da opção"
+                          />
+                          <Button size="sm" onClick={handleSaveLeadOption}>
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={() => {
+                              setEditingLeadOption(null);
+                              setEditingLeadOptionName("");
+                            }}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="text-sm text-gray-700">{option.option}</span>
+                          <div className="flex gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleEditLeadOption(option.id, option.option)}
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleDeleteLeadOption(option.id)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <div>
@@ -865,9 +1026,8 @@ export function SettingsContent() {
         {activeTab === "company" && renderCompanyTab()}
         {activeTab === "team" && renderTeamTab()}
         {activeTab === "kanban" && renderKanbanTab()}
-        {activeTab === "leads" && renderLeadsTab()}
         {activeTab === "dashboard" && renderDashboardTab()}
-        {activeTab === "actions" && renderActionsTab()}
+        {activeTab === "configurations" && renderConfigurationsTab()}
       </Card>
 
       <AddMemberModal
