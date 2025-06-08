@@ -32,17 +32,20 @@ export function DeleteButton({
   };
 
   const handleConfirmDelete = async () => {
-    console.log('🔥 Confirmando exclusão de:', itemName);
+    console.log('🔥 [DeleteButton] Confirmando exclusão de:', itemName);
     setIsDeleting(true);
+    setShowConfirmDialog(false);
     
     try {
+      console.log('📞 [DeleteButton] Chamando função onDelete...');
       await onDelete();
-      console.log('✅ Item excluído com sucesso');
+      console.log('✅ [DeleteButton] Função onDelete executada com sucesso');
     } catch (error) {
-      console.error('❌ Erro ao excluir item:', error);
+      console.error('❌ [DeleteButton] Erro na função onDelete:', error);
+      // Reabrir o dialog se houve erro
+      setShowConfirmDialog(true);
     } finally {
       setIsDeleting(false);
-      setShowConfirmDialog(false);
     }
   };
 
