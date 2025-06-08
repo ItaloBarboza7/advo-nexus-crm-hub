@@ -14,21 +14,37 @@ export function useChartStates() {
 
   // Handlers para mostrar gráficos quando o dropdown for usado
   const handleLeadsViewChange = (view: 'weekly' | 'monthly') => {
+    console.log(`🔄 handleLeadsViewChange chamado com view: ${view}`);
     setLeadsViewMode(view);
     setShowLeadsChart(true);
+    // Esconder outros gráficos quando leads for ativado
+    setShowContractsChart(false);
+    setShowOpportunitiesChart(false);
+    console.log(`✅ showLeadsChart ativado, outros desativados`);
   };
 
   const handleContractsViewChange = (view: 'weekly' | 'monthly') => {
+    console.log(`🔄 handleContractsViewChange chamado com view: ${view}`);
     setContractsViewMode(view);
     setShowContractsChart(true);
+    // Esconder outros gráficos quando contratos for ativado
+    setShowLeadsChart(false);
+    setShowOpportunitiesChart(false);
+    console.log(`✅ showContractsChart ativado, outros desativados`);
   };
 
   const handleOpportunitiesViewChange = (view: 'weekly' | 'monthly') => {
+    console.log(`🔄 handleOpportunitiesViewChange chamado com view: ${view}`);
     setOpportunitiesViewMode(view);
     setShowOpportunitiesChart(true);
+    // Esconder outros gráficos quando oportunidades for ativado
+    setShowLeadsChart(false);
+    setShowContractsChart(false);
+    console.log(`✅ showOpportunitiesChart ativado, outros desativados`);
   };
 
   const resetChartStates = () => {
+    console.log(`🔄 resetChartStates chamado - todos os gráficos serão desativados`);
     setShowLeadsChart(false);
     setShowContractsChart(false);
     setShowOpportunitiesChart(false);

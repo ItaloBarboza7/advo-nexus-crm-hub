@@ -4,7 +4,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import { Lead } from "@/types/lead";
 import { ViewToggleDropdown } from "./ViewToggleDropdown";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { format, startOfWeek, endOfWeek, getDay, getMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -12,15 +12,30 @@ interface LeadsChartProps {
   leads: Lead[];
   title: string;
   filterFunction?: (lead: Lead) => boolean;
+  viewMode?: 'weekly' | 'monthly';
 }
 
-export function LeadsChart({ leads, title, filterFunction }: LeadsChartProps) {
-  const [viewMode, setViewMode] = useState<'weekly' | 'monthly'>('weekly');
+export function LeadsChart({ leads, title, filterFunction, viewMode: externalViewMode }: LeadsChartProps) {
+  const [internalViewMode, setInternalViewMode] = useState<'weekly' | 'monthly'>('weekly');
+  
+  // Se receber viewMode como prop, usar ele, senão usar o estado interno
+  const currentViewMode = externalViewMode || internalViewMode;
+
+  // Sincronizar o estado interno com o viewMode externo quando ele mudar
+  useEffect(() => {
+    if (externalViewMode) {
+      setInternalViewMode(externalViewMode);
+      console.log(`📊 LeadsChart "${title}" - viewMode atualizado para: ${externalViewMode}`);
+    }
+  }, [externalViewMode, title]);
 
   const chartData = useMemo(() => {
     const filteredLeads = filterFunction ? leads.filter(filterFunction) : leads;
     
-    if (viewMode === 'weekly') {
+    console.log(`📊 LeadsChart "${title}" - gerando dados para viewMode: ${currentViewMode}`);
+    console.log(`📋 LeadsChart "${title}" - ${filteredLeads.length} leads filtrados`);
+    
+    if (currentViewMode === 'weekly') {
       const weekDays = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
       const weeklyData = weekDays.map((day, index) => ({
         period: day,
@@ -54,7 +69,7 @@ export function LeadsChart({ leads, title, filterFunction }: LeadsChartProps) {
 
       return monthlyData;
     }
-  }, [leads, viewMode, filterFunction]);
+  }, [leads, currentViewMode, filterFunction, title]);
 
   const totalLeads = chartData.reduce((sum, item) => sum + item.leads, 0);
   const maxPeriod = chartData.reduce((prev, current) => 
@@ -68,17 +83,25 @@ export function LeadsChart({ leads, title, filterFunction }: LeadsChartProps) {
     },
   };
 
+  const handleViewChange = (view: 'weekly' | 'monthly') => {
+    console.log(`📊 LeadsChart "${title}" - handleViewChange interno chamado: ${view}`);
+    setInternalViewMode(view);
+  };
+
   return (
     <Card className="p-6">
       <CardHeader className="p-0 mb-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold text-gray-900">
-            {title} - {viewMode === 'weekly' ? 'Por Dia da Semana' : 'Por Mês'}
+            {title} - {currentViewMode === 'weekly' ? 'Por Dia da Semana' : 'Por Mês'}
           </CardTitle>
-          <ViewToggleDropdown 
-            currentView={viewMode}
-            onViewChange={setViewMode}
-          />
+          {/* Só mostrar o dropdown interno se não receber viewMode como prop */}
+          {!externalViewMode && (
+            <ViewToggleDropdown 
+              currentView={currentViewMode}
+              onViewChange={handleViewChange}
+            />
+          )}
         </div>
       </CardHeader>
       

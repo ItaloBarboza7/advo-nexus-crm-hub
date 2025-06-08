@@ -38,6 +38,14 @@ export function SearchAndFilters({
   opportunitiesViewMode = 'weekly',
   onOpportunitiesViewChange
 }: SearchAndFiltersProps) {
+
+  console.log(`🔍 SearchAndFilters - selectedCategory: ${selectedCategory}`);
+  console.log(`📊 SearchAndFilters - handlers:`, {
+    onLeadsViewChange: !!onLeadsViewChange,
+    onContractsViewChange: !!onContractsViewChange,
+    onOpportunitiesViewChange: !!onOpportunitiesViewChange
+  });
+
   return (
     <Card className="p-6">
       <div className="flex items-center gap-4 flex-wrap">
@@ -65,7 +73,10 @@ export function SearchAndFilters({
           {selectedCategory === "all" && onLeadsViewChange && (
             <ViewToggleDropdown
               currentView={leadsViewMode}
-              onViewChange={onLeadsViewChange}
+              onViewChange={(view) => {
+                console.log(`🎯 ViewToggleDropdown (all) - view: ${view}`);
+                onLeadsViewChange(view);
+              }}
               label="Leads"
             />
           )}
@@ -74,7 +85,10 @@ export function SearchAndFilters({
           {selectedCategory === "contratos" && onContractsViewChange && (
             <ViewToggleDropdown
               currentView={contractsViewMode}
-              onViewChange={onContractsViewChange}
+              onViewChange={(view) => {
+                console.log(`🎯 ViewToggleDropdown (contratos) - view: ${view}`);
+                onContractsViewChange(view);
+              }}
               label="Contratos"
             />
           )}
@@ -83,7 +97,10 @@ export function SearchAndFilters({
           {selectedCategory === "oportunidades" && onOpportunitiesViewChange && (
             <ViewToggleDropdown
               currentView={opportunitiesViewMode}
-              onViewChange={onOpportunitiesViewChange}
+              onViewChange={(view) => {
+                console.log(`🎯 ViewToggleDropdown (oportunidades) - view: ${view}`);
+                onOpportunitiesViewChange(view);
+              }}
               label="Oportunidades"
             />
           )}

@@ -59,6 +59,7 @@ export function ChartsSection({
 
   console.log(`🎨 ChartsSection - selectedCategory: ${selectedCategory}`);
   console.log(`📊 ChartsSection - showLeadsChart: ${showLeadsChart}, showContractsChart: ${showContractsChart}, showOpportunitiesChart: ${showOpportunitiesChart}`);
+  console.log(`📅 ChartsSection - viewModes:`, { leadsViewMode, contractsViewMode, opportunitiesViewMode });
 
   return (
     <>
@@ -67,6 +68,7 @@ export function ChartsSection({
         <LeadsChart 
           leads={leads}
           title="Todos os Leads"
+          viewMode={leadsViewMode}
         />
       )}
 
@@ -76,6 +78,7 @@ export function ChartsSection({
           leads={leads}
           title="Novos Contratos"
           filterFunction={(lead) => lead.status === "Contrato Fechado"}
+          viewMode={contractsViewMode}
         />
       )}
 
@@ -85,6 +88,7 @@ export function ChartsSection({
           leads={leads}
           title="Oportunidades"
           filterFunction={isOpportunityLead}
+          viewMode={opportunitiesViewMode}
         />
       )}
 
