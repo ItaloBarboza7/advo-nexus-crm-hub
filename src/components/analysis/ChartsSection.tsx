@@ -45,16 +45,40 @@ export function ChartsSection({
     return null;
   }
 
-  // Função para verificar se um lead é uma oportunidade
+  // Função corrigida para verificar se um lead é uma oportunidade
   const isOpportunityLead = (lead: Lead): boolean => {
-    if (lead.status === "Novo") return false;
-    if (lead.status === "Perdido" || lead.status === "Contrato Fechado") return false;
+    console.log(`🔍 [ChartsSection] Verificando se ${lead.name} (${lead.status}) é oportunidade`);
     
+    // PRIMEIRO: Excluir completamente leads com status "Novo"
+    if (lead.status === "Novo") {
+      console.log(`❌ [ChartsSection] Lead ${lead.name} está em Novo - SEMPRE EXCLUÍDO`);
+      return false;
+    }
+    
+    // SEGUNDO: Excluir leads com status final (Perdido/Contrato Fechado)
+    if (lead.status === "Perdido" || lead.status === "Contrato Fechado") {
+      console.log(`❌ [ChartsSection] Lead ${lead.name} está em status final (${lead.status}) - EXCLUÍDO`);
+      return false;
+    }
+    
+    // TERCEIRO: Para leads em outros status, verificar se passaram por Proposta/Reunião
     const hasPassedThroughTargetStatuses = hasLeadPassedThroughStatus(lead.id, ["Proposta", "Reunião"]);
+    console.log(`📊 [ChartsSection] Lead ${lead.name} (${lead.status}) passou por Proposta/Reunião: ${hasPassedThroughTargetStatuses}`);
     
-    if (lead.status === "Proposta" || lead.status === "Reunião") return true;
+    // Se está em Proposta ou Reunião atualmente, incluir automaticamente
+    if (lead.status === "Proposta" || lead.status === "Reunião") {
+      console.log(`✅ [ChartsSection] Lead ${lead.name} está atualmente em ${lead.status} - INCLUÍDO`);
+      return true;
+    }
     
-    return hasPassedThroughTargetStatuses;
+    // Para outros status, deve ter passado por Proposta/Reunião
+    if (!hasPassedThroughTargetStatuses) {
+      console.log(`❌ [ChartsSection] Lead ${lead.name} não passou por Proposta/Reunião - EXCLUÍDO`);
+      return false;
+    }
+    
+    console.log(`✅ [ChartsSection] Lead ${lead.name} passou por Proposta/Reunião e está em ${lead.status} - INCLUÍDO`);
+    return true;
   };
 
   console.log(`🎨 ChartsSection - selectedCategory: ${selectedCategory}`);
