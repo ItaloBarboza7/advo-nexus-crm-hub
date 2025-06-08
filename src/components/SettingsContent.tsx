@@ -619,7 +619,7 @@ export function SettingsContent() {
     }
   };
 
-  // Funções para gerenciar motivos de perda - agora usando o hook global
+  // FUNÇÕES CORRIGIDAS PARA MOTIVOS DE PERDA - usando o hook global
   const handleEditLossReason = (reasonId: string, currentReason: string) => {
     console.log(`✏️ SettingsContent - Iniciando edição do motivo ID: ${reasonId}, valor atual: ${currentReason}`);
     setEditingLossReason(reasonId);
@@ -627,6 +627,8 @@ export function SettingsContent() {
   };
 
   const handleSaveLossReason = async () => {
+    console.log(`💾 SettingsContent - Salvando edição do motivo ID: ${editingLossReason}, novo valor: ${editingLossReasonName}`);
+    
     if (!editingLossReasonName.trim() || !editingLossReason) {
       toast({
         title: "Erro",
@@ -636,8 +638,6 @@ export function SettingsContent() {
       return;
     }
 
-    console.log(`💾 SettingsContent - Salvando edição do motivo ID: ${editingLossReason}, novo valor: ${editingLossReasonName}`);
-    
     const success = await updateLossReason(editingLossReason, editingLossReasonName.trim());
     if (success) {
       setEditingLossReason(null);
@@ -1271,7 +1271,7 @@ export function SettingsContent() {
           )}
         </Card>
 
-        {/* Tipos de Perdas */}
+        {/* TIPOS DE PERDAS - PAINEL CORRIGIDO */}
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h4 className="text-md font-semibold text-gray-900">Tipos de Perdas</h4>
@@ -1319,7 +1319,11 @@ export function SettingsContent() {
                                   className="max-w-xs"
                                   placeholder="Motivo da perda"
                                 />
-                                <Button size="sm" onClick={handleSaveLossReason}>
+                                <Button 
+                                  size="sm" 
+                                  onClick={handleSaveLossReason}
+                                  disabled={!editingLossReasonName.trim()}
+                                >
                                   <Check className="h-4 w-4" />
                                 </Button>
                                 <Button 
@@ -1342,14 +1346,20 @@ export function SettingsContent() {
                               <Button 
                                 variant="outline" 
                                 size="sm"
-                                onClick={() => handleEditLossReason(reason.id, reason.reason)}
+                                onClick={() => {
+                                  console.log(`🖱️ Clique no botão editar - ID: ${reason.id}, Motivo: ${reason.reason}`);
+                                  handleEditLossReason(reason.id, reason.reason);
+                                }}
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>
                               <Button 
                                 variant="outline" 
                                 size="sm"
-                                onClick={() => handleDeleteLossReasonClick(reason.id, reason.reason)}
+                                onClick={() => {
+                                  console.log(`🖱️ Clique no botão excluir - ID: ${reason.id}, Motivo: ${reason.reason}`);
+                                  handleDeleteLossReasonClick(reason.id, reason.reason);
+                                }}
                                 className="text-red-600 hover:text-red-700 hover:bg-red-50"
                               >
                                 <Trash2 className="h-4 w-4" />
