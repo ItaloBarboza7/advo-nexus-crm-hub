@@ -1,5 +1,5 @@
 
-import { Calendar, Users, BarChart3, Settings, FileText, TrendingUp } from "lucide-react";
+import { Home, Users, Flag, TrendingUp, Settings, Zap } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -9,61 +9,84 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarHeader,
 } from "@/components/ui/sidebar";
+import { ActiveView } from "@/pages/Index";
 
-const items = [
+interface AppSidebarProps {
+  activeView: ActiveView;
+  setActiveView: (view: ActiveView) => void;
+}
+
+const menuItems = [
   {
     title: "Dashboard",
-    url: "/",
-    icon: BarChart3,
+    icon: Home,
+    view: "dashboard" as ActiveView,
   },
   {
     title: "Leads",
-    url: "/leads",
     icon: Users,
-  },
-  {
-    title: "Calendário",
-    url: "/calendar",
-    icon: Calendar,
+    view: "clients" as ActiveView,
   },
   {
     title: "Análises",
-    url: "/analysis",
     icon: TrendingUp,
+    view: "cases" as ActiveView,
   },
   {
-    title: "Casos",
-    url: "/cases",
-    icon: FileText,
+    title: "Metas",
+    icon: Flag,
+    view: "calendar" as ActiveView,
   },
   {
     title: "Otimização",
-    url: "/optimization",
-    icon: TrendingUp,
+    icon: Zap,
+    view: "optimization" as ActiveView,
   },
   {
     title: "Configurações",
-    url: "/settings",
     icon: Settings,
+    view: "settings" as ActiveView,
   },
 ];
 
-export function AppSidebar() {
+export function AppSidebar({ activeView, setActiveView }: AppSidebarProps) {
   return (
-    <Sidebar>
+    <Sidebar className="border-r border-gray-200 dark:border-gray-800">
+      <SidebarHeader className="border-b border-gray-200 dark:border-gray-800 p-6">
+        <div className="flex items-center gap-3">
+          <img 
+            src="/lovable-uploads/153d3133-c453-45c0-89e4-e12fff78895f.png" 
+            alt="EVOJURIS Logo" 
+            className="h-8 w-8"
+          />
+          <div>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">EVOJURIS</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Análise de Leads</p>
+          </div>
+        </div>
+      </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>CRM Sistema</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-gray-600 dark:text-gray-400 font-medium px-3 py-2">
+            Menu Principal
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => (
+              {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <a href={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </a>
+                  <SidebarMenuButton
+                    isActive={activeView === item.view}
+                    onClick={() => setActiveView(item.view)}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                      activeView === item.view
+                        ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-r-2 border-blue-600"
+                        : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    }`}
+                  >
+                    <item.icon className="h-5 w-5" />
+                    <span className="font-medium">{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
