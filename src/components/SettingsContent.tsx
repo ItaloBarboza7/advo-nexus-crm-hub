@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,6 +21,7 @@ import { useFilterOptions } from "@/hooks/useFilterOptions";
 import { useLossReasons } from "@/hooks/useLossReasons";
 import { useDashboardSettings } from "@/hooks/useDashboardSettings";
 import { useCompanyInfo } from "@/hooks/useCompanyInfo";
+import { useLossReasonsGlobal } from "@/hooks/useLossReasonsGlobal";
 
 interface KanbanColumn {
   id: string;
@@ -80,8 +80,14 @@ export function SettingsContent() {
     refreshData 
   } = useFilterOptions();
 
-  // Hook para motivos de perda
-  const { lossReasons, loading: lossReasonsLoading, refreshData: refreshLossReasons } = useLossReasons();
+  // Hook global para motivos de perda
+  const { 
+    lossReasons, 
+    loading: lossReasonsLoading, 
+    updateLossReason,
+    deleteLossReason,
+    addLossReason 
+  } = useLossReasonsGlobal();
 
   // Estados para edição inline
   const [editingActionGroup, setEditingActionGroup] = useState<string | null>(null);
@@ -593,7 +599,7 @@ export function SettingsContent() {
     }
   };
 
-  // Funções para gerenciar motivos de perda
+  // Funções para gerenciar motivos de perda - agora usando o hook global
   const handleEditLossReason = (reasonId: string, currentReason: string) => {
     setEditingLossReason(reasonId);
     setEditingLossReasonName(currentReason);
@@ -609,85 +615,20 @@ export function SettingsContent() {
       return;
     }
 
-    try {
-      console.log(`🔄 SettingsContent - Atualizando motivo de perda ID: ${editingLossReason} para: ${editingLossReasonName.trim()}`);
-      
-      const { error } = await supabase
-        .from('loss_reasons')
-        .update({ reason: editingLossReasonName.trim() })
-        .eq('id', editingLossReason);
-
-      if (error) {
-        console.error('❌ Erro ao atualizar motivo de perda:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível atualizar o motivo de perda.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      console.log(`✅ Motivo de perda atualizado com sucesso. Atualizando lista...`);
-      await refreshLossReasons();
+    const success = await updateLossReason(editingLossReason, editingLossReasonName.trim());
+    if (success) {
       setEditingLossReason(null);
       setEditingLossReasonName("");
-
-      toast({
-        title: "Sucesso",
-        description: "Motivo de perda atualizado com sucesso.",
-      });
-    } catch (error) {
-      console.error('❌ Erro inesperado ao atualizar motivo de perda:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado.",
-        variant: "destructive"
-      });
     }
   };
 
   const handleDeleteLossReason = async (reasonId: string) => {
-    console.log(`🗑️ SettingsContent - Iniciando exclusão do motivo de perda ID: ${reasonId}`);
-    
-    try {
-      // Primeiro, buscar o motivo que será excluído para logs
-      const reasonToDelete = lossReasons.find(reason => reason.id === reasonId);
-      console.log(`🔍 Motivo a ser excluído:`, reasonToDelete);
+    await deleteLossReason(reasonId);
+  };
 
-      const { error } = await supabase
-        .from('loss_reasons')
-        .delete()
-        .eq('id', reasonId);
-
-      if (error) {
-        console.error('❌ Erro ao excluir motivo de perda no banco:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível excluir o motivo de perda.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      console.log(`✅ Motivo de perda excluído com sucesso no banco. Motivos antes da atualização:`, lossReasons.length);
-      
-      // Forçar atualização da lista
-      await refreshLossReasons();
-      
-      console.log(`🔄 Lista atualizada. Motivos após atualização:`, lossReasons.length);
-
-      toast({
-        title: "Sucesso",
-        description: "Motivo de perda excluído com sucesso.",
-      });
-    } catch (error) {
-      console.error('❌ Erro inesperado ao excluir motivo de perda:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado.",
-        variant: "destructive"
-      });
-    }
+  const handleAddLossReasonFromDialog = async () => {
+    // Quando um novo motivo é adicionado via dialog, apenas refresh o hook global
+    // O hook global já cuida de notificar todos os subscribers
   };
 
   const renderCompanyTab = () => (
@@ -1404,7 +1345,7 @@ export function SettingsContent() {
       <AddLossReasonDialog
         isOpen={isAddLossReasonDialogOpen}
         onClose={() => setIsAddLossReasonDialogOpen(false)}
-        onReasonAdded={refreshLossReasons}
+        onReasonAdded={handleAddLossReasonFromDialog}
       />
 
       <EditCompanyModal

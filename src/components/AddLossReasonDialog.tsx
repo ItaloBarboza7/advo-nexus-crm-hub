@@ -3,8 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { useLossReasonsGlobal } from "@/hooks/useLossReasonsGlobal";
 
 interface AddLossReasonDialogProps {
   isOpen: boolean;
@@ -15,55 +14,25 @@ interface AddLossReasonDialogProps {
 export function AddLossReasonDialog({ isOpen, onClose, onReasonAdded }: AddLossReasonDialogProps) {
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { toast } = useToast();
+  const { addLossReason } = useLossReasonsGlobal();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!reason.trim()) {
-      toast({
-        title: "Erro",
-        description: "O motivo da perda não pode estar vazio.",
-        variant: "destructive"
-      });
       return;
     }
 
-    try {
-      setIsSubmitting(true);
-      
-      const { error } = await supabase
-        .from('loss_reasons')
-        .insert({ reason: reason.trim() });
-
-      if (error) {
-        console.error('Erro ao criar motivo de perda:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível criar o motivo de perda.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      toast({
-        title: "Sucesso",
-        description: "Motivo de perda criado com sucesso.",
-      });
-
+    setIsSubmitting(true);
+    const success = await addLossReason(reason.trim());
+    
+    if (success) {
       setReason("");
       onReasonAdded();
       onClose();
-    } catch (error) {
-      console.error('Erro inesperado:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSubmitting(false);
     }
+    
+    setIsSubmitting(false);
   };
 
   const handleClose = () => {

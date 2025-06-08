@@ -6,9 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { LossReason } from "@/types/leadStatusHistory";
+import { useLossReasonsGlobal } from "@/hooks/useLossReasonsGlobal";
 
 interface LossReasonDialogProps {
   open: boolean;
@@ -18,34 +17,15 @@ interface LossReasonDialogProps {
 }
 
 export function LossReasonDialog({ open, onOpenChange, onReasonSelected, onCancel }: LossReasonDialogProps) {
-  const [lossReasons, setLossReasons] = useState<LossReason[]>([]);
+  const { lossReasons, addLossReason } = useLossReasonsGlobal();
   const [selectedReason, setSelectedReason] = useState("");
   const [newReason, setNewReason] = useState("");
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const fetchLossReasons = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('loss_reasons')
-        .select('*')
-        .order('reason', { ascending: true });
-
-      if (error) {
-        console.error('Erro ao buscar motivos de perda:', error);
-        return;
-      }
-
-      setLossReasons(data || []);
-    } catch (error) {
-      console.error('Erro inesperado ao buscar motivos de perda:', error);
-    }
-  };
-
   useEffect(() => {
     if (open) {
-      fetchLossReasons();
       setSelectedReason("");
       setNewReason("");
       setIsAddingNew(false);
@@ -56,39 +36,14 @@ export function LossReasonDialog({ open, onOpenChange, onReasonSelected, onCance
     if (!newReason.trim()) return;
 
     setIsLoading(true);
-    try {
-      const { error } = await supabase
-        .from('loss_reasons')
-        .insert({ reason: newReason.trim() });
-
-      if (error) {
-        console.error('Erro ao adicionar motivo de perda:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível adicionar o novo motivo.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      toast({
-        title: "Sucesso",
-        description: "Novo motivo adicionado com sucesso.",
-      });
-
+    const success = await addLossReason(newReason.trim());
+    
+    if (success) {
       setNewReason("");
       setIsAddingNew(false);
-      await fetchLossReasons();
-    } catch (error) {
-      console.error('Erro inesperado ao adicionar motivo:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
     }
+    
+    setIsLoading(false);
   };
 
   const handleConfirm = () => {
