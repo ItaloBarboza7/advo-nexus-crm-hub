@@ -3,18 +3,30 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, Users, Building, Columns, UserPlus, Settings } from "lucide-react";
+import { Plus, Edit, Trash2, Users, Building, Columns, UserPlus, Settings, CreditCard } from "lucide-react";
 import { AddMemberModal } from "@/components/AddMemberModal";
 import { useToast } from "@/hooks/use-toast";
 
 export function SettingsContent() {
-  const [activeTab, setActiveTab] = useState("team");
+  const [activeTab, setActiveTab] = useState("company");
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
   const [teamMembers, setTeamMembers] = useState([
     { id: 1, name: "Maria Silva", email: "maria@empresa.com", role: "Gerente", avatar: "MS" },
     { id: 2, name: "João Santos", email: "joao@empresa.com", role: "Vendedor", avatar: "JS" },
     { id: 3, name: "Ana Costa", email: "ana@empresa.com", role: "Vendedor", avatar: "AC" },
   ]);
+
+  // Simulating admin check - in real implementation this would come from auth context
+  const isAdmin = true; // This should be replaced with actual admin check logic
+
+  const [companyInfo, setCompanyInfo] = useState({
+    name: "",
+    cnpj: "",
+    phone: "",
+    email: "",
+    address: ""
+  });
+
   const { toast } = useToast();
 
   const kanbanColumns = [
@@ -35,14 +47,17 @@ export function SettingsContent() {
     { id: 6, category: "Interesse", option: "Compliance" },
   ];
 
-  const tabs = [
+  // Define tabs based on admin status
+  const allTabs = [
+    { id: "company", title: "Empresa", icon: Building },
     { id: "team", title: "Equipe", icon: Users },
     { id: "kanban", title: "Quadro Kanban", icon: Columns },
-    { id: "company", title: "Empresa", icon: Building },
     { id: "leads", title: "Opções de Leads", icon: UserPlus },
     { id: "dashboard", title: "Dashboard", icon: Building },
     { id: "actions", title: "Editar Ações", icon: Settings },
   ];
+
+  const tabs = isAdmin ? allTabs : allTabs.filter(tab => tab.id !== "company");
 
   const handleAddMember = (newMember: any) => {
     setTeamMembers(prev => [...prev, newMember]);
@@ -54,6 +69,169 @@ export function SettingsContent() {
       description: "A configuração de ações será implementada em breve.",
     });
   };
+
+  const handleSaveCompanyInfo = () => {
+    // Validate required fields
+    if (!companyInfo.name || !companyInfo.cnpj || !companyInfo.phone || !companyInfo.email || !companyInfo.address) {
+      toast({
+        title: "Erro",
+        description: "Todos os campos são obrigatórios.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Informações salvas",
+      description: "As informações da empresa foram salvas com sucesso.",
+    });
+  };
+
+  const handleChangePaymentMethod = () => {
+    toast({
+      title: "Funcionalidade em desenvolvimento",
+      description: "A alteração da forma de pagamento será implementada em breve.",
+    });
+  };
+
+  const renderCompanyTab = () => (
+    <div className="space-y-6">
+      <h3 className="text-lg font-semibold text-gray-900">Configurações e Pagamento</h3>
+      
+      {/* Company Information */}
+      <Card className="p-6">
+        <h4 className="text-md font-semibold text-gray-900 mb-4">Informações da Empresa</h4>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Nome da Empresa <span className="text-red-500">*</span>
+              </label>
+              <Input 
+                placeholder="LeadsCRM" 
+                value={companyInfo.name}
+                onChange={(e) => setCompanyInfo(prev => ({ ...prev, name: e.target.value }))}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                CNPJ <span className="text-red-500">*</span>
+              </label>
+              <Input 
+                placeholder="00.000.000/0001-00" 
+                value={companyInfo.cnpj}
+                onChange={(e) => setCompanyInfo(prev => ({ ...prev, cnpj: e.target.value }))}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Telefone <span className="text-red-500">*</span>
+              </label>
+              <Input 
+                placeholder="(11) 99999-9999" 
+                value={companyInfo.phone}
+                onChange={(e) => setCompanyInfo(prev => ({ ...prev, phone: e.target.value }))}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                E-mail <span className="text-red-500">*</span>
+              </label>
+              <Input 
+                placeholder="contato@empresa.com" 
+                type="email"
+                value={companyInfo.email}
+                onChange={(e) => setCompanyInfo(prev => ({ ...prev, email: e.target.value }))}
+                required
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Endereço <span className="text-red-500">*</span>
+            </label>
+            <Input 
+              placeholder="Rua das Empresas, 123 - São Paulo, SP" 
+              value={companyInfo.address}
+              onChange={(e) => setCompanyInfo(prev => ({ ...prev, address: e.target.value }))}
+              required
+            />
+          </div>
+          <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSaveCompanyInfo}>
+            Salvar Informações
+          </Button>
+        </div>
+      </Card>
+
+      {/* Subscription and Payment Panel */}
+      <Card className="p-6">
+        <h4 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <CreditCard className="h-5 w-5" />
+          Assinatura e Pagamento
+        </h4>
+        
+        <div className="space-y-6">
+          {/* Monthly Payments */}
+          <div>
+            <h5 className="font-medium text-gray-900 mb-3">Histórico de Pagamentos</h5>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div>
+                  <span className="text-sm font-medium text-gray-900">Janeiro 2024</span>
+                  <p className="text-sm text-gray-600">Plano Premium - R$ 99,90</p>
+                </div>
+                <Badge className="bg-green-100 text-green-800">Pago</Badge>
+              </div>
+              
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div>
+                  <span className="text-sm font-medium text-gray-900">Dezembro 2023</span>
+                  <p className="text-sm text-gray-600">Plano Premium - R$ 99,90</p>
+                </div>
+                <Badge className="bg-green-100 text-green-800">Pago</Badge>
+              </div>
+              
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div>
+                  <span className="text-sm font-medium text-gray-900">Novembro 2023</span>
+                  <p className="text-sm text-gray-600">Plano Premium - R$ 99,90</p>
+                </div>
+                <Badge className="bg-green-100 text-green-800">Pago</Badge>
+              </div>
+            </div>
+          </div>
+
+          {/* Card Information */}
+          <div>
+            <h5 className="font-medium text-gray-900 mb-3">Cartão Cadastrado</h5>
+            <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+              <div className="flex items-center gap-3">
+                <CreditCard className="h-8 w-8 text-blue-600" />
+                <div>
+                  <p className="font-medium text-gray-900">**** **** **** 1234</p>
+                  <p className="text-sm text-gray-600">Visa - Exp: 12/26</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Change Payment Method Button */}
+          <div className="pt-4 border-t">
+            <Button 
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={handleChangePaymentMethod}
+            >
+              <CreditCard className="h-4 w-4 mr-2" />
+              Alterar Forma de Pagamento
+            </Button>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
 
   const renderTeamTab = () => (
     <div className="space-y-6">
@@ -272,41 +450,6 @@ export function SettingsContent() {
     </div>
   );
 
-  const renderCompanyTab = () => (
-    <div className="space-y-6">
-      <h3 className="text-lg font-semibold text-gray-900">Informações da Empresa</h3>
-      <Card className="p-6">
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Nome da Empresa</label>
-              <Input placeholder="LeadsCRM" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">CNPJ</label>
-              <Input placeholder="00.000.000/0001-00" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
-              <Input placeholder="(11) 99999-9999" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">E-mail</label>
-              <Input placeholder="contato@empresa.com" />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Endereço</label>
-            <Input placeholder="Rua das Empresas, 123 - São Paulo, SP" />
-          </div>
-          <Button className="bg-blue-600 hover:bg-blue-700">
-            Salvar Informações
-          </Button>
-        </div>
-      </Card>
-    </div>
-  );
-
   const renderLeadsTab = () => (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -452,9 +595,9 @@ export function SettingsContent() {
         </div>
 
         {/* Tab Content */}
+        {activeTab === "company" && renderCompanyTab()}
         {activeTab === "team" && renderTeamTab()}
         {activeTab === "kanban" && renderKanbanTab()}
-        {activeTab === "company" && renderCompanyTab()}
         {activeTab === "leads" && renderLeadsTab()}
         {activeTab === "dashboard" && renderDashboardTab()}
         {activeTab === "actions" && renderActionsTab()}
