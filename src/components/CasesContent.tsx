@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { DateRange } from "react-day-picker";
 import { DateFilter } from "@/components/DateFilter";
@@ -100,12 +99,6 @@ export function CasesContent() {
     });
   };
 
-  // Função simplificada para atualização - não precisa mais de múltiplas chamadas
-  const handleLossReasonUpdate = async () => {
-    console.log('🔄 [CasesContent] Motivos de perda atualizados automaticamente pela fonte central');
-    // Os dados já são atualizados automaticamente pelo useLeadsData
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -142,7 +135,9 @@ export function CasesContent() {
         onContractsViewChange={handleContractsViewChange}
         opportunitiesViewMode={opportunitiesViewMode}
         onOpportunitiesViewChange={handleOpportunitiesViewChange}
-        onLossReasonUpdate={handleLossReasonUpdate}
+        onLossReasonUpdate={async () => {}}
+        onDeleteLossReason={deleteLossReason}
+        onAddLossReason={addLossReason}
       />
 
       <ChartsSection

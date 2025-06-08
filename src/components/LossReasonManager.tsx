@@ -3,7 +3,7 @@ import { DeleteButton } from "@/components/DeleteButton";
 
 interface LossReasonManagerProps {
   lossReason: { id: string; reason: string };
-  onDeleted: () => void;
+  onDeleted: (lossReasonId: string, lossReasonName: string) => Promise<boolean>;
 }
 
 export function LossReasonManager({ lossReason, onDeleted }: LossReasonManagerProps) {
@@ -11,8 +11,8 @@ export function LossReasonManager({ lossReason, onDeleted }: LossReasonManagerPr
     console.log('🔥 [LossReasonManager] Solicitando exclusão do motivo:', lossReason.reason);
     
     // Chamar a função de callback que irá lidar com a exclusão
-    // através da fonte centralizada (useLeadsData)
-    onDeleted();
+    // passando os parâmetros necessários
+    await onDeleted(lossReason.id, lossReason.reason);
   };
 
   return (
