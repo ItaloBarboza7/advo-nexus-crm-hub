@@ -20,7 +20,10 @@ export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEdi
   };
 
   const groupedLeads = () => {
-    if (selectedCategory === "perdas") {
+    console.log(`🔍 GroupedLeadsList - selectedCategory: ${selectedCategory}`);
+    
+    // CORREÇÃO: Verificar se a categoria inclui subcategorias de ação
+    if (selectedCategory === "perdas" || selectedCategory.startsWith("perdas-")) {
       const groups = leads.reduce((acc, lead) => {
         const lossReason = lead.loss_reason || "Sem motivo especificado";
         if (!acc[lossReason]) {
@@ -30,7 +33,9 @@ export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEdi
         return acc;
       }, {} as Record<string, Lead[]>);
       return groups;
-    } else if (selectedCategory === "contratos") {
+    } 
+    // CORREÇÃO: Agrupar por tipo de ação quando categoria for contratos-tipo-acao ou oportunidades-tipo-acao
+    else if (selectedCategory === "contratos-tipo-acao" || selectedCategory === "oportunidades-tipo-acao") {
       const groups = leads.reduce((acc, lead) => {
         const actionType = lead.action_type || "Sem tipo especificado";
         const groupName = getActionTypeLabel(actionType);
@@ -41,10 +46,12 @@ export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEdi
         return acc;
       }, {} as Record<string, Lead[]>);
       return groups;
-    } else if (selectedCategory === "oportunidades") {
+    }
+    // CORREÇÃO: Agrupar por grupo de ação quando categoria for contratos-grupo-acao ou oportunidades-grupo-acao
+    else if (selectedCategory === "contratos-grupo-acao" || selectedCategory === "oportunidades-grupo-acao") {
       const groups = leads.reduce((acc, lead) => {
         const actionType = lead.action_type || "Sem tipo especificado";
-        const groupName = getActionTypeLabel(actionType);
+        const groupName = getActionGroupLabel(actionType);
         if (!acc[groupName]) {
           acc[groupName] = [];
         }
@@ -52,7 +59,12 @@ export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEdi
         return acc;
       }, {} as Record<string, Lead[]>);
       return groups;
-    } else {
+    }
+    // CORREÇÃO: Para categorias principais simples (contratos, oportunidades), não agrupar
+    else if (selectedCategory === "contratos" || selectedCategory === "oportunidades") {
+      return { "Todos os Leads": leads };
+    } 
+    else {
       return { "Todos os Leads": leads };
     }
   };
@@ -69,6 +81,21 @@ export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEdi
       "outros": "Outros"
     };
     return labels[actionType] || actionType;
+  };
+
+  // NOVA FUNÇÃO: Mapear tipos de ação para grupos de ação
+  const getActionGroupLabel = (actionType: string): string => {
+    const actionGroupMapping: Record<string, string> = {
+      "consultoria": "Consultoria",
+      "contratos": "Contratos",
+      "trabalhista": "Direito do Trabalho",
+      "compliance": "Compliance",
+      "tributario": "Direito Tributário",
+      "civil": "Direito Civil",
+      "criminal": "Direito Criminal",
+      "outros": "Outros Serviços"
+    };
+    return actionGroupMapping[actionType] || "Outros Serviços";
   };
 
   const toggleGroup = (groupName: string) => {
@@ -107,7 +134,15 @@ export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEdi
 
   const groups = groupedLeads();
   const groupNames = Object.keys(groups);
-  const shouldShowGrouping = (selectedCategory === "perdas" || selectedCategory === "contratos" || selectedCategory === "oportunidades") && groupNames.length > 1;
+  
+  // CORREÇÃO: Mostrar agrupamento para todas as subcategorias que incluem ação
+  const shouldShowGrouping = (
+    selectedCategory === "perdas" || 
+    selectedCategory.includes("-tipo-acao") || 
+    selectedCategory.includes("-grupo-acao")
+  ) && groupNames.length > 1;
+
+  console.log(`📊 GroupedLeadsList - shouldShowGrouping: ${shouldShowGrouping}, groups: ${groupNames.length}`);
 
   if (leads.length === 0) {
     return (

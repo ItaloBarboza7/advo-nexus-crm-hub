@@ -1,11 +1,10 @@
 
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Search, X } from "lucide-react";
+import { Search } from "lucide-react";
 import { AdvancedFilters, FilterOptions } from "@/components/AdvancedFilters";
 import { ActionToggleDropdown } from "@/components/analysis/ActionToggleDropdown";
 import { ViewToggleDropdown } from "@/components/analysis/ViewToggleDropdown";
-import { Button } from "@/components/ui/button";
 
 interface SearchAndFiltersProps {
   searchTerm: string;
@@ -22,11 +21,6 @@ interface SearchAndFiltersProps {
   onContractsViewChange?: (view: 'weekly' | 'monthly') => void;
   opportunitiesViewMode?: 'weekly' | 'monthly';
   onOpportunitiesViewChange?: (view: 'weekly' | 'monthly') => void;
-  // Props para controlar quando mostrar gráficos
-  showLeadsChart?: boolean;
-  showContractsChart?: boolean;
-  showOpportunitiesChart?: boolean;
-  onCloseCharts?: () => void;
 }
 
 export function SearchAndFilters({
@@ -42,11 +36,7 @@ export function SearchAndFilters({
   contractsViewMode = 'weekly',
   onContractsViewChange,
   opportunitiesViewMode = 'weekly',
-  onOpportunitiesViewChange,
-  showLeadsChart = false,
-  showContractsChart = false,
-  showOpportunitiesChart = false,
-  onCloseCharts
+  onOpportunitiesViewChange
 }: SearchAndFiltersProps) {
 
   console.log(`🔍 SearchAndFilters - selectedCategory: ${selectedCategory}`);
@@ -62,8 +52,6 @@ export function SearchAndFilters({
            (category === "contratos" && (selectedCategory === "contratos" || selectedCategory.startsWith("contratos-"))) ||
            (category === "oportunidades" && (selectedCategory === "oportunidades" || selectedCategory.startsWith("oportunidades-")));
   };
-
-  const anyChartVisible = showLeadsChart || showContractsChart || showOpportunitiesChart;
 
   return (
     <Card className="p-6">
@@ -128,19 +116,6 @@ export function SearchAndFilters({
             selectedCategory={selectedCategory}
             onCategoryChange={onCategoryChange}
           />
-
-          {/* Botão para fechar gráficos */}
-          {anyChartVisible && onCloseCharts && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onCloseCharts}
-              className="h-8 gap-2"
-            >
-              <X className="h-4 w-4" />
-              Fechar Gráfico
-            </Button>
-          )}
         </div>
       </div>
     </Card>
