@@ -20,10 +20,16 @@ interface LeadSource {
   label: string;
 }
 
+interface LossReason {
+  id: string;
+  reason: string;
+}
+
 export const useFilterOptions = () => {
   const [actionGroups, setActionGroups] = useState<ActionGroup[]>([]);
   const [actionTypes, setActionTypes] = useState<ActionType[]>([]);
   const [leadSources, setLeadSources] = useState<LeadSource[]>([]);
+  const [lossReasons, setLossReasons] = useState<LossReason[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -68,6 +74,18 @@ export const useFilterOptions = () => {
         console.error('Erro ao buscar fontes de leads:', sourcesError);
       } else {
         setLeadSources(sourcesData || []);
+      }
+
+      // Buscar motivos de perda
+      const { data: lossData, error: lossError } = await supabase
+        .from('loss_reasons')
+        .select('*')
+        .order('reason');
+
+      if (lossError) {
+        console.error('Erro ao buscar motivos de perda:', lossError);
+      } else {
+        setLossReasons(lossData || []);
       }
     } catch (error) {
       console.error('Erro inesperado ao buscar dados:', error);
@@ -163,6 +181,7 @@ export const useFilterOptions = () => {
     actionGroups,
     actionTypes,
     leadSources,
+    lossReasons,
     loading,
     refreshData
   };
