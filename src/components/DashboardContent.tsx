@@ -4,7 +4,7 @@ import { Users, UserPlus, UserX, DollarSign, TrendingUp, Target, BarChart3 } fro
 import { DateRange } from "react-day-picker";
 import { DateFilter } from "@/components/DateFilter";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Legend } from "recharts";
+import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Legend, BarChart, Bar } from "recharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function DashboardContent() {
@@ -488,7 +488,7 @@ export function DashboardContent() {
           </div>
         </Card>
 
-        {/* Action Chart - Adjusted size and margins */}
+        {/* Action Chart - Changed to Bar Chart with thin bars */}
         <Card className="p-6 flex flex-col">
           <CardHeader className="p-0 mb-3">
             <div className="flex items-center justify-between">
@@ -511,7 +511,7 @@ export function DashboardContent() {
             <div className="h-20 flex-1 px-4">
               <ChartContainer config={chartConfig} className="h-full w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={getActionData()} margin={{ top: 15, right: 20, left: 20, bottom: 10 }}>
+                  <BarChart data={getActionData()} margin={{ top: 15, right: 20, left: 20, bottom: 10 }}>
                     <XAxis 
                       dataKey={getActionDataKey()}
                       tick={{ fontSize: 7, fill: '#6b7280' }}
@@ -535,27 +535,23 @@ export function DashboardContent() {
                       verticalAlign="top" 
                       height={15}
                       wrapperStyle={{ fontSize: '8px', paddingBottom: '5px' }}
-                      iconType="line"
+                      iconType="rect"
                     />
-                    <Line 
-                      type="monotone"
+                    <Bar 
                       dataKey="opportunities" 
-                      stroke="#8b5cf6"
-                      strokeWidth={2}
-                      dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 2 }}
-                      activeDot={{ r: 3, stroke: '#8b5cf6', strokeWidth: 2 }}
+                      fill="#8b5cf6"
                       name="Oportunidades"
+                      barSize={8}
+                      radius={[1, 1, 0, 0]}
                     />
-                    <Line 
-                      type="monotone"
+                    <Bar 
                       dataKey="closures" 
-                      stroke="#ef4444"
-                      strokeWidth={2}
-                      dot={{ fill: '#ef4444', strokeWidth: 2, r: 2 }}
-                      activeDot={{ r: 3, stroke: '#ef4444', strokeWidth: 2 }}
+                      fill="#ef4444"
                       name="Fechamentos"
+                      barSize={8}
+                      radius={[1, 1, 0, 0]}
                     />
-                  </LineChart>
+                  </BarChart>
                 </ResponsiveContainer>
               </ChartContainer>
             </div>
