@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,10 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Plus, Edit, Trash2, Users, Building, Columns, UserPlus, Settings, CreditCard, X, Check } from "lucide-react";
+import { Plus, Edit, Trash2, Users, Building, Columns, UserPlus, Settings, CreditCard, X, Check, Eye, EyeOff } from "lucide-react";
 import { AddMemberModal } from "@/components/AddMemberModal";
 import { EditMemberModal } from "@/components/EditMemberModal";
 import { AddColumnDialog } from "@/components/AddColumnDialog";
+import { AddActionGroupDialog } from "@/components/AddActionGroupDialog";
+import { AddActionTypeDialog } from "@/components/AddActionTypeDialog";
+import { AddLeadSourceDialog } from "@/components/AddLeadSourceDialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useFilterOptions } from "@/hooks/useFilterOptions";
@@ -22,11 +24,21 @@ interface KanbanColumn {
   is_default: boolean;
 }
 
+interface DashboardComponent {
+  id: string;
+  name: string;
+  description: string;
+  visible: boolean;
+}
+
 export function SettingsContent() {
   const [activeTab, setActiveTab] = useState("company");
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
   const [isEditMemberModalOpen, setIsEditMemberModalOpen] = useState(false);
   const [isAddColumnDialogOpen, setIsAddColumnDialogOpen] = useState(false);
+  const [isAddActionGroupDialogOpen, setIsAddActionGroupDialogOpen] = useState(false);
+  const [isAddActionTypeDialogOpen, setIsAddActionTypeDialogOpen] = useState(false);
+  const [isAddLeadSourceDialogOpen, setIsAddLeadSourceDialogOpen] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
   const [teamMembers, setTeamMembers] = useState([
     { id: 1, name: "Maria Silva", email: "maria@empresa.com", role: "Atendimento - SDR", avatar: "MS" },
@@ -51,6 +63,15 @@ export function SettingsContent() {
 
   const [editingColumn, setEditingColumn] = useState<string | null>(null);
   const [editingColumnName, setEditingColumnName] = useState("");
+
+  // Estados para componentes do dashboard
+  const [dashboardComponents, setDashboardComponents] = useState<DashboardComponent[]>([
+    { id: "1", name: "Gráfico de Leads por Status", description: "Mostra a distribuição dos leads por status", visible: true },
+    { id: "2", name: "Estatísticas de Conversão", description: "Métricas de conversão de leads", visible: true },
+    { id: "3", name: "Atividades Recentes", description: "Lista das últimas atividades do sistema", visible: true },
+    { id: "4", name: "Comparação Individual", description: "Gráfico de comparação de performance individual", visible: false },
+    { id: "5", name: "Metas da Equipe", description: "Progresso das metas mensais da equipe", visible: true }
+  ]);
 
   // Usar o hook para obter os dados sincronizados
   const { 
@@ -107,12 +128,12 @@ export function SettingsContent() {
     fetchKanbanColumns();
   }, []);
 
-  // Define tabs based on admin status
+  // Define tabs based on admin status - Dashboard movido para segunda posição
   const allTabs = [
     { id: "company", title: "Empresa", icon: Building },
+    { id: "dashboard", title: "Dashboard", icon: Building },
     { id: "team", title: "Equipe", icon: Users },
     { id: "kanban", title: "Quadro Kanban", icon: Columns },
-    { id: "dashboard", title: "Dashboard", icon: Building },
     { id: "configurations", title: "Configurações", icon: Settings },
   ];
 
@@ -318,6 +339,28 @@ export function SettingsContent() {
         variant: "destructive"
       });
     }
+  };
+
+  // Funções para gerenciar componentes do dashboard
+  const handleToggleComponentVisibility = (componentId: string) => {
+    setDashboardComponents(prev => prev.map(comp => 
+      comp.id === componentId ? { ...comp, visible: !comp.visible } : comp
+    ));
+    
+    const component = dashboardComponents.find(comp => comp.id === componentId);
+    if (component) {
+      toast({
+        title: "Visibilidade alterada",
+        description: `${component.name} foi ${component.visible ? 'ocultado' : 'exibido'}.`,
+      });
+    }
+  };
+
+  const handleSaveDashboardSettings = () => {
+    toast({
+      title: "Configurações salvas",
+      description: "As configurações do dashboard foram salvas com sucesso.",
+    });
   };
 
   // Funções para gerenciar grupos de ação
@@ -834,74 +877,30 @@ export function SettingsContent() {
       <Card className="p-6">
         <h4 className="text-md font-semibold text-gray-900 mb-4">Componentes Disponíveis</h4>
         <div className="space-y-4">
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <div>
-              <h5 className="font-medium text-gray-900">Gráfico de Leads por Status</h5>
-              <p className="text-sm text-gray-600">Mostra a distribuição dos leads por status</p>
+          {dashboardComponents.map((component) => (
+            <div key={component.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div>
+                <h5 className="font-medium text-gray-900">{component.name}</h5>
+                <p className="text-sm text-gray-600">{component.description}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-sm ${component.visible ? 'text-green-600' : 'text-gray-600'}`}>
+                  {component.visible ? 'Visível' : 'Oculto'}
+                </span>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handleToggleComponentVisibility(component.id)}
+                >
+                  {component.visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-green-600">Visível</span>
-              <Button variant="outline" size="sm">
-                <Edit className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-          
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <div>
-              <h5 className="font-medium text-gray-900">Estatísticas de Conversão</h5>
-              <p className="text-sm text-gray-600">Métricas de conversão de leads</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-green-600">Visível</span>
-              <Button variant="outline" size="sm">
-                <Edit className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-          
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <div>
-              <h5 className="font-medium text-gray-900">Atividades Recentes</h5>
-              <p className="text-sm text-gray-600">Lista das últimas atividades do sistema</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-green-600">Visível</span>
-              <Button variant="outline" size="sm">
-                <Edit className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-          
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <div>
-              <h5 className="font-medium text-gray-900">Comparação Individual</h5>
-              <p className="text-sm text-gray-600">Gráfico de comparação de performance individual</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">Oculto</span>
-              <Button variant="outline" size="sm">
-                <Edit className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-          
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <div>
-              <h5 className="font-medium text-gray-900">Metas da Equipe</h5>
-              <p className="text-sm text-gray-600">Progresso das metas mensais da equipe</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-green-600">Visível</span>
-              <Button variant="outline" size="sm">
-                <Edit className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+          ))}
         </div>
         
         <div className="mt-6 pt-4 border-t">
-          <Button className="bg-blue-600 hover:bg-blue-700">
+          <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSaveDashboardSettings}>
             Salvar Configurações
           </Button>
         </div>
@@ -924,11 +923,17 @@ export function SettingsContent() {
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-md font-semibold text-gray-900">Grupos e Tipos de Ação</h4>
               <div className="flex gap-2">
-                <Button className="bg-blue-600 hover:bg-blue-700">
+                <Button 
+                  className="bg-blue-600 hover:bg-blue-700"
+                  onClick={() => setIsAddActionGroupDialogOpen(true)}
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Novo Grupo
                 </Button>
-                <Button className="bg-green-600 hover:bg-green-700">
+                <Button 
+                  className="bg-green-600 hover:bg-green-700"
+                  onClick={() => setIsAddActionTypeDialogOpen(true)}
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Novo Tipo
                 </Button>
@@ -1084,7 +1089,10 @@ export function SettingsContent() {
           <Card className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-md font-semibold text-gray-900">Fontes de Leads</h4>
-              <Button className="bg-blue-600 hover:bg-blue-700">
+              <Button 
+                className="bg-blue-600 hover:bg-blue-700"
+                onClick={() => setIsAddLeadSourceDialogOpen(true)}
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Nova Fonte
               </Button>
@@ -1120,7 +1128,6 @@ export function SettingsContent() {
                         ) : (
                           <div>
                             <h5 className="font-medium text-gray-900">{source.label}</h5>
-                            <p className="text-sm text-gray-600">ID: {source.name}</p>
                           </div>
                         )}
                       </div>
@@ -1178,9 +1185,9 @@ export function SettingsContent() {
 
         {/* Tab Content */}
         {activeTab === "company" && renderCompanyTab()}
+        {activeTab === "dashboard" && renderDashboardTab()}
         {activeTab === "team" && renderTeamTab()}
         {activeTab === "kanban" && renderKanbanTab()}
-        {activeTab === "dashboard" && renderDashboardTab()}
         {activeTab === "configurations" && renderConfigurationsTab()}
       </Card>
 
@@ -1202,6 +1209,25 @@ export function SettingsContent() {
         onClose={() => setIsAddColumnDialogOpen(false)}
         onAddColumn={handleAddColumn}
         maxOrder={kanbanColumns.length > 0 ? Math.max(...kanbanColumns.map(col => col.order_position)) : 0}
+      />
+
+      <AddActionGroupDialog
+        isOpen={isAddActionGroupDialogOpen}
+        onClose={() => setIsAddActionGroupDialogOpen(false)}
+        onGroupAdded={refreshData}
+      />
+
+      <AddActionTypeDialog
+        isOpen={isAddActionTypeDialogOpen}
+        onClose={() => setIsAddActionTypeDialogOpen(false)}
+        onTypeAdded={refreshData}
+        actionGroups={actionGroups}
+      />
+
+      <AddLeadSourceDialog
+        isOpen={isAddLeadSourceDialogOpen}
+        onClose={() => setIsAddLeadSourceDialogOpen(false)}
+        onSourceAdded={refreshData}
       />
     </div>
   );
