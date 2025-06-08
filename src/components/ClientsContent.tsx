@@ -368,6 +368,7 @@ export function ClientsContent() {
         open={isStatusFormOpen}
         onOpenChange={setIsStatusFormOpen}
         onStatusChanged={fetchLeads}
+        kanbanColumns={kanbanColumns}
       />
 
       <EditLeadForm

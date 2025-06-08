@@ -9,21 +9,21 @@ import { Badge } from "@/components/ui/badge";
 import { useLeadStatusUpdate } from "@/hooks/useLeadStatusUpdate";
 import { Lead } from "@/types/lead";
 
+interface KanbanColumn {
+  id: string;
+  name: string;
+  color: string;
+  order_position: number;
+  is_default: boolean;
+}
+
 interface StatusChangeFormProps {
   lead: Lead | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onStatusChanged: () => void;
+  kanbanColumns: KanbanColumn[];
 }
-
-const LEAD_STATUSES = [
-  { id: "Novo", title: "Novo", color: "bg-blue-100 text-blue-800" },
-  { id: "Proposta", title: "Proposta", color: "bg-purple-100 text-purple-800" },
-  { id: "Reunião", title: "Reunião", color: "bg-orange-100 text-orange-800" },
-  { id: "Contrato Fechado", title: "Contrato Fechado", color: "bg-green-100 text-green-800" },
-  { id: "Perdido", title: "Perdido", color: "bg-red-100 text-red-800" },
-  { id: "Finalizado", title: "Finalizado", color: "bg-gray-100 text-gray-800" },
-];
 
 const COMMON_LOSS_REASONS = [
   "Preço muito alto",
@@ -36,7 +36,7 @@ const COMMON_LOSS_REASONS = [
   "Timing inadequado"
 ];
 
-export function StatusChangeForm({ lead, open, onOpenChange, onStatusChanged }: StatusChangeFormProps) {
+export function StatusChangeForm({ lead, open, onOpenChange, onStatusChanged, kanbanColumns }: StatusChangeFormProps) {
   const [selectedStatus, setSelectedStatus] = useState("");
   const [lossReason, setLossReason] = useState("");
   const [customLossReason, setCustomLossReason] = useState("");
@@ -73,8 +73,11 @@ export function StatusChangeForm({ lead, open, onOpenChange, onStatusChanged }: 
   };
 
   const getStatusColor = (status: string) => {
-    const statusConfig = LEAD_STATUSES.find(s => s.id === status);
-    return statusConfig ? statusConfig.color : 'bg-gray-100 text-gray-800';
+    const column = kanbanColumns.find(col => col.name === status);
+    if (column) {
+      return 'bg-blue-100 text-blue-800';
+    }
+    return 'bg-gray-100 text-gray-800';
   };
 
   const showLossReasonField = selectedStatus === "Perdido";
@@ -108,11 +111,11 @@ export function StatusChangeForm({ lead, open, onOpenChange, onStatusChanged }: 
                 <SelectValue placeholder="Selecione o novo status" />
               </SelectTrigger>
               <SelectContent>
-                {LEAD_STATUSES.map((status) => (
-                  <SelectItem key={status.id} value={status.id}>
+                {kanbanColumns.map((column) => (
+                  <SelectItem key={column.id} value={column.name}>
                     <div className="flex items-center gap-2">
-                      <span className={`px-2 py-1 rounded text-xs ${status.color}`}>
-                        {status.title}
+                      <span className={`px-2 py-1 rounded text-xs ${getStatusColor(column.name)}`}>
+                        {column.name}
                       </span>
                     </div>
                   </SelectItem>
