@@ -3,10 +3,11 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, Users, Building, Columns, UserPlus, Settings, CreditCard } from "lucide-react";
+import { Plus, Edit, Trash2, Users, Building, Columns, UserPlus, Settings, CreditCard, X, Check } from "lucide-react";
 import { AddMemberModal } from "@/components/AddMemberModal";
 import { EditMemberModal } from "@/components/EditMemberModal";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 export function SettingsContent() {
   const [activeTab, setActiveTab] = useState("company");
@@ -30,25 +31,23 @@ export function SettingsContent() {
     address: ""
   });
 
+  // Estados para gerenciar colunas do Kanban
+  const [kanbanColumns, setKanbanColumns] = useState([
+    { id: 1, name: "Novo", order: 1, color: "#3B82F6", isDefault: true },
+    { id: 2, name: "Proposta", order: 2, color: "#F59E0B", isDefault: true },
+    { id: 3, name: "Reunião", order: 3, color: "#8B5CF6", isDefault: true },
+    { id: 4, name: "Contrato Fechado", order: 4, color: "#10B981", isDefault: true },
+    { id: 5, name: "Perdido", order: 5, color: "#EF4444", isDefault: true },
+    { id: 6, name: "Finalizado", order: 6, color: "#6B7280", isDefault: true },
+  ]);
+
+  const [editingColumn, setEditingColumn] = useState<number | null>(null);
+  const [editingColumnName, setEditingColumnName] = useState("");
+  const [isAddingColumn, setIsAddingColumn] = useState(false);
+  const [newColumnName, setNewColumnName] = useState("");
+  const [newColumnColor, setNewColumnColor] = useState("#3B82F6");
+
   const { toast } = useToast();
-
-  const kanbanColumns = [
-    { id: 1, name: "Novo", order: 1, color: "#3B82F6" },
-    { id: 2, name: "Proposta", order: 2, color: "#F59E0B" },
-    { id: 3, name: "Reunião", order: 3, color: "#8B5CF6" },
-    { id: 4, name: "Contrato Fechado", order: 4, color: "#10B981" },
-    { id: 5, name: "Perdido", order: 5, color: "#EF4444" },
-    { id: 6, name: "Finalizado", order: 6, color: "#6B7280" },
-  ];
-
-  const leadOptions = [
-    { id: 1, category: "Fonte", option: "Website" },
-    { id: 2, category: "Fonte", option: "LinkedIn" },
-    { id: 3, category: "Fonte", option: "Indicação" },
-    { id: 4, category: "Interesse", option: "Consultoria Jurídica" },
-    { id: 5, category: "Interesse", option: "Contratos" },
-    { id: 6, category: "Interesse", option: "Compliance" },
-  ];
 
   // Define tabs based on admin status
   const allTabs = [
@@ -116,6 +115,138 @@ export function SettingsContent() {
       description: "A alteração da forma de pagamento será implementada em breve.",
     });
   };
+
+  const handleEditColumnName = (columnId: number, currentName: string) => {
+    setEditingColumn(columnId);
+    setEditingColumnName(currentName);
+  };
+
+  const handleSaveColumnName = async (columnId: number) => {
+    if (!editingColumnName.trim()) {
+      toast({
+        title: "Erro",
+        description: "O nome da coluna não pode estar vazio.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Atualizar na lista local
+      setKanbanColumns(prev => prev.map(col => 
+        col.id === columnId ? { ...col, name: editingColumnName.trim() } : col
+      ));
+
+      // Aqui você poderia salvar no Supabase se necessário
+      // const { error } = await supabase
+      //   .from('kanban_columns')
+      //   .update({ name: editingColumnName.trim() })
+      //   .eq('id', columnId);
+
+      setEditingColumn(null);
+      setEditingColumnName("");
+
+      toast({
+        title: "Sucesso",
+        description: "Nome da coluna atualizado com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro ao atualizar coluna:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível atualizar o nome da coluna.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCancelEditColumn = () => {
+    setEditingColumn(null);
+    setEditingColumnName("");
+  };
+
+  const handleAddColumn = async () => {
+    if (!newColumnName.trim()) {
+      toast({
+        title: "Erro",
+        description: "O nome da coluna não pode estar vazio.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const newColumn = {
+        id: Math.max(...kanbanColumns.map(col => col.id)) + 1,
+        name: newColumnName.trim(),
+        order: kanbanColumns.length + 1,
+        color: newColumnColor,
+        isDefault: false
+      };
+
+      setKanbanColumns(prev => [...prev, newColumn]);
+
+      // Aqui você poderia salvar no Supabase
+      // const { error } = await supabase
+      //   .from('kanban_columns')
+      //   .insert(newColumn);
+
+      setIsAddingColumn(false);
+      setNewColumnName("");
+      setNewColumnColor("#3B82F6");
+
+      toast({
+        title: "Sucesso",
+        description: "Nova coluna criada com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro ao criar coluna:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível criar a nova coluna.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteColumn = async (columnId: number) => {
+    try {
+      setKanbanColumns(prev => prev.filter(col => col.id !== columnId));
+
+      // Aqui você poderia deletar do Supabase
+      // const { error } = await supabase
+      //   .from('kanban_columns')
+      //   .delete()
+      //   .eq('id', columnId);
+
+      toast({
+        title: "Sucesso",
+        description: "Coluna excluída com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro ao excluir coluna:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível excluir a coluna.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCancelAddColumn = () => {
+    setIsAddingColumn(false);
+    setNewColumnName("");
+    setNewColumnColor("#3B82F6");
+  };
+
+  const leadOptions = [
+    { id: 1, category: "Fonte", option: "Website" },
+    { id: 2, category: "Fonte", option: "LinkedIn" },
+    { id: 3, category: "Fonte", option: "Indicação" },
+    { id: 4, category: "Interesse", option: "Consultoria Jurídica" },
+    { id: 5, category: "Interesse", option: "Contratos" },
+    { id: 6, category: "Interesse", option: "Compliance" },
+  ];
 
   const renderCompanyTab = () => (
     <div className="space-y-6">
@@ -431,11 +562,15 @@ export function SettingsContent() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900">Colunas do Kanban</h3>
-        <Button className="bg-blue-600 hover:bg-blue-700">
+        <Button 
+          className="bg-blue-600 hover:bg-blue-700"
+          onClick={() => setIsAddingColumn(true)}
+        >
           <Plus className="h-4 w-4 mr-2" />
           Nova Coluna
         </Button>
       </div>
+      
       <div className="space-y-4">
         {kanbanColumns.map((column) => (
           <Card key={column.id} className="p-4">
@@ -445,22 +580,102 @@ export function SettingsContent() {
                   className="w-4 h-4 rounded"
                   style={{ backgroundColor: column.color }}
                 ></div>
-                <div>
-                  <h4 className="font-medium text-gray-900">{column.name}</h4>
-                  <p className="text-sm text-gray-600">Ordem: {column.order}</p>
+                <div className="flex-1">
+                  {editingColumn === column.id ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={editingColumnName}
+                        onChange={(e) => setEditingColumnName(e.target.value)}
+                        className="max-w-xs"
+                        placeholder="Nome da coluna"
+                      />
+                      <Button 
+                        size="sm" 
+                        onClick={() => handleSaveColumnName(column.id)}
+                      >
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={handleCancelEditColumn}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div>
+                      <h4 className="font-medium text-gray-900">{column.name}</h4>
+                      <p className="text-sm text-gray-600">Ordem: {column.order}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              {editingColumn !== column.id && (
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleEditColumnName(column.id, column.name)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  {!column.isDefault && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleDeleteColumn(column.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          </Card>
+        ))}
+
+        {/* Formulário para adicionar nova coluna */}
+        {isAddingColumn && (
+          <Card className="p-4 border-2 border-dashed border-blue-300">
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nome da Nova Coluna
+                </label>
+                <Input
+                  value={newColumnName}
+                  onChange={(e) => setNewColumnName(e.target.value)}
+                  placeholder="Digite o nome da nova coluna"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Cor da Coluna
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={newColumnColor}
+                    onChange={(e) => setNewColumnColor(e.target.value)}
+                    className="w-10 h-10 border border-gray-300 rounded cursor-pointer"
+                  />
+                  <span className="text-sm text-gray-600">{newColumnColor}</span>
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm">
-                  <Edit className="h-4 w-4" />
+                <Button onClick={handleAddColumn}>
+                  <Check className="h-4 w-4 mr-2" />
+                  Criar Coluna
                 </Button>
-                <Button variant="outline" size="sm">
-                  <Trash2 className="h-4 w-4" />
+                <Button variant="outline" onClick={handleCancelAddColumn}>
+                  <X className="h-4 w-4 mr-2" />
+                  Cancelar
                 </Button>
               </div>
             </div>
           </Card>
-        ))}
+        )}
       </div>
     </div>
   );
