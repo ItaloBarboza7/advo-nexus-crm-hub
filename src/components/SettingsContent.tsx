@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -621,12 +620,11 @@ export function SettingsContent() {
     }
   };
 
-  const handleDeleteLossReason = async (reasonId: string) => {
+  const handleDeleteLossReason = async (reasonId: string): Promise<void> => {
     console.log(`🗑️ SettingsContent - Iniciando exclusão do motivo de perda ID: ${reasonId}`);
     try {
       const success = await deleteLossReason(reasonId);
       console.log(`✅ SettingsContent - Resultado da exclusão: ${success}`);
-      return success;
     } catch (error) {
       console.error(`❌ SettingsContent - Erro ao excluir motivo:`, error);
       throw error;
