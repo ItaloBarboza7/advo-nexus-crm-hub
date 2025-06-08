@@ -236,15 +236,46 @@ export function useLossReasonsGlobal() {
     }
 
     try {
-      console.log(`🔄 useLossReasonsGlobal - Iniciando exclusão no banco de dados para ID: ${id}`);
+      console.log(`🔄 useLossReasonsGlobal - Verificando se o motivo existe no banco de dados...`);
+      
+      // Primeiro, verificar se o registro existe no banco
+      const { data: existingRecord, error: selectError } = await supabase
+        .from('loss_reasons')
+        .select('id')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (selectError) {
+        console.error('❌ Erro ao verificar existência do motivo:', selectError);
+        toast({
+          title: "Erro",
+          description: "Erro ao verificar o motivo no banco de dados.",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      // Se não encontrou o registro no banco, significa que já foi excluído
+      if (!existingRecord) {
+        console.warn(`⚠️ Motivo com ID ${id} não existe no banco de dados. Removendo do estado local...`);
+        
+        // Atualizar o estado global buscando dados frescos do banco
+        await updateGlobalState();
+        
+        toast({
+          title: "Sucesso",
+          description: "Motivo de perda já foi removido do sistema.",
+        });
+        return true;
+      }
+
+      console.log(`✅ Motivo encontrado no banco. Procedendo com a exclusão...`);
       
       // Fazer a exclusão no banco de dados
-      const { error: deleteError, count } = await supabase
+      const { error: deleteError } = await supabase
         .from('loss_reasons')
-        .delete({ count: 'exact' })
+        .delete()
         .eq('id', id);
-
-      console.log(`📊 useLossReasonsGlobal - Resposta da exclusão:`, { error: deleteError, count });
 
       if (deleteError) {
         console.error('❌ Erro ao excluir motivo no banco:', deleteError);
@@ -256,18 +287,7 @@ export function useLossReasonsGlobal() {
         return false;
       }
 
-      // Verificar se algum registro foi realmente deletado
-      if (count === 0) {
-        console.warn('⚠️ Nenhum registro foi deletado do banco de dados');
-        toast({
-          title: "Aviso",
-          description: "O motivo não foi encontrado no banco de dados.",
-          variant: "destructive"
-        });
-        return false;
-      }
-
-      console.log(`✅ useLossReasonsGlobal - ${count} motivo(s) excluído(s) do banco com sucesso.`);
+      console.log(`✅ useLossReasonsGlobal - Motivo "${reasonToDelete.reason}" excluído do banco com sucesso.`);
       
       // Buscar dados atualizados do banco para garantir sincronização
       console.log(`🔄 useLossReasonsGlobal - Buscando dados atualizados do banco...`);
