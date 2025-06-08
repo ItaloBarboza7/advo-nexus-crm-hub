@@ -47,6 +47,35 @@ export function useKanbanColumns() {
     }
   };
 
+  const deleteColumn = async (columnId: string) => {
+    try {
+      const { error } = await supabase
+        .from('kanban_columns')
+        .delete()
+        .eq('id', columnId);
+
+      if (error) {
+        console.error('Erro ao excluir coluna:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível excluir a coluna.",
+          variant: "destructive"
+        });
+        throw error;
+      }
+
+      toast({
+        title: "Sucesso",
+        description: "Coluna excluída com sucesso.",
+      });
+
+      await fetchColumns(); // Refresh the list
+    } catch (error) {
+      console.error('Erro inesperado ao excluir coluna:', error);
+      throw error;
+    }
+  };
+
   useEffect(() => {
     fetchColumns();
   }, []);
@@ -58,6 +87,7 @@ export function useKanbanColumns() {
   return {
     columns,
     isLoading,
-    refreshColumns
+    refreshColumns,
+    deleteColumn
   };
 }

@@ -2,10 +2,8 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Trash2, Plus, Edit } from "lucide-react";
 import { AddLeadSourceDialog } from "./AddLeadSourceDialog";
@@ -17,6 +15,8 @@ import { useKanbanColumns } from "@/hooks/useKanbanColumns";
 import { useFilterOptions } from "@/hooks/useFilterOptions";
 import { useCompanyInfo } from "@/hooks/useCompanyInfo";
 import { EditCompanyModal } from "./EditCompanyModal";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 export function SettingsContent() {
   const [isAddSourceOpen, setIsAddSourceOpen] = useState(false);
@@ -36,22 +36,26 @@ export function SettingsContent() {
     onConfirm: () => {},
   });
 
+  const { toast } = useToast();
+
   const { 
-    columns, 
+    columns = [], 
     deleteColumn, 
-    isLoading: columnsLoading 
+    isLoading: columnsLoading,
+    refreshColumns
   } = useKanbanColumns();
 
   const {
-    leadSources,
-    actionGroups,
-    actionTypes,
-    lossReasons,
+    leadSources = [],
+    actionGroups = [],
+    actionTypes = [],
+    lossReasons = [],
     deleteLeadSource,
     deleteActionGroup,
     deleteActionType,
     deleteLossReason,
-    isLoading: optionsLoading
+    isLoading: optionsLoading,
+    refreshData
   } = useFilterOptions();
 
   const { companyInfo, isLoading: companyLoading, updateCompanyInfo } = useCompanyInfo();
@@ -83,6 +87,46 @@ export function SettingsContent() {
       onConfirm: () => {},
     });
   };
+
+  const handleAddColumn = async (columnData: { name: string; color: string; order: number }) => {
+    try {
+      const { error } = await supabase
+        .from('kanban_columns')
+        .insert({
+          name: columnData.name,
+          color: columnData.color,
+          order_position: columnData.order,
+          is_default: false
+        });
+
+      if (error) {
+        console.error('Erro ao criar coluna:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível criar a coluna.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      toast({
+        title: "Sucesso",
+        description: "Coluna criada com sucesso.",
+      });
+
+      refreshColumns();
+      setIsAddColumnOpen(false);
+    } catch (error) {
+      console.error('Erro inesperado:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const maxOrder = columns.length > 0 ? Math.max(...columns.map(col => col.order_position)) : 0;
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -408,21 +452,27 @@ export function SettingsContent() {
       <AddLeadSourceDialog 
         isOpen={isAddSourceOpen} 
         onClose={() => setIsAddSourceOpen(false)} 
+        onSourceAdded={refreshData}
       />
       
       <AddColumnDialog 
         isOpen={isAddColumnOpen} 
         onClose={() => setIsAddColumnOpen(false)} 
+        onAddColumn={handleAddColumn}
+        maxOrder={maxOrder}
       />
       
       <AddActionGroupDialog 
         isOpen={isAddActionGroupOpen} 
         onClose={() => setIsAddActionGroupOpen(false)} 
+        onGroupAdded={refreshData}
       />
       
       <AddActionTypeDialog 
         isOpen={isAddActionTypeOpen} 
         onClose={() => setIsAddActionTypeOpen(false)} 
+        onTypeAdded={refreshData}
+        actionGroups={actionGroups}
       />
 
       <EditCompanyModal
@@ -436,7 +486,7 @@ export function SettingsContent() {
       <ConfirmDeleteDialog
         open={confirmDelete.open}
         onConfirm={confirmDeleteAction}
-        onCancel={cancelDelete}
+        onOpenChange={cancelDelete}
         itemName={confirmDelete.itemName}
         itemType={confirmDelete.itemType}
       />

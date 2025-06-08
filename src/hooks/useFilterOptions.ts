@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface ActionGroup {
   id: string;
@@ -20,11 +21,18 @@ interface LeadSource {
   label: string;
 }
 
+interface LossReason {
+  id: string;
+  reason: string;
+}
+
 export const useFilterOptions = () => {
   const [actionGroups, setActionGroups] = useState<ActionGroup[]>([]);
   const [actionTypes, setActionTypes] = useState<ActionType[]>([]);
   const [leadSources, setLeadSources] = useState<LeadSource[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [lossReasons, setLossReasons] = useState<LossReason[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchAllData();
@@ -32,7 +40,7 @@ export const useFilterOptions = () => {
 
   const fetchAllData = async () => {
     try {
-      setLoading(true);
+      setIsLoading(true);
       
       // Buscar grupos de ação
       const { data: groupsData, error: groupsError } = await supabase
@@ -69,15 +77,139 @@ export const useFilterOptions = () => {
       } else {
         setLeadSources(sourcesData || []);
       }
+
+      // Buscar motivos de perda
+      const { data: lossData, error: lossError } = await supabase
+        .from('loss_reasons')
+        .select('*')
+        .order('reason');
+
+      if (lossError) {
+        console.error('Erro ao buscar motivos de perda:', lossError);
+      } else {
+        setLossReasons(lossData || []);
+      }
     } catch (error) {
       console.error('Erro inesperado ao buscar dados:', error);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   const refreshData = () => {
     fetchAllData();
+  };
+
+  const deleteLeadSource = async (sourceId: string) => {
+    try {
+      const { error } = await supabase
+        .from('lead_sources')
+        .delete()
+        .eq('id', sourceId);
+
+      if (error) {
+        console.error('Erro ao excluir fonte:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível excluir a fonte de lead.",
+          variant: "destructive"
+        });
+        throw error;
+      }
+
+      toast({
+        title: "Sucesso",
+        description: "Fonte de lead excluída com sucesso.",
+      });
+
+      await fetchAllData();
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const deleteActionGroup = async (groupId: string) => {
+    try {
+      const { error } = await supabase
+        .from('action_groups')
+        .delete()
+        .eq('id', groupId);
+
+      if (error) {
+        console.error('Erro ao excluir grupo:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível excluir o grupo de ação.",
+          variant: "destructive"
+        });
+        throw error;
+      }
+
+      toast({
+        title: "Sucesso",
+        description: "Grupo de ação excluído com sucesso.",
+      });
+
+      await fetchAllData();
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const deleteActionType = async (typeId: string) => {
+    try {
+      const { error } = await supabase
+        .from('action_types')
+        .delete()
+        .eq('id', typeId);
+
+      if (error) {
+        console.error('Erro ao excluir tipo:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível excluir o tipo de ação.",
+          variant: "destructive"
+        });
+        throw error;
+      }
+
+      toast({
+        title: "Sucesso",
+        description: "Tipo de ação excluído com sucesso.",
+      });
+
+      await fetchAllData();
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const deleteLossReason = async (reasonId: string) => {
+    try {
+      const { error } = await supabase
+        .from('loss_reasons')
+        .delete()
+        .eq('id', reasonId);
+
+      if (error) {
+        console.error('Erro ao excluir motivo:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível excluir o motivo de perda.",
+          variant: "destructive"
+        });
+        throw error;
+      }
+
+      toast({
+        title: "Sucesso",
+        description: "Motivo de perda excluído com sucesso.",
+      });
+
+      await fetchAllData();
+    } catch (error) {
+      throw error;
+    }
   };
 
   // Converter para formato compatível com os selects existentes
@@ -163,7 +295,12 @@ export const useFilterOptions = () => {
     actionGroups,
     actionTypes,
     leadSources,
-    loading,
-    refreshData
+    lossReasons,
+    isLoading,
+    refreshData,
+    deleteLeadSource,
+    deleteActionGroup,
+    deleteActionType,
+    deleteLossReason
   };
 };
