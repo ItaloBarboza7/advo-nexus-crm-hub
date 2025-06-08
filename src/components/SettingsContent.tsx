@@ -397,27 +397,50 @@ export function SettingsContent() {
   // Função corrigida para deletar motivos de perda
   const handleDeleteLossReason = async (reasonId: string) => {
     console.log('🗑️ Iniciando exclusão do motivo de perda com ID:', reasonId);
+    console.log('📋 Motivos de perda antes da exclusão:', lossReasons);
     
     try {
-      const { error } = await supabase
-        .from('loss_reasons')
-        .delete()
-        .eq('id', reasonId);
-
-      if (error) {
-        console.error('❌ Erro ao excluir motivo de perda:', error);
+      // Verificar se o ID existe
+      const reasonToDelete = lossReasons.find(reason => reason.id === reasonId);
+      console.log('🔍 Motivo encontrado para exclusão:', reasonToDelete);
+      
+      if (!reasonToDelete) {
+        console.error('❌ Motivo de perda não encontrado com ID:', reasonId);
         toast({
           title: "Erro",
-          description: "Não foi possível excluir o motivo de perda.",
+          description: "Motivo de perda não encontrado.",
+          variant: "destructive"
+        });
+        throw new Error('Motivo de perda não encontrado');
+      }
+
+      console.log('🔥 Executando delete no Supabase...');
+      const { data, error } = await supabase
+        .from('loss_reasons')
+        .delete()
+        .eq('id', reasonId)
+        .select(); // Adicionar select para verificar o que foi deletado
+
+      console.log('📊 Resposta do Supabase - data:', data);
+      console.log('📊 Resposta do Supabase - error:', error);
+
+      if (error) {
+        console.error('❌ Erro do Supabase ao excluir motivo de perda:', error);
+        toast({
+          title: "Erro",
+          description: `Não foi possível excluir o motivo de perda: ${error.message}`,
           variant: "destructive"
         });
         throw error;
       }
 
       console.log('✅ Motivo de perda excluído com sucesso do banco');
+      console.log('🔄 Atualizando dados locais...');
       
       // Atualizar os dados após exclusão bem-sucedida
       await refreshData();
+      
+      console.log('✅ Dados atualizados com sucesso');
 
       toast({
         title: "Sucesso",
@@ -1258,59 +1281,67 @@ export function SettingsContent() {
             </div>
             <ScrollArea className="h-64 w-full rounded-md border p-4">
               <div className="space-y-3">
-                {lossReasons.map((reason) => (
-                  <div key={reason.id} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        {editingLossReason === reason.id ? (
-                          <div className="flex items-center gap-2">
-                            <Input
-                              value={editingLossReasonName}
-                              onChange={(e) => setEditingLossReasonName(e.target.value)}
-                              className="max-w-xs"
-                              placeholder="Motivo da perda"
-                            />
-                            <Button size="sm" onClick={handleSaveLossReason}>
-                              <Check className="h-4 w-4" />
-                            </Button>
+                {lossReasons.length === 0 ? (
+                  <p className="text-center text-gray-500 py-4">Nenhum motivo de perda cadastrado</p>
+                ) : (
+                  lossReasons.map((reason) => (
+                    <div key={reason.id} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          {editingLossReason === reason.id ? (
+                            <div className="flex items-center gap-2">
+                              <Input
+                                value={editingLossReasonName}
+                                onChange={(e) => setEditingLossReasonName(e.target.value)}
+                                className="max-w-xs"
+                                placeholder="Motivo da perda"
+                              />
+                              <Button size="sm" onClick={handleSaveLossReason}>
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                onClick={() => {
+                                  setEditingLossReason(null);
+                                  setEditingLossReasonName("");
+                                }}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div>
+                              <h5 className="font-medium text-gray-900">{reason.reason}</h5>
+                              <p className="text-xs text-gray-500">ID: {reason.id}</p>
+                            </div>
+                          )}
+                        </div>
+                        {editingLossReason !== reason.id && (
+                          <div className="flex gap-2">
                             <Button 
-                              size="sm" 
                               variant="outline" 
-                              onClick={() => {
-                                setEditingLossReason(null);
-                                setEditingLossReasonName("");
-                              }}
+                              size="sm"
+                              onClick={() => handleEditLossReason(reason.id, reason.reason)}
                             >
-                              <X className="h-4 w-4" />
+                              <Edit className="h-4 w-4" />
                             </Button>
-                          </div>
-                        ) : (
-                          <div>
-                            <h5 className="font-medium text-gray-900">{reason.reason}</h5>
+                            <DeleteButton
+                              onDelete={() => {
+                                console.log('🔥 DeleteButton chamando handleDeleteLossReason com ID:', reason.id);
+                                return handleDeleteLossReason(reason.id);
+                              }}
+                              itemName={reason.reason}
+                              itemType="motivo de perda"
+                              size="sm"
+                              variant="outline"
+                            />
                           </div>
                         )}
                       </div>
-                      {editingLossReason !== reason.id && (
-                        <div className="flex gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleEditLossReason(reason.id, reason.reason)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <DeleteButton
-                            onDelete={() => handleDeleteLossReason(reason.id)}
-                            itemName={reason.reason}
-                            itemType="motivo de perda"
-                            size="sm"
-                            variant="outline"
-                          />
-                        </div>
-                      )}
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </ScrollArea>
           </Card>
