@@ -1,4 +1,3 @@
-
 import { useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,16 +13,19 @@ interface StateStatsChartProps {
 
 export function StateStatsChart({ leads, selectedCategory = "all", hasLeadPassedThroughStatus }: StateStatsChartProps) {
   
-  // Função para verificar se um lead é uma oportunidade
+  // Função para verificar se um lead é uma oportunidade (NOVA REGRA)
   const isOpportunityLead = (lead: Lead): boolean => {
     if (!hasLeadPassedThroughStatus) return false;
     
-    if (lead.status === "Novo") return false;
-    if (lead.status === "Perdido" || lead.status === "Contrato Fechado") return false;
+    // NOVA REGRA: Oportunidades são leads que:
+    // 1. NÃO estão em "Novo" (independente do histórico)
+    // 2. Estão atualmente em "Proposta" ou "Reunião" OU passaram por eles (histórico)
     
-    const hasPassedThroughTargetStatuses = hasLeadPassedThroughStatus(lead.id, ["Proposta", "Reunião"]);
+    if (lead.status === "Novo") return false;
     
     if (lead.status === "Proposta" || lead.status === "Reunião") return true;
+    
+    const hasPassedThroughTargetStatuses = hasLeadPassedThroughStatus(lead.id, ["Proposta", "Reunião"]);
     
     return hasPassedThroughTargetStatuses;
   };
@@ -54,7 +56,7 @@ export function StateStatsChart({ leads, selectedCategory = "all", hasLeadPassed
         acc[state].contratos += 1;
       }
       
-      // Contar oportunidades
+      // Contar oportunidades (NOVA REGRA)
       if (isOpportunityLead(lead)) {
         acc[state].oportunidades += 1;
       }
@@ -103,11 +105,9 @@ export function StateStatsChart({ leads, selectedCategory = "all", hasLeadPassed
         };
       })
       .sort((a, b) => {
-        // Para ranking geral (todos), ordenar por quantidade total
         if (mainCategory === "all" || selectedCategory === "estados") {
           return b.total - a.total;
         }
-        // Para outras categorias, ordenar pela métrica específica
         return b.metrica - a.metrica;
       });
   }, [leads, selectedCategory, hasLeadPassedThroughStatus]);
@@ -179,7 +179,6 @@ export function StateStatsChart({ leads, selectedCategory = "all", hasLeadPassed
         </div>
       </div>
 
-      {/* Top 3 Estados */}
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-4">
           <Trophy className="h-5 w-5 text-yellow-500" />
@@ -228,7 +227,6 @@ export function StateStatsChart({ leads, selectedCategory = "all", hasLeadPassed
         </div>
       </div>
 
-      {/* Lista Completa de Estados */}
       <div className="space-y-3">
         <h4 className="font-semibold text-gray-800 mb-4">Todos os Estados</h4>
         <div className="max-h-60 overflow-y-auto space-y-3">
