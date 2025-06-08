@@ -33,9 +33,22 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
 
     setIsLoading(true);
     try {
+      // Obter o usuário atual
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Usuário não encontrado. Faça login novamente.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from('company_info')
         .insert([{
+          user_id: user.id,
           company_name: companyName,
           cnpj,
           phone,
