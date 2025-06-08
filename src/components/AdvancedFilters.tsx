@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +20,7 @@ interface AdvancedFiltersProps {
   onFiltersChange: (filters: FilterOptions) => void;
   activeFilters: FilterOptions;
   selectedCategory?: string;
-  lossReasons?: Array<{ id: string; reason: string; }>;
+  lossReasons?: Array<{ id: string; reason: string; is_fixed: boolean; }>;
 }
 
 export interface FilterOptions {
