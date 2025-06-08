@@ -204,6 +204,22 @@ export function EditLeadForm({
 
     console.log("💾 EditLeadForm - Salvando lead com dados:", formData);
 
+    // Verificar se status é "Perdido" e não há motivo da perda
+    const isLostStatus = formData.status && (
+      formData.status.toLowerCase().includes('perdido') || 
+      formData.status.toLowerCase().includes('lost') ||
+      formData.status === 'Perdido'
+    );
+
+    if (isLostStatus && !formData.loss_reason) {
+      toast({
+        title: "Erro",
+        description: "Para marcar como perdido, é necessário informar o motivo da perda.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       const { error } = await supabase
@@ -219,7 +235,7 @@ export function EditLeadForm({
           action_type: formData.action_type || null,
           value: formData.value ? parseFloat(formData.value) : null,
           description: formData.description || null,
-          loss_reason: formData.loss_reason || null,
+          loss_reason: isLostStatus ? formData.loss_reason : null,
         })
         .eq('id', lead.id);
 
@@ -260,7 +276,22 @@ export function EditLeadForm({
     // Se mudando o status, verificar se é para um status de perda
     if (field === 'status') {
       console.log(`📊 EditLeadForm - Status alterado para: "${value}"`);
-      console.log(`📊 EditLeadForm - É status de perda? ${value.toLowerCase().includes('perdido') || value.toLowerCase().includes('lost')}`);
+      const isLostStatus = value && (
+        value.toLowerCase().includes('perdido') || 
+        value.toLowerCase().includes('lost') ||
+        value === 'Perdido'
+      );
+      console.log(`📊 EditLeadForm - É status de perda? ${isLostStatus}`);
+      
+      // Se não é status de perda, limpar o motivo da perda
+      if (!isLostStatus) {
+        setFormData(prev => ({
+          ...prev,
+          [field]: value,
+          loss_reason: ""
+        }));
+        return;
+      }
     }
     
     setFormData(prev => ({
@@ -615,7 +646,7 @@ export function EditLeadForm({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
+              <Label htmlFor="status">Status *</Label>
               <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o status" />
@@ -872,7 +903,7 @@ export function EditLeadForm({
             </Button>
             <Button 
               type="submit" 
-              disabled={isLoading}
+              disabled={isLoading || (shouldShowLossReasonField && !formData.loss_reason)}
               className="flex-1 bg-blue-600 hover:bg-blue-700"
             >
               {isLoading ? "Salvando..." : "Salvar Alterações"}
