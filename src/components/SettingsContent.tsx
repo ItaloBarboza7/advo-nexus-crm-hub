@@ -1,8 +1,11 @@
+
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Plus, Edit, Trash2, Users, Building, Columns, UserPlus, Settings, CreditCard, X, Check } from "lucide-react";
 import { AddMemberModal } from "@/components/AddMemberModal";
 import { EditMemberModal } from "@/components/EditMemberModal";
@@ -916,145 +919,165 @@ export function SettingsContent() {
         </Card>
       ) : (
         <>
-          {/* Grupos de Ação */}
+          {/* Grupos e Tipos de Ação - Painel Unificado */}
           <Card className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h4 className="text-md font-semibold text-gray-900">Grupos de Ação</h4>
-              <Button className="bg-blue-600 hover:bg-blue-700">
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Grupo de Ação
-              </Button>
+              <h4 className="text-md font-semibold text-gray-900">Grupos e Tipos de Ação</h4>
+              <div className="flex gap-2">
+                <Button className="bg-blue-600 hover:bg-blue-700">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Novo Grupo
+                </Button>
+                <Button className="bg-green-600 hover:bg-green-700">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Novo Tipo
+                </Button>
+              </div>
             </div>
-            <div className="space-y-3">
-              {actionGroups.map((group) => (
-                <div key={group.id} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      {editingActionGroup === group.id ? (
-                        <div className="flex items-center gap-2">
-                          <Input
-                            value={editingActionGroupName}
-                            onChange={(e) => setEditingActionGroupName(e.target.value)}
-                            className="max-w-xs"
-                            placeholder="Nome do grupo"
-                          />
-                          <Button size="sm" onClick={handleSaveActionGroup}>
-                            <Check className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            onClick={() => {
-                              setEditingActionGroup(null);
-                              setEditingActionGroupName("");
-                            }}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <div>
-                          <h5 className="font-medium text-gray-900">{group.description || group.name}</h5>
-                          <p className="text-sm text-gray-600">ID: {group.name}</p>
-                        </div>
-                      )}
-                    </div>
-                    {editingActionGroup !== group.id && (
-                      <div className="flex gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleEditActionGroup(group.id, group.description || group.name)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleDeleteActionGroup(group.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          {/* Tipos de Ação */}
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="text-md font-semibold text-gray-900">Tipos de Ação</h4>
-              <Button className="bg-blue-600 hover:bg-blue-700">
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Tipo de Ação
-              </Button>
-            </div>
-            <div className="space-y-3">
-              {actionTypes.map((type) => {
-                const group = actionGroups.find(g => g.id === type.action_group_id);
-                return (
-                  <div key={type.id} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        {editingActionType === type.id ? (
-                          <div className="flex items-center gap-2">
-                            <Input
-                              value={editingActionTypeName}
-                              onChange={(e) => setEditingActionTypeName(e.target.value)}
-                              className="max-w-xs"
-                              placeholder="Nome do tipo"
-                            />
-                            <Button size="sm" onClick={handleSaveActionType}>
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              onClick={() => {
-                                setEditingActionType(null);
-                                setEditingActionTypeName("");
-                              }}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
+            
+            <ScrollArea className="h-96 w-full rounded-md border p-4">
+              <Accordion type="single" collapsible className="w-full">
+                {actionGroups.map((group) => {
+                  const groupActionTypes = actionTypes.filter(type => type.action_group_id === group.id);
+                  
+                  return (
+                    <AccordionItem key={group.id} value={group.id}>
+                      <AccordionTrigger className="hover:no-underline">
+                        <div className="flex items-center justify-between w-full mr-4">
+                          <div className="flex items-center gap-3">
+                            {editingActionGroup === group.id ? (
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  value={editingActionGroupName}
+                                  onChange={(e) => setEditingActionGroupName(e.target.value)}
+                                  className="max-w-xs"
+                                  placeholder="Nome do grupo"
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                                <Button 
+                                  size="sm" 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSaveActionGroup();
+                                  }}
+                                >
+                                  <Check className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline" 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingActionGroup(null);
+                                    setEditingActionGroupName("");
+                                  }}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <div>
+                                <h5 className="font-medium text-gray-900 text-left">{group.description || group.name}</h5>
+                                <p className="text-sm text-gray-600 text-left">{groupActionTypes.length} tipos de ação</p>
+                              </div>
+                            )}
                           </div>
-                        ) : (
-                          <div>
-                            <h5 className="font-medium text-gray-900">
-                              {type.name.split('-').map(word => 
-                                word.charAt(0).toUpperCase() + word.slice(1)
-                              ).join(' ')}
-                            </h5>
-                            <p className="text-sm text-gray-600">Grupo: {group?.description || group?.name || 'N/A'}</p>
-                          </div>
-                        )}
-                      </div>
-                      {editingActionType !== type.id && (
-                        <div className="flex gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleEditActionType(type.id, type.name)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleDeleteActionType(type.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {editingActionGroup !== group.id && (
+                            <div className="flex gap-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditActionGroup(group.id, group.description || group.name);
+                                }}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteActionGroup(group.id);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="space-y-2 pl-4">
+                          {groupActionTypes.length === 0 ? (
+                            <p className="text-sm text-gray-500 italic">Nenhum tipo de ação encontrado para este grupo</p>
+                          ) : (
+                            groupActionTypes.map((type) => (
+                              <div key={type.id} className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex-1">
+                                    {editingActionType === type.id ? (
+                                      <div className="flex items-center gap-2">
+                                        <Input
+                                          value={editingActionTypeName}
+                                          onChange={(e) => setEditingActionTypeName(e.target.value)}
+                                          className="max-w-xs"
+                                          placeholder="Nome do tipo"
+                                        />
+                                        <Button size="sm" onClick={handleSaveActionType}>
+                                          <Check className="h-4 w-4" />
+                                        </Button>
+                                        <Button 
+                                          size="sm" 
+                                          variant="outline" 
+                                          onClick={() => {
+                                            setEditingActionType(null);
+                                            setEditingActionTypeName("");
+                                          }}
+                                        >
+                                          <X className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    ) : (
+                                      <div>
+                                        <h6 className="font-medium text-gray-900">
+                                          {type.name.split('-').map(word => 
+                                            word.charAt(0).toUpperCase() + word.slice(1)
+                                          ).join(' ')}
+                                        </h6>
+                                      </div>
+                                    )}
+                                  </div>
+                                  {editingActionType !== type.id && (
+                                    <div className="flex gap-2">
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm"
+                                        onClick={() => handleEditActionType(type.id, type.name)}
+                                      >
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm"
+                                        onClick={() => handleDeleteActionType(type.id)}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
+              </Accordion>
+            </ScrollArea>
           </Card>
 
           {/* Fontes de Leads */}
@@ -1066,62 +1089,64 @@ export function SettingsContent() {
                 Nova Fonte
               </Button>
             </div>
-            <div className="space-y-3">
-              {leadSources.map((source) => (
-                <div key={source.id} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      {editingLeadSource === source.id ? (
-                        <div className="flex items-center gap-2">
-                          <Input
-                            value={editingLeadSourceName}
-                            onChange={(e) => setEditingLeadSourceName(e.target.value)}
-                            className="max-w-xs"
-                            placeholder="Nome da fonte"
-                          />
-                          <Button size="sm" onClick={handleSaveLeadSource}>
-                            <Check className="h-4 w-4" />
+            <ScrollArea className="h-64 w-full rounded-md border p-4">
+              <div className="space-y-3">
+                {leadSources.map((source) => (
+                  <div key={source.id} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        {editingLeadSource === source.id ? (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={editingLeadSourceName}
+                              onChange={(e) => setEditingLeadSourceName(e.target.value)}
+                              className="max-w-xs"
+                              placeholder="Nome da fonte"
+                            />
+                            <Button size="sm" onClick={handleSaveLeadSource}>
+                              <Check className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => {
+                                setEditingLeadSource(null);
+                                setEditingLeadSourceName("");
+                              }}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div>
+                            <h5 className="font-medium text-gray-900">{source.label}</h5>
+                            <p className="text-sm text-gray-600">ID: {source.name}</p>
+                          </div>
+                        )}
+                      </div>
+                      {editingLeadSource !== source.id && (
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleEditLeadSource(source.id, source.label)}
+                          >
+                            <Edit className="h-4 w-4" />
                           </Button>
                           <Button 
-                            size="sm" 
                             variant="outline" 
-                            onClick={() => {
-                              setEditingLeadSource(null);
-                              setEditingLeadSourceName("");
-                            }}
+                            size="sm"
+                            onClick={() => handleDeleteLeadSource(source.id)}
                           >
-                            <X className="h-4 w-4" />
+                            <Trash2 className="h-4 w-4" />
                           </Button>
-                        </div>
-                      ) : (
-                        <div>
-                          <h5 className="font-medium text-gray-900">{source.label}</h5>
-                          <p className="text-sm text-gray-600">ID: {source.name}</p>
                         </div>
                       )}
                     </div>
-                    {editingLeadSource !== source.id && (
-                      <div className="flex gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleEditLeadSource(source.id, source.label)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleDeleteLeadSource(source.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </ScrollArea>
           </Card>
         </>
       )}
