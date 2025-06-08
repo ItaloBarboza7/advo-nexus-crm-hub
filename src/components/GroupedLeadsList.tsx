@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,20 +23,49 @@ export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEdi
     
     // CORREÇÃO: Verificar se a categoria inclui subcategorias de ação
     if (selectedCategory === "perdas" || selectedCategory.startsWith("perdas-")) {
-      const groups = leads.reduce((acc, lead) => {
-        const lossReason = lead.loss_reason || "Sem motivo especificado";
-        if (!acc[lossReason]) {
-          acc[lossReason] = [];
-        }
-        acc[lossReason].push(lead);
-        return acc;
-      }, {} as Record<string, Lead[]>);
-      return groups;
+      // Para perdas com tipo de ação, agrupar por action_type
+      if (selectedCategory === "perdas-tipo-acao") {
+        const groups = leads.reduce((acc, lead) => {
+          const actionType = lead.action_type || "outros";
+          const groupName = getActionTypeLabel(actionType);
+          if (!acc[groupName]) {
+            acc[groupName] = [];
+          }
+          acc[groupName].push(lead);
+          return acc;
+        }, {} as Record<string, Lead[]>);
+        return groups;
+      }
+      // Para perdas com grupo de ação, agrupar por action_group (ou mapear action_type para grupos)
+      else if (selectedCategory === "perdas-grupo-acao") {
+        const groups = leads.reduce((acc, lead) => {
+          const actionType = lead.action_type || "outros";
+          const groupName = getActionGroupLabel(actionType);
+          if (!acc[groupName]) {
+            acc[groupName] = [];
+          }
+          acc[groupName].push(lead);
+          return acc;
+        }, {} as Record<string, Lead[]>);
+        return groups;
+      }
+      // Para perdas simples, agrupar por loss_reason
+      else if (selectedCategory === "perdas") {
+        const groups = leads.reduce((acc, lead) => {
+          const lossReason = lead.loss_reason || "Sem motivo especificado";
+          if (!acc[lossReason]) {
+            acc[lossReason] = [];
+          }
+          acc[lossReason].push(lead);
+          return acc;
+        }, {} as Record<string, Lead[]>);
+        return groups;
+      }
     } 
-    // CORREÇÃO: Agrupar por tipo de ação quando categoria for contratos-tipo-acao ou oportunidades-tipo-acao
-    else if (selectedCategory === "contratos-tipo-acao" || selectedCategory === "oportunidades-tipo-acao") {
+    // Para contratos com tipo de ação, agrupar por action_type
+    else if (selectedCategory === "contratos-tipo-acao") {
       const groups = leads.reduce((acc, lead) => {
-        const actionType = lead.action_type || "Sem tipo especificado";
+        const actionType = lead.action_type || "outros";
         const groupName = getActionTypeLabel(actionType);
         if (!acc[groupName]) {
           acc[groupName] = [];
@@ -47,10 +75,10 @@ export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEdi
       }, {} as Record<string, Lead[]>);
       return groups;
     }
-    // CORREÇÃO: Agrupar por grupo de ação quando categoria for contratos-grupo-acao ou oportunidades-grupo-acao
-    else if (selectedCategory === "contratos-grupo-acao" || selectedCategory === "oportunidades-grupo-acao") {
+    // Para contratos com grupo de ação, agrupar por action_group
+    else if (selectedCategory === "contratos-grupo-acao") {
       const groups = leads.reduce((acc, lead) => {
-        const actionType = lead.action_type || "Sem tipo especificado";
+        const actionType = lead.action_type || "outros";
         const groupName = getActionGroupLabel(actionType);
         if (!acc[groupName]) {
           acc[groupName] = [];
@@ -60,7 +88,33 @@ export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEdi
       }, {} as Record<string, Lead[]>);
       return groups;
     }
-    // CORREÇÃO: Para categorias principais simples (contratos, oportunidades), não agrupar
+    // Para oportunidades com tipo de ação, agrupar por action_type
+    else if (selectedCategory === "oportunidades-tipo-acao") {
+      const groups = leads.reduce((acc, lead) => {
+        const actionType = lead.action_type || "outros";
+        const groupName = getActionTypeLabel(actionType);
+        if (!acc[groupName]) {
+          acc[groupName] = [];
+        }
+        acc[groupName].push(lead);
+        return acc;
+      }, {} as Record<string, Lead[]>);
+      return groups;
+    }
+    // Para oportunidades com grupo de ação, agrupar por action_group
+    else if (selectedCategory === "oportunidades-grupo-acao") {
+      const groups = leads.reduce((acc, lead) => {
+        const actionType = lead.action_type || "outros";
+        const groupName = getActionGroupLabel(actionType);
+        if (!acc[groupName]) {
+          acc[groupName] = [];
+        }
+        acc[groupName].push(lead);
+        return acc;
+      }, {} as Record<string, Lead[]>);
+      return groups;
+    }
+    // Para categorias principais simples (contratos, oportunidades), não agrupar
     else if (selectedCategory === "contratos" || selectedCategory === "oportunidades") {
       return { "Todos os Leads": leads };
     } 
@@ -73,21 +127,21 @@ export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEdi
     const labels: Record<string, string> = {
       "consultoria": "Consultoria Jurídica",
       "contratos": "Contratos",
-      "trabalhista": "Trabalhista",
+      "trabalhista": "Trabalhista", 
       "compliance": "Compliance",
       "tributario": "Tributário",
       "civil": "Civil",
       "criminal": "Criminal",
       "outros": "Outros"
     };
-    return labels[actionType] || actionType;
+    return labels[actionType] || "Outros";
   };
 
-  // NOVA FUNÇÃO: Mapear tipos de ação para grupos de ação
+  // Mapear tipos de ação para grupos de ação (igual aos gráficos)
   const getActionGroupLabel = (actionType: string): string => {
     const actionGroupMapping: Record<string, string> = {
       "consultoria": "Consultoria",
-      "contratos": "Contratos",
+      "contratos": "Contratos", 
       "trabalhista": "Direito do Trabalho",
       "compliance": "Compliance",
       "tributario": "Direito Tributário",
@@ -135,7 +189,7 @@ export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEdi
   const groups = groupedLeads();
   const groupNames = Object.keys(groups);
   
-  // CORREÇÃO: Mostrar agrupamento para todas as subcategorias que incluem ação
+  // CORREÇÃO: Mostrar agrupamento para todas as subcategorias que incluem ação E para perdas simples
   const shouldShowGrouping = (
     selectedCategory === "perdas" || 
     selectedCategory.includes("-tipo-acao") || 
@@ -247,12 +301,12 @@ export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEdi
                           <Badge className={`text-xs ${getStatusColor(lead.status)}`}>
                             {lead.status}
                           </Badge>
-                          {lead.loss_reason && selectedCategory === "perdas" && (
+                          {lead.loss_reason && selectedCategory.startsWith("perdas") && (
                             <Badge className="bg-gray-100 text-gray-800 text-xs">
                               {lead.loss_reason}
                             </Badge>
                           )}
-                          {lead.action_type && (selectedCategory === "contratos" || selectedCategory === "oportunidades") && (
+                          {lead.action_type && (selectedCategory.includes("contratos") || selectedCategory.includes("oportunidades")) && (
                             <Badge className="bg-purple-100 text-purple-800 text-xs">
                               {getActionTypeLabel(lead.action_type)}
                             </Badge>
