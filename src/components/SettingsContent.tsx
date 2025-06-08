@@ -89,6 +89,255 @@ export function SettingsContent() {
 
   const { toast } = useToast();
 
+  // Funções para gerenciar grupos de ação
+  const handleEditActionGroup = (groupId: string, currentName: string) => {
+    setEditingActionGroup(groupId);
+    setEditingActionGroupName(currentName);
+  };
+
+  const handleSaveActionGroup = async () => {
+    if (!editingActionGroup || !editingActionGroupName.trim()) {
+      toast({
+        title: "Erro",
+        description: "O nome do grupo não pode estar vazio.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('action_groups')
+        .update({ description: editingActionGroupName.trim() })
+        .eq('id', editingActionGroup);
+
+      if (error) {
+        console.error('Erro ao atualizar grupo:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível atualizar o grupo de ação.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setEditingActionGroup(null);
+      setEditingActionGroupName("");
+      refreshData();
+
+      toast({
+        title: "Sucesso",
+        description: "Grupo de ação atualizado com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro inesperado ao atualizar grupo:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado ao atualizar o grupo.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteActionGroup = async (groupId: string) => {
+    try {
+      const { error } = await supabase
+        .from('action_groups')
+        .delete()
+        .eq('id', groupId);
+
+      if (error) {
+        console.error('Erro ao excluir grupo:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível excluir o grupo de ação.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      refreshData();
+
+      toast({
+        title: "Sucesso",
+        description: "Grupo de ação excluído com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro inesperado ao excluir grupo:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado ao excluir o grupo.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Funções para gerenciar tipos de ação
+  const handleEditActionType = (typeId: string, currentName: string) => {
+    setEditingActionType(typeId);
+    setEditingActionTypeName(currentName);
+  };
+
+  const handleSaveActionType = async () => {
+    if (!editingActionType || !editingActionTypeName.trim()) {
+      toast({
+        title: "Erro",
+        description: "O nome do tipo não pode estar vazio.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('action_types')
+        .update({ name: editingActionTypeName.trim() })
+        .eq('id', editingActionType);
+
+      if (error) {
+        console.error('Erro ao atualizar tipo:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível atualizar o tipo de ação.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setEditingActionType(null);
+      setEditingActionTypeName("");
+      refreshData();
+
+      toast({
+        title: "Sucesso",
+        description: "Tipo de ação atualizado com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro inesperado ao atualizar tipo:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado ao atualizar o tipo.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteActionType = async (typeId: string) => {
+    try {
+      const { error } = await supabase
+        .from('action_types')
+        .delete()
+        .eq('id', typeId);
+
+      if (error) {
+        console.error('Erro ao excluir tipo:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível excluir o tipo de ação.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      refreshData();
+
+      toast({
+        title: "Sucesso",
+        description: "Tipo de ação excluído com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro inesperado ao excluir tipo:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado ao excluir o tipo.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Funções para gerenciar fontes de leads
+  const handleEditLeadSource = (sourceId: string, currentName: string) => {
+    setEditingLeadSource(sourceId);
+    setEditingLeadSourceName(currentName);
+  };
+
+  const handleSaveLeadSource = async () => {
+    if (!editingLeadSource || !editingLeadSourceName.trim()) {
+      toast({
+        title: "Erro",
+        description: "O nome da fonte não pode estar vazio.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('lead_sources')
+        .update({ label: editingLeadSourceName.trim() })
+        .eq('id', editingLeadSource);
+
+      if (error) {
+        console.error('Erro ao atualizar fonte:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível atualizar a fonte de leads.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setEditingLeadSource(null);
+      setEditingLeadSourceName("");
+      refreshData();
+
+      toast({
+        title: "Sucesso",
+        description: "Fonte de leads atualizada com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro inesperado ao atualizar fonte:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado ao atualizar a fonte.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteLeadSource = async (sourceId: string) => {
+    try {
+      const { error } = await supabase
+        .from('lead_sources')
+        .delete()
+        .eq('id', sourceId);
+
+      if (error) {
+        console.error('Erro ao excluir fonte:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível excluir a fonte de leads.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      refreshData();
+
+      toast({
+        title: "Sucesso",
+        description: "Fonte de leads excluída com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro inesperado ao excluir fonte:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado ao excluir a fonte.",
+        variant: "destructive"
+      });
+    }
+  };
+
   // Carregar colunas do banco de dados
   const fetchKanbanColumns = async () => {
     try {
