@@ -20,7 +20,6 @@ interface HeaderProps {
 interface UserProfile {
   name: string
   avatar_url?: string
-  title?: string
 }
 
 export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
@@ -50,7 +49,6 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
         setUserProfile({
           name: profile.name || "Usuário",
           avatar_url: profile.avatar_url || "",
-          title: profile.title || ""
         })
       } else {
         // Tentar carregar do localStorage como fallback
@@ -60,7 +58,6 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
           setUserProfile({
             name: parsed.name || "Usuário",
             avatar_url: parsed.avatar || "",
-            title: parsed.title || ""
           })
         }
       }
@@ -106,9 +103,6 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
                 </Avatar>
                 <div className="text-left">
                   <div className="font-medium text-sm">{userProfile.name}</div>
-                  {userProfile.title && (
-                    <div className="text-xs text-muted-foreground">{userProfile.title}</div>
-                  )}
                 </div>
               </Button>
             </div>
