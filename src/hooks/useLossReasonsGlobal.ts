@@ -214,7 +214,7 @@ export function useLossReasonsGlobal() {
     }
   }, [toast]);
 
-  // Função para excluir um motivo (atualiza globalmente)
+  // Função para excluir um motivo (atualiza globalmente) - CORRIGIDA
   const deleteLossReason = useCallback(async (id: string) => {
     console.log(`🗑️ useLossReasonsGlobal - Excluindo motivo ID: ${id}`);
     
@@ -231,24 +231,19 @@ export function useLossReasonsGlobal() {
       return false;
     }
 
-    // Otimisticamente remover do estado local primeiro
-    const previousReasons = [...globalLossReasons];
-    globalLossReasons = globalLossReasons.filter(reason => reason.id !== id);
-    notifySubscribers();
-
     try {
-      const { error } = await supabase
+      console.log(`🔄 useLossReasonsGlobal - Iniciando exclusão no banco de dados para ID: ${id}`);
+      
+      const { data, error } = await supabase
         .from('loss_reasons')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select(); // Adicionar select para confirmar a exclusão
+
+      console.log(`📊 useLossReasonsGlobal - Resposta da exclusão:`, { data, error });
 
       if (error) {
-        console.error('❌ Erro ao excluir motivo:', error);
-        
-        // Reverter mudança otimística em caso de erro
-        globalLossReasons = previousReasons;
-        notifySubscribers();
-        
+        console.error('❌ Erro ao excluir motivo no banco:', error);
         toast({
           title: "Erro",
           description: "Não foi possível excluir o motivo de perda.",
@@ -257,7 +252,11 @@ export function useLossReasonsGlobal() {
         return false;
       }
 
-      console.log(`✅ useLossReasonsGlobal - Motivo "${reasonToDelete.reason}" excluído do banco com sucesso`);
+      console.log(`✅ useLossReasonsGlobal - Motivo "${reasonToDelete.reason}" excluído do banco com sucesso. Data retornada:`, data);
+      
+      // Após sucesso no banco, atualizar o estado global removendo o item
+      globalLossReasons = globalLossReasons.filter(reason => reason.id !== id);
+      notifySubscribers();
       
       toast({
         title: "Sucesso",
@@ -266,14 +265,9 @@ export function useLossReasonsGlobal() {
       return true;
     } catch (error) {
       console.error('❌ Erro inesperado ao excluir motivo:', error);
-      
-      // Reverter mudança otimística em caso de erro
-      globalLossReasons = previousReasons;
-      notifySubscribers();
-      
       toast({
         title: "Erro",
-        description: "Ocorreu um erro inesperado.",
+        description: "Ocorreu um erro inesperado ao excluir o motivo.",
         variant: "destructive"
       });
       return false;
