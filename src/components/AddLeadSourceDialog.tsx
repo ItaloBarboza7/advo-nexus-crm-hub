@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -106,15 +105,22 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
   const handleDeleteClick = (e: React.MouseEvent, source: LeadSource) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('Delete button clicked for source:', source.label);
+    console.log('🗑️ Delete button clicked for source:', source.label);
+    console.log('🔍 Setting sourceToDelete:', source);
     setSourceToDelete(source);
+    console.log('📋 Opening delete dialog...');
     setDeleteDialogOpen(true);
+    console.log('✅ Delete dialog state set to true');
   };
 
   const handleDeleteConfirm = async () => {
-    if (!sourceToDelete) return;
+    console.log('🔥 handleDeleteConfirm chamado');
+    if (!sourceToDelete) {
+      console.log('❌ Nenhuma fonte selecionada para exclusão');
+      return;
+    }
 
-    console.log('Confirmando exclusão da fonte:', sourceToDelete.label);
+    console.log('🗑️ Confirmando exclusão da fonte:', sourceToDelete.label);
 
     try {
       const { error } = await supabase
@@ -123,7 +129,7 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
         .eq('id', sourceToDelete.id);
 
       if (error) {
-        console.error('Erro ao excluir fonte:', error);
+        console.error('❌ Erro ao excluir fonte:', error);
         toast({
           title: "Erro",
           description: "Não foi possível excluir a fonte de lead.",
@@ -132,6 +138,7 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
         return;
       }
 
+      console.log('✅ Fonte excluída com sucesso');
       toast({
         title: "Sucesso",
         description: "Fonte de lead excluída com sucesso.",
@@ -140,20 +147,21 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
       fetchLeadSources();
       onSourceAdded();
     } catch (error) {
-      console.error('Erro inesperado ao excluir fonte:', error);
+      console.error('❌ Erro inesperado ao excluir fonte:', error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado.",
         variant: "destructive"
       });
     } finally {
+      console.log('🔄 Fechando dialog e limpando estado');
       setDeleteDialogOpen(false);
       setSourceToDelete(null);
     }
   };
 
   const handleDeleteCancel = () => {
-    console.log('Exclusão cancelada');
+    console.log('❌ Exclusão cancelada pelo usuário');
     setDeleteDialogOpen(false);
     setSourceToDelete(null);
   };
@@ -235,6 +243,7 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
         </DialogContent>
       </Dialog>
 
+      {/* Dialog de Confirmação de Exclusão */}
       <ConfirmDeleteDialog
         open={deleteDialogOpen}
         onOpenChange={handleDeleteCancel}

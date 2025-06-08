@@ -25,8 +25,16 @@ export function ConfirmDeleteDialog({
   itemType,
   onConfirm
 }: ConfirmDeleteDialogProps) {
+  console.log('🔍 ConfirmDeleteDialog renderizado com:', { open, itemName, itemType });
+
   const handleConfirm = () => {
+    console.log('✅ Usuário confirmou a exclusão');
     onConfirm();
+    onOpenChange(false);
+  };
+
+  const handleCancel = () => {
+    console.log('❌ Usuário cancelou a exclusão');
     onOpenChange(false);
   };
 
@@ -41,7 +49,9 @@ export function ConfirmDeleteDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogCancel onClick={handleCancel}>
+            Cancelar
+          </AlertDialogCancel>
           <AlertDialogAction 
             onClick={handleConfirm}
             className="bg-red-600 hover:bg-red-700"
