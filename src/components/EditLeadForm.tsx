@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -68,6 +67,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
     sourceOptions, 
     actionGroupOptions, 
     getActionTypeOptions, 
+    actionGroups,
     loading: optionsLoading,
     refreshData 
   } = useFilterOptions();
@@ -328,8 +328,53 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
         return;
       }
     } else if (field === 'action_type') {
-      setCustomActionTypes(prev => [...prev, newOptionValue.trim()]);
-      handleInputChange(field, newOptionValue.trim());
+      try {
+        // Find the selected action group
+        const actionGroup = actionGroups.find(group => group.name === formData.action_group);
+        if (!actionGroup) {
+          toast({
+            title: "Erro",
+            description: "Selecione um grupo de ação primeiro.",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        const { error } = await supabase
+          .from('action_types')
+          .insert([
+            {
+              name: newOptionValue.toLowerCase().replace(/\s+/g, '-'),
+              action_group_id: actionGroup.id
+            }
+          ]);
+
+        if (error) {
+          console.error('Erro ao adicionar tipo de ação:', error);
+          toast({
+            title: "Erro",
+            description: "Não foi possível adicionar o novo tipo.",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        await refreshData();
+        handleInputChange(field, newOptionValue.toLowerCase().replace(/\s+/g, '-'));
+        
+        toast({
+          title: "Sucesso",
+          description: "Novo tipo de ação adicionado com sucesso.",
+        });
+      } catch (error) {
+        console.error('Erro inesperado ao adicionar tipo:', error);
+        toast({
+          title: "Erro",
+          description: "Ocorreu um erro inesperado.",
+          variant: "destructive"
+        });
+        return;
+      }
     } else if (field === 'loss_reason') {
       try {
         const { error } = await supabase
