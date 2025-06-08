@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -173,15 +172,6 @@ export function useLossReasonsGlobal() {
       return false;
     }
     
-    // Otimisticamente atualizar o estado local primeiro
-    const previousReasons = [...globalLossReasons];
-    const reasonIndex = globalLossReasons.findIndex(r => r.id === id);
-    
-    if (reasonIndex !== -1) {
-      globalLossReasons[reasonIndex] = { ...globalLossReasons[reasonIndex], reason: newReason.trim() };
-      notifySubscribers();
-    }
-
     try {
       const { error } = await supabase
         .from('loss_reasons')
@@ -190,11 +180,6 @@ export function useLossReasonsGlobal() {
 
       if (error) {
         console.error('❌ Erro ao atualizar motivo:', error);
-        
-        // Reverter mudança otimística em caso de erro
-        globalLossReasons.splice(0, globalLossReasons.length, ...previousReasons);
-        notifySubscribers();
-        
         toast({
           title: "Erro",
           description: "Não foi possível atualizar o motivo de perda.",
@@ -203,7 +188,8 @@ export function useLossReasonsGlobal() {
         return false;
       }
 
-      console.log(`✅ useLossReasonsGlobal - Motivo atualizado no banco com sucesso`);
+      console.log(`✅ useLossReasonsGlobal - Motivo atualizado no banco com sucesso. Atualizando estado global...`);
+      await updateGlobalState();
       
       toast({
         title: "Sucesso",
@@ -212,11 +198,6 @@ export function useLossReasonsGlobal() {
       return true;
     } catch (error) {
       console.error('❌ Erro inesperado ao atualizar motivo:', error);
-      
-      // Reverter mudança otimística em caso de erro
-      globalLossReasons.splice(0, globalLossReasons.length, ...previousReasons);
-      notifySubscribers();
-      
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado.",
@@ -256,13 +237,12 @@ export function useLossReasonsGlobal() {
     try {
       console.log(`🔄 useLossReasonsGlobal - Iniciando exclusão no banco de dados para ID: ${id}`);
       
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('loss_reasons')
         .delete()
-        .eq('id', id)
-        .select();
+        .eq('id', id);
 
-      console.log(`📊 useLossReasonsGlobal - Resposta da exclusão:`, { data, error });
+      console.log(`📊 useLossReasonsGlobal - Resposta da exclusão:`, { error });
 
       if (error) {
         console.error('❌ Erro ao excluir motivo no banco:', error);
@@ -274,11 +254,10 @@ export function useLossReasonsGlobal() {
         return false;
       }
 
-      console.log(`✅ useLossReasonsGlobal - Motivo "${reasonToDelete.reason}" excluído do banco com sucesso. Data retornada:`, data);
+      console.log(`✅ useLossReasonsGlobal - Motivo "${reasonToDelete.reason}" excluído do banco com sucesso. Atualizando estado global...`);
       
-      // Após sucesso no banco, atualizar o estado global removendo o item
-      globalLossReasons = globalLossReasons.filter(reason => reason.id !== id);
-      notifySubscribers();
+      // Após sucesso no banco, atualizar todo o estado global buscando dados frescos
+      await updateGlobalState();
       
       toast({
         title: "Sucesso",
