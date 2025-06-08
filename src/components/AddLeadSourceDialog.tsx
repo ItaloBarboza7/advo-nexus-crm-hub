@@ -103,13 +103,18 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
     }
   };
 
-  const handleDeleteClick = (source: LeadSource) => {
+  const handleDeleteClick = (e: React.MouseEvent, source: LeadSource) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('Delete button clicked for source:', source.label);
     setSourceToDelete(source);
     setDeleteDialogOpen(true);
   };
 
   const handleDeleteConfirm = async () => {
     if (!sourceToDelete) return;
+
+    console.log('Confirmando exclusão da fonte:', sourceToDelete.label);
 
     try {
       const { error } = await supabase
@@ -141,7 +146,16 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
         description: "Ocorreu um erro inesperado.",
         variant: "destructive"
       });
+    } finally {
+      setDeleteDialogOpen(false);
+      setSourceToDelete(null);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    console.log('Exclusão cancelada');
+    setDeleteDialogOpen(false);
+    setSourceToDelete(null);
   };
 
   const handleClose = () => {
@@ -199,9 +213,10 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
                   <div key={source.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                     <span className="text-sm">{source.label}</span>
                     <Button
+                      type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleDeleteClick(source)}
+                      onClick={(e) => handleDeleteClick(e, source)}
                       className="text-red-600 hover:text-red-700 hover:bg-red-50"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -222,7 +237,7 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
 
       <ConfirmDeleteDialog
         open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
+        onOpenChange={handleDeleteCancel}
         itemName={sourceToDelete?.label || ""}
         itemType="a fonte de lead"
         onConfirm={handleDeleteConfirm}
