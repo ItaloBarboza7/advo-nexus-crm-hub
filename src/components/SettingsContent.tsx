@@ -394,6 +394,8 @@ export function SettingsContent() {
   };
 
   const handleDeleteLossReason = async (reasonId: string) => {
+    console.log('Tentando excluir motivo de perda com ID:', reasonId);
+    
     try {
       const { error } = await supabase
         .from('loss_reasons')
@@ -410,6 +412,7 @@ export function SettingsContent() {
         return;
       }
 
+      console.log('Motivo de perda excluído com sucesso');
       refreshData();
 
       toast({
@@ -1314,7 +1317,7 @@ export function SettingsContent() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Configurações</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Ações</h1>
         <p className="text-gray-600">Gerencie configurações do sistema, equipe e empresa</p>
       </div>
 
