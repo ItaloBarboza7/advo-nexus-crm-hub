@@ -1,5 +1,86 @@
 
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+
+interface ActionGroup {
+  id: string;
+  name: string;
+  description: string;
+}
+
+interface ActionType {
+  id: string;
+  name: string;
+  action_group_id: string;
+}
+
+interface LeadSource {
+  id: string;
+  name: string;
+  label: string;
+}
+
 export const useFilterOptions = () => {
+  const [actionGroups, setActionGroups] = useState<ActionGroup[]>([]);
+  const [actionTypes, setActionTypes] = useState<ActionType[]>([]);
+  const [leadSources, setLeadSources] = useState<LeadSource[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchAllData();
+  }, []);
+
+  const fetchAllData = async () => {
+    try {
+      setLoading(true);
+      
+      // Buscar grupos de ação
+      const { data: groupsData, error: groupsError } = await supabase
+        .from('action_groups')
+        .select('*')
+        .order('name');
+
+      if (groupsError) {
+        console.error('Erro ao buscar grupos de ação:', groupsError);
+      } else {
+        setActionGroups(groupsData || []);
+      }
+
+      // Buscar tipos de ação
+      const { data: typesData, error: typesError } = await supabase
+        .from('action_types')
+        .select('*')
+        .order('name');
+
+      if (typesError) {
+        console.error('Erro ao buscar tipos de ação:', typesError);
+      } else {
+        setActionTypes(typesData || []);
+      }
+
+      // Buscar fontes de leads
+      const { data: sourcesData, error: sourcesError } = await supabase
+        .from('lead_sources')
+        .select('*')
+        .order('label');
+
+      if (sourcesError) {
+        console.error('Erro ao buscar fontes de leads:', sourcesError);
+      } else {
+        setLeadSources(sourcesData || []);
+      }
+    } catch (error) {
+      console.error('Erro inesperado ao buscar dados:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshData = () => {
+    fetchAllData();
+  };
+
+  // Converter para formato compatível com os selects existentes
   const statusOptions = [
     { value: "Novo", label: "Novo" },
     { value: "Reunião", label: "Reunião" },
@@ -8,73 +89,28 @@ export const useFilterOptions = () => {
     { value: "Perdido", label: "Perdido" }
   ];
 
-  const sourceOptions = [
-    { value: "website", label: "Website" },
-    { value: "indicacao", label: "Indicação" },
-    { value: "google", label: "Google Ads" },
-    { value: "facebook", label: "Facebook" },
-    { value: "linkedin", label: "LinkedIn" },
-    { value: "outros", label: "Outros" }
-  ];
+  const sourceOptions = leadSources.map(source => ({
+    value: source.name,
+    label: source.label
+  }));
 
-  const actionGroupOptions = [
-    { value: "consultoria", label: "Consultoria Jurídica" },
-    { value: "contratos", label: "Contratos" },
-    { value: "trabalhista", label: "Trabalhista" },
-    { value: "compliance", label: "Compliance" },
-    { value: "tributario", label: "Tributário" },
-    { value: "civil", label: "Civil" },
-    { value: "criminal", label: "Criminal" },
-    { value: "outros", label: "Outros" }
-  ];
+  const actionGroupOptions = actionGroups.map(group => ({
+    value: group.name,
+    label: group.description || group.name
+  }));
 
-  const getActionTypeOptions = (actionGroup: string) => {
-    const actionTypesByGroup: Record<string, Array<{ value: string; label: string }>> = {
-      tributario: [
-        { value: "divida-ativa", label: "Dívida Ativa" },
-        { value: "recuperacao-credito", label: "Recuperação de Crédito" },
-        { value: "planejamento-tributario", label: "Planejamento Tributário" },
-        { value: "restituicao-tributos", label: "Restituição de Tributos" },
-        { value: "defesa-autuacao", label: "Defesa de Autuação" }
-      ],
-      trabalhista: [
-        { value: "rescisao-contrato", label: "Rescisão de Contrato" },
-        { value: "acordo-trabalhista", label: "Acordo Trabalhista" },
-        { value: "acao-trabalhista", label: "Ação Trabalhista" },
-        { value: "consultoria-trabalhista", label: "Consultoria Trabalhista" }
-      ],
-      civil: [
-        { value: "contratos-civis", label: "Contratos Civis" },
-        { value: "cobranca-judicial", label: "Cobrança Judicial" },
-        { value: "indenizacao", label: "Indenização" },
-        { value: "revisao-contrato", label: "Revisão de Contrato" }
-      ],
-      criminal: [
-        { value: "defesa-criminal", label: "Defesa Criminal" },
-        { value: "habeas-corpus", label: "Habeas Corpus" },
-        { value: "recursos-criminais", label: "Recursos Criminais" }
-      ],
-      compliance: [
-        { value: "auditoria-compliance", label: "Auditoria de Compliance" },
-        { value: "politicas-internas", label: "Políticas Internas" },
-        { value: "treinamento-compliance", label: "Treinamento de Compliance" }
-      ],
-      contratos: [
-        { value: "elaboracao-contratos", label: "Elaboração de Contratos" },
-        { value: "revisao-contratos", label: "Revisão de Contratos" },
-        { value: "negociacao-contratos", label: "Negociação de Contratos" }
-      ],
-      consultoria: [
-        { value: "consultoria-geral", label: "Consultoria Geral" },
-        { value: "pareceres-juridicos", label: "Pareceres Jurídicos" },
-        { value: "assessoria-juridica", label: "Assessoria Jurídica" }
-      ],
-      outros: [
-        { value: "outros-tipos", label: "Outros Tipos" }
-      ]
-    };
+  const getActionTypeOptions = (actionGroupName: string) => {
+    const actionGroup = actionGroups.find(group => group.name === actionGroupName);
+    if (!actionGroup) return [];
 
-    return actionTypesByGroup[actionGroup] || [];
+    return actionTypes
+      .filter(type => type.action_group_id === actionGroup.id)
+      .map(type => ({
+        value: type.name,
+        label: type.name.split('-').map(word => 
+          word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(' ')
+      }));
   };
 
   const stateOptions = [
@@ -110,8 +146,13 @@ export const useFilterOptions = () => {
   return {
     statusOptions,
     sourceOptions,
-    actionGroupOptions, // Renomeado de actionTypeOptions
-    getActionTypeOptions, // Nova função para tipos específicos
-    stateOptions
+    actionGroupOptions,
+    getActionTypeOptions,
+    stateOptions,
+    actionGroups,
+    actionTypes,
+    leadSources,
+    loading,
+    refreshData
   };
 };

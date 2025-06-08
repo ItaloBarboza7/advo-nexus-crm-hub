@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -34,10 +35,6 @@ const BRAZILIAN_STATES = [
   "Roraima", "Santa Catarina", "São Paulo", "Sergipe", "Tocantins"
 ];
 
-const DEFAULT_SOURCES = [
-  "website", "google-ads", "facebook", "linkedin", "indicacao", "evento", "telefone", "outros"
-];
-
 interface LossReason {
   id: string;
   reason: string;
@@ -64,13 +61,16 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
   const [isLoading, setIsLoading] = useState(false);
   const [showNewOptionInput, setShowNewOptionInput] = useState<string | null>(null);
   const [newOptionValue, setNewOptionValue] = useState("");
-  const [customSources, setCustomSources] = useState<string[]>([]);
-  const [customActionGroups, setCustomActionGroups] = useState<string[]>([]);
-  const [customActionTypes, setCustomActionTypes] = useState<string[]>([]);
   const [lossReasons, setLossReasons] = useState<LossReason[]>([]);
   const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([]);
   const { toast } = useToast();
-  const { actionGroupOptions, getActionTypeOptions } = useFilterOptions();
+  const { 
+    sourceOptions, 
+    actionGroupOptions, 
+    getActionTypeOptions, 
+    loading: optionsLoading,
+    refreshData 
+  } = useFilterOptions();
 
   const fetchKanbanColumns = async () => {
     try {
@@ -254,11 +254,79 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
     if (!newOptionValue.trim()) return;
 
     if (field === 'source') {
-      setCustomSources(prev => [...prev, newOptionValue.trim()]);
-      handleInputChange(field, newOptionValue.trim());
+      try {
+        const { error } = await supabase
+          .from('lead_sources')
+          .insert([
+            {
+              name: newOptionValue.toLowerCase().replace(/\s+/g, '-'),
+              label: newOptionValue.trim()
+            }
+          ]);
+
+        if (error) {
+          console.error('Erro ao adicionar fonte:', error);
+          toast({
+            title: "Erro",
+            description: "Não foi possível adicionar a nova fonte.",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        await refreshData();
+        handleInputChange(field, newOptionValue.toLowerCase().replace(/\s+/g, '-'));
+        
+        toast({
+          title: "Sucesso",
+          description: "Nova fonte adicionada com sucesso.",
+        });
+      } catch (error) {
+        console.error('Erro inesperado ao adicionar fonte:', error);
+        toast({
+          title: "Erro",
+          description: "Ocorreu um erro inesperado.",
+          variant: "destructive"
+        });
+        return;
+      }
     } else if (field === 'action_group') {
-      setCustomActionGroups(prev => [...prev, newOptionValue.trim()]);
-      handleInputChange(field, newOptionValue.trim());
+      try {
+        const { error } = await supabase
+          .from('action_groups')
+          .insert([
+            {
+              name: newOptionValue.toLowerCase().replace(/\s+/g, '-'),
+              description: newOptionValue.trim()
+            }
+          ]);
+
+        if (error) {
+          console.error('Erro ao adicionar grupo de ação:', error);
+          toast({
+            title: "Erro",
+            description: "Não foi possível adicionar o novo grupo.",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        await refreshData();
+        handleInputChange(field, newOptionValue.toLowerCase().replace(/\s+/g, '-'));
+        
+        toast({
+          title: "Sucesso",
+          description: "Novo grupo de ação adicionado com sucesso.",
+        });
+      } catch (error) {
+        console.error('Erro inesperado ao adicionar grupo:', error);
+        toast({
+          title: "Erro",
+          description: "Ocorreu um erro inesperado.",
+          variant: "destructive"
+        });
+        return;
+      }
     } else if (field === 'action_type') {
       setCustomActionTypes(prev => [...prev, newOptionValue.trim()]);
       handleInputChange(field, newOptionValue.trim());
@@ -300,48 +368,25 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
     setShowNewOptionInput(null);
   };
 
-  const getSourceOptions = () => {
-    const defaultOptions = DEFAULT_SOURCES.map(source => ({
-      value: source,
-      label: source === "website" ? "Website" : 
-             source === "google-ads" ? "Google Ads" :
-             source === "facebook" ? "Facebook" :
-             source === "linkedin" ? "LinkedIn" :
-             source === "indicacao" ? "Indicação" :
-             source === "evento" ? "Evento" :
-             source === "telefone" ? "Telefone" : "Outros"
-    }));
-    
-    const customOptions = customSources.map(source => ({
-      value: source,
-      label: source
-    }));
-    
-    return [...defaultOptions, ...customOptions];
-  };
-
-  const getActionGroupOptionsForSelect = () => {
-    const defaultOptions = actionGroupOptions;
-    const customOptions = customActionGroups.map(group => ({
-      value: group,
-      label: group
-    }));
-    
-    return [...defaultOptions, ...customOptions];
-  };
-
-  const getAvailableActionTypes = () => {
-    if (!formData.action_group) return [];
-    const defaultTypes = getActionTypeOptions(formData.action_group);
-    const customTypes = customActionTypes.map(type => ({
-      value: type,
-      label: type
-    }));
-    
-    return [...defaultTypes, ...customTypes];
-  };
-
   if (!lead) return null;
+
+  if (optionsLoading) {
+    return (
+      <Dialog open={open} onOpenChange={handleClose}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar Lead - {lead.name}</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center justify-center p-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Carregando opções...</p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -408,7 +453,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
                     <SelectValue placeholder="Selecione a fonte" />
                   </SelectTrigger>
                   <SelectContent className="bg-white border shadow-lg max-h-60 overflow-y-auto z-50">
-                    {getSourceOptions().map((option) => (
+                    {sourceOptions.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         {option.label}
                       </SelectItem>
@@ -486,7 +531,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
                     <SelectValue placeholder="Selecione o grupo de ação" />
                   </SelectTrigger>
                   <SelectContent className="bg-white border shadow-lg max-h-60 overflow-y-auto z-50">
-                    {getActionGroupOptionsForSelect().map((option) => (
+                    {actionGroupOptions.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         {option.label}
                       </SelectItem>
@@ -549,7 +594,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
                       <SelectValue placeholder="Selecione o tipo específico" />
                     </SelectTrigger>
                     <SelectContent className="bg-white border shadow-lg max-h-60 overflow-y-auto z-50">
-                      {getAvailableActionTypes().map((option) => (
+                      {getActionTypeOptions(formData.action_group).map((option) => (
                         <SelectItem key={option.value} value={option.value}>
                           {option.label}
                         </SelectItem>

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -46,7 +47,13 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { toast } = useToast();
-  const { actionGroupOptions, getActionTypeOptions } = useFilterOptions();
+  const { 
+    sourceOptions, 
+    actionGroupOptions, 
+    getActionTypeOptions, 
+    loading,
+    refreshData 
+  } = useFilterOptions();
   
   // Reset form when dialog is closed
   useEffect(() => {
@@ -144,40 +151,103 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
     }
   };
 
-  const handleAddCustomActionGroup = () => {
+  const handleAddCustomActionGroup = async () => {
     if (newActionGroup.trim() && !actionGroupOptions.some(option => option.value === newActionGroup.toLowerCase()) && !customActionGroups.includes(newActionGroup)) {
-      setCustomActionGroups(prev => [...prev, newActionGroup.trim()]);
-      setFormData(prev => ({ ...prev, actionGroup: newActionGroup.trim() }));
-      setNewActionGroup("");
-      setShowNewActionGroupInput(false);
-      toast({
-        title: "Grupo adicionado!",
-        description: `"${newActionGroup}" foi adicionado às opções.`,
-      });
+      try {
+        const { error } = await supabase
+          .from('action_groups')
+          .insert([
+            {
+              name: newActionGroup.toLowerCase().replace(/\s+/g, '-'),
+              description: newActionGroup.trim()
+            }
+          ]);
+
+        if (error) {
+          console.error('Erro ao adicionar grupo de ação:', error);
+          toast({
+            title: "Erro",
+            description: "Não foi possível adicionar o novo grupo.",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        // Atualizar dados e formulário
+        await refreshData();
+        setFormData(prev => ({ ...prev, actionGroup: newActionGroup.toLowerCase().replace(/\s+/g, '-') }));
+        setNewActionGroup("");
+        setShowNewActionGroupInput(false);
+        
+        toast({
+          title: "Grupo adicionado!",
+          description: `"${newActionGroup}" foi adicionado às opções.`,
+        });
+      } catch (error) {
+        console.error('Erro inesperado:', error);
+        toast({
+          title: "Erro",
+          description: "Ocorreu um erro inesperado.",
+          variant: "destructive"
+        });
+      }
     }
   };
 
-  const handleAddCustomActionType = () => {
-    if (newActionType.trim() && !customActionTypes.includes(newActionType)) {
-      setCustomActionTypes(prev => [...prev, newActionType.trim()]);
-      setFormData(prev => ({ ...prev, actionType: newActionType.trim() }));
-      setNewActionType("");
-      setShowNewActionTypeInput(false);
-      toast({
-        title: "Tipo adicionado!",
-        description: `"${newActionType}" foi adicionado às opções.`,
-      });
+  const handleAddCustomActionType = async () => {
+    if (newActionType.trim() && !customActionTypes.includes(newActionType) && formData.actionGroup) {
+      try {
+        // Encontrar o ID do grupo de ação
+        const actionGroup = actionGroupOptions.find(group => group.value === formData.actionGroup);
+        if (!actionGroup) return;
+
+        const { error } = await supabase
+          .from('action_types')
+          .insert([
+            {
+              name: newActionType.toLowerCase().replace(/\s+/g, '-'),
+              action_group_id: actionGroup.value // Assumindo que o value contém o ID
+            }
+          ]);
+
+        if (error) {
+          console.error('Erro ao adicionar tipo de ação:', error);
+          toast({
+            title: "Erro",
+            description: "Não foi possível adicionar o novo tipo.",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        // Atualizar dados e formulário
+        await refreshData();
+        setFormData(prev => ({ ...prev, actionType: newActionType.toLowerCase().replace(/\s+/g, '-') }));
+        setNewActionType("");
+        setShowNewActionTypeInput(false);
+        
+        toast({
+          title: "Tipo adicionado!",
+          description: `"${newActionType}" foi adicionado às opções.`,
+        });
+      } catch (error) {
+        console.error('Erro inesperado:', error);
+        toast({
+          title: "Erro",
+          description: "Ocorreu um erro inesperado.",
+          variant: "destructive"
+        });
+      }
     }
   };
 
   const getActionGroupOptionsForSelect = () => {
-    const defaultOptions = actionGroupOptions;
     const customOptions = customActionGroups.map(group => ({
       value: group,
       label: group
     }));
     
-    return [...defaultOptions, ...customOptions];
+    return [...actionGroupOptions, ...customOptions];
   };
 
   const getAvailableActionTypes = () => {
@@ -190,6 +260,24 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
     
     return [...defaultTypes, ...customTypes];
   };
+
+  if (loading) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Novo Lead</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center justify-center p-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Carregando opções...</p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -257,14 +345,9 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
                   <SelectValue placeholder="Selecione a origem" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="website">Website</SelectItem>
-                  <SelectItem value="google-ads">Google Ads</SelectItem>
-                  <SelectItem value="facebook">Facebook</SelectItem>
-                  <SelectItem value="linkedin">LinkedIn</SelectItem>
-                  <SelectItem value="indicacao">Indicação</SelectItem>
-                  <SelectItem value="evento">Evento</SelectItem>
-                  <SelectItem value="telefone">Telefone</SelectItem>
-                  <SelectItem value="outros">Outros</SelectItem>
+                  {sourceOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
