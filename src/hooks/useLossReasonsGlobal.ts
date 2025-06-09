@@ -310,7 +310,7 @@ export function useLossReasonsGlobal() {
         });
       }
       
-      // Atualizar o estado global após exclusão
+      // Atualizar o estado global após exclusão - FORÇAR REFRESH COMPLETO
       console.log(`🔄 useLossReasonsGlobal - Atualizando estado global após exclusão...`);
       await updateGlobalState();
       

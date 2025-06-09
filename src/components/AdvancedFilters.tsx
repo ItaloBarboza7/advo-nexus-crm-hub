@@ -16,6 +16,7 @@ import { ActionGroupFilter } from "@/components/filters/ActionGroupFilter";
 import { StateFilter } from "@/components/filters/StateFilter";
 import { LossReasonFilter } from "@/components/filters/LossReasonFilter";
 import { useFilterOptions } from "@/hooks/useFilterOptions";
+import { useLossReasonsGlobal } from "@/hooks/useLossReasonsGlobal";
 
 interface AdvancedFiltersProps {
   onFiltersChange: (filters: FilterOptions) => void;
@@ -33,12 +34,18 @@ export interface FilterOptions {
   valueRange: { min: number | null; max: number | null };
 }
 
-export function AdvancedFilters({ onFiltersChange, activeFilters, selectedCategory, lossReasons = [] }: AdvancedFiltersProps) {
+export function AdvancedFilters({ onFiltersChange, activeFilters, selectedCategory, lossReasons: propLossReasons }: AdvancedFiltersProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { statusOptions, sourceOptions, actionGroupOptions, stateOptions } = useFilterOptions();
+  const { lossReasons: globalLossReasons } = useLossReasonsGlobal();
+
+  // Use the global loss reasons if no prop is provided or if the prop is empty
+  const lossReasons = (propLossReasons && propLossReasons.length > 0) ? propLossReasons : globalLossReasons;
 
   console.log(`🔍 AdvancedFilters - Categoria selecionada: ${selectedCategory}`);
-  console.log(`📊 AdvancedFilters - Motivos de perda recebidos: ${lossReasons.length}`);
+  console.log(`📊 AdvancedFilters - Motivos de perda recebidos via prop: ${propLossReasons?.length || 0}`);
+  console.log(`📊 AdvancedFilters - Motivos de perda do hook global: ${globalLossReasons.length}`);
+  console.log(`📊 AdvancedFilters - Motivos de perda finais: ${lossReasons.length}`);
   console.log(`📋 AdvancedFilters - Lista de motivos:`, lossReasons.map(r => r.reason));
 
   const handleStatusChange = (status: string, checked: boolean) => {
