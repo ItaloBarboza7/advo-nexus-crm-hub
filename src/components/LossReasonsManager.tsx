@@ -10,7 +10,7 @@ import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { useToast } from "@/hooks/use-toast";
 
 export function LossReasonsManager() {
-  const { lossReasons, loading, addLossReason, updateLossReason, deleteLossReason } = useLossReasonsGlobal();
+  const { lossReasons, loading, addLossReason, updateLossReason, deleteLossReason, refreshData } = useLossReasonsGlobal();
   const [newReason, setNewReason] = useState("");
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -34,6 +34,8 @@ export function LossReasonsManager() {
       console.log(`✅ LossReasonsManager - Motivo adicionado com sucesso`);
       setNewReason("");
       setIsAddingNew(false);
+      // Forçar refresh para garantir sincronização
+      await refreshData();
     }
     
     setIsLoading(false);
@@ -56,6 +58,8 @@ export function LossReasonsManager() {
       console.log(`✅ LossReasonsManager - Motivo editado com sucesso`);
       setEditingId(null);
       setEditingValue("");
+      // Forçar refresh para garantir sincronização
+      await refreshData();
     }
     
     setIsLoading(false);
@@ -97,13 +101,26 @@ export function LossReasonsManager() {
       
       if (success) {
         console.log(`✅ LossReasonsManager - Motivo excluído com sucesso via hook`);
+        
+        // Fechar dialog imediatamente
         setReasonToDelete(null);
         setDeleteDialogOpen(false);
+        
+        // Forçar refresh completo dos dados para garantir sincronização
+        console.log(`🔄 LossReasonsManager - Forçando refresh completo após exclusão`);
+        await refreshData();
+        
+        console.log(`✅ LossReasonsManager - Refresh completo concluído`);
       } else {
         console.error(`❌ LossReasonsManager - Falha ao excluir motivo via hook`);
       }
     } catch (error) {
       console.error(`❌ LossReasonsManager - Erro ao excluir motivo:`, error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado ao excluir o motivo.",
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }

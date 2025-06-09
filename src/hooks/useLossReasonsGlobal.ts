@@ -310,6 +310,9 @@ export function useLossReasonsGlobal() {
         });
       }
       
+      // AGUARDAR um breve momento para garantir que a transação foi commitada
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       // Atualizar o estado global após exclusão - FORÇAR REFRESH COMPLETO
       console.log(`🔄 useLossReasonsGlobal - Atualizando estado global após exclusão...`);
       await updateGlobalState();
