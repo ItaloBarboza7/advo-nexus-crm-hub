@@ -10,7 +10,7 @@ export function useLeadsData() {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   
-  // Usar o hook global para motivos de perda
+  // Usar o hook global para motivos de perda - mas não interferir no estado
   const { lossReasons } = useLossReasonsGlobal();
 
   const fetchLeads = async () => {
@@ -40,6 +40,7 @@ export function useLeadsData() {
         avatar: undefined
       }));
 
+      console.log(`📊 useLeadsData - ${transformedLeads.length} leads carregados`);
       setLeads(transformedLeads);
     } catch (error) {
       console.error('Erro inesperado ao buscar leads:', error);
@@ -54,12 +55,15 @@ export function useLeadsData() {
   };
 
   const refreshData = () => {
+    console.log(`🔄 useLeadsData - Atualizando dados dos leads...`);
     fetchLeads();
   };
 
   // Atualizar um lead específico
   const updateLead = async (leadId: string, updates: Partial<Lead>) => {
     try {
+      console.log(`📝 useLeadsData - Atualizando lead ${leadId}:`, updates);
+      
       const { error } = await supabase
         .from('leads')
         .update(updates)
@@ -80,6 +84,7 @@ export function useLeadsData() {
         lead.id === leadId ? { ...lead, ...updates } : lead
       ));
 
+      console.log(`✅ useLeadsData - Lead ${leadId} atualizado com sucesso`);
       toast({
         title: "Sucesso",
         description: "Lead atualizado com sucesso.",

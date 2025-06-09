@@ -14,6 +14,7 @@ let globalLossReasons: LossReason[] = [];
 let globalLoading = true;
 let globalInitialized = false;
 const subscribers = new Set<() => void>();
+let isRefreshing = false; // Flag para evitar múltiplos refreshs simultâneos
 
 // Função para notificar todos os subscribers sobre mudanças
 const notifySubscribers = () => {
@@ -39,9 +40,15 @@ const fetchFromSupabase = async (): Promise<LossReason[]> => {
   return data || [];
 };
 
-// Função para atualizar o estado global
+// Função para atualizar o estado global com debounce
 const updateGlobalState = async () => {
+  if (isRefreshing) {
+    console.log(`⏳ useLossReasonsGlobal - Refresh já em andamento, aguardando...`);
+    return;
+  }
+
   try {
+    isRefreshing = true;
     console.log(`🔄 useLossReasonsGlobal - Iniciando atualização do estado global...`);
     globalLoading = true;
     notifySubscribers();
@@ -60,6 +67,8 @@ const updateGlobalState = async () => {
     console.error('❌ Erro ao atualizar estado global:', error);
     notifySubscribers();
     throw error;
+  } finally {
+    isRefreshing = false;
   }
 };
 
@@ -310,14 +319,18 @@ export function useLossReasonsGlobal() {
         });
       }
       
-      // AGUARDAR um breve momento para garantir que a transação foi commitada
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // ATUALIZAÇÃO OTIMÍSTICA: Remover imediatamente do estado global
+      console.log(`🔄 useLossReasonsGlobal - Removendo motivo do estado global imediatamente...`);
+      globalLossReasons = globalLossReasons.filter(r => r.id !== id);
+      notifySubscribers();
       
-      // Atualizar o estado global após exclusão - FORÇAR REFRESH COMPLETO
-      console.log(`🔄 useLossReasonsGlobal - Atualizando estado global após exclusão...`);
-      await updateGlobalState();
+      // Aguardar um momento e depois fazer refresh completo para confirmar
+      setTimeout(async () => {
+        console.log(`🔄 useLossReasonsGlobal - Fazendo refresh completo após exclusão para confirmar...`);
+        await updateGlobalState();
+      }, 500);
       
-      console.log(`✅ useLossReasonsGlobal - Exclusão e sincronização concluídas com sucesso`);
+      console.log(`✅ useLossReasonsGlobal - Exclusão concluída com sucesso`);
       toast({
         title: "Sucesso",
         description: "Motivo de perda excluído com sucesso.",
