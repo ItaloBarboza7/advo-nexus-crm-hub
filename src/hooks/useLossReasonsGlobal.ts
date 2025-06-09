@@ -217,9 +217,9 @@ export function useLossReasonsGlobal() {
     }
   }, [toast]);
 
-  // Função para excluir um motivo (atualiza globalmente)
+  // Função para excluir um motivo - NOVA LÓGICA COM TRANSFERÊNCIA AUTOMÁTICA
   const deleteLossReason = useCallback(async (id: string) => {
-    console.log(`🗑️ useLossReasonsGlobal - Excluindo motivo ID: ${id}`);
+    console.log(`🗑️ useLossReasonsGlobal - Iniciando exclusão do motivo ID: ${id}`);
     
     const reasonToDelete = globalLossReasons.find(reason => reason.id === id);
     console.log(`🔍 Motivo a ser excluído:`, reasonToDelete);
@@ -245,54 +245,93 @@ export function useLossReasonsGlobal() {
     }
 
     try {
-      console.log(`🔄 useLossReasonsGlobal - Tentando excluir motivo "${reasonToDelete.reason}" (ID: ${id}) do banco de dados...`);
+      console.log(`🔄 useLossReasonsGlobal - Iniciando processo de exclusão para "${reasonToDelete.reason}" (ID: ${id})`);
       
-      // Verificar se existem leads usando este motivo
-      const { data: leadsUsingReason, error: leadsError } = await supabase
-        .from('leads')
-        .select('id, name')
-        .eq('loss_reason', reasonToDelete.reason);
+      // PASSO 1: Verificar se "Outros" existe, se não, criar
+      console.log(`🔍 useLossReasonsGlobal - Verificando se motivo "Outros" existe...`);
+      const { data: outrosMotivo, error: outrosError } = await supabase
+        .from('loss_reasons')
+        .select('*')
+        .eq('reason', 'Outros')
+        .single();
 
-      if (leadsError) {
-        console.error('❌ Erro ao verificar leads vinculados:', leadsError);
+      if (outrosError && outrosError.code !== 'PGRST116') {
+        console.error('❌ Erro ao verificar motivo "Outros":', outrosError);
         toast({
           title: "Erro",
-          description: "Erro ao verificar dependências do motivo.",
+          description: "Erro ao verificar motivo de fallback.",
           variant: "destructive"
         });
         return false;
       }
 
+      if (!outrosMotivo) {
+        console.log(`➕ useLossReasonsGlobal - Criando motivo "Outros" automaticamente...`);
+        const { error: createError } = await supabase
+          .from('loss_reasons')
+          .insert({ reason: 'Outros', is_fixed: true });
+
+        if (createError) {
+          console.error('❌ Erro ao criar motivo "Outros":', createError);
+          toast({
+            title: "Erro",
+            description: "Erro ao criar motivo de fallback.",
+            variant: "destructive"
+          });
+          return false;
+        }
+        console.log(`✅ useLossReasonsGlobal - Motivo "Outros" criado com sucesso`);
+      }
+
+      // PASSO 2: Buscar todos os leads que usam este motivo
+      console.log(`🔍 useLossReasonsGlobal - Buscando leads que usam o motivo "${reasonToDelete.reason}"...`);
+      const { data: leadsUsingReason, error: leadsError } = await supabase
+        .from('leads')
+        .select('id, name, loss_reason')
+        .eq('loss_reason', reasonToDelete.reason);
+
+      if (leadsError) {
+        console.error('❌ Erro ao buscar leads vinculados:', leadsError);
+        toast({
+          title: "Erro",
+          description: "Erro ao verificar leads vinculados ao motivo.",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      // PASSO 3: Transferir todos os leads para "Outros"
       if (leadsUsingReason && leadsUsingReason.length > 0) {
-        console.log(`🔄 useLossReasonsGlobal - Encontrados ${leadsUsingReason.length} leads usando este motivo. Atualizando para "Outros"...`);
+        console.log(`🔄 useLossReasonsGlobal - Encontrados ${leadsUsingReason.length} leads usando este motivo. Transferindo para "Outros"...`);
+        console.log(`📋 useLossReasonsGlobal - Leads a serem atualizados:`, leadsUsingReason.map(l => `${l.name} (ID: ${l.id})`));
         
-        // Atualizar todos os leads que usam este motivo para "Outros"
         const { error: updateError } = await supabase
           .from('leads')
           .update({ loss_reason: 'Outros' })
           .eq('loss_reason', reasonToDelete.reason);
 
         if (updateError) {
-          console.error('❌ Erro ao atualizar leads para "Outros":', updateError);
+          console.error('❌ Erro ao transferir leads para "Outros":', updateError);
           toast({
             title: "Erro",
-            description: "Erro ao atualizar leads vinculados ao motivo.",
+            description: "Erro ao transferir leads para o motivo 'Outros'.",
             variant: "destructive"
           });
           return false;
         }
 
-        console.log(`✅ useLossReasonsGlobal - ${leadsUsingReason.length} leads atualizados para "Outros" com sucesso`);
+        console.log(`✅ useLossReasonsGlobal - ${leadsUsingReason.length} leads transferidos para "Outros" com sucesso`);
         
         toast({
-          title: "Leads atualizados",
-          description: `${leadsUsingReason.length} leads foram atualizados para usar o motivo "Outros".`,
+          title: "Leads transferidos",
+          description: `${leadsUsingReason.length} leads foram transferidos para o motivo "Outros".`,
         });
       } else {
-        console.log(`✅ Nenhum lead está usando este motivo. Procedendo com a exclusão...`);
+        console.log(`✅ useLossReasonsGlobal - Nenhum lead está usando este motivo. Procedendo diretamente com a exclusão...`);
       }
       
-      // Fazer a exclusão no banco de dados
+      // PASSO 4: Excluir o motivo de perda
+      console.log(`🗑️ useLossReasonsGlobal - Excluindo motivo "${reasonToDelete.reason}" do banco de dados...`);
       const { error: deleteError, count } = await supabase
         .from('loss_reasons')
         .delete({ count: 'exact' })
@@ -319,12 +358,12 @@ export function useLossReasonsGlobal() {
         });
       }
       
-      // ATUALIZAÇÃO OTIMÍSTICA: Remover imediatamente do estado global
+      // PASSO 5: Atualização otimística do estado global
       console.log(`🔄 useLossReasonsGlobal - Removendo motivo do estado global imediatamente...`);
       globalLossReasons = globalLossReasons.filter(r => r.id !== id);
       notifySubscribers();
       
-      // Aguardar um momento e depois fazer refresh completo para confirmar
+      // PASSO 6: Refresh completo para confirmar
       setTimeout(async () => {
         console.log(`🔄 useLossReasonsGlobal - Fazendo refresh completo após exclusão para confirmar...`);
         await updateGlobalState();
