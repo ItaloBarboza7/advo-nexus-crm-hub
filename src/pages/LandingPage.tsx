@@ -5,9 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Check, ArrowRight, Star, Users, BarChart3, Shield } from 'lucide-react';
+import { PurchaseModal } from '@/components/PurchaseModal';
 
 const LandingPage = () => {
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'annual'>('monthly');
+  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
 
   const features = [
     "Gestão completa de leads",
@@ -26,6 +28,10 @@ const LandingPage = () => {
     { icon: Shield, value: "99.9%", label: "Uptime garantido" }
   ];
 
+  const handlePurchaseClick = () => {
+    setIsPurchaseModalOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
       {/* Header */}
@@ -42,9 +48,7 @@ const LandingPage = () => {
             <Link to="/login">
               <Button variant="ghost">Entrar</Button>
             </Link>
-            <Link to="/login">
-              <Button>Começar Agora</Button>
-            </Link>
+            <Button onClick={handlePurchaseClick}>Começar Agora</Button>
           </div>
         </div>
       </header>
@@ -157,8 +161,12 @@ const LandingPage = () => {
               </CardHeader>
               
               <CardContent className="pt-0">
-                <Button className="w-full mb-6 h-12 text-lg" size="lg">
-                  Começar Agora
+                <Button 
+                  className="w-full mb-6 h-12 text-lg" 
+                  size="lg"
+                  onClick={handlePurchaseClick}
+                >
+                  Comprar Agora
                   <ArrowRight className="ml-2 w-5 h-5" />
                 </Button>
                 
@@ -203,6 +211,12 @@ const LandingPage = () => {
           </p>
         </div>
       </footer>
+
+      <PurchaseModal 
+        isOpen={isPurchaseModalOpen}
+        onClose={() => setIsPurchaseModalOpen(false)}
+        planType={billingPeriod}
+      />
     </div>
   );
 };
