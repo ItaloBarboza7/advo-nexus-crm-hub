@@ -21,16 +21,17 @@ serve(async (req) => {
       apiVersion: "2023-10-16",
     });
 
-    // Define plan prices (in cents)
-    const planPrices = {
-      monthly: 15700, // R$ 157.00
-      annual: 9900,   // R$ 99.00
+    // Use real Stripe price IDs
+    const priceIds = {
+      monthly: "price_1RZ0zXC8OCBSCVdT4Ckd9XJa",
+      annual: "price_1RZ12OC8OCBSCVdTXx3SbN4j",
     };
 
-    const amount = planPrices[planType as keyof typeof planPrices];
-    const planName = planType === 'monthly' 
-      ? 'CRM Profissional - Mensal' 
-      : 'CRM Profissional - Anual';
+    const priceId = priceIds[planType as keyof typeof priceIds];
+    
+    if (!priceId) {
+      throw new Error(`Plano inválido: ${planType}`);
+    }
 
     // Check if customer already exists
     const customers = await stripe.customers.list({ 
@@ -54,31 +55,16 @@ serve(async (req) => {
       customerId = customer.id;
     }
 
-    // Create checkout session
+    // Create checkout session using the real price IDs
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       line_items: [
         {
-          price_data: {
-            currency: "brl",
-            product_data: {
-              name: planName,
-              description: planType === 'monthly' 
-                ? 'Plano mensal do CRM Profissional'
-                : 'Plano anual do CRM Profissional (cobrança anual)',
-            },
-            unit_amount: amount,
-            ...(planType === 'annual' && {
-              recurring: { interval: "year" }
-            }),
-            ...(planType === 'monthly' && {
-              recurring: { interval: "month" }
-            }),
-          },
+          price: priceId,
           quantity: 1,
         },
       ],
-      mode: planType === 'monthly' || planType === 'annual' ? "subscription" : "payment",
+      mode: "subscription",
       success_url: `${req.headers.get("origin")}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.headers.get("origin")}/landing`,
       locale: "pt-BR",
