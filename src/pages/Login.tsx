@@ -160,14 +160,20 @@ const Login = () => {
                 
                 <div className="text-center text-sm">
                   {isLogin ? "Não tem uma conta?" : "Já tem uma conta?"}{" "}
-                  <Button
-                    type="button"
-                    variant="link"
-                    className="p-0 h-auto text-sm"
-                    onClick={() => setIsLogin(!isLogin)}
-                  >
-                    {isLogin ? "Criar conta" : "Entrar"}
-                  </Button>
+                  {isLogin ? (
+                    <Link to="/landing" className="text-primary hover:underline font-medium">
+                      Criar conta
+                    </Link>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="p-0 h-auto text-sm"
+                      onClick={() => setIsLogin(!isLogin)}
+                    >
+                      Entrar
+                    </Button>
+                  )}
                 </div>
               </>
             )}
