@@ -41,6 +41,11 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
 
   const loadUserProfile = async () => {
     try {
+      // Primeiro tentar carregar o perfil do banco de dados para o usuário atual
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      
+      if (!currentUser) return
+
       const { data: profiles, error } = await supabase
         .from('user_profiles')
         .select('*')
@@ -48,6 +53,11 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
 
       if (error) {
         console.error('Erro ao carregar perfil:', error)
+        // Se houver erro ou não encontrar perfil, usar dados dos metadados do usuário
+        setUserProfile({
+          name: currentUser.user_metadata?.name || currentUser.email?.split('@')[0] || "Usuário",
+          avatar_url: "",
+        })
         return
       }
 
@@ -58,18 +68,21 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
           avatar_url: profile.avatar_url || "",
         })
       } else {
-        // Tentar carregar do localStorage como fallback
-        const savedProfile = localStorage.getItem('userProfile')
-        if (savedProfile) {
-          const parsed = JSON.parse(savedProfile)
-          setUserProfile({
-            name: parsed.name || "Usuário",
-            avatar_url: parsed.avatar || "",
-          })
-        }
+        // Se não há perfil no banco, usar dados dos metadados do usuário
+        setUserProfile({
+          name: currentUser.user_metadata?.name || currentUser.email?.split('@')[0] || "Usuário",
+          avatar_url: "",
+        })
       }
     } catch (error) {
       console.error('Erro ao carregar perfil:', error)
+      // Fallback para dados do usuário atual
+      if (user) {
+        setUserProfile({
+          name: user.user_metadata?.name || user.email?.split('@')[0] || "Usuário",
+          avatar_url: "",
+        })
+      }
     }
   }
 

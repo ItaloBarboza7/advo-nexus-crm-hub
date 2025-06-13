@@ -77,12 +77,27 @@ serve(async (req) => {
         cpf: customerData.cpf,
         plan_type: pendingPurchase.plan_type,
         payment_confirmed: true,
+        is_first_login: true, // Marcar como primeiro login
       }
     });
 
     if (createError) {
       console.error('Error creating user:', createError);
       throw new Error(`Erro ao criar usuário: ${createError.message}`);
+    }
+
+    // Create user profile with the purchase data
+    const { error: profileError } = await supabase
+      .from('user_profiles')
+      .insert({
+        name: customerData.name,
+        email: customerData.email,
+        phone: customerData.phone,
+      });
+
+    if (profileError) {
+      console.error('Error creating user profile:', profileError);
+      // Don't throw error here as user was created successfully
     }
 
     // Clean up pending purchase after successful user creation

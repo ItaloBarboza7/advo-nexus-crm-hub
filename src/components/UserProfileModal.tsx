@@ -42,6 +42,13 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
   const loadUserProfile = async () => {
     try {
       setIsLoading(true);
+      
+      // Obter o usuário atual
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) return;
+
+      // Buscar perfil do usuário atual
       const { data: profiles, error } = await supabase
         .from('user_profiles')
         .select('*')
@@ -49,6 +56,9 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
 
       if (error) {
         console.error('Erro ao carregar perfil:', error);
+        // Se houver erro, usar dados dos metadados do usuário
+        setName(user.user_metadata?.name || "");
+        setAvatar("");
         return;
       }
 
@@ -58,14 +68,9 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
         setAvatar(profile.avatar_url || "");
         // Email e telefone serão preenchidos pela empresa via useEffect acima
       } else {
-        // Tentar carregar do localStorage como fallback
-        const savedProfile = localStorage.getItem('userProfile');
-        if (savedProfile) {
-          const parsed = JSON.parse(savedProfile);
-          setName(parsed.name || "");
-          setAvatar(parsed.avatar || "");
-          // Email e telefone serão preenchidos pela empresa via useEffect acima
-        }
+        // Se não há perfil no banco, usar dados dos metadados do usuário
+        setName(user.user_metadata?.name || "");
+        setAvatar("");
       }
     } catch (error) {
       console.error('Erro ao carregar perfil:', error);
@@ -104,14 +109,6 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
         });
         return;
       }
-
-      // Salvar também no localStorage como backup
-      localStorage.setItem('userProfile', JSON.stringify({
-        name: name.trim(),
-        email: email.trim(),
-        phone: phone.trim(),
-        avatar: avatar.trim(),
-      }));
 
       toast({
         title: "Perfil atualizado",

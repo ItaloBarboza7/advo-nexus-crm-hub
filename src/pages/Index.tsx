@@ -33,7 +33,7 @@ const Index = () => {
         
         // Verificar se é necessário mostrar o modal de informações da empresa
         if (session?.user && event === 'SIGNED_IN') {
-          checkCompanyInfo()
+          checkFirstLoginAndCompanyInfo(session.user)
         }
       }
     )
@@ -45,25 +45,23 @@ const Index = () => {
       
       // Se já existe uma sessão, verificar informações da empresa
       if (session?.user) {
-        checkCompanyInfo()
+        checkFirstLoginAndCompanyInfo(session.user)
       }
     })
 
     return () => subscription.unsubscribe()
   }, [])
 
-  const checkCompanyInfo = async () => {
+  const checkFirstLoginAndCompanyInfo = async (user: User) => {
     try {
-      // Verificar se já foi marcado como concluído
-      const companyInfoCompleted = localStorage.getItem('companyInfoCompleted')
-      if (companyInfoCompleted === 'true') {
-        return
-      }
+      // Verificar se é o primeiro login através dos metadados do usuário
+      const isFirstLogin = user.user_metadata?.is_first_login === true
 
       // Verificar se já existem informações da empresa no banco
       const { data: companyInfo, error } = await supabase
         .from('company_info')
         .select('*')
+        .eq('user_id', user.id)
         .limit(1)
 
       if (error) {
@@ -71,15 +69,22 @@ const Index = () => {
         return
       }
 
-      // Se não há informações da empresa, mostrar o modal
-      if (!companyInfo || companyInfo.length === 0) {
+      // Se é primeiro login OU não há informações da empresa, mostrar o modal
+      if (isFirstLogin || !companyInfo || companyInfo.length === 0) {
         setShowCompanyModal(true)
-      } else {
-        // Se já existem informações, marcar como concluído
-        localStorage.setItem('companyInfoCompleted', 'true')
+        
+        // Se era primeiro login, atualizar os metadados para remover a flag
+        if (isFirstLogin) {
+          await supabase.auth.updateUser({
+            data: { 
+              ...user.user_metadata,
+              is_first_login: false 
+            }
+          })
+        }
       }
     } catch (error) {
-      console.error('Erro ao verificar informações da empresa:', error)
+      console.error('Erro ao verificar primeiro login e informações da empresa:', error)
     }
   }
 
