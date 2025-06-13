@@ -206,26 +206,31 @@ export function useLossReasonsGlobal() {
     }
   }, [toast]);
 
-  // Função simplificada para verificar se há leads usando um motivo
+  // Função para verificar se há leads usando um motivo
   const checkLeadsUsingReason = useCallback(async (reason: string): Promise<number> => {
     console.log(`🔍 useLossReasonsGlobal - Verificando leads que usam o motivo "${reason}"`);
     
-    const { data, error } = await supabase
-      .from('leads')
-      .select('id', { count: 'exact' })
-      .eq('loss_reason', reason);
+    try {
+      const { data, error } = await supabase
+        .from('leads')
+        .select('id', { count: 'exact' })
+        .eq('loss_reason', reason);
 
-    if (error) {
-      console.error('❌ Erro ao verificar leads:', error);
-      throw error;
+      if (error) {
+        console.error('❌ Erro ao verificar leads:', error);
+        throw error;
+      }
+
+      const count = data?.length || 0;
+      console.log(`📊 useLossReasonsGlobal - Encontrados ${count} leads usando o motivo "${reason}"`);
+      return count;
+    } catch (error) {
+      console.error('❌ Erro inesperado ao verificar leads:', error);
+      return 0;
     }
-
-    const count = data?.length || 0;
-    console.log(`📊 useLossReasonsGlobal - Encontrados ${count} leads usando o motivo "${reason}"`);
-    return count;
   }, []);
 
-  // Função simplificada para excluir um motivo
+  // Função para excluir um motivo
   const deleteLossReason = useCallback(async (id: string) => {
     console.log(`🗑️ useLossReasonsGlobal - Iniciando exclusão do motivo ID: ${id}`);
     
@@ -242,6 +247,7 @@ export function useLossReasonsGlobal() {
 
     // Verificar se é um motivo fixo
     if (reasonToDelete.is_fixed) {
+      console.log(`⚠️ useLossReasonsGlobal - Tentativa de excluir motivo fixo: ${reasonToDelete.reason}`);
       toast({
         title: "Erro",
         description: "Este motivo não pode ser excluído pois é um motivo base do sistema.",
@@ -255,6 +261,7 @@ export function useLossReasonsGlobal() {
       const leadsCount = await checkLeadsUsingReason(reasonToDelete.reason);
       
       if (leadsCount > 0) {
+        console.log(`⚠️ useLossReasonsGlobal - Motivo "${reasonToDelete.reason}" está em uso por ${leadsCount} leads`);
         toast({
           title: "Não é possível excluir",
           description: `Este motivo está sendo usado por ${leadsCount} lead(s). Para excluir, primeiro altere o motivo destes leads.`,
@@ -274,7 +281,7 @@ export function useLossReasonsGlobal() {
         console.error('❌ Erro ao excluir motivo no banco:', deleteError);
         toast({
           title: "Erro",
-          description: `Não foi possível excluir o motivo de perda: ${deleteError.message}`,
+          description: `Erro ao excluir o motivo: ${deleteError.message}`,
           variant: "destructive"
         });
         return false;
