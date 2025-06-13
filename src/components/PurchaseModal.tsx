@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, ArrowLeft } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface PurchaseModalProps {
@@ -19,6 +19,7 @@ interface CustomerData {
   email: string;
   phone: string;
   cpf: string;
+  password: string;
 }
 
 export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps) {
@@ -27,9 +28,11 @@ export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps)
     name: '',
     email: '',
     phone: '',
-    cpf: ''
+    cpf: '',
+    password: ''
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const planPrice = planType === 'monthly' ? 'R$ 157' : 'R$ 99';
   const planDescription = planType === 'monthly' ? 'por mês' : 'por mês (cobrado anualmente)';
@@ -42,7 +45,9 @@ export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps)
     return customerData.name && 
            customerData.email && 
            customerData.phone && 
-           customerData.cpf;
+           customerData.cpf &&
+           customerData.password &&
+           customerData.password.length >= 6;
   };
 
   const handleAdvance = () => {
@@ -94,8 +99,10 @@ export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps)
       name: '',
       email: '',
       phone: '',
-      cpf: ''
+      cpf: '',
+      password: ''
     });
+    setShowPassword(false);
   };
 
   const handleClose = () => {
@@ -153,6 +160,35 @@ export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps)
                 onChange={(e) => handleInputChange('cpf', e.target.value)}
                 placeholder="000.000.000-00"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">Senha</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={customerData.password}
+                  onChange={(e) => handleInputChange('password', e.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+              {customerData.password && customerData.password.length < 6 && (
+                <p className="text-sm text-red-500">A senha deve ter pelo menos 6 caracteres</p>
+              )}
             </div>
 
             <div className="border-t pt-4">

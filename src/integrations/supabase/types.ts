@@ -262,6 +262,33 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_purchases: {
+        Row: {
+          created_at: string | null
+          customer_data: Json
+          expires_at: string | null
+          id: string
+          plan_type: string
+          session_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          customer_data: Json
+          expires_at?: string | null
+          id?: string
+          plan_type: string
+          session_id: string
+        }
+        Update: {
+          created_at?: string | null
+          customer_data?: Json
+          expires_at?: string | null
+          id?: string
+          plan_type?: string
+          session_id?: string
+        }
+        Relationships: []
+      }
       user_profiles: {
         Row: {
           avatar_url: string | null

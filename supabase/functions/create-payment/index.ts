@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -69,6 +70,26 @@ serve(async (req) => {
       cancel_url: `${req.headers.get("origin")}/landing`,
       locale: "pt-BR",
     });
+
+    // Store customer data temporarily until payment confirmation
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
+    );
+
+    const { error: insertError } = await supabase
+      .from('pending_purchases')
+      .insert({
+        session_id: session.id,
+        customer_data: customerData,
+        plan_type: planType,
+      });
+
+    if (insertError) {
+      console.error('Error storing pending purchase:', insertError);
+      throw new Error('Erro ao armazenar dados da compra');
+    }
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
