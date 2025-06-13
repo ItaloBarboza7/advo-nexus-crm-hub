@@ -39,6 +39,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
       if (!user) return;
 
       console.log('Loading profile for user:', user.id);
+      console.log('User email:', user.email);
       console.log('User metadata:', user.user_metadata);
 
       // Buscar perfil do usuário atual no banco usando RLS
@@ -50,6 +51,11 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
 
       if (error) {
         console.error('Erro ao carregar perfil:', error);
+        toast({
+          title: "Erro",
+          description: `Erro ao carregar perfil: ${error.message}`,
+          variant: "destructive",
+        });
       }
 
       if (profile) {
@@ -67,7 +73,12 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
         setAvatar("");
       }
     } catch (error) {
-      console.error('Erro ao carregar perfil:', error);
+      console.error('Erro inesperado ao carregar perfil:', error);
+      toast({
+        title: "Erro",
+        description: `Erro inesperado: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -96,26 +107,72 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
         return;
       }
 
-      const { error } = await supabase
-        .from('user_profiles')
-        .upsert({
-          user_id: user.id,
-          name: name.trim(),
-          email: email.trim() || null,
-          phone: phone.trim() || null,
-          avatar_url: avatar.trim() || null,
-        });
+      console.log('Attempting to save profile for user:', user.id);
+      console.log('User email:', user.email);
+      console.log('Data to save:', {
+        user_id: user.id,
+        name: name.trim(),
+        email: email.trim() || null,
+        phone: phone.trim() || null,
+        avatar_url: avatar.trim() || null,
+      });
 
-      if (error) {
-        console.error('Erro ao salvar perfil:', error);
+      // Verificar se já existe um perfil para este usuário
+      const { data: existingProfile, error: checkError } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('Erro ao verificar perfil existente:', checkError);
         toast({
           title: "Erro",
-          description: "Não foi possível salvar o perfil.",
+          description: `Erro ao verificar perfil: ${checkError.message}`,
           variant: "destructive",
         });
         return;
       }
 
+      console.log('Existing profile check result:', existingProfile);
+
+      const profileData = {
+        user_id: user.id,
+        name: name.trim(),
+        email: email.trim() || null,
+        phone: phone.trim() || null,
+        avatar_url: avatar.trim() || null,
+      };
+
+      let saveError;
+      if (existingProfile) {
+        // Atualizar perfil existente
+        console.log('Updating existing profile...');
+        const { error } = await supabase
+          .from('user_profiles')
+          .update(profileData)
+          .eq('user_id', user.id);
+        saveError = error;
+      } else {
+        // Criar novo perfil
+        console.log('Creating new profile...');
+        const { error } = await supabase
+          .from('user_profiles')
+          .insert(profileData);
+        saveError = error;
+      }
+
+      if (saveError) {
+        console.error('Erro ao salvar perfil:', saveError);
+        toast({
+          title: "Erro",
+          description: `Não foi possível salvar o perfil: ${saveError.message}`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('Profile saved successfully!');
       toast({
         title: "Perfil atualizado",
         description: "Suas informações foram salvas com sucesso.",
@@ -126,7 +183,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
       console.error('Erro inesperado ao salvar perfil:', error);
       toast({
         title: "Erro",
-        description: "Ocorreu um erro inesperado ao salvar o perfil.",
+        description: `Ocorreu um erro inesperado: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
         variant: "destructive",
       });
     } finally {
@@ -182,7 +239,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
             <h3 className="text-lg font-medium">Informações Pessoais</h3>
             
             <div className="space-y-2">
-              <Label htmlFor="name">Nome *</Label>
+              <Label htmlFor="name">Nome Completo *</Label>
               <Input
                 id="name"
                 value={name}
