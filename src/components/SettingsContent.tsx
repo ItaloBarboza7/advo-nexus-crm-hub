@@ -15,7 +15,6 @@ import { AddLeadSourceDialog } from "@/components/AddLeadSourceDialog";
 import { AddLossReasonDialog } from "@/components/AddLossReasonDialog";
 import { EditCompanyModal } from "@/components/EditCompanyModal";
 import { DeleteButton } from "@/components/DeleteButton";
-import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useFilterOptions } from "@/hooks/useFilterOptions";
@@ -98,17 +97,6 @@ export function SettingsContent() {
   const [editingActionTypeName, setEditingActionTypeName] = useState("");
   const [editingLeadSourceName, setEditingLeadSourceName] = useState("");
   const [editingLossReasonName, setEditingLossReasonName] = useState("");
-
-  // Estado para controlar o diálogo de confirmação de exclusão dos motivos de perda
-  const [deleteConfirmDialog, setDeleteConfirmDialog] = useState<{
-    open: boolean;
-    reasonId: string;
-    reasonName: string;
-  }>({
-    open: false,
-    reasonId: "",
-    reasonName: ""
-  });
 
   const { toast } = useToast();
 
@@ -619,7 +607,7 @@ export function SettingsContent() {
     }
   };
 
-  // FUNÇÕES CORRIGIDAS PARA MOTIVOS DE PERDA - usando o hook global
+  // SIMPLIFIED LOSS REASON FUNCTIONS - using the hook directly
   const handleEditLossReason = (reasonId: string, currentReason: string) => {
     console.log(`✏️ SettingsContent - Iniciando edição do motivo ID: ${reasonId}, valor atual: ${currentReason}`);
     setEditingLossReason(reasonId);
@@ -652,34 +640,9 @@ export function SettingsContent() {
     setEditingLossReasonName("");
   };
 
-  const handleDeleteLossReasonClick = (reasonId: string, reasonName: string) => {
-    console.log(`🗑️ SettingsContent - Abrindo diálogo de confirmação para exclusão do motivo ID: ${reasonId}, nome: ${reasonName}`);
-    setDeleteConfirmDialog({
-      open: true,
-      reasonId,
-      reasonName
-    });
-  };
-
-  const handleConfirmDeleteLossReason = async () => {
-    console.log(`🔥 SettingsContent - Confirmando exclusão do motivo ID: ${deleteConfirmDialog.reasonId}, nome: ${deleteConfirmDialog.reasonName}`);
-    try {
-      const success = await deleteLossReason(deleteConfirmDialog.reasonId);
-      if (success) {
-        console.log(`✅ SettingsContent - Motivo "${deleteConfirmDialog.reasonName}" excluído com sucesso`);
-      } else {
-        console.log(`❌ SettingsContent - Falha ao excluir motivo "${deleteConfirmDialog.reasonName}"`);
-      }
-    } catch (error) {
-      console.error(`❌ SettingsContent - Erro ao excluir motivo "${deleteConfirmDialog.reasonName}":`, error);
-    } finally {
-      setDeleteConfirmDialog({ open: false, reasonId: "", reasonName: "" });
-    }
-  };
-
-  const handleCancelDeleteLossReason = () => {
-    console.log(`❌ SettingsContent - Cancelando exclusão do motivo: ${deleteConfirmDialog.reasonName}`);
-    setDeleteConfirmDialog({ open: false, reasonId: "", reasonName: "" });
+  const handleDeleteLossReason = async (reasonId: string, reasonName: string) => {
+    console.log(`🗑️ SettingsContent - Tentativa de exclusão do motivo ID: ${reasonId}, nome: ${reasonName}`);
+    await deleteLossReason(reasonId);
   };
 
   const handleAddLossReasonFromDialog = async () => {
@@ -999,7 +962,6 @@ export function SettingsContent() {
     console.log('🔄 SettingsContent - Renderizando aba Configurações/Ações');
     console.log(`📊 SettingsContent - Estados de loading: optionsLoading=${optionsLoading}, lossReasonsLoading=${lossReasonsLoading}`);
     console.log(`📊 SettingsContent - Dados carregados: actionGroups=${actionGroups.length}, actionTypes=${actionTypes.length}, leadSources=${leadSources.length}, lossReasons=${lossReasons.length}`);
-    console.log(`📋 SettingsContent - Motivos de perda atuais:`, lossReasons.map(r => r.reason));
     
     return (
       <div className="space-y-6">
@@ -1271,7 +1233,7 @@ export function SettingsContent() {
           )}
         </Card>
 
-        {/* TIPOS DE PERDAS - PAINEL CORRIGIDO */}
+        {/* SIMPLIFIED LOSS REASONS PANEL */}
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h4 className="text-md font-semibold text-gray-900">Tipos de Perdas</h4>
@@ -1304,72 +1266,70 @@ export function SettingsContent() {
                     </Button>
                   </div>
                 ) : (
-                  lossReasons.map((reason) => {
-                    console.log(`🔍 SettingsContent - Renderizando motivo de perda: ${reason.reason} (ID: ${reason.id})`);
-                    
-                    return (
-                      <div key={reason.id} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            {editingLossReason === reason.id ? (
-                              <div className="flex items-center gap-2">
-                                <Input
-                                  value={editingLossReasonName}
-                                  onChange={(e) => setEditingLossReasonName(e.target.value)}
-                                  className="max-w-xs"
-                                  placeholder="Motivo da perda"
-                                />
-                                <Button 
-                                  size="sm" 
-                                  onClick={handleSaveLossReason}
-                                  disabled={!editingLossReasonName.trim()}
-                                >
-                                  <Check className="h-4 w-4" />
-                                </Button>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline" 
-                                  onClick={handleCancelEditLossReason}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <div>
-                                <h5 className="font-medium text-gray-900">{reason.reason}</h5>
-                                <p className="text-xs text-gray-500">ID: {reason.id}</p>
-                              </div>
-                            )}
-                          </div>
-                          {editingLossReason !== reason.id && (
-                            <div className="flex gap-2">
+                  lossReasons.map((reason) => (
+                    <div key={reason.id} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          {editingLossReason === reason.id ? (
+                            <div className="flex items-center gap-2">
+                              <Input
+                                value={editingLossReasonName}
+                                onChange={(e) => setEditingLossReasonName(e.target.value)}
+                                className="max-w-xs"
+                                placeholder="Motivo da perda"
+                              />
                               <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => {
-                                  console.log(`🖱️ Clique no botão editar - ID: ${reason.id}, Motivo: ${reason.reason}`);
-                                  handleEditLossReason(reason.id, reason.reason);
-                                }}
+                                size="sm" 
+                                onClick={handleSaveLossReason}
+                                disabled={!editingLossReasonName.trim()}
                               >
-                                <Edit className="h-4 w-4" />
+                                <Check className="h-4 w-4" />
                               </Button>
                               <Button 
+                                size="sm" 
                                 variant="outline" 
-                                size="sm"
-                                onClick={() => {
-                                  console.log(`🖱️ Clique no botão excluir - ID: ${reason.id}, Motivo: ${reason.reason}`);
-                                  handleDeleteLossReasonClick(reason.id, reason.reason);
-                                }}
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                onClick={handleCancelEditLossReason}
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <X className="h-4 w-4" />
                               </Button>
+                            </div>
+                          ) : (
+                            <div>
+                              <h5 className="font-medium text-gray-900">{reason.reason}</h5>
+                              {reason.is_fixed && (
+                                <Badge variant="secondary" className="text-xs mt-1">
+                                  Sistema
+                                </Badge>
+                              )}
                             </div>
                           )}
                         </div>
+                        {editingLossReason !== reason.id && (
+                          <div className="flex gap-2">
+                            {!reason.is_fixed && (
+                              <>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => handleEditLossReason(reason.id, reason.reason)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => handleDeleteLossReason(reason.id, reason.reason)}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
-                    );
-                  })
+                    </div>
+                  ))
                 )}
               </div>
             </ScrollArea>
@@ -1461,15 +1421,6 @@ export function SettingsContent() {
         companyInfo={companyInfo}
         onSave={updateCompanyInfo}
         isLoading={isLoadingCompany}
-      />
-
-      {/* Diálogo de confirmação para exclusão de motivos de perda */}
-      <ConfirmDeleteDialog
-        open={deleteConfirmDialog.open}
-        onOpenChange={handleCancelDeleteLossReason}
-        itemName={deleteConfirmDialog.reasonName}
-        itemType="motivo de perda"
-        onConfirm={handleConfirmDeleteLossReason}
       />
     </div>
   );
