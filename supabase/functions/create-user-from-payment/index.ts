@@ -100,6 +100,8 @@ serve(async (req) => {
       // Don't throw error here as user was created successfully
     }
 
+    console.log('User profile created for:', customerData.name);
+
     // Clean up pending purchase after successful user creation
     const { error: deleteError } = await supabase
       .from('pending_purchases')

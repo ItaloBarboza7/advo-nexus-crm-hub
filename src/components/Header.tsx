@@ -41,11 +41,12 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
 
   const loadUserProfile = async () => {
     try {
-      // Primeiro tentar carregar o perfil do banco de dados para o usuário atual
+      // Obter o usuário atual
       const { data: { user: currentUser } } = await supabase.auth.getUser()
       
       if (!currentUser) return
 
+      // Primeiro tentar carregar do perfil do usuário no banco
       const { data: profiles, error } = await supabase
         .from('user_profiles')
         .select('*')
@@ -53,18 +54,12 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
 
       if (error) {
         console.error('Erro ao carregar perfil:', error)
-        // Se houver erro ou não encontrar perfil, usar dados dos metadados do usuário
-        setUserProfile({
-          name: currentUser.user_metadata?.name || currentUser.email?.split('@')[0] || "Usuário",
-          avatar_url: "",
-        })
-        return
       }
 
       if (profiles && profiles.length > 0) {
         const profile = profiles[0]
         setUserProfile({
-          name: profile.name || "Usuário",
+          name: profile.name || currentUser.user_metadata?.name || currentUser.email?.split('@')[0] || "Usuário",
           avatar_url: profile.avatar_url || "",
         })
       } else {

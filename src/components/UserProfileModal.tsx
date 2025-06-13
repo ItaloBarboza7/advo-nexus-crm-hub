@@ -31,14 +31,6 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    // Puxar email e telefone da empresa automaticamente
-    if (companyInfo) {
-      setEmail(companyInfo.email || "");
-      setPhone(companyInfo.phone || "");
-    }
-  }, [companyInfo]);
-
   const loadUserProfile = async () => {
     try {
       setIsLoading(true);
@@ -48,7 +40,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
       
       if (!user) return;
 
-      // Buscar perfil do usuário atual
+      // Buscar perfil do usuário atual no banco
       const { data: profiles, error } = await supabase
         .from('user_profiles')
         .select('*')
@@ -56,21 +48,28 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
 
       if (error) {
         console.error('Erro ao carregar perfil:', error);
-        // Se houver erro, usar dados dos metadados do usuário
-        setName(user.user_metadata?.name || "");
-        setAvatar("");
-        return;
       }
 
       if (profiles && profiles.length > 0) {
         const profile = profiles[0];
         setName(profile.name || "");
+        setEmail(profile.email || user.email || "");
+        setPhone(profile.phone || "");
         setAvatar(profile.avatar_url || "");
-        // Email e telefone serão preenchidos pela empresa via useEffect acima
       } else {
         // Se não há perfil no banco, usar dados dos metadados do usuário
         setName(user.user_metadata?.name || "");
+        setEmail(user.email || "");
+        setPhone(user.user_metadata?.phone || "");
         setAvatar("");
+      }
+
+      // Se ainda não temos dados e há informações da empresa, usar essas
+      if (companyInfo && !email) {
+        setEmail(companyInfo.email || "");
+      }
+      if (companyInfo && !phone) {
+        setPhone(companyInfo.phone || "");
       }
     } catch (error) {
       console.error('Erro ao carregar perfil:', error);
@@ -196,11 +195,6 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
                 placeholder="seu@email.com"
                 disabled={isLoading}
               />
-              {companyInfo && (
-                <p className="text-xs text-muted-foreground">
-                  * Preenchido automaticamente com dados da empresa
-                </p>
-              )}
             </div>
 
             <div className="space-y-2">
@@ -212,11 +206,6 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
                 placeholder="(XX) XXXXX-XXXX"
                 disabled={isLoading}
               />
-              {companyInfo && (
-                <p className="text-xs text-muted-foreground">
-                  * Preenchido automaticamente com dados da empresa
-                </p>
-              )}
             </div>
 
             {/* Actions */}

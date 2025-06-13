@@ -14,15 +14,36 @@ interface CompanyInfoModalProps {
 
 export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
   const [companyName, setCompanyName] = useState("");
-  const [cnpj, setCnpj] = useState("");
+  const [cpfCnpj, setCpfCnpj] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [cep, setCep] = useState("");
   const [address, setAddress] = useState("");
+  const [neighborhood, setNeighborhood] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
+  useEffect(() => {
+    if (isOpen) {
+      loadUserEmail();
+    }
+  }, [isOpen]);
+
+  const loadUserEmail = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setEmail(user.email || "");
+      }
+    } catch (error) {
+      console.error('Erro ao carregar email do usuário:', error);
+    }
+  };
+
   const handleSave = async () => {
-    if (!companyName || !cnpj || !phone || !email || !address) {
+    if (!companyName || !cpfCnpj || !phone || !email || !cep || !address || !neighborhood || !city || !state) {
       toast({
         title: "Campos obrigatórios",
         description: "Por favor, preencha todos os campos.",
@@ -45,15 +66,18 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
         return;
       }
 
+      // Concatenar endereço completo
+      const fullAddress = `${address}, ${neighborhood}, ${city}, ${state}, CEP: ${cep}`;
+
       const { error } = await supabase
         .from('company_info')
         .upsert({
           user_id: user.id,
           company_name: companyName,
-          cnpj,
+          cnpj: cpfCnpj,
           phone,
           email,
-          address
+          address: fullAddress
         });
 
       if (error) {
@@ -88,30 +112,30 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={() => {}} modal>
-      <DialogContent className="sm:max-w-[500px]" onInteractOutside={(e) => e.preventDefault()}>
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">Informações da Empresa</DialogTitle>
         </DialogHeader>
         
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="companyName">Nome da Empresa *</Label>
+            <Label htmlFor="companyName">Nome/Razão Social *</Label>
             <Input
               id="companyName"
               value={companyName}
               onChange={(e) => setCompanyName(e.target.value)}
-              placeholder="Digite o nome da empresa"
+              placeholder="Digite o nome ou razão social da empresa"
               disabled={isLoading}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="cnpj">CNPJ *</Label>
+            <Label htmlFor="cpfCnpj">CPF/CNPJ *</Label>
             <Input
-              id="cnpj"
-              value={cnpj}
-              onChange={(e) => setCnpj(e.target.value)}
-              placeholder="XX.XXX.XXX/XXXX-XX"
+              id="cpfCnpj"
+              value={cpfCnpj}
+              onChange={(e) => setCpfCnpj(e.target.value)}
+              placeholder="XXX.XXX.XXX-XX ou XX.XXX.XXX/XXXX-XX"
               disabled={isLoading}
             />
           </div>
@@ -136,6 +160,21 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="empresa@exemplo.com"
               disabled={isLoading}
+              className="bg-muted"
+            />
+            <p className="text-xs text-muted-foreground">
+              * E-mail preenchido automaticamente da conta
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="cep">CEP *</Label>
+            <Input
+              id="cep"
+              value={cep}
+              onChange={(e) => setCep(e.target.value)}
+              placeholder="XXXXX-XXX"
+              disabled={isLoading}
             />
           </div>
 
@@ -145,7 +184,40 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
               id="address"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
-              placeholder="Rua, número, bairro, cidade, estado"
+              placeholder="Rua, Avenida, número"
+              disabled={isLoading}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="neighborhood">Bairro *</Label>
+            <Input
+              id="neighborhood"
+              value={neighborhood}
+              onChange={(e) => setNeighborhood(e.target.value)}
+              placeholder="Nome do bairro"
+              disabled={isLoading}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="city">Cidade *</Label>
+            <Input
+              id="city"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              placeholder="Nome da cidade"
+              disabled={isLoading}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="state">Estado *</Label>
+            <Input
+              id="state"
+              value={state}
+              onChange={(e) => setState(e.target.value)}
+              placeholder="Nome do estado"
               disabled={isLoading}
             />
           </div>
