@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -40,10 +39,23 @@ export function AddMemberModal({ isOpen, onClose, onMemberAdded }: AddMemberModa
     setIsLoading(true);
 
     try {
+      // Get current user for user_id
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Usuário não encontrado. Faça login novamente.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       // Criar perfil no banco de dados
       const { data: profile, error: profileError } = await supabase
         .from('user_profiles')
         .insert([{
+          user_id: user.id, // Add the required user_id field
           name,
           email,
           phone,
