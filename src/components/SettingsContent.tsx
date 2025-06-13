@@ -294,8 +294,8 @@ export function SettingsContent() {
             setDeleteColumnId(null);
           }
         }}
-        title="Deletar Coluna"
-        description="Tem certeza que deseja deletar esta coluna? Todos os leads nesta coluna serão movidos para 'Finalizado'."
+        itemName="esta coluna"
+        itemType="a coluna do Kanban"
       />
     </div>
   );
