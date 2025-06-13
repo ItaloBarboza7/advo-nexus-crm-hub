@@ -8,7 +8,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Camera } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useCompanyInfo } from "@/hooks/useCompanyInfo";
 
 interface UserProfileModalProps {
   isOpen: boolean;
@@ -23,7 +22,6 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   
   const { toast } = useToast();
-  const { companyInfo } = useCompanyInfo();
 
   useEffect(() => {
     if (isOpen) {
@@ -40,6 +38,9 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
       
       if (!user) return;
 
+      console.log('Loading profile for user:', user.id);
+      console.log('User metadata:', user.user_metadata);
+
       // Buscar perfil do usuário atual no banco
       const { data: profiles, error } = await supabase
         .from('user_profiles')
@@ -52,24 +53,18 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
 
       if (profiles && profiles.length > 0) {
         const profile = profiles[0];
+        console.log('Profile found in database:', profile);
         setName(profile.name || "");
         setEmail(profile.email || user.email || "");
         setPhone(profile.phone || "");
         setAvatar(profile.avatar_url || "");
       } else {
         // Se não há perfil no banco, usar dados dos metadados do usuário
+        console.log('No profile in database, using user metadata');
         setName(user.user_metadata?.name || "");
         setEmail(user.email || "");
         setPhone(user.user_metadata?.phone || "");
         setAvatar("");
-      }
-
-      // Se ainda não temos dados e há informações da empresa, usar essas
-      if (companyInfo && !email) {
-        setEmail(companyInfo.email || "");
-      }
-      if (companyInfo && !phone) {
-        setPhone(companyInfo.phone || "");
       }
     } catch (error) {
       console.error('Erro ao carregar perfil:', error);

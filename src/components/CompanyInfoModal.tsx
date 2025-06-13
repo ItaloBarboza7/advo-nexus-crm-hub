@@ -157,13 +157,12 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
               id="email"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="empresa@exemplo.com"
-              disabled={isLoading}
-              className="bg-muted"
+              readOnly
+              disabled
+              className="bg-muted cursor-not-allowed"
             />
             <p className="text-xs text-muted-foreground">
-              * E-mail preenchido automaticamente da conta
+              * E-mail da conta (não editável)
             </p>
           </div>
 

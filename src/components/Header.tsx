@@ -46,6 +46,8 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
       
       if (!currentUser) return
 
+      console.log('User metadata:', currentUser.user_metadata)
+
       // Primeiro tentar carregar do perfil do usuário no banco
       const { data: profiles, error } = await supabase
         .from('user_profiles')
@@ -58,12 +60,14 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
 
       if (profiles && profiles.length > 0) {
         const profile = profiles[0]
+        console.log('Profile found:', profile)
         setUserProfile({
           name: profile.name || currentUser.user_metadata?.name || currentUser.email?.split('@')[0] || "Usuário",
           avatar_url: profile.avatar_url || "",
         })
       } else {
         // Se não há perfil no banco, usar dados dos metadados do usuário
+        console.log('No profile found, using metadata')
         setUserProfile({
           name: currentUser.user_metadata?.name || currentUser.email?.split('@')[0] || "Usuário",
           avatar_url: "",
