@@ -230,6 +230,29 @@ export function useLossReasonsGlobal() {
     }
   }, []);
 
+  // Função para atualizar leads que usam um motivo específico para "outros"
+  const updateLeadsToOthers = useCallback(async (oldReason: string): Promise<boolean> => {
+    console.log(`🔄 useLossReasonsGlobal - Atualizando leads que usam "${oldReason}" para "outros"`);
+    
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .update({ loss_reason: 'outros' })
+        .eq('loss_reason', oldReason);
+
+      if (error) {
+        console.error('❌ Erro ao atualizar leads para "outros":', error);
+        return false;
+      }
+
+      console.log(`✅ useLossReasonsGlobal - Leads atualizados com sucesso para "outros"`);
+      return true;
+    } catch (error) {
+      console.error('❌ Erro inesperado ao atualizar leads:', error);
+      return false;
+    }
+  }, []);
+
   // Função para excluir um motivo
   const deleteLossReason = useCallback(async (id: string) => {
     console.log(`🗑️ useLossReasonsGlobal - Iniciando exclusão do motivo ID: ${id}`);
@@ -261,13 +284,21 @@ export function useLossReasonsGlobal() {
       const leadsCount = await checkLeadsUsingReason(reasonToDelete.reason);
       
       if (leadsCount > 0) {
-        console.log(`⚠️ useLossReasonsGlobal - Motivo "${reasonToDelete.reason}" está em uso por ${leadsCount} leads`);
-        toast({
-          title: "Não é possível excluir",
-          description: `Este motivo está sendo usado por ${leadsCount} lead(s). Para excluir, primeiro altere o motivo destes leads.`,
-          variant: "destructive"
-        });
-        return false;
+        console.log(`🔄 useLossReasonsGlobal - Motivo "${reasonToDelete.reason}" está em uso por ${leadsCount} leads. Atualizando para "outros"...`);
+        
+        // Atualizar todos os leads que usam este motivo para "outros"
+        const updateSuccess = await updateLeadsToOthers(reasonToDelete.reason);
+        
+        if (!updateSuccess) {
+          toast({
+            title: "Erro",
+            description: "Não foi possível atualizar os leads que usam este motivo.",
+            variant: "destructive"
+          });
+          return false;
+        }
+
+        console.log(`✅ useLossReasonsGlobal - ${leadsCount} leads atualizados para "outros" com sucesso`);
       }
 
       // Excluir o motivo de perda
@@ -292,9 +323,13 @@ export function useLossReasonsGlobal() {
       // Atualizar estado global imediatamente
       await updateGlobalState();
       
+      const successMessage = leadsCount > 0 
+        ? `Motivo de perda excluído com sucesso. ${leadsCount} lead(s) foram alterados para "outros".`
+        : "Motivo de perda excluído com sucesso.";
+        
       toast({
         title: "Sucesso",
-        description: "Motivo de perda excluído com sucesso.",
+        description: successMessage,
       });
       return true;
     } catch (error) {
@@ -306,7 +341,7 @@ export function useLossReasonsGlobal() {
       });
       return false;
     }
-  }, [toast, checkLeadsUsingReason]);
+  }, [toast, checkLeadsUsingReason, updateLeadsToOthers]);
 
   console.log(`🔍 useLossReasonsGlobal - Hook retornando ${localLossReasons.length} motivos`);
 
