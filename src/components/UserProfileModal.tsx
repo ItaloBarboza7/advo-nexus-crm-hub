@@ -107,13 +107,18 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
         console.error('Erro ao verificar perfil existente:', checkError);
       }
 
-      const upsertData = {
+      let upsertData = {
         user_id: user.id,
         name: name.trim(),
         email: email.trim() || null,
         phone: phone.trim() || null,
         avatar_url: avatar.trim() || null,
       };
+
+      // Se existe um perfil, incluir o ID para update
+      if (existingProfile) {
+        upsertData = { ...upsertData, id: existingProfile.id };
+      }
 
       const { error } = await supabase
         .from('user_profiles')

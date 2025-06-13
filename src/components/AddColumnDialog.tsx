@@ -25,15 +25,16 @@ interface KanbanColumn {
 }
 
 interface AddColumnDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onColumnAdded: () => void;
+  isOpen: boolean;
+  onClose: () => void;
+  onAddColumn: (columnData: { name: string; color: string; order: number }) => void;
+  maxOrder: number;
 }
 
-export function AddColumnDialog({ open, onOpenChange, onColumnAdded }: AddColumnDialogProps) {
+export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddColumnDialogProps) {
   const [columnName, setColumnName] = useState("");
   const [columnColor, setColumnColor] = useState("#3B82F6");
-  const [columnOrder, setColumnOrder] = useState(1);
+  const [columnOrder, setColumnOrder] = useState(maxOrder + 1);
   const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([]);
   const [isLoadingColumns, setIsLoadingColumns] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -54,11 +55,6 @@ export function AddColumnDialog({ open, onOpenChange, onColumnAdded }: AddColumn
       }
 
       setKanbanColumns(data || []);
-      // Set the next order position
-      if (data && data.length > 0) {
-        const maxOrder = Math.max(...data.map(col => col.order_position));
-        setColumnOrder(maxOrder + 1);
-      }
     } catch (error) {
       console.error('Erro inesperado ao buscar colunas:', error);
     } finally {
@@ -66,50 +62,22 @@ export function AddColumnDialog({ open, onOpenChange, onColumnAdded }: AddColumn
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!columnName.trim()) {
       return;
     }
 
-    try {
-      const { error } = await supabase
-        .from('kanban_columns')
-        .insert({
-          name: columnName.trim(),
-          color: columnColor,
-          order_position: columnOrder,
-        });
+    onAddColumn({
+      name: columnName.trim(),
+      color: columnColor,
+      order: columnOrder,
+    });
 
-      if (error) {
-        console.error('Erro ao criar coluna:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível criar a coluna.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      toast({
-        title: "Sucesso",
-        description: "Coluna criada com sucesso.",
-      });
-
-      // Reset form
-      setColumnName("");
-      setColumnColor("#3B82F6");
-      
-      // Refresh columns and call parent callback
-      await fetchKanbanColumns();
-      onColumnAdded();
-    } catch (error) {
-      console.error('Erro inesperado ao criar coluna:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado.",
-        variant: "destructive"
-      });
-    }
+    // Reset form
+    setColumnName("");
+    setColumnColor("#3B82F6");
+    setColumnOrder(maxOrder + 1);
+    fetchKanbanColumns();
   };
 
   const handleDeleteClick = (column: KanbanColumn) => {
@@ -150,7 +118,6 @@ export function AddColumnDialog({ open, onOpenChange, onColumnAdded }: AddColumn
       });
 
       fetchKanbanColumns();
-      onColumnAdded(); // Refresh parent data
     } catch (error) {
       console.error('Erro inesperado ao excluir coluna:', error);
       toast({
@@ -165,23 +132,23 @@ export function AddColumnDialog({ open, onOpenChange, onColumnAdded }: AddColumn
     // Reset form when closing
     setColumnName("");
     setColumnColor("#3B82F6");
-    onOpenChange(false);
+    setColumnOrder(maxOrder + 1);
+    onClose();
   };
 
   // Generate order options
-  const maxOrder = kanbanColumns.length > 0 ? Math.max(...kanbanColumns.map(col => col.order_position)) : 0;
   const orderOptions = Array.from({ length: maxOrder + 1 }, (_, i) => i + 1);
 
   // Carregar colunas quando o diálogo abre
   useEffect(() => {
-    if (open) {
+    if (isOpen) {
       fetchKanbanColumns();
     }
-  }, [open]);
+  }, [isOpen]);
 
   return (
     <>
-      <Dialog open={open} onOpenChange={handleClose}>
+      <Dialog open={isOpen} onOpenChange={handleClose}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Gerenciar Colunas do Kanban</DialogTitle>
