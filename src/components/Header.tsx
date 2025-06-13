@@ -1,4 +1,3 @@
-
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import { GlobalSearch } from "./GlobalSearch"
@@ -48,18 +47,18 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
 
       console.log('User metadata:', currentUser.user_metadata)
 
-      // Primeiro tentar carregar do perfil do usuário no banco
-      const { data: profiles, error } = await supabase
+      // Buscar perfil do usuário atual no banco usando RLS
+      const { data: profile, error } = await supabase
         .from('user_profiles')
         .select('*')
-        .limit(1)
+        .eq('user_id', currentUser.id)
+        .maybeSingle()
 
       if (error) {
         console.error('Erro ao carregar perfil:', error)
       }
 
-      if (profiles && profiles.length > 0) {
-        const profile = profiles[0]
+      if (profile) {
         console.log('Profile found:', profile)
         setUserProfile({
           name: profile.name || currentUser.user_metadata?.name || currentUser.email?.split('@')[0] || "Usuário",

@@ -41,18 +41,18 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
       console.log('Loading profile for user:', user.id);
       console.log('User metadata:', user.user_metadata);
 
-      // Buscar perfil do usuário atual no banco
-      const { data: profiles, error } = await supabase
+      // Buscar perfil do usuário atual no banco usando RLS
+      const { data: profile, error } = await supabase
         .from('user_profiles')
         .select('*')
-        .limit(1);
+        .eq('user_id', user.id)
+        .maybeSingle();
 
       if (error) {
         console.error('Erro ao carregar perfil:', error);
       }
 
-      if (profiles && profiles.length > 0) {
-        const profile = profiles[0];
+      if (profile) {
         console.log('Profile found in database:', profile);
         setName(profile.name || "");
         setEmail(profile.email || user.email || "");
@@ -85,9 +85,21 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
 
     setIsLoading(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Usuário não encontrado. Faça login novamente.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from('user_profiles')
         .upsert({
+          user_id: user.id,
           name: name.trim(),
           email: email.trim() || null,
           phone: phone.trim() || null,
