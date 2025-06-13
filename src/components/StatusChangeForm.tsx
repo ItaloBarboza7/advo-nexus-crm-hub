@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -40,15 +39,24 @@ export function StatusChangeForm({ lead, open, onOpenChange, onStatusChanged, ka
   const [selectedStatus, setSelectedStatus] = useState("");
   const [lossReason, setLossReason] = useState("");
   const [customLossReason, setCustomLossReason] = useState("");
+  const [isFormReady, setIsFormReady] = useState(false);
   const { updateLeadStatus, isUpdating } = useLeadStatusUpdate();
 
   useEffect(() => {
-    if (lead && open) {
+    if (lead && open && kanbanColumns.length > 0) {
+      console.log("🔄 StatusChangeForm - Inicializando com lead:", lead.name, "Status:", lead.status);
       setSelectedStatus(lead.status);
       setLossReason(lead.loss_reason || "");
       setCustomLossReason("");
+      setIsFormReady(true);
+    } else if (!open) {
+      // Reset quando o modal fechar
+      setIsFormReady(false);
+      setSelectedStatus("");
+      setLossReason("");
+      setCustomLossReason("");
     }
-  }, [lead, open]);
+  }, [lead, open, kanbanColumns]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,6 +89,25 @@ export function StatusChangeForm({ lead, open, onOpenChange, onStatusChanged, ka
   };
 
   const showLossReasonField = selectedStatus === "Perdido";
+
+  // Mostrar loading enquanto o formulário não estiver pronto
+  if (!isFormReady) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Alterar Status do Lead</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center justify-center p-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Carregando...</p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

@@ -57,6 +57,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
   const [showNewOptionInput, setShowNewOptionInput] = useState<string | null>(null);
   const [newOptionValue, setNewOptionValue] = useState("");
   const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([]);
+  const [kanbanColumnsLoaded, setKanbanColumnsLoaded] = useState(false);
   const { toast } = useToast();
   const { 
     sourceOptions, 
@@ -72,26 +73,38 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
 
   const fetchKanbanColumns = async () => {
     try {
+      console.log("🔄 EditLeadForm - Carregando colunas do Kanban...");
       const { data, error } = await supabase
         .from('kanban_columns')
         .select('*')
         .order('order_position', { ascending: true });
 
       if (error) {
-        console.error('Erro ao buscar colunas do Kanban:', error);
+        console.error('❌ Erro ao buscar colunas do Kanban:', error);
         return;
       }
 
+      console.log("✅ EditLeadForm - Colunas do Kanban carregadas:", data);
       setKanbanColumns(data || []);
+      setKanbanColumnsLoaded(true);
     } catch (error) {
-      console.error('Erro inesperado ao buscar colunas:', error);
+      console.error('❌ Erro inesperado ao buscar colunas:', error);
+      setKanbanColumnsLoaded(true); // Marcar como carregado mesmo com erro
     }
   };
 
-  // Update form data when lead changes
+  // Carregar colunas do Kanban quando o modal for aberto
   useEffect(() => {
-    if (lead && open) {
-      console.log("🔄 EditLeadForm - Carregando dados do lead:", lead);
+    if (open && !kanbanColumnsLoaded) {
+      console.log("🚀 EditLeadForm - Modal aberto, carregando colunas do Kanban...");
+      fetchKanbanColumns();
+    }
+  }, [open, kanbanColumnsLoaded]);
+
+  // Atualizar dados do formulário apenas quando o lead E as colunas estiverem carregados
+  useEffect(() => {
+    if (lead && open && kanbanColumnsLoaded) {
+      console.log("🔄 EditLeadForm - Carregando dados do lead após colunas estarem prontas:", lead);
       
       // Salvar dados originais do lead
       setOriginalLeadData(lead);
@@ -102,7 +115,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
         phone: lead.phone || "",
         state: lead.state || "",
         source: lead.source || "",
-        status: lead.status || "",
+        status: lead.status || "", // Este será preenchido corretamente agora
         action_group: lead.action_group || "",
         action_type: lead.action_type || "",
         value: lead.value?.toString() || "",
@@ -110,14 +123,19 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
         loss_reason: lead.loss_reason || "",
       };
       
-      console.log("📋 EditLeadForm - Dados iniciais do formulário:", initialData);
+      console.log("📋 EditLeadForm - Dados iniciais do formulário com status:", initialData);
       setFormData(initialData);
     }
-  }, [lead, open]);
+  }, [lead, open, kanbanColumnsLoaded]);
 
+  // Reset quando o modal fechar
   useEffect(() => {
-    if (open) {
-      fetchKanbanColumns();
+    if (!open) {
+      console.log("❌ EditLeadForm - Modal fechado, resetando estados...");
+      setKanbanColumnsLoaded(false);
+      setKanbanColumns([]);
+      setShowNewOptionInput(null);
+      setNewOptionValue("");
     }
   }, [open]);
 
@@ -184,7 +202,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
         .eq('id', lead.id);
 
       if (error) {
-        console.error('Erro ao atualizar lead:', error);
+        console.error('❌ Erro ao atualizar lead:', error);
         toast({
           title: "Erro",
           description: "Não foi possível atualizar o lead.",
@@ -203,7 +221,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
       onLeadUpdated();
       onOpenChange(false);
     } catch (error) {
-      console.error('Erro inesperado ao atualizar lead:', error);
+      console.error('❌ Erro inesperado ao atualizar lead:', error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado.",
@@ -372,7 +390,8 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
 
   if (!lead) return null;
 
-  if (optionsLoading) {
+  // Mostrar loading enquanto as opções ou colunas do Kanban estão carregando
+  if (optionsLoading || !kanbanColumnsLoaded) {
     return (
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -382,7 +401,9 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
           <div className="flex items-center justify-center p-8">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Carregando opções...</p>
+              <p className="text-gray-600">
+                {optionsLoading ? "Carregando opções..." : "Carregando status..."}
+              </p>
             </div>
           </div>
         </DialogContent>
@@ -510,7 +531,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
+              <Label htmlFor="status">Status *</Label>
               <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o status" />
