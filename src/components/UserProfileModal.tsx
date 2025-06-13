@@ -96,69 +96,24 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
         return;
       }
 
-      // Verificar se já existe um perfil para este usuário
-      const { data: existingProfile, error: checkError } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (checkError) {
-        console.error('Erro ao verificar perfil existente:', checkError);
-      }
-
-      let upsertData = {
-        user_id: user.id,
-        name: name.trim(),
-        email: email.trim() || null,
-        phone: phone.trim() || null,
-        avatar_url: avatar.trim() || null,
-      };
-
-      // Se existe um perfil, incluir o ID para update
-      if (existingProfile) {
-        upsertData = { ...upsertData, id: existingProfile.id };
-      }
-
       const { error } = await supabase
         .from('user_profiles')
-        .upsert(upsertData, {
-          onConflict: 'user_id',
-          ignoreDuplicates: false
+        .upsert({
+          user_id: user.id,
+          name: name.trim(),
+          email: email.trim() || null,
+          phone: phone.trim() || null,
+          avatar_url: avatar.trim() || null,
         });
 
       if (error) {
         console.error('Erro ao salvar perfil:', error);
-        
-        // Tentar um update direto se o upsert falhou
-        if (existingProfile) {
-          const { error: updateError } = await supabase
-            .from('user_profiles')
-            .update({
-              name: name.trim(),
-              email: email.trim() || null,
-              phone: phone.trim() || null,
-              avatar_url: avatar.trim() || null,
-            })
-            .eq('user_id', user.id);
-
-          if (updateError) {
-            console.error('Erro ao fazer update direto:', updateError);
-            toast({
-              title: "Erro",
-              description: "Não foi possível salvar o perfil.",
-              variant: "destructive",
-            });
-            return;
-          }
-        } else {
-          toast({
-            title: "Erro",
-            description: "Não foi possível salvar o perfil.",
-            variant: "destructive",
-          });
-          return;
-        }
+        toast({
+          title: "Erro",
+          description: "Não foi possível salvar o perfil.",
+          variant: "destructive",
+        });
+        return;
       }
 
       toast({
