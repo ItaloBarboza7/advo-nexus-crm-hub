@@ -77,7 +77,7 @@ export function EditCompanyModal({
         
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="companyName">Nome da Empresa *</Label>
+            <Label htmlFor="companyName">Nome/Razão Social *</Label>
             <Input
               id="companyName"
               value={companyName}
@@ -88,12 +88,12 @@ export function EditCompanyModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="cnpj">CNPJ *</Label>
+            <Label htmlFor="cnpj">CPF/CNPJ *</Label>
             <Input
               id="cnpj"
               value={cnpj}
               onChange={(e) => setCnpj(e.target.value)}
-              placeholder="XX.XXX.XXX/XXXX-XX"
+              placeholder="XXX.XXX.XXX-XX ou XX.XXX.XXX/XXXX-XX"
               disabled={isLoading}
             />
           </div>
