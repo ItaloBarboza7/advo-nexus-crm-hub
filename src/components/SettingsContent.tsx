@@ -480,301 +480,55 @@ export function SettingsContent() {
     }
   };
 
-  const handleSaveDashboardSettings = () => {
-    toast({
-      title: "Configurações salvas",
-      description: "As configurações do dashboard foram salvas com sucesso.",
-    });
-  };
+  // Remove a função de salvar pois não é mais utilizada
+  // const handleSaveDashboardSettings = () => {
+  //   toast({
+  //     title: "Configurações salvas",
+  //     description: "As configurações do dashboard foram salvas com sucesso.",
+  //   });
+  // };
 
-  // Funções para gerenciar grupos de ação
-  const handleEditActionGroup = (groupId: string, currentName: string) => {
-    setEditingActionGroup(groupId);
-    setEditingActionGroupName(currentName);
-  };
-
-  const handleSaveActionGroup = async () => {
-    if (!editingActionGroupName.trim() || !editingActionGroup) {
-      toast({
-        title: "Erro",
-        description: "O nome do grupo não pode estar vazio.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('action_groups')
-        .update({ description: editingActionGroupName.trim() })
-        .eq('id', editingActionGroup);
-
-      if (error) {
-        console.error('Erro ao atualizar grupo:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível atualizar o grupo.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      await refreshData();
-      setEditingActionGroup(null);
-      setEditingActionGroupName("");
-
-      toast({
-        title: "Sucesso",
-        description: "Nome do grupo atualizado com sucesso.",
-      });
-    } catch (error) {
-      console.error('Erro inesperado:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleDeleteActionGroup = async (groupId: string) => {
-    try {
-      const { error } = await supabase
-        .from('action_groups')
-        .delete()
-        .eq('id', groupId);
-
-      if (error) {
-        console.error('Erro ao excluir grupo:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível excluir o grupo.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      await refreshData();
-      toast({
-        title: "Sucesso",
-        description: "Grupo de ação excluído com sucesso.",
-      });
-    } catch (error) {
-      console.error('Erro inesperado:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Funções para gerenciar tipos de ação
-  const handleEditActionType = (typeId: string, currentName: string) => {
-    setEditingActionType(typeId);
-    setEditingActionTypeName(currentName);
-  };
-
-  const handleSaveActionType = async () => {
-    if (!editingActionTypeName.trim() || !editingActionType) {
-      toast({
-        title: "Erro",
-        description: "O nome do tipo não pode estar vazio.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('action_types')
-        .update({ name: editingActionTypeName.toLowerCase().replace(/\s+/g, '-') })
-        .eq('id', editingActionType);
-
-      if (error) {
-        console.error('Erro ao atualizar tipo:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível atualizar o tipo.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      await refreshData();
-      setEditingActionType(null);
-      setEditingActionTypeName("");
-
-      toast({
-        title: "Sucesso",
-        description: "Nome do tipo atualizado com sucesso.",
-      });
-    } catch (error) {
-      console.error('Erro inesperado:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleDeleteActionType = async (typeId: string) => {
-    try {
-      const { error } = await supabase
-        .from('action_types')
-        .delete()
-        .eq('id', typeId);
-
-      if (error) {
-        console.error('Erro ao excluir tipo:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível excluir o tipo.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      await refreshData();
-      toast({
-        title: "Sucesso",
-        description: "Tipo de ação excluído com sucesso.",
-      });
-    } catch (error) {
-      console.error('Erro inesperado:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Funções para gerenciar fontes de leads
-  const handleEditLeadSource = (sourceId: string, currentLabel: string) => {
-    setEditingLeadSource(sourceId);
-    setEditingLeadSourceName(currentLabel);
-  };
-
-  const handleSaveLeadSource = async () => {
-    if (!editingLeadSourceName.trim() || !editingLeadSource) {
-      toast({
-        title: "Erro",
-        description: "O nome da fonte não pode estar vazio.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('lead_sources')
-        .update({ label: editingLeadSourceName.trim() })
-        .eq('id', editingLeadSource);
-
-      if (error) {
-        console.error('Erro ao atualizar fonte:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível atualizar a fonte.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      await refreshData();
-      setEditingLeadSource(null);
-      setEditingLeadSourceName("");
-
-      toast({
-        title: "Sucesso",
-        description: "Fonte atualizada com sucesso.",
-      });
-    } catch (error) {
-      console.error('Erro inesperado:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleDeleteLeadSource = async (sourceId: string) => {
-    try {
-      const { error } = await supabase
-        .from('lead_sources')
-        .delete()
-        .eq('id', sourceId);
-
-      if (error) {
-        console.error('Erro ao excluir fonte:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível excluir a fonte.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      await refreshData();
-      toast({
-        title: "Sucesso",
-        description: "Fonte excluída com sucesso.",
-      });
-    } catch (error) {
-      console.error('Erro inesperado:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // SIMPLIFIED LOSS REASON FUNCTIONS - using the hook directly
-  const handleEditLossReason = (reasonId: string, currentReason: string) => {
-    console.log(`✏️ SettingsContent - Iniciando edição do motivo ID: ${reasonId}, valor atual: ${currentReason}`);
-    setEditingLossReason(reasonId);
-    setEditingLossReasonName(currentReason);
-  };
-
-  const handleSaveLossReason = async () => {
-    console.log(`💾 SettingsContent - Salvando edição do motivo ID: ${editingLossReason}, novo valor: ${editingLossReasonName}`);
-    
-    if (!editingLossReasonName.trim() || !editingLossReason) {
-      toast({
-        title: "Erro",
-        description: "O motivo da perda não pode estar vazio.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const success = await updateLossReason(editingLossReason, editingLossReasonName.trim());
-    if (success) {
-      setEditingLossReason(null);
-      setEditingLossReasonName("");
-      console.log(`✅ SettingsContent - Edição salva com sucesso`);
-    }
-  };
-
-  const handleCancelEditLossReason = () => {
-    console.log(`❌ SettingsContent - Cancelando edição do motivo ID: ${editingLossReason}`);
-    setEditingLossReason(null);
-    setEditingLossReasonName("");
-  };
-
-  const handleDeleteLossReason = async (reasonId: string, reasonName: string) => {
-    console.log(`🗑️ SettingsContent - Tentativa de exclusão do motivo ID: ${reasonId}, nome: ${reasonName}`);
-    await deleteLossReason(reasonId);
-  };
-
-  const handleAddLossReasonFromDialog = async () => {
-    console.log(`➕ SettingsContent - Novo motivo adicionado via dialog`);
-    // O hook global já cuida da atualização automática
-  };
+  // Remove o botão "Salvar Configurações" do Dashboard
+  const renderDashboardTab = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-gray-900">Configurações do Dashboard</h3>
+        <p className="text-sm text-gray-600">Gerencie a visibilidade dos componentes do dashboard</p>
+      </div>
+      
+      <Card className="p-6">
+        <h4 className="text-md font-semibold text-gray-900 mb-4">Componentes Disponíveis</h4>
+        <div className="space-y-4">
+          {components.map((component) => (
+            <div key={component.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div>
+                <h5 className="font-medium text-gray-900">{component.name}</h5>
+                <p className="text-sm text-gray-600">{component.description}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-sm ${component.visible ? 'text-green-600' : 'text-gray-600'}`}>
+                  {component.visible ? 'Visível' : 'Oculto'}
+                </span>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handleToggleComponentVisibility(component.id)}
+                >
+                  {component.visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+        {/* Botão de salvar configurações removido */}
+        {/* <div className="mt-6 pt-4 border-t">
+          <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSaveDashboardSettings}>
+            Salvar Configurações
+          </Button>
+        </div> */}
+      </Card>
+    </div>
+  );
 
   const renderCompanyTab = () => {
     // Extrair os campos do companyInfo
@@ -1040,47 +794,6 @@ export function SettingsContent() {
           ))}
         </div>
       )}
-    </div>
-  );
-
-  const renderDashboardTab = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">Configurações do Dashboard</h3>
-        <p className="text-sm text-gray-600">Gerencie a visibilidade dos componentes do dashboard</p>
-      </div>
-      
-      <Card className="p-6">
-        <h4 className="text-md font-semibold text-gray-900 mb-4">Componentes Disponíveis</h4>
-        <div className="space-y-4">
-          {components.map((component) => (
-            <div key={component.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div>
-                <h5 className="font-medium text-gray-900">{component.name}</h5>
-                <p className="text-sm text-gray-600">{component.description}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className={`text-sm ${component.visible ? 'text-green-600' : 'text-gray-600'}`}>
-                  {component.visible ? 'Visível' : 'Oculto'}
-                </span>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => handleToggleComponentVisibility(component.id)}
-                >
-                  {component.visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
-        
-        <div className="mt-6 pt-4 border-t">
-          <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSaveDashboardSettings}>
-            Salvar Configurações
-          </Button>
-        </div>
-      </Card>
     </div>
   );
 
