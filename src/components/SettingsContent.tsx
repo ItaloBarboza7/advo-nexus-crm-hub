@@ -1178,6 +1178,134 @@ export function SettingsContent() {
     );
   };
 
+  const handleSaveActionGroup = async () => {
+    if (!editingActionGroup || !editingActionGroupName.trim()) {
+      toast({ title: "Erro", description: "Nome do grupo não pode ser vazio.", variant: "destructive" });
+      return;
+    }
+    const { error } = await supabase.from('action_groups').update({ name: editingActionGroupName.trim(), description: editingActionGroupName.trim() }).eq('id', editingActionGroup);
+    if (error) {
+      toast({ title: "Erro", description: "Não foi possível atualizar o grupo.", variant: "destructive" });
+    } else {
+      toast({ title: "Sucesso", description: "Grupo atualizado." });
+      setEditingActionGroup(null);
+      setEditingActionGroupName("");
+      refreshData();
+    }
+  };
+
+  const handleEditActionGroup = (id: string, name: string) => {
+    setEditingActionGroup(id);
+    setEditingActionGroupName(name);
+  };
+
+  const handleDeleteActionGroup = async (id: string) => {
+    const hasTypes = actionTypes.some(type => type.action_group_id === id);
+    if (hasTypes) {
+      toast({ title: "Ação bloqueada", description: "Não é possível excluir um grupo que contém tipos de ação. Remova os tipos primeiro.", variant: "destructive" });
+      return;
+    }
+    const { error } = await supabase.from('action_groups').delete().eq('id', id);
+    if (error) {
+      toast({ title: "Erro", description: "Não foi possível excluir o grupo.", variant: "destructive"});
+    } else {
+      toast({ title: "Sucesso", description: "Grupo excluído."});
+      refreshData();
+    }
+  };
+
+  const handleSaveActionType = async () => {
+    if (!editingActionType || !editingActionTypeName.trim()) {
+      toast({ title: "Erro", description: "Nome do tipo de ação não pode ser vazio.", variant: "destructive" });
+      return;
+    }
+    const { error } = await supabase.from('action_types').update({ name: editingActionTypeName.trim() }).eq('id', editingActionType);
+    if (error) {
+      toast({ title: "Erro", description: "Não foi possível atualizar o tipo de ação.", variant: "destructive" });
+    } else {
+      toast({ title: "Sucesso", description: "Tipo de ação atualizado." });
+      setEditingActionType(null);
+      setEditingActionTypeName("");
+      refreshData();
+    }
+  };
+
+  const handleEditActionType = (id: string, name: string) => {
+    setEditingActionType(id);
+    setEditingActionTypeName(name);
+  };
+
+  const handleDeleteActionType = async (id: string) => {
+    const { error } = await supabase.from('action_types').delete().eq('id', id);
+    if (error) {
+      toast({ title: "Erro", description: "Não foi possível excluir o tipo de ação.", variant: "destructive" });
+    } else {
+      toast({ title: "Sucesso", description: "Tipo de ação excluído." });
+      refreshData();
+    }
+  };
+
+  const handleSaveLeadSource = async () => {
+    if (!editingLeadSource || !editingLeadSourceName.trim()) {
+      toast({ title: "Erro", description: "Nome da fonte de lead não pode ser vazio.", variant: "destructive" });
+      return;
+    }
+    const { error } = await supabase.from('lead_sources').update({ label: editingLeadSourceName.trim(), name: editingLeadSourceName.trim().toLowerCase().replace(/\s+/g, '-') }).eq('id', editingLeadSource);
+    if (error) {
+      toast({ title: "Erro", description: "Não foi possível atualizar a fonte de lead.", variant: "destructive" });
+    } else {
+      toast({ title: "Sucesso", description: "Fonte de lead atualizada." });
+      setEditingLeadSource(null);
+      setEditingLeadSourceName("");
+      refreshData();
+    }
+  };
+
+  const handleEditLeadSource = (id: string, name: string) => {
+    setEditingLeadSource(id);
+    setEditingLeadSourceName(name);
+  };
+
+  const handleDeleteLeadSource = async (id: string) => {
+    const { error } = await supabase.from('lead_sources').delete().eq('id', id);
+    if (error) {
+      toast({ title: "Erro", description: "Não foi possível excluir a fonte de lead.", variant: "destructive" });
+    } else {
+      toast({ title: "Sucesso", description: "Fonte de lead excluída." });
+      refreshData();
+    }
+  };
+  
+  const handleSaveLossReason = async () => {
+    if (!editingLossReason || !editingLossReasonName.trim()) {
+      toast({
+        title: "Erro",
+        description: "O motivo não pode estar vazio.",
+        variant: "destructive"
+      });
+      return;
+    }
+    const ok = await updateLossReason(editingLossReason, editingLossReasonName.trim());
+    if (ok) {
+      setEditingLossReason(null);
+      setEditingLossReasonName("");
+    }
+  };
+
+  const handleCancelEditLossReason = () => {
+    setEditingLossReason(null);
+    setEditingLossReasonName("");
+  };
+
+  const handleEditLossReason = (id: string, reason: string) => {
+    setEditingLossReason(id);
+    setEditingLossReasonName(reason);
+  };
+
+  const handleDeleteLossReason = (id: string) => {
+    deleteLossReason(id);
+  };
+
   return (
     <div className="space-y-6">
       <div>
