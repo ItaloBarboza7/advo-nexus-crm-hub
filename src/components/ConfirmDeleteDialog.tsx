@@ -1,4 +1,3 @@
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,6 +15,7 @@ interface ConfirmDeleteDialogProps {
   itemName: string;
   itemType: string;
   onConfirm: () => void;
+  description?: string;
 }
 
 export function ConfirmDeleteDialog({
@@ -23,7 +23,8 @@ export function ConfirmDeleteDialog({
   onOpenChange,
   itemName,
   itemType,
-  onConfirm
+  onConfirm,
+  description
 }: ConfirmDeleteDialogProps) {
   console.log(`🔍 ConfirmDeleteDialog - Renderizado: open=${open}, item="${itemName}", tipo="${itemType}"`);
 
@@ -63,6 +64,9 @@ export function ConfirmDeleteDialog({
             Tem certeza que deseja excluir {itemType} "{itemName}"? 
             Esta ação não pode ser desfeita.
           </AlertDialogDescription>
+          {description && (
+            <div className="mt-2 text-xs text-gray-700">{description}</div>
+          )}
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={handleCancel}>
