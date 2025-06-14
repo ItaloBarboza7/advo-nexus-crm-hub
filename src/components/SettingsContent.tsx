@@ -309,6 +309,13 @@ export function SettingsContent() {
 
   const handleDeleteColumn = async (columnId: string) => {
     try {
+      // Busca a coluna antes de apagar, para saber sua posição
+      const columnToDelete = kanbanColumns.find(col => col.id === columnId);
+      if (!columnToDelete) return;
+
+      const deletedPosition = columnToDelete.order_position;
+
+      // Exclui a coluna
       const { error } = await supabase
         .from('kanban_columns')
         .delete()
@@ -324,12 +331,35 @@ export function SettingsContent() {
         return;
       }
 
-      // Atualizar lista local
-      setKanbanColumns(prev => prev.filter(col => col.id !== columnId));
+      // Atualiza localmente, removendo a coluna
+      const updatedColumns = kanbanColumns.filter(col => col.id !== columnId);
+
+      // Reordena as colunas que vierem depois da excluída
+      // (ou seja, se deletei a posição 2, tudo que for >2 vai para uma posição a menos)
+      const reorderedColumns = updatedColumns
+        .sort((a, b) => a.order_position - b.order_position)
+        .map((col, idx) => ({
+          ...col,
+          order_position: idx + 1
+        }));
+
+      // Atualizar no banco todas as colunas que tiveram order_position alterada
+      for (const col of reorderedColumns) {
+        if (col.order_position !== kanbanColumns.find(c => c.id === col.id)?.order_position) {
+          // Só atualiza se mudou
+          await supabase
+            .from('kanban_columns')
+            .update({ order_position: col.order_position })
+            .eq('id', col.id);
+        }
+      }
+
+      // Atualize o estado local
+      setKanbanColumns(reorderedColumns);
 
       toast({
         title: "Sucesso",
-        description: "Coluna excluída com sucesso.",
+        description: "Coluna excluída e ordem atualizada.",
       });
     } catch (error) {
       console.error('Erro inesperado ao excluir coluna:', error);
