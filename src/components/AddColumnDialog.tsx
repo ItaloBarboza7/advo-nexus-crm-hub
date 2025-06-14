@@ -116,7 +116,7 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddC
 
       toast({
         title: "Sucesso",
-        description: "Coluna excluída com sucesso.",
+        description: "Coluna excluída com sucesso. Todos os leads dessa coluna foram movidos para a coluna 'Novo'.",
       });
 
       fetchKanbanColumns();
@@ -206,6 +206,9 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddC
 
           <div className="border-t pt-4">
             <h4 className="text-sm font-medium mb-3">Colunas Existentes</h4>
+            <div className="text-xs mb-2 text-gray-600">
+              Ao excluir uma coluna, todos os leads dela serão automaticamente movidos para a coluna <span className="font-semibold text-blue-900 bg-blue-100 rounded px-1 py-0.5">Novo</span>.
+            </div>
             {isLoadingColumns ? (
               <div className="text-sm text-gray-500">Carregando...</div>
             ) : kanbanColumns.length === 0 ? (
@@ -255,6 +258,7 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddC
         onOpenChange={setDeleteDialogOpen}
         itemName={columnToDelete?.name || ""}
         itemType="a coluna do Kanban"
+        description="Todos os leads dessa coluna serão movidos automaticamente para a coluna 'Novo'."
         onConfirm={handleDeleteConfirm}
       />
     </>
