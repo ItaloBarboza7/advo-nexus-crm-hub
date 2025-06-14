@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -43,6 +42,7 @@ export const useFilterOptions = () => {
       if (groupsError) {
         console.error('Erro ao buscar grupos de ação:', groupsError);
       } else {
+        console.log('Fetched Action Groups from useFilterOptions:', groupsData);
         setActionGroups(groupsData || []);
       }
 
@@ -55,6 +55,7 @@ export const useFilterOptions = () => {
       if (typesError) {
         console.error('Erro ao buscar tipos de ação:', typesError);
       } else {
+        console.log('Fetched Action Types from useFilterOptions:', typesData);
         setActionTypes(typesData || []);
       }
 

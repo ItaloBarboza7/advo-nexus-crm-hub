@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -36,13 +35,14 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
         .order('description', { ascending: true });
 
       if (error) {
-        console.error('Erro ao buscar grupos:', error);
+        console.error('Erro ao buscar grupos (dialog):', error);
         return;
       }
-
+      
+      console.log('Fetched Action Groups from Dialog:', data);
       setActionGroups(data || []);
     } catch (error) {
-      console.error('Erro inesperado ao buscar grupos:', error);
+      console.error('Erro inesperado ao buscar grupos (dialog):', error);
     } finally {
       setIsLoadingGroups(false);
     }
