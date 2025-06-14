@@ -49,7 +49,7 @@ serve(async (req) => {
     const { data: newAuthUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: email,
       password: password,
-      email_confirm: false, // Set to false for easier testing
+      email_confirm: true, // Mark email as confirmed automatically
     })
 
     if (authError) throw authError;
