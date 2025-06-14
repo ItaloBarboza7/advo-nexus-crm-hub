@@ -8,7 +8,7 @@ import { useLossReasonsGlobal } from "@/hooks/useLossReasonsGlobal";
 interface AddLossReasonDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onReasonAdded: () => Promise<void>;
+  onReasonAdded: () => void;
 }
 
 export function AddLossReasonDialog({ isOpen, onClose, onReasonAdded }: AddLossReasonDialogProps) {
@@ -18,19 +18,20 @@ export function AddLossReasonDialog({ isOpen, onClose, onReasonAdded }: AddLossR
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!reason.trim()) {
       return;
     }
 
     setIsSubmitting(true);
     const success = await addLossReason(reason.trim());
-
+    
     if (success) {
       setReason("");
-      await onReasonAdded(); // Await the promise as defined in new prop
+      onReasonAdded();
       onClose();
     }
-
+    
     setIsSubmitting(false);
   };
 
@@ -45,6 +46,7 @@ export function AddLossReasonDialog({ isOpen, onClose, onReasonAdded }: AddLossR
         <DialogHeader>
           <DialogTitle>Novo Motivo de Perda</DialogTitle>
         </DialogHeader>
+        
         <form onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
@@ -60,6 +62,7 @@ export function AddLossReasonDialog({ isOpen, onClose, onReasonAdded }: AddLossR
               />
             </div>
           </div>
+          
           <DialogFooter className="mt-6">
             <Button type="button" variant="outline" onClick={handleClose}>
               Cancelar
