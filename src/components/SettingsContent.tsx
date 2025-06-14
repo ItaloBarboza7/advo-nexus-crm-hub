@@ -142,29 +142,29 @@ export function SettingsContent() {
         .order('order_position', { ascending: true });
 
       if (error || !data) {
+        console.error('Erro ao buscar colunas para normalizar ordem:', error);
         setIsLoadingColumns(false);
         return;
       }
 
-      // Atribui order_position sequencial para todas as colunas
-      const columnsWithFixedOrder = data.map((col, idx) => ({
-        ...col,
-        order_position: idx + 1,
-      }));
-
-      // Atualiza TODAS as colunas uma a uma
-      for (const col of columnsWithFixedOrder) {
-        // Só faz o update se o order_position está diferente (evita update desnecessário)
-        if (col.order_position !== data.find(c => c.id === col.id)?.order_position) {
+      // Novo: Atualiza TODAS as colunas, atribuindo order_position sequencial, sempre!
+      for (let idx = 0; idx < data.length; idx++) {
+        const col = data[idx];
+        const newOrder = idx + 1;
+        // Agora faz update SEMPRE, garantindo o sequenciamento
+        if (col.order_position !== newOrder) {
+          console.log(`Atualizando coluna "${col.name}" [id: ${col.id}] de ${col.order_position} para ${newOrder}`);
           await supabase
             .from('kanban_columns')
-            .update({ order_position: col.order_position })
+            .update({ order_position: newOrder })
             .eq('id', col.id);
         }
       }
 
-      // Após atualizar, faz um fetch novamente para garantir o estado correto
+      // Após atualizar tudo, pega do banco novamente para garantir o estado certo na UI
       await fetchKanbanColumns();
+
+      console.log('🔄 Finalizou normalização das colunas do Kanban');
     } catch (error) {
       console.error('Erro ao normalizar ordem das colunas:', error);
     } finally {
