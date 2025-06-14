@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -6,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useLeadStatusUpdate } from "@/hooks/useLeadStatusUpdate";
+import { useLossReasonsGlobal } from "@/hooks/useLossReasonsGlobal";
 import { Lead } from "@/types/lead";
 
 interface KanbanColumn {
@@ -41,13 +43,24 @@ export function StatusChangeForm({ lead, open, onOpenChange, onStatusChanged, ka
   const [customLossReason, setCustomLossReason] = useState("");
   const [isFormReady, setIsFormReady] = useState(false);
   const { updateLeadStatus, isUpdating } = useLeadStatusUpdate();
+  const { lossReasons: allLossReasons, loading: lossReasonsLoading } = useLossReasonsGlobal();
 
   useEffect(() => {
-    if (lead && open && kanbanColumns.length > 0) {
+    if (lead && open && kanbanColumns.length > 0 && !lossReasonsLoading) {
       console.log("🔄 StatusChangeForm - Inicializando com lead:", lead.name, "Status:", lead.status);
       setSelectedStatus(lead.status);
-      setLossReason(lead.loss_reason || "");
-      setCustomLossReason("");
+      
+      const lossReasonOptions = allLossReasons.map(r => r.reason);
+      const leadLossReason = lead.loss_reason || "";
+
+      if (leadLossReason && !lossReasonOptions.includes(leadLossReason)) {
+        setLossReason("Outro");
+        setCustomLossReason(leadLossReason);
+      } else {
+        setLossReason(leadLossReason);
+        setCustomLossReason("");
+      }
+
       setIsFormReady(true);
     } else if (!open) {
       // Reset quando o modal fechar
@@ -56,7 +69,7 @@ export function StatusChangeForm({ lead, open, onOpenChange, onStatusChanged, ka
       setLossReason("");
       setCustomLossReason("");
     }
-  }, [lead, open, kanbanColumns]);
+  }, [lead, open, kanbanColumns, allLossReasons, lossReasonsLoading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,12 +77,12 @@ export function StatusChangeForm({ lead, open, onOpenChange, onStatusChanged, ka
     if (!lead || !selectedStatus) return;
 
     // Se está mudando para "Perdido" e não há motivo da perda
-    if (selectedStatus === "Perdido" && !lossReason && !customLossReason) {
+    if (selectedStatus === "Perdido" && !lossReason) {
       return; // O formulário não deve permitir submissão sem motivo
     }
 
     const finalLossReason = selectedStatus === "Perdido" 
-      ? (customLossReason || lossReason) 
+      ? (lossReason === 'Outro' ? customLossReason : lossReason) 
       : undefined;
 
     const success = await updateLeadStatus(lead.id, selectedStatus, finalLossReason);
@@ -91,7 +104,7 @@ export function StatusChangeForm({ lead, open, onOpenChange, onStatusChanged, ka
   const showLossReasonField = selectedStatus === "Perdido";
 
   // Mostrar loading enquanto o formulário não estiver pronto
-  if (!isFormReady) {
+  if (!isFormReady || lossReasonsLoading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-md">
@@ -164,17 +177,17 @@ export function StatusChangeForm({ lead, open, onOpenChange, onStatusChanged, ka
                   <SelectValue placeholder="Selecione o motivo da perda" />
                 </SelectTrigger>
                 <SelectContent>
-                  {COMMON_LOSS_REASONS.map((reason) => (
-                    <SelectItem key={reason} value={reason}>
-                      {reason}
+                  {allLossReasons.map((reason) => (
+                    <SelectItem key={reason.id} value={reason.reason}>
+                      {reason.reason}
                     </SelectItem>
                   ))}
-                  <SelectItem value="Outro">Outro motivo</SelectItem>
+                  <SelectItem value="Outro">Outro motivo (digitar)</SelectItem>
                 </SelectContent>
               </Select>
               
               {lossReason === "Outro" && (
-                <div className="space-y-2">
+                <div className="space-y-2 pt-2">
                   <Label htmlFor="customLossReason">Especifique o motivo</Label>
                   <Textarea
                     id="customLossReason"
@@ -199,7 +212,7 @@ export function StatusChangeForm({ lead, open, onOpenChange, onStatusChanged, ka
             </Button>
             <Button 
               type="submit" 
-              disabled={isUpdating || (showLossReasonField && !lossReason && !customLossReason)}
+              disabled={isUpdating || (showLossReasonField && lossReason === 'Outro' && !customLossReason) || (showLossReasonField && !lossReason)}
               className="flex-1"
             >
               {isUpdating ? "Atualizando..." : "Salvar"}
