@@ -49,11 +49,9 @@ export function SettingsContent() {
   const [isAddLossReasonDialogOpen, setIsAddLossReasonDialogOpen] = useState(false);
   const [isEditCompanyModalOpen, setIsEditCompanyModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
-  const [teamMembers, setTeamMembers] = useState([
-    { id: 1, name: "Maria Silva", email: "maria@empresa.com", role: "Atendimento - SDR", avatar: "MS" },
-    { id: 2, name: "João Santos", email: "joao@empresa.com", role: "Fechamento - Closer", avatar: "JS" },
-    { id: 3, name: "Ana Costa", email: "ana@empresa.com", role: "Atendimento - SDR", avatar: "AC" },
-  ]);
+  
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [isLoadingMembers, setIsLoadingMembers] = useState(true);
 
   // Simulating admin check - in real implementation this would come from auth context
   const isAdmin = true; // This should be replaced with actual admin check logic
@@ -100,6 +98,42 @@ export function SettingsContent() {
   const [editingLossReasonName, setEditingLossReasonName] = useState("");
 
   const { toast } = useToast();
+
+  // Função para carregar membros da equipe
+  const fetchTeamMembers = async () => {
+    setIsLoadingMembers(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profiles, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('parent_user_id', user.id);
+
+      if (error) throw error;
+
+      const members = profiles.map(profile => ({
+        id: profile.user_id, // Member's user_id from auth.users
+        profile_id: profile.id, // The UUID of the profile row itself
+        name: profile.name,
+        email: profile.email,
+        role: profile.title,
+        avatar: profile.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'N/A',
+      }));
+
+      setTeamMembers(members);
+    } catch (error) {
+      console.error("Error fetching team members:", error);
+      toast({
+        title: "Erro ao buscar membros",
+        description: (error as Error).message || "Não foi possível carregar os membros da equipe.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingMembers(false);
+    }
+  };
 
   // Carregar colunas do banco de dados
   const fetchKanbanColumns = async () => {
@@ -202,6 +236,9 @@ export function SettingsContent() {
       console.log(`🔄 SettingsContent - Aba "configurations" ativa, forçando refresh dos motivos de perda...`);
       refreshLossReasons();
     }
+    if (activeTab === "team") {
+      fetchTeamMembers();
+    }
   }, [activeTab, refreshLossReasons]);
 
   // Define tabs based on admin status - Dashboard movido para segunda posição
@@ -215,8 +252,8 @@ export function SettingsContent() {
 
   const tabs = isAdmin ? allTabs : allTabs.filter(tab => tab.id !== "company");
 
-  const handleAddMember = (newMember: any) => {
-    setTeamMembers(prev => [...prev, newMember]);
+  const handleAddMember = () => {
+    fetchTeamMembers();
   };
 
   const handleEditMember = (member: any) => {
@@ -224,19 +261,65 @@ export function SettingsContent() {
     setIsEditMemberModalOpen(true);
   };
 
-  const handleUpdateMember = (updatedMember: any) => {
-    setTeamMembers(prev => prev.map(member => 
-      member.id === updatedMember.id ? updatedMember : member
-    ));
+  const handleUpdateMember = async (updatedMember: any) => {
+    try {
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({
+          name: updatedMember.name,
+          email: updatedMember.email,
+          title: updatedMember.role,
+        })
+        .eq('user_id', updatedMember.id);
+
+      if (error) throw error;
+      
+      // The modal currently calls onMemberUpdated, which triggers this function.
+      // We are overriding the local state update with a DB call.
+      // The toast from EditMemberModal will still fire.
+      
+      fetchTeamMembers(); // Refetch to display updated data
+    } catch(error) {
+      console.error("Error updating member:", error);
+      toast({
+        title: "Erro ao atualizar membro",
+        description: "Ocorreu um erro ao atualizar os dados do membro.",
+        variant: "destructive",
+      });
+    }
     setEditingMember(null);
   };
 
-  const handleDeleteMember = (memberId: number) => {
-    setTeamMembers(prev => prev.filter(member => member.id !== memberId));
-    toast({
-      title: "Membro removido",
-      description: "O membro foi removido da equipe com sucesso.",
-    });
+  const handleDeleteMember = async (memberId: string, memberName: string) => {
+    try {
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .delete()
+        .eq('user_id', memberId);
+
+      if (profileError) throw profileError;
+
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', memberId);
+
+      if (roleError) throw roleError;
+      
+      toast({
+        title: "Membro removido da equipe",
+        description: `O membro ${memberName} foi removido da sua equipe. Para remover o acesso completamente, o usuário precisa ser deletado na área de autenticação do Supabase.`,
+      });
+
+      fetchTeamMembers();
+    } catch (error) {
+      console.error("Error deleting member:", error);
+      toast({
+        title: "Erro ao remover membro",
+        description: "Não foi possível remover o membro da equipe.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleChangePaymentMethod = () => {
@@ -674,40 +757,50 @@ export function SettingsContent() {
           Adicionar Membro
         </Button>
       </div>
-      <div className="space-y-4">
-        {teamMembers.map((member) => (
-          <Card key={member.id} className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center font-semibold">
-                  {member.avatar}
+      {isLoadingMembers ? (
+        <Card className="p-6 text-center">
+          <p className="text-gray-500">Carregando membros da equipe...</p>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {teamMembers.length > 0 ? teamMembers.map((member) => (
+            <Card key={member.id} className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center font-semibold">
+                    {member.avatar}
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-900">{member.name}</h4>
+                    <p className="text-sm text-gray-600">{member.email}</p>
+                  </div>
+                  <Badge variant="outline">{member.role}</Badge>
                 </div>
-                <div>
-                  <h4 className="font-medium text-gray-900">{member.name}</h4>
-                  <p className="text-sm text-gray-600">{member.email}</p>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleEditMember(member)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleDeleteMember(member.id, member.name)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
-                <Badge variant="outline">{member.role}</Badge>
               </div>
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => handleEditMember(member)}
-                >
-                  <Edit className="h-4 w-4" />
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => handleDeleteMember(member.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
+            </Card>
+          )) : (
+            <Card className="p-6 text-center">
+              <p className="text-gray-500">Nenhum membro na equipe ainda. Adicione o primeiro!</p>
+            </Card>
+          )}
+        </div>
+      )}
     </div>
   );
 
