@@ -68,7 +68,33 @@ const Index = () => {
         return
       }
 
-      const role = userRoleData?.role
+      let role = userRoleData?.role
+
+      // Se o usuário não tiver um cargo, ele pode ser o administrador principal. Vamos verificar.
+      if (!role) {
+        const { data: profileData, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('parent_user_id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        // Se houver um perfil e não for um perfil de membro (sem parent_user_id),
+        // este usuário deve ser um administrador.
+        if (profileData && !profileData.parent_user_id && !profileError) {
+          console.log(`Usuário ${user.id} está sem cargo. Atribuindo cargo 'admin'.`);
+          const { error: insertError } = await supabase
+            .from('user_roles')
+            .insert({ user_id: user.id, role: 'admin' });
+
+          if (insertError) {
+            console.error('Erro ao atribuir cargo de admin:', insertError);
+          } else {
+            role = 'admin'; // Atualiza o cargo para a execução atual
+            console.log(`Cargo 'admin' atribuído com sucesso para o usuário ${user.id}.`);
+          }
+        }
+      }
+
       setUserRole(role || null)
 
       // Se o usuário for um 'membro', não mostrar o modal

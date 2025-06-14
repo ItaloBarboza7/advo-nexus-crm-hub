@@ -58,7 +58,7 @@ serve(async (req) => {
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle() // Use maybeSingle to prevent crash on no rows.
 
     if (roleError) {
       console.error('Error checking user role:', roleError)
