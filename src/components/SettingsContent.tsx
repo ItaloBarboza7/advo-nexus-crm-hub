@@ -1178,85 +1178,6 @@ export function SettingsContent() {
     );
   };
 
-  // ADD FUNCTION: handleAddLossReasonFromDialog
-  const handleAddLossReasonFromDialog = async (reason: string) => {
-    if (!reason || !reason.trim()) {
-      toast({
-        title: "Erro",
-        description: "O motivo não pode estar vazio.",
-        variant: "destructive"
-      });
-      return false;
-    }
-    const success = await addLossReason(reason);
-    if (success) {
-      setIsAddLossReasonDialogOpen(false);
-    }
-    return success;
-  };
-
-  // --- STUBS for missing handlers ---
-  // Action Groups
-  const handleSaveActionGroup = () => {
-    toast({ title: "Em breve", description: "Salvar grupo ainda não implementado." });
-  };
-  const handleEditActionGroup = (id: string, name: string) => {
-    setEditingActionGroup(id);
-    setEditingActionGroupName(name);
-  };
-  const handleDeleteActionGroup = (id: string) => {
-    toast({ title: "Em breve", description: "Excluir grupo ainda não implementado." });
-  };
-  // Action Types
-  const handleSaveActionType = () => {
-    toast({ title: "Em breve", description: "Salvar tipo de ação ainda não implementado." });
-  };
-  const handleEditActionType = (id: string, name: string) => {
-    setEditingActionType(id);
-    setEditingActionTypeName(name);
-  };
-  const handleDeleteActionType = (id: string) => {
-    toast({ title: "Em breve", description: "Excluir tipo de ação ainda não implementado." });
-  };
-  // Lead Source
-  const handleSaveLeadSource = () => {
-    toast({ title: "Em breve", description: "Salvar fonte de lead ainda não implementado." });
-  };
-  const handleEditLeadSource = (id: string, name: string) => {
-    setEditingLeadSource(id);
-    setEditingLeadSourceName(name);
-  };
-  const handleDeleteLeadSource = (id: string) => {
-    toast({ title: "Em breve", description: "Excluir fonte de lead ainda não implementado." });
-  };
-  // Loss Reason (inline edit)
-  const handleSaveLossReason = async () => {
-    if (!editingLossReason || !editingLossReasonName.trim()) {
-      toast({
-        title: "Erro",
-        description: "O motivo não pode estar vazio.",
-        variant: "destructive"
-      });
-      return;
-    }
-    const ok = await updateLossReason(editingLossReason, editingLossReasonName.trim());
-    if (ok) {
-      setEditingLossReason(null);
-      setEditingLossReasonName("");
-    }
-  };
-  const handleEditLossReason = (id: string, reason: string) => {
-    setEditingLossReason(id);
-    setEditingLossReasonName(reason);
-  };
-  const handleDeleteLossReason = (id: string, reason: string) => {
-    deleteLossReason(id); // Already provided by hook
-  };
-  const handleCancelEditLossReason = () => {
-    setEditingLossReason(null);
-    setEditingLossReasonName("");
-  };
-
   return (
     <div className="space-y-6">
       <div>
@@ -1330,7 +1251,7 @@ export function SettingsContent() {
       <AddLossReasonDialog
         isOpen={isAddLossReasonDialogOpen}
         onClose={() => setIsAddLossReasonDialogOpen(false)}
-        onReasonAdded={handleAddLossReasonFromDialog}
+        onReasonAdded={refreshLossReasons}
       />
 
       <EditCompanyModal
