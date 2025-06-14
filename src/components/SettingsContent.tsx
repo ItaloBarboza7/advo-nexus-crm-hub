@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,7 +41,9 @@ const refreshData = () => {};
 const actionGroups = [];
 const handleAddLossReasonFromDialog = () => {};
 
-const { companyInfo, isLoading: isLoadingCompany, updateCompanyInfo } = useCompanyInfo();
+// REMOVER ESTE TRECHO DO ESCOPO GLOBAL:
+// const { companyInfo, isLoading: isLoadingCompany, updateCompanyInfo } = useCompanyInfo();
+
 // =========================================================
 
 interface KanbanColumn {
@@ -61,6 +62,9 @@ interface DashboardComponent {
 }
 
 export function SettingsContent() {
+  // MOVE O HOOK PARA DENTRO DO COMPONENTE
+  const { companyInfo, isLoading: isLoadingCompany, updateCompanyInfo } = useCompanyInfo();
+
   const [activeTab, setActiveTab] = useState("company");
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
   const [isEditMemberModalOpen, setIsEditMemberModalOpen] = useState(false);
