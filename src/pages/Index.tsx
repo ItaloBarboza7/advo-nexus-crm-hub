@@ -1,4 +1,3 @@
-
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/AppSidebar"
 import { Header } from "@/components/Header"
@@ -54,13 +53,29 @@ const Index = () => {
 
   const checkFirstLoginAndCompanyInfo = async (user: User) => {
     try {
-      // Verificar se é o primeiro login através dos metadados do usuário
+      // Verificar o cargo do usuário
+      const { data: userRole, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (roleError) {
+        console.error('Erro ao verificar cargo do usuário:', roleError)
+        return
+      }
+
+      // Se o usuário for um 'membro', não mostrar o modal
+      if (userRole?.role === 'member') {
+        return
+      }
+      
+      // Manter a lógica original para o administrador
       const isFirstLogin = user.user_metadata?.is_first_login === true
 
-      // Verificar se já existem informações da empresa no banco
       const { data: companyInfo, error } = await supabase
         .from('company_info')
-        .select('*')
+        .select('id')
         .eq('user_id', user.id)
         .limit(1)
 
@@ -69,11 +84,9 @@ const Index = () => {
         return
       }
 
-      // Se é primeiro login OU não há informações da empresa, mostrar o modal
       if (isFirstLogin || !companyInfo || companyInfo.length === 0) {
         setShowCompanyModal(true)
         
-        // Se era primeiro login, atualizar os metadados para remover a flag
         if (isFirstLogin) {
           await supabase.auth.updateUser({
             data: { 
