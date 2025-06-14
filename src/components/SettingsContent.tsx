@@ -1323,9 +1323,7 @@ export function SettingsContent() {
       <AddLossReasonDialog
         isOpen={isAddLossReasonModalOpen}
         onClose={() => setIsAddLossReasonModalOpen(false)}
-        onReasonAdded={async () => { 
-          await refreshLossReasons();
-        }}
+        onReasonAdded={() => Promise.resolve(refreshLossReasons())}
       />
 
       <EditCompanyModal
