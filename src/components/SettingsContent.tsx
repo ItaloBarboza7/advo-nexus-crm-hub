@@ -23,29 +23,6 @@ import { useCompanyInfo } from "@/hooks/useCompanyInfo";
 import { useLossReasonsGlobal } from "@/hooks/useLossReasonsGlobal";
 import { SubscriptionAndPaymentPanel } from "@/components/SubscriptionAndPaymentPanel";
 
-// DEFINIÇÃO DOS TABS (ícones e títulos)
-// Essa ordem é importante para manter o layout igual ao original
-const tabs = [
-  { id: "company", title: "Empresa", icon: Building },
-  { id: "members", title: "Time", icon: Users },
-  { id: "columns", title: "Colunas", icon: Columns },
-  { id: "dashboard", title: "Dashboard", icon: Settings },
-  { id: "subscription", title: "Assinatura", icon: CreditCard }
-];
-
-// ====== stubs temporários para handlers/variáveis =======
-const handleAddMember = () => {};
-const handleUpdateMember = () => {};
-const handleAddColumn = () => {};
-const refreshData = () => {};
-const actionGroups = [];
-const handleAddLossReasonFromDialog = () => {};
-
-// REMOVER ESTE TRECHO DO ESCOPO GLOBAL:
-// const { companyInfo, isLoading: isLoadingCompany, updateCompanyInfo } = useCompanyInfo();
-
-// =========================================================
-
 interface KanbanColumn {
   id: string;
   name: string;
@@ -62,9 +39,6 @@ interface DashboardComponent {
 }
 
 export function SettingsContent() {
-  // MOVE O HOOK PARA DENTRO DO COMPONENTE
-  const { companyInfo, isLoading: isLoadingCompany, updateCompanyInfo } = useCompanyInfo();
-
   const [activeTab, setActiveTab] = useState("company");
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
   const [isEditMemberModalOpen, setIsEditMemberModalOpen] = useState(false);
@@ -82,6 +56,7 @@ export function SettingsContent() {
   ]);
 
   const isAdmin = true;
+
   const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([]);
   const [isLoadingColumns, setIsLoadingColumns] = useState(true);
 
@@ -89,13 +64,14 @@ export function SettingsContent() {
   const [editingColumnName, setEditingColumnName] = useState("");
 
   const { components, updateComponentVisibility } = useDashboardSettings();
-  const [tempDashboardComponents, setTempDashboardComponents] = useState<DashboardComponent[]>(components);
+
+  const [tempDashboardComponents, setTempDashboardComponents] = useState<DashboardComponent[]>([]);
 
   useEffect(() => {
     setTempDashboardComponents(components);
   }, [components]);
 
-  const handleTempToggleComponentVisibility = (componentId: string) => {
+  const handleToggleComponentVisibility = (componentId: string) => {
     setTempDashboardComponents(prev =>
       prev.map(comp =>
         comp.id === componentId ? { ...comp, visible: !comp.visible } : comp
@@ -103,12 +79,10 @@ export function SettingsContent() {
     );
   };
 
-  const { toast } = useToast();
-
   const handleSaveDashboardSettings = () => {
     tempDashboardComponents.forEach(comp => {
-      const old = components.find(c => c.id === comp.id);
-      if (old && old.visible !== comp.visible) {
+      const original = components.find(c => c.id === comp.id);
+      if (original && original.visible !== comp.visible) {
         updateComponentVisibility(comp.id, comp.visible);
       }
     });
@@ -124,7 +98,7 @@ export function SettingsContent() {
         <h3 className="text-lg font-semibold text-gray-900">Configurações do Dashboard</h3>
         <p className="text-sm text-gray-600">Gerencie a visibilidade dos componentes do dashboard</p>
       </div>
-
+      
       <Card className="p-6">
         <h4 className="text-md font-semibold text-gray-900 mb-4">Componentes Disponíveis</h4>
         <div className="space-y-4">
@@ -138,10 +112,10 @@ export function SettingsContent() {
                 <span className={`text-sm ${component.visible ? 'text-green-600' : 'text-gray-600'}`}>
                   {component.visible ? 'Visível' : 'Oculto'}
                 </span>
-                <Button
-                  variant="outline"
+                <Button 
+                  variant="outline" 
                   size="sm"
-                  onClick={() => handleTempToggleComponentVisibility(component.id)}
+                  onClick={() => handleToggleComponentVisibility(component.id)}
                 >
                   {component.visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
@@ -149,7 +123,7 @@ export function SettingsContent() {
             </div>
           ))}
         </div>
-
+        
         <div className="mt-6 pt-4 border-t">
           <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSaveDashboardSettings}>
             Salvar Configurações
