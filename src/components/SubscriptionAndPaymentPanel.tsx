@@ -19,17 +19,30 @@ export function SubscriptionAndPaymentPanel() {
   const { toast } = useToast();
 
   async function handleChangeCard() {
-    // Correção: utiliza invoke, que já cuida de JWT e endpoint
-    const { data, error } = await supabase.functions.invoke('customer-portal');
-    if (error || !data?.url) {
+    // Adicione logs para depuração
+    console.log("🔄 handleChangeCard: Iniciando chamada à customer-portal Edge Function...");
+    try {
+      // O invoke precisa receber ao menos um objeto body vazio para não dar erro no Supabase.
+      const { data, error } = await supabase.functions.invoke('customer-portal', { body: {} });
+      console.log("🔄 handleChangeCard: Resposta da função", { data, error });
+      if (error || !data?.url) {
+        toast({
+          title: "Erro ao acessar Stripe",
+          description: error?.message || data?.error || "Não foi possível abrir o portal de pagamentos.",
+          variant: "destructive",
+        });
+        return;
+      }
+      window.open(data.url, "_blank");
+    } catch (err: any) {
+      // Trata falhas inesperadas no invoke ou erro de rede
+      console.error("❗ Erro inesperado no handleChangeCard", err);
       toast({
-        title: "Erro ao acessar Stripe",
-        description: error?.message || data?.error || "Não foi possível abrir o portal de pagamentos.",
+        title: "Erro de conexão",
+        description: err?.message || String(err),
         variant: "destructive",
       });
-      return;
     }
-    window.open(data.url, "_blank");
   }
 
   if (isLoading) return <div className="text-muted-foreground py-4">Carregando assinatura...</div>;
