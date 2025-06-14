@@ -1,6 +1,7 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import Stripe from "npm:stripe@13.21.0";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import Stripe from "https://esm.sh/stripe@14.21.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 // CORS headers obrigatórios para acesso do navegador
 const corsHeaders = {
@@ -8,72 +9,69 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Helper logging function for debugging
+const logStep = (step: string, details?: any) => {
+  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
+  console.log(`[CUSTOMER-PORTAL] ${step}${detailsStr}`);
+};
+
 serve(async (req: Request) => {
-  // Suporte a preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // O Supabase injeta o JWT verificado do usuário logado em req.headers
-    // Descobrir o usuário autenticado
-    const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Não autenticado (authorization header ausente)" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    logStep("Function started");
 
-    // Obter o id do usuário Supabase
-    // O JWT é validado automaticamente pelo Supabase nas Edge Functions privadas
-    // O payload do usuário será lido pelo serviço do Supabase nos endpoints
-    const jwt = authHeader.replace("Bearer ", "");
-    // Decodificar JWT para pegar o sub/user_id
-    const base64Url = jwt.split(".")[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const payload = JSON.parse(decodeURIComponent(escape(atob(base64))));
-    const user_id = payload.sub;
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
+    logStep("Stripe key verified");
 
-    if (!user_id) {
-      return new Response(JSON.stringify({ error: "Usuário não reconhecido no JWT" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // Use service role so you can securely look up users;
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
+    );
 
-    console.log(`🔑 Usuário logado: ${user_id}`);
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) throw new Error("No authorization header provided");
+    logStep("Authorization header found");
 
-    // Buscar na tabela stripe_customers
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    const token = authHeader.replace("Bearer ", "");
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
+    if (userError) throw new Error(`Authentication error: ${userError.message}`);
+    const user = userData.user;
+    if (!user?.email) throw new Error("User not authenticated or email not available");
+    logStep("User authenticated", { userId: user.id, email: user.email });
 
-    const res = await fetch(`${supabaseUrl}/rest/v1/stripe_customers?select=stripe_customer_id&user_id=eq.${user_id}`, {
-      headers: {
-        apikey: supabaseAnonKey!,
-        Authorization: `Bearer ${supabaseAnonKey!}`,
-      },
-    });
+    // Try to find stripe_customer_id in your stripe_customers table (by user_id)
+    const { data: customerRows, error: customerError } = await supabaseClient
+      .from("stripe_customers")
+      .select("stripe_customer_id")
+      .eq("user_id", user.id)
+      .limit(1)
+      .maybeSingle();
+    if (customerError) throw new Error("Supabase lookup failed: " + customerError.message);
 
-    const customers = await res.json();
-    if (!Array.isArray(customers) || customers.length === 0 || !customers[0].stripe_customer_id) {
-      return new Response(JSON.stringify({ error: "ID do cliente Stripe não vinculado à conta" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const stripeCustomerId = customerRows?.stripe_customer_id;
+    if (!stripeCustomerId) throw new Error("Stripe customer not linked to this account");
 
-    const stripeCustomerId = customers[0].stripe_customer_id;
+    logStep("Found Stripe customer", { stripeCustomerId });
 
-    // Preparar Stripe client
-    const stripeSecret = Deno.env.get("STRIPE_SECRET_KEY");
-    const stripe = new Stripe(stripeSecret!, { apiVersion: "2022-11-15" });
+    // Prepare Stripe client
+    const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
 
-    // Criar o portal session
+    // Pick return_url from referer or supabase url (fallback)
+    let origin = req.headers.get("origin") || Deno.env.get("SUPABASE_URL") || "http://localhost:3000";
+    logStep("Using origin for return_url", { origin });
+
+    // Create billing portal session
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: stripeCustomerId,
-      return_url: supabaseUrl, // OU defina uma landing page customizada!
+      return_url: origin,
     });
+    logStep("Customer portal session created", { sessionId: portalSession.id, url: portalSession.url });
 
     return new Response(JSON.stringify({ url: portalSession.url }), {
       status: 200,
@@ -81,15 +79,10 @@ serve(async (req: Request) => {
     });
 
   } catch (e: any) {
-    console.error("❗ Erro customer-portal:", e);
+    logStep("ERROR in customer-portal", { message: e?.message ?? String(e) });
     return new Response(JSON.stringify({ error: e?.message ?? String(e) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
-
-// Suporte a atob em Deno
-function atob(str: string): string {
-  return Buffer.from(str, 'base64').toString('binary');
-}
