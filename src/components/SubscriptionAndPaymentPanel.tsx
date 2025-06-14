@@ -19,12 +19,23 @@ export function SubscriptionAndPaymentPanel() {
   const { toast } = useToast();
 
   async function handleChangeCard() {
-    // Chama função edge 'customer-portal' para obter url do Stripe portal
-    const { data, error } = await supabase.functions.invoke('customer-portal');
-    if (error || !data?.url) {
+    // Usa a sessão para garantir envio do JWT (caso o supabase não esteja incluindo por padrão)
+    const session = await supabase.auth.getSession();
+    const accessToken = session?.data?.session?.access_token;
+    // Adiciona o Authorization na chamada
+    const res = await fetch('/functions/v1/customer-portal', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+      body: JSON.stringify({})
+    });
+    const data = await res.json();
+    if (!res.ok || !data?.url) {
       toast({
         title: "Erro ao acessar Stripe",
-        description: error?.message || "Não foi possível abrir o portal de pagamentos.",
+        description: data?.error || "Não foi possível abrir o portal de pagamentos.",
         variant: "destructive",
       });
       return;
