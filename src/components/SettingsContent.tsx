@@ -292,23 +292,21 @@ export function SettingsContent() {
 
   const handleDeleteMember = async (memberId: string, memberName: string) => {
     try {
-      const { error: profileError } = await supabase
-        .from('user_profiles')
-        .delete()
-        .eq('user_id', memberId);
+      const { data, error } = await supabase.functions.invoke('delete-member', {
+        body: { memberId },
+      });
 
-      if (profileError) throw profileError;
-
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', memberId);
-
-      if (roleError) throw roleError;
+      if (error) {
+        throw new Error(error.message);
+      }
       
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
       toast({
-        title: "Membro removido da equipe",
-        description: `O membro ${memberName} foi removido da sua equipe. Para remover o acesso completamente, o usuário precisa ser deletado na área de autenticação do Supabase.`,
+        title: "Membro removido com sucesso",
+        description: `O membro ${memberName} foi removido permanentemente.`,
       });
 
       fetchTeamMembers();
@@ -316,7 +314,7 @@ export function SettingsContent() {
       console.error("Error deleting member:", error);
       toast({
         title: "Erro ao remover membro",
-        description: "Não foi possível remover o membro da equipe.",
+        description: (error as Error).message || "Não foi possível remover o membro da equipe.",
         variant: "destructive",
       });
     }
@@ -784,13 +782,13 @@ export function SettingsContent() {
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
-                  <Button 
-                    variant="outline" 
+                  <DeleteButton
+                    onDelete={() => handleDeleteMember(member.id, member.name)}
+                    itemName={member.name}
+                    itemType="membro da equipe"
                     size="sm"
-                    onClick={() => handleDeleteMember(member.id, member.name)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                    variant="outline"
+                  />
                 </div>
               </div>
             </Card>
