@@ -131,7 +131,7 @@ export function SettingsContent() {
     }
   };
 
-  // Função robusta para normalizar a ordem das colunas do Kanban
+  // Função robusta para normalizar a ordem das colunas do Kanban (corrigida)
   const normalizeKanbanOrder = async () => {
     setIsLoadingColumns(true);
     try {
@@ -147,13 +147,19 @@ export function SettingsContent() {
         return;
       }
 
-      // Novo: Atualiza TODAS as colunas, atribuindo order_position sequencial, sempre!
+      // Log detalhado para debug: IDs e posições atuais
+      console.log('[NORMALIZAR] Colunas existentes após exclusão:', data.map(c => ({
+        id: c.id,
+        name: c.name,
+        order_position: c.order_position,
+      })));
+
+      // Ordenação garantida só com colunas existentes
       for (let idx = 0; idx < data.length; idx++) {
         const col = data[idx];
         const newOrder = idx + 1;
-        // Agora faz update SEMPRE, garantindo o sequenciamento
         if (col.order_position !== newOrder) {
-          console.log(`Atualizando coluna "${col.name}" [id: ${col.id}] de ${col.order_position} para ${newOrder}`);
+          console.log(`[NORMALIZAR] Atualizando coluna "${col.name}" [id: ${col.id}] de ${col.order_position} para ${newOrder}`);
           await supabase
             .from('kanban_columns')
             .update({ order_position: newOrder })
@@ -162,8 +168,23 @@ export function SettingsContent() {
       }
 
       // Após atualizar tudo, pega do banco novamente para garantir o estado certo na UI
-      await fetchKanbanColumns();
+      const { data: updated, error: fetchError } = await supabase
+        .from('kanban_columns')
+        .select('*')
+        .order('order_position', { ascending: true });
 
+      if (fetchError || !updated) {
+        console.error('Erro ao buscar colunas após normalização:', fetchError);
+        setIsLoadingColumns(false);
+        return;
+      }
+
+      setKanbanColumns(updated);
+      console.log('[NORMALIZAR] NOVA ordem final:', updated.map(c => ({
+        id: c.id,
+        name: c.name,
+        order_position: c.order_position,
+      })));
       console.log('🔄 Finalizou normalização das colunas do Kanban');
     } catch (error) {
       console.error('Erro ao normalizar ordem das colunas:', error);
