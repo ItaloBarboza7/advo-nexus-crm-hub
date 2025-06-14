@@ -1157,7 +1157,7 @@ export function SettingsContent() {
                                 <Button 
                                   variant="outline" 
                                   size="sm"
-                                  onClick={() => handleDeleteLossReason(reason.id, reason.reason)}
+                                  onClick={() => handleDeleteLossReason(reason.id)}
                                   className="text-red-600 hover:text-red-700 hover:bg-red-50"
                                 >
                                   <Trash2 className="h-4 w-4" />
