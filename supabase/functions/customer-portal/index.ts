@@ -3,7 +3,6 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
-// CORS headers obrigatórios para acesso do navegador
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -45,31 +44,25 @@ serve(async (req: Request) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    // Try to find stripe_customer_id in your stripe_customers table (by user_id)
-    const { data: customerRows, error: customerError } = await supabaseClient
-      .from("stripe_customers")
-      .select("stripe_customer_id")
-      .eq("user_id", user.id)
-      .limit(1)
-      .maybeSingle();
-    if (customerError) throw new Error("Supabase lookup failed: " + customerError.message);
-
-    const stripeCustomerId = customerRows?.stripe_customer_id;
-    if (!stripeCustomerId) throw new Error("Stripe customer not linked to this account");
-
-    logStep("Found Stripe customer", { stripeCustomerId });
-
     // Prepare Stripe client
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
 
-    // Pick return_url from referer or supabase url (fallback)
-    let origin = req.headers.get("origin") || Deno.env.get("SUPABASE_URL") || "http://localhost:3000";
+    // Encontre o customer do Stripe pelo email
+    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+    if (customers.data.length === 0) {
+      throw new Error("No Stripe customer found for this user");
+    }
+    const stripeCustomerId = customers.data[0].id;
+    logStep("Found Stripe customer", { stripeCustomerId });
+
+    // Pick return_url from origin or supabase url (fallback)
+    const origin = req.headers.get("origin") || Deno.env.get("SUPABASE_URL") || "http://localhost:3000";
     logStep("Using origin for return_url", { origin });
 
     // Create billing portal session
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: stripeCustomerId,
-      return_url: origin,
+      return_url: `${origin}/`,
     });
     logStep("Customer portal session created", { sessionId: portalSession.id, url: portalSession.url });
 
