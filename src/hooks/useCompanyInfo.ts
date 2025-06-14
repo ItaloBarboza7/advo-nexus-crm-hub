@@ -79,7 +79,10 @@ export function useCompanyInfo() {
         description: "Informações da empresa atualizadas com sucesso.",
       });
 
-      await fetchCompanyInfo(); // Recarregar dados
+      // Atualiza o estado localmente para refletir as mudanças na UI imediatamente.
+      setCompanyInfo(prevInfo => 
+        prevInfo ? { ...prevInfo, ...updatedInfo } : null
+      );
       return true;
     } catch (error) {
       console.error('Erro inesperado ao atualizar informações da empresa:', error);
