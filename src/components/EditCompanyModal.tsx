@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -170,12 +169,12 @@ export function EditCompanyModal({
               id="email"
               type="email"
               value={email}
-              readOnly
-              disabled
-              className="bg-muted cursor-not-allowed"
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="seu@email.com"
+              disabled={isLoading}
             />
             <p className="text-xs text-muted-foreground">
-              * E-mail da conta (não editável)
+              * O e-mail pode ser alterado.
             </p>
           </div>
 
