@@ -21,6 +21,7 @@ import { useFilterOptions } from "@/hooks/useFilterOptions";
 import { useDashboardSettings } from "@/hooks/useDashboardSettings";
 import { useCompanyInfo } from "@/hooks/useCompanyInfo";
 import { useLossReasonsGlobal } from "@/hooks/useLossReasonsGlobal";
+import { SubscriptionAndPaymentPanel } from "@/components/SubscriptionAndPaymentPanel";
 
 interface KanbanColumn {
   id: string;
@@ -901,54 +902,8 @@ export function SettingsContent() {
           )}
         </Card>
 
-        {/* Subscription and Payment Panel */}
-        <Card className="p-6">
-          <h4 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <CreditCard className="h-5 w-5" />
-            Assinatura e Pagamento
-          </h4>
-          
-          <div className="space-y-6">
-            {/* Plan Information */}
-            <div>
-              <h5 className="font-medium text-gray-900 mb-3">Plano Atual</h5>
-              <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h6 className="font-medium text-gray-900">Plano Premium</h6>
-                    <p className="text-sm text-gray-600">Valor mensal: R$ 99,90</p>
-                  </div>
-                  <Badge className="bg-green-100 text-green-800">Ativo</Badge>
-                </div>
-              </div>
-            </div>
-
-            {/* Card Information */}
-            <div>
-              <h5 className="font-medium text-gray-900 mb-3">Cartão Cadastrado</h5>
-              <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-                <div className="flex items-center gap-3">
-                  <CreditCard className="h-8 w-8 text-blue-600" />
-                  <div>
-                    <p className="font-medium text-gray-900">**** **** **** 1234</p>
-                    <p className="text-sm text-gray-600">Visa - Exp: 12/26</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Change Payment Method Button */}
-            <div className="pt-4 border-t">
-              <Button 
-                className="bg-blue-600 hover:bg-blue-700"
-                onClick={handleChangePaymentMethod}
-              >
-                <CreditCard className="h-4 w-4 mr-2" />
-                Alterar Forma de Pagamento
-              </Button>
-            </div>
-          </div>
-        </Card>
+        {/* Subscription and Payment Panel (Stripe) */}
+        <SubscriptionAndPaymentPanel />
       </div>
     );
   };
