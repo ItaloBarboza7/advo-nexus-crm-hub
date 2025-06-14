@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -34,7 +33,9 @@ interface AddColumnDialogProps {
 export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddColumnDialogProps) {
   const [columnName, setColumnName] = useState("");
   const [columnColor, setColumnColor] = useState("#3B82F6");
-  const [columnOrder, setColumnOrder] = useState(maxOrder + 1);
+  // Ensure default/new columnOrder always starts at maxOrder+1, but minimum is 1
+  const defaultOrder = maxOrder > 0 ? maxOrder + 1 : 1;
+  const [columnOrder, setColumnOrder] = useState(defaultOrder);
   const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([]);
   const [isLoadingColumns, setIsLoadingColumns] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -76,7 +77,7 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddC
     // Reset form
     setColumnName("");
     setColumnColor("#3B82F6");
-    setColumnOrder(maxOrder + 1);
+    setColumnOrder(defaultOrder);
     fetchKanbanColumns();
   };
 
@@ -132,12 +133,12 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddC
     // Reset form when closing
     setColumnName("");
     setColumnColor("#3B82F6");
-    setColumnOrder(maxOrder + 1);
+    setColumnOrder(defaultOrder);
     onClose();
   };
 
-  // Generate order options
-  const orderOptions = Array.from({ length: maxOrder + 1 }, (_, i) => i + 1);
+  // Generate order options always as strictly sequential (1, 2, ..., maxOrder+1), never lower than 1
+  const orderOptions = Array.from({ length: Math.max(1, maxOrder) + 1 }, (_, i) => i + 1);
 
   // Carregar colunas quando o diálogo abre
   useEffect(() => {
