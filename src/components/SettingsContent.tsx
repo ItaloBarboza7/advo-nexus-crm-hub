@@ -1180,19 +1180,11 @@ export function SettingsContent() {
 
   // ADD FUNCTION: handleAddLossReasonFromDialog
   const handleAddLossReasonFromDialog = async (reason: string) => {
-    if (!reason || !reason.trim()) {
-      toast({
-        title: "Erro",
-        description: "O motivo não pode estar vazio.",
-        variant: "destructive"
-      });
-      return false;
-    }
-    const success = await addLossReason(reason);
-    if (success) {
-      setIsAddLossReasonDialogOpen(false);
-    }
-    return success;
+    toast({
+      title: "Em breve",
+      description: "Adicionar motivo de perda ainda não implementado na interface.",
+    });
+    return false; // signal failure
   };
 
   // --- STUBS for missing handlers ---
