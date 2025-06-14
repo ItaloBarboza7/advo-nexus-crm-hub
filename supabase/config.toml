@@ -1,1 +1,5 @@
+
 project_id = "xltugnmjbcowsuwzkkni"
+
+[functions.customer-portal]
+verify_jwt = true
