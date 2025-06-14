@@ -56,7 +56,6 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
         return;
       }
 
-      console.log('Fetched Action Types from Dialog:', data);
       setActionTypes(data || []);
     } catch (error) {
       console.error('Erro inesperado ao buscar tipos (dialog):', error);

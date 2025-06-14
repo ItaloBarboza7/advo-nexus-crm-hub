@@ -39,7 +39,6 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
         return;
       }
       
-      console.log('Fetched Action Groups from Dialog:', data);
       setActionGroups(data || []);
     } catch (error) {
       console.error('Erro inesperado ao buscar grupos (dialog):', error);
