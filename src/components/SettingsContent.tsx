@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,27 @@ import { useDashboardSettings } from "@/hooks/useDashboardSettings";
 import { useCompanyInfo } from "@/hooks/useCompanyInfo";
 import { useLossReasonsGlobal } from "@/hooks/useLossReasonsGlobal";
 import { SubscriptionAndPaymentPanel } from "@/components/SubscriptionAndPaymentPanel";
+
+// DEFINIÇÃO DOS TABS (ícones e títulos)
+// Essa ordem é importante para manter o layout igual ao original
+const tabs = [
+  { id: "company", title: "Empresa", icon: Building },
+  { id: "members", title: "Time", icon: Users },
+  { id: "columns", title: "Colunas", icon: Columns },
+  { id: "dashboard", title: "Dashboard", icon: Settings },
+  { id: "subscription", title: "Assinatura", icon: CreditCard }
+];
+
+// ====== stubs temporários para handlers/variáveis =======
+const handleAddMember = () => {};
+const handleUpdateMember = () => {};
+const handleAddColumn = () => {};
+const refreshData = () => {};
+const actionGroups = [];
+const handleAddLossReasonFromDialog = () => {};
+
+const { companyInfo, isLoading: isLoadingCompany, updateCompanyInfo } = useCompanyInfo();
+// =========================================================
 
 interface KanbanColumn {
   id: string;
@@ -56,7 +78,6 @@ export function SettingsContent() {
   ]);
 
   const isAdmin = true;
-
   const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([]);
   const [isLoadingColumns, setIsLoadingColumns] = useState(true);
 
