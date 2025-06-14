@@ -1319,11 +1319,11 @@ export function SettingsContent() {
         onSourceAdded={refreshData}
       />
 
-      {/* -- Fix: Wrap refreshLossReasons in async function to match Promise<void> signature -- */}
+      {/* -- Fix: Provide the already async refreshLossReasons directly -- */}
       <AddLossReasonDialog
         isOpen={isAddLossReasonModalOpen}
         onClose={() => setIsAddLossReasonModalOpen(false)}
-        onReasonAdded={async () => { await refreshLossReasons(); }}
+        onReasonAdded={refreshLossReasons}
       />
 
       <EditCompanyModal
