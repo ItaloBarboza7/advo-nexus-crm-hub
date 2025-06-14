@@ -1179,13 +1179,13 @@ export function SettingsContent() {
   };
 
   // ADD FUNCTION: handleAddLossReasonFromDialog
-  const handleAddLossReasonFromDialog = async (reason: string) => {
-    toast({
-      title: "Em breve",
-      description: "Adicionar motivo de perda ainda não implementado na interface.",
-    });
-    return false; // signal failure
-  };
+  // const handleAddLossReasonFromDialog = async (reason: string) => {
+  //   toast({
+  //     title: "Em breve",
+  //     description: "Adicionar motivo de perda ainda não implementado na interface.",
+  //   });
+  //   return false; // signal failure
+  // };
 
   // --- STUBS for missing handlers ---
   // Action Groups
@@ -1319,10 +1319,11 @@ export function SettingsContent() {
         onSourceAdded={refreshData}
       />
 
+      {/* -- Fix: Pass refreshLossReasons (zero arguments) to onReasonAdded -- */}
       <AddLossReasonDialog
         isOpen={isAddLossReasonDialogOpen}
         onClose={() => setIsAddLossReasonDialogOpen(false)}
-        onReasonAdded={handleAddLossReasonFromDialog}
+        onReasonAdded={refreshLossReasons}
       />
 
       <EditCompanyModal
