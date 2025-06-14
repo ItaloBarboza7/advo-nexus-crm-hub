@@ -131,39 +131,45 @@ export function SettingsContent() {
     }
   };
 
-  // Função auxiliar para normalizar order_position no banco
+  // Função robusta para normalizar a ordem das colunas do Kanban
   const normalizeKanbanOrder = async () => {
-    // Busca atualizado do banco para garantir a ordem correta
-    const { data, error } = await supabase
-      .from('kanban_columns')
-      .select('*')
-      .order('order_position', { ascending: true });
+    setIsLoadingColumns(true);
+    try {
+      // Busca atualizado do banco para garantir a situação real
+      const { data, error } = await supabase
+        .from('kanban_columns')
+        .select('*')
+        .order('order_position', { ascending: true });
 
-    if (error) return;
+      if (error || !data) {
+        setIsLoadingColumns(false);
+        return;
+      }
 
-    // Corrige order_position para ser sequencial (1,2,3...)
-    const expectedOrder = data.map((col, idx) => ({
-      ...col,
-      order_position: idx + 1
-    }));
+      // Atribui order_position sequencial para todas as colunas
+      const columnsWithFixedOrder = data.map((col, idx) => ({
+        ...col,
+        order_position: idx + 1,
+      }));
 
-    // Para cada coluna fora de posição, atualiza no banco
-    const updates = [];
-    for (const col of expectedOrder) {
-      if (col.order_position !== data.find((c: any) => c.id === col.id).order_position) {
-        updates.push(
-          supabase
+      // Atualiza TODAS as colunas uma a uma
+      for (const col of columnsWithFixedOrder) {
+        // Só faz o update se o order_position está diferente (evita update desnecessário)
+        if (col.order_position !== data.find(c => c.id === col.id)?.order_position) {
+          await supabase
             .from('kanban_columns')
             .update({ order_position: col.order_position })
-            .eq('id', col.id)
-        );
+            .eq('id', col.id);
+        }
       }
-    }
-    // Executa todos updates em paralelo
-    await Promise.all(updates);
 
-    // Atualiza localmente também
-    setKanbanColumns(expectedOrder);
+      // Após atualizar, faz um fetch novamente para garantir o estado correto
+      await fetchKanbanColumns();
+    } catch (error) {
+      console.error('Erro ao normalizar ordem das colunas:', error);
+    } finally {
+      setIsLoadingColumns(false);
+    }
   };
 
   useEffect(() => {
