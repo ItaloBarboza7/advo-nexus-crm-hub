@@ -33,7 +33,7 @@ interface AddColumnDialogProps {
 export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddColumnDialogProps) {
   const [columnName, setColumnName] = useState("");
   const [columnColor, setColumnColor] = useState("#3B82F6");
-  // Ensure default/new columnOrder always starts at maxOrder+1, but minimum is 1
+  // robust: default order always maxOrder+1 (as lowest is 1)
   const defaultOrder = maxOrder > 0 ? maxOrder + 1 : 1;
   const [columnOrder, setColumnOrder] = useState(defaultOrder);
   const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([]);
@@ -67,14 +67,15 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddC
     if (!columnName.trim()) {
       return;
     }
-
+    // Defensive: slot must be between 1 and max+1
+    let safeOrder = Math.max(1, Math.min(columnOrder, maxOrder + 1));
     onAddColumn({
       name: columnName.trim(),
       color: columnColor,
-      order: columnOrder,
+      order: safeOrder,
     });
 
-    // Reset form
+    // Reset form to next order
     setColumnName("");
     setColumnColor("#3B82F6");
     setColumnOrder(defaultOrder);
@@ -130,22 +131,24 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddC
   };
 
   const handleClose = () => {
-    // Reset form when closing
     setColumnName("");
     setColumnColor("#3B82F6");
     setColumnOrder(defaultOrder);
     onClose();
   };
 
-  // Generate order options always as strictly sequential (1, 2, ..., maxOrder+1), never lower than 1
+  // Regenerate options array and make sure always starts at 1, ends at maxOrder+1
   const orderOptions = Array.from({ length: Math.max(1, maxOrder) + 1 }, (_, i) => i + 1);
 
   // Carregar colunas quando o diálogo abre
   useEffect(() => {
     if (isOpen) {
       fetchKanbanColumns();
+      // Reset order, prefer next slot
+      setColumnOrder(defaultOrder);
     }
-  }, [isOpen]);
+    // eslint-disable-next-line
+  }, [isOpen, maxOrder]); // include maxOrder!
 
   return (
     <>

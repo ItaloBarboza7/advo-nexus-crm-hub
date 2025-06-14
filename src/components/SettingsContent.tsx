@@ -119,6 +119,10 @@ export function SettingsContent() {
         return;
       }
       setKanbanColumns(data || []);
+      console.log(
+        '[fetchKanbanColumns] Carregadas do banco:',
+        (data || []).map(c => ({ id: c.id, name: c.name, order: c.order_position }))
+      );
     } catch (error) {
       console.error('Erro inesperado ao carregar colunas:', error);
       toast({
@@ -146,13 +150,6 @@ export function SettingsContent() {
         setIsLoadingColumns(false);
         return;
       }
-
-      // Log detalhado para debug: IDs e posições atuais
-      console.log('[NORMALIZAR] Colunas existentes após exclusão:', data.map(c => ({
-        id: c.id,
-        name: c.name,
-        order_position: c.order_position,
-      })));
 
       // Ordenação garantida só com colunas existentes
       for (let idx = 0; idx < data.length; idx++) {
@@ -306,11 +303,40 @@ export function SettingsContent() {
     setEditingColumnName("");
   };
 
+  // Updated handleAddColumn: robust slot logic, force refresh after insert
   const handleAddColumn = async (columnData: { name: string; color: string; order: number }) => {
     try {
-      // Reordenar colunas existentes se necessário
-      const columnsToUpdate = kanbanColumns.filter(col => col.order_position >= columnData.order);
-      
+      setIsLoadingColumns(true);
+      // Fetch latest columns for accurate placement!
+      const { data: fresh, error: fetchErr } = await supabase
+        .from('kanban_columns')
+        .select('*')
+        .order('order_position', { ascending: true });
+      if (fetchErr) {
+        console.error('Erro ao buscar colunas para adicionar nova:', fetchErr);
+        toast({
+          title: "Erro",
+          description: "Não foi possível acessar as colunas existentes.",
+          variant: "destructive"
+        });
+        setIsLoadingColumns(false);
+        return;
+      }
+      const currCols = fresh || [];
+
+      // Normalize order (just in case)
+      for (let idx = 0; idx < currCols.length; idx++) {
+        if (currCols[idx].order_position !== idx + 1) {
+          await supabase
+            .from('kanban_columns')
+            .update({ order_position: idx + 1 })
+            .eq('id', currCols[idx].id);
+        }
+      }
+
+      // Prepare columns that will shift right
+      const columnsToUpdate = currCols.filter(col => col.order_position >= columnData.order);
+
       if (columnsToUpdate.length > 0) {
         // Update each column individually to increment their order position
         for (const column of columnsToUpdate) {
@@ -326,12 +352,13 @@ export function SettingsContent() {
               description: "Não foi possível reordenar as colunas existentes.",
               variant: "destructive"
             });
+            setIsLoadingColumns(false);
             return;
           }
         }
       }
 
-      // Inserir nova coluna
+      // Inserir nova coluna no slot correto (order_position)
       const { error: insertError } = await supabase
         .from('kanban_columns')
         .insert({
@@ -348,12 +375,12 @@ export function SettingsContent() {
           description: "Não foi possível criar a nova coluna.",
           variant: "destructive"
         });
+        setIsLoadingColumns(false);
         return;
       }
 
-      // Recarregar as colunas
+      // Refresh from DB to establish reality (no ghosts!)
       await fetchKanbanColumns();
-
       toast({
         title: "Sucesso",
         description: "Nova coluna criada com sucesso.",
@@ -365,6 +392,8 @@ export function SettingsContent() {
         description: "Ocorreu um erro inesperado ao criar a coluna.",
         variant: "destructive"
       });
+    } finally {
+      setIsLoadingColumns(false);
     }
   };
 
