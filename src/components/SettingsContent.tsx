@@ -46,7 +46,7 @@ export function SettingsContent() {
   const [isAddActionGroupDialogOpen, setIsAddActionGroupDialogOpen] = useState(false);
   const [isAddActionTypeDialogOpen, setIsAddActionTypeDialogOpen] = useState(false);
   const [isAddLeadSourceDialogOpen, setIsAddLeadSourceDialogOpen] = useState(false);
-  const [isAddLossReasonDialogOpen, setIsAddLossReasonDialogOpen] = useState(false);
+  const [isAddLossReasonModalOpen, setIsAddLossReasonModalOpen] = useState(false);
   const [isEditCompanyModalOpen, setIsEditCompanyModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
   const [teamMembers, setTeamMembers] = useState([
@@ -1078,7 +1078,7 @@ export function SettingsContent() {
             <h4 className="text-md font-semibold text-gray-900">Tipos de Perdas</h4>
             <Button 
               className="bg-blue-600 hover:bg-blue-700"
-              onClick={() => setIsAddLossReasonDialogOpen(true)}
+              onClick={() => setIsAddLossReasonModalOpen(true)}
               disabled={lossReasonsLoading}
             >
               <Plus className="h-4 w-4 mr-2" />
@@ -1319,11 +1319,11 @@ export function SettingsContent() {
         onSourceAdded={refreshData}
       />
 
-      {/* -- Fix: Pass refreshLossReasons (zero arguments) to onReasonAdded -- */}
+      {/* -- Fix: Wrap refreshLossReasons in async function to match Promise<void> signature -- */}
       <AddLossReasonDialog
-        isOpen={isAddLossReasonDialogOpen}
-        onClose={() => setIsAddLossReasonDialogOpen(false)}
-        onReasonAdded={refreshLossReasons}
+        isOpen={isAddLossReasonModalOpen}
+        onClose={() => setIsAddLossReasonModalOpen(false)}
+        onReasonAdded={async () => { refreshLossReasons(); }}
       />
 
       <EditCompanyModal
