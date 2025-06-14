@@ -3,6 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useFilterOptions } from "@/hooks/useFilterOptions";
 
 interface CompanyInfo {
   id: string;
@@ -66,6 +68,7 @@ export function EditCompanyModal({
   const [neighborhood, setNeighborhood] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
+  const { stateOptions } = useFilterOptions();
 
   useEffect(() => {
     if (companyInfo) {
@@ -224,13 +227,22 @@ export function EditCompanyModal({
 
           <div className="space-y-2">
             <Label htmlFor="state">Estado *</Label>
-            <Input
-              id="state"
+            <Select
               value={state}
-              onChange={(e) => setState(e.target.value)}
-              placeholder="Nome do estado"
+              onValueChange={setState}
               disabled={isLoading}
-            />
+            >
+              <SelectTrigger id="state">
+                <SelectValue placeholder="Selecione um estado" />
+              </SelectTrigger>
+              <SelectContent>
+                {stateOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex justify-end gap-2 pt-4">

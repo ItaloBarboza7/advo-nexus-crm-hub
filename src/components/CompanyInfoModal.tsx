@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -6,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useFilterOptions } from "@/hooks/useFilterOptions";
 
 interface CompanyInfoModalProps {
   isOpen: boolean;
@@ -24,6 +25,7 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
   const [state, setState] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { stateOptions } = useFilterOptions();
 
   useEffect(() => {
     if (isOpen) {
@@ -212,13 +214,22 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
 
           <div className="space-y-2">
             <Label htmlFor="state">Estado *</Label>
-            <Input
-              id="state"
+            <Select
               value={state}
-              onChange={(e) => setState(e.target.value)}
-              placeholder="Nome do estado"
+              onValueChange={setState}
               disabled={isLoading}
-            />
+            >
+              <SelectTrigger id="state">
+                <SelectValue placeholder="Selecione um estado" />
+              </SelectTrigger>
+              <SelectContent>
+                {stateOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex justify-end pt-4">
