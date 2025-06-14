@@ -1,7 +1,7 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import type { Session } from "@supabase/supabase-js";
 
 interface LossReason {
   id: string;
@@ -14,6 +14,7 @@ let globalLossReasons: LossReason[] = [];
 let globalLoading = true;
 let globalInitialized = false;
 const subscribers = new Set<() => void>();
+let currentUserId: string | null = null; // Rastreia o usuário atual para o cache
 
 // Função para notificar todos os subscribers sobre mudanças
 const notifySubscribers = () => {
@@ -68,6 +69,33 @@ export function useLossReasonsGlobal() {
   const [localLoading, setLocalLoading] = useState(globalLoading);
   const { toast } = useToast();
 
+  // Efeito para lidar com mudanças de autenticação e resetar o estado global
+  useEffect(() => {
+    const handleAuthChange = (session: Session | null) => {
+      const newUserId = session?.user?.id ?? null;
+      if (newUserId !== currentUserId) {
+        console.log(`👤 useLossReasonsGlobal - Usuário alterado de ${currentUserId} para ${newUserId}. Resetando estado.`);
+        currentUserId = newUserId;
+        globalLossReasons = [];
+        globalInitialized = false;
+        globalLoading = true;
+        notifySubscribers();
+      }
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      handleAuthChange(session);
+    });
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      handleAuthChange(session);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []); // Este efeito roda apenas uma vez
+
   // Função de callback para atualizar o estado local quando o global mudar
   const updateLocalState = useCallback(() => {
     console.log(`🔄 useLossReasonsGlobal - Atualizando estado local. Global: ${globalLossReasons.length} motivos, Loading: ${globalLoading}`);
@@ -75,14 +103,14 @@ export function useLossReasonsGlobal() {
     setLocalLoading(globalLoading);
   }, []);
 
-  // Registrar este componente como subscriber
+  // Registrar este componente como subscriber e buscar dados
   useEffect(() => {
     console.log(`📝 useLossReasonsGlobal - Registrando subscriber`);
     subscribers.add(updateLocalState);
-    
-    // Se ainda não foi inicializado, buscar dados
-    if (!globalInitialized) {
-      console.log(`🚀 useLossReasonsGlobal - Primeira inicialização, buscando dados...`);
+
+    // Se não foi inicializado E temos um usuário, buscar dados
+    if (!globalInitialized && currentUserId) {
+      console.log(`🚀 useLossReasonsGlobal - Primeira inicialização ou reset para o usuário ${currentUserId}, buscando dados...`);
       updateGlobalState().catch(error => {
         console.error('❌ Erro ao carregar dados iniciais:', error);
         toast({
@@ -92,8 +120,8 @@ export function useLossReasonsGlobal() {
         });
       });
     } else {
-      // Se já foi inicializado, apenas sincronizar o estado local
-      console.log(`🔄 useLossReasonsGlobal - Já inicializado, sincronizando estado local...`);
+      // Se já foi inicializado, ou não há usuário, apenas sincronizar o estado local
+      console.log(`🔄 useLossReasonsGlobal - Já inicializado ou sem usuário, sincronizando estado local...`);
       updateLocalState();
     }
 

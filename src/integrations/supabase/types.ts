@@ -247,18 +247,21 @@ export type Database = {
           id: string
           is_fixed: boolean
           reason: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
           id?: string
           is_fixed?: boolean
           reason: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
           id?: string
           is_fixed?: boolean
           reason?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -354,6 +357,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_tenant_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       has_role: {
         Args: {
           _user_id: string
