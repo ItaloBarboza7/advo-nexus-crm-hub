@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -39,55 +40,34 @@ export function AddMemberModal({ isOpen, onClose, onMemberAdded }: AddMemberModa
     setIsLoading(true);
 
     try {
-      // Get current user for user_id
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data, error } = await supabase.functions.invoke('create-member', {
+        body: { name, email, password, phone, role },
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
       
-      if (!user) {
+      if (data.error) {
         toast({
-          title: "Erro de autenticação",
-          description: "Usuário não encontrado. Faça login novamente.",
+          title: "Erro ao adicionar membro",
+          description: data.error,
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
+      
+      const returnedProfile = data.member;
 
-      // Criar perfil no banco de dados
-      const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
-        .insert([{
-          user_id: user.id, // Add the required user_id field
-          name,
-          email,
-          phone,
-          title: role,
-          avatar_url: null
-        }])
-        .select()
-        .single();
-
-      if (profileError) {
-        console.error('Erro ao criar perfil:', profileError);
-        toast({
-          title: "Erro",
-          description: "Não foi possível criar o perfil do membro.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Criar objeto do membro para a lista local
-      const newMember = {
-        id: profile.id,
-        name,
-        email,
-        role,
-        phone,
-        hasAnalysisAccess,
-        avatar: name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
-        avatar_url: null
+      const newMemberForUI = {
+        ...returnedProfile,
+        role: returnedProfile.title,
+        hasAnalysisAccess, // Note: This permission is not saved in the database yet.
+        avatar: returnedProfile.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
       };
 
-      onMemberAdded(newMember);
+      onMemberAdded(newMemberForUI);
       
       toast({
         title: "Membro adicionado",
@@ -106,7 +86,7 @@ export function AddMemberModal({ isOpen, onClose, onMemberAdded }: AddMemberModa
       console.error('Erro ao adicionar membro:', error);
       toast({
         title: "Erro",
-        description: "Não foi possível adicionar o membro. Tente novamente.",
+        description: (error as Error).message || "Não foi possível adicionar o membro. Tente novamente.",
         variant: "destructive",
       });
     } finally {
