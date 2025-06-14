@@ -16,6 +16,7 @@ import { ActiveView } from "@/pages/Index";
 interface AppSidebarProps {
   activeView: ActiveView;
   setActiveView: (view: ActiveView) => void;
+  userRole: string | null;
 }
 
 const menuItems = [
@@ -51,7 +52,14 @@ const menuItems = [
   },
 ];
 
-export function AppSidebar({ activeView, setActiveView }: AppSidebarProps) {
+export function AppSidebar({ activeView, setActiveView, userRole }: AppSidebarProps) {
+  const visibleMenuItems = menuItems.filter(item => {
+    if (item.view === 'settings') {
+      return userRole !== 'member';
+    }
+    return true;
+  });
+
   return (
     <Sidebar className="border-r border-gray-200 dark:border-gray-800">
       <SidebarHeader className="border-b border-gray-200 dark:border-gray-800 p-6">
@@ -74,7 +82,7 @@ export function AppSidebar({ activeView, setActiveView }: AppSidebarProps) {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
+              {visibleMenuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     isActive={activeView === item.view}

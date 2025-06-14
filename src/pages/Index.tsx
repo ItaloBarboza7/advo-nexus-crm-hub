@@ -1,3 +1,4 @@
+
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/AppSidebar"
 import { Header } from "@/components/Header"
@@ -22,6 +23,7 @@ const Index = () => {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [showCompanyModal, setShowCompanyModal] = useState(false)
+  const [userRole, setUserRole] = useState<string | null>(null)
 
   useEffect(() => {
     // Set up auth state listener
@@ -30,9 +32,10 @@ const Index = () => {
         setSession(session)
         setUser(session?.user ?? null)
         
-        // Verificar se é necessário mostrar o modal de informações da empresa
-        if (session?.user && event === 'SIGNED_IN') {
+        if (session?.user) {
           checkFirstLoginAndCompanyInfo(session.user)
+        } else {
+          setUserRole(null)
         }
       }
     )
@@ -42,7 +45,6 @@ const Index = () => {
       setSession(session)
       setUser(session?.user ?? null)
       
-      // Se já existe uma sessão, verificar informações da empresa
       if (session?.user) {
         checkFirstLoginAndCompanyInfo(session.user)
       }
@@ -54,7 +56,7 @@ const Index = () => {
   const checkFirstLoginAndCompanyInfo = async (user: User) => {
     try {
       // Verificar o cargo do usuário
-      const { data: userRole, error: roleError } = await supabase
+      const { data: userRoleData, error: roleError } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', user.id)
@@ -62,11 +64,15 @@ const Index = () => {
 
       if (roleError) {
         console.error('Erro ao verificar cargo do usuário:', roleError)
+        setUserRole(null)
         return
       }
 
+      const role = userRoleData?.role
+      setUserRole(role || null)
+
       // Se o usuário for um 'membro', não mostrar o modal
-      if (userRole?.role === 'member') {
+      if (role === 'member') {
         return
       }
       
@@ -138,6 +144,9 @@ const Index = () => {
       case 'optimization':
         return <OptimizationContent />
       case 'settings':
+        if (userRole === 'member') {
+          return <DashboardContent />
+        }
         return <SettingsContent />
       default:
         return <DashboardContent />
@@ -147,7 +156,7 @@ const Index = () => {
   return (
     <>
       <SidebarProvider>
-        <AppSidebar activeView={activeView} setActiveView={setActiveView} />
+        <AppSidebar activeView={activeView} setActiveView={setActiveView} userRole={userRole} />
         <SidebarInset>
           <Header 
             user={user}
