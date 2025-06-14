@@ -22,6 +22,35 @@ interface EditCompanyModalProps {
   isLoading: boolean;
 }
 
+// Faz o parsing reverso do campo address
+function parseCompanyAddressFields(addr: string) {
+  const result = {
+    cep: "",
+    address: "",
+    neighborhood: "",
+    city: "",
+    state: "",
+  };
+  try {
+    const parts = addr.split(",");
+    // O último campo normalmente é "CEP: XXXXX-XXX"
+    if (parts.length > 0) {
+      const cepMatch = parts[parts.length - 1].match(/CEP[:\s]+([0-9\-]+)/i);
+      if (cepMatch) {
+        result.cep = cepMatch[1].trim();
+        parts.pop();
+      }
+    }
+    if (parts[0]) result.address = parts[0].trim();
+    if (parts[1]) result.neighborhood = parts[1].trim();
+    if (parts[2]) result.city = parts[2].trim();
+    if (parts[3]) result.state = parts[3].trim();
+  } catch {
+    // Mantém campos vazios se falhar
+  }
+  return result;
+}
+
 export function EditCompanyModal({ 
   isOpen, 
   onClose, 
@@ -33,7 +62,11 @@ export function EditCompanyModal({
   const [cnpj, setCnpj] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [cep, setCep] = useState("");
   const [address, setAddress] = useState("");
+  const [neighborhood, setNeighborhood] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
 
   useEffect(() => {
     if (companyInfo) {
@@ -41,24 +74,46 @@ export function EditCompanyModal({
       setCnpj(companyInfo.cnpj);
       setPhone(companyInfo.phone);
       setEmail(companyInfo.email);
-      setAddress(companyInfo.address);
+
+      // Parse address em campos separados (se companyInfo.address existir)
+      if (companyInfo.address) {
+        const parsed = parseCompanyAddressFields(companyInfo.address);
+        setCep(parsed.cep ?? "");
+        setAddress(parsed.address ?? "");
+        setNeighborhood(parsed.neighborhood ?? "");
+        setCity(parsed.city ?? "");
+        setState(parsed.state ?? "");
+      } else {
+        setCep("");
+        setAddress("");
+        setNeighborhood("");
+        setCity("");
+        setState("");
+      }
     } else {
-      // Limpar campos se não houver informações
+      // Limpar todos
       setCompanyName("");
       setCnpj("");
       setPhone("");
       setEmail("");
+      setCep("");
       setAddress("");
+      setNeighborhood("");
+      setCity("");
+      setState("");
     }
   }, [companyInfo]);
 
   const handleSave = async () => {
+    // Montar o address no mesmo formato do modal inicial
+    const fullAddress = `${address}, ${neighborhood}, ${city}, ${state}, CEP: ${cep}`;
+
     const success = await onSave({
       company_name: companyName,
       cnpj,
       phone,
       email,
-      address
+      address: fullAddress
     });
 
     if (success) {
@@ -68,7 +123,7 @@ export function EditCompanyModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">
             {companyInfo ? "Editar Informações da Empresa" : "Cadastrar Informações da Empresa"}
@@ -77,23 +132,23 @@ export function EditCompanyModal({
         
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="companyName">Nome da Empresa *</Label>
+            <Label htmlFor="companyName">Nome/Razão Social *</Label>
             <Input
               id="companyName"
               value={companyName}
               onChange={(e) => setCompanyName(e.target.value)}
-              placeholder="Digite o nome da empresa"
+              placeholder="Digite o nome ou razão social da empresa"
               disabled={isLoading}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="cnpj">CNPJ *</Label>
+            <Label htmlFor="cnpj">CPF/CNPJ *</Label>
             <Input
               id="cnpj"
               value={cnpj}
               onChange={(e) => setCnpj(e.target.value)}
-              placeholder="XX.XXX.XXX/XXXX-XX"
+              placeholder="XXX.XXX.XXX-XX ou XX.XXX.XXX/XXXX-XX"
               disabled={isLoading}
             />
           </div>
@@ -115,8 +170,22 @@ export function EditCompanyModal({
               id="email"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="empresa@exemplo.com"
+              readOnly
+              disabled
+              className="bg-muted cursor-not-allowed"
+            />
+            <p className="text-xs text-muted-foreground">
+              * E-mail da conta (não editável)
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="cep">CEP *</Label>
+            <Input
+              id="cep"
+              value={cep}
+              onChange={(e) => setCep(e.target.value)}
+              placeholder="XXXXX-XXX"
               disabled={isLoading}
             />
           </div>
@@ -127,7 +196,40 @@ export function EditCompanyModal({
               id="address"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
-              placeholder="Rua, número, bairro, cidade, estado"
+              placeholder="Rua, Avenida, número"
+              disabled={isLoading}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="neighborhood">Bairro *</Label>
+            <Input
+              id="neighborhood"
+              value={neighborhood}
+              onChange={(e) => setNeighborhood(e.target.value)}
+              placeholder="Nome do bairro"
+              disabled={isLoading}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="city">Cidade *</Label>
+            <Input
+              id="city"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              placeholder="Nome da cidade"
+              disabled={isLoading}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="state">Estado *</Label>
+            <Input
+              id="state"
+              value={state}
+              onChange={(e) => setState(e.target.value)}
+              placeholder="Nome do estado"
               disabled={isLoading}
             />
           </div>
