@@ -341,6 +341,40 @@ export function SettingsContent() {
     }
   };
 
+  // Função utilitária para extrair campos do address concatenado
+  function parseCompanyAddressFields(addr: string) {
+    // Exemplo: "Rua dos Testes, 123, Bairro do Centro, Cidade Teste, Estado Teste, CEP: 12345-000"
+    const result = {
+      cep: "",
+      address: "",
+      neighborhood: "",
+      city: "",
+      state: "",
+    };
+
+    try {
+      // Separar por vírgulas
+      const parts = addr.split(",");
+      // O último campo normalmente é "CEP: XXXXX-XXX"
+      if (parts.length > 0) {
+        const cepMatch = parts[parts.length - 1].match(/CEP[:\s]+([0-9\-]+)/i);
+        if (cepMatch) {
+          result.cep = cepMatch[1].trim();
+          parts.pop(); // remove o CEP
+        }
+      }
+      // Agora, os campos:
+      // [address, neighborhood, city, state]
+      if (parts[0]) result.address = parts[0].trim();
+      if (parts[1]) result.neighborhood = parts[1].trim();
+      if (parts[2]) result.city = parts[2].trim();
+      if (parts[3]) result.state = parts[3].trim();
+    } catch {
+      // Caso não consiga fazer o parsing, deixa os campos vazios
+    }
+    return result;
+  }
+
   // Função para gerenciar visibilidade dos componentes do dashboard
   const handleToggleComponentVisibility = (componentId: string) => {
     toggleComponentVisibility(componentId);
@@ -650,137 +684,183 @@ export function SettingsContent() {
     // O hook global já cuida da atualização automática
   };
 
-  const renderCompanyTab = () => (
-    <div className="space-y-6">
-      <h3 className="text-lg font-semibold text-gray-900">Configurações e Pagamento</h3>
-      
-      {/* Company Information */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h4 className="text-md font-semibold text-gray-900">Informações da Empresa</h4>
-          <Button 
-            variant="outline"
-            onClick={() => setIsEditCompanyModalOpen(true)}
-            disabled={isLoadingCompany}
-          >
-            <Edit className="h-4 w-4 mr-2" />
-            Editar
-          </Button>
-        </div>
+  const renderCompanyTab = () => {
+    // Extrair os campos do companyInfo
+    let extracted = {
+      cep: "",
+      address: "",
+      neighborhood: "",
+      city: "",
+      state: "",
+    };
+    if (companyInfo && companyInfo.address) {
+      extracted = parseCompanyAddressFields(companyInfo.address);
+    }
+    return (
+      <div className="space-y-6">
+        <h3 className="text-lg font-semibold text-gray-900">Configurações e Pagamento</h3>
         
-        {isLoadingCompany ? (
-          <div className="text-center py-8">
-            <p className="text-gray-500">Carregando informações da empresa...</p>
-          </div>
-        ) : companyInfo ? (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nome da Empresa
-                </label>
-                <div className="bg-gray-50 border border-gray-200 px-3 py-2 rounded-md">
-                  {companyInfo.company_name}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  CNPJ
-                </label>
-                <div className="bg-gray-50 border border-gray-200 px-3 py-2 rounded-md">
-                  {companyInfo.cnpj}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Telefone
-                </label>
-                <div className="bg-gray-50 border border-gray-200 px-3 py-2 rounded-md">
-                  {companyInfo.phone}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  E-mail
-                </label>
-                <div className="bg-gray-50 border border-gray-200 px-3 py-2 rounded-md">
-                  {companyInfo.email}
-                </div>
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Endereço
-              </label>
-              <div className="bg-gray-50 border border-gray-200 px-3 py-2 rounded-md">
-                {companyInfo.address}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <p className="text-gray-500 mb-4">Nenhuma informação da empresa encontrada.</p>
+        {/* Company Information */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-md font-semibold text-gray-900">Informações da Empresa</h4>
             <Button 
-              className="bg-blue-600 hover:bg-blue-700"
+              variant="outline"
               onClick={() => setIsEditCompanyModalOpen(true)}
+              disabled={isLoadingCompany}
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Cadastrar Informações
+              <Edit className="h-4 w-4 mr-2" />
+              Editar
             </Button>
           </div>
-        )}
-      </Card>
-
-      {/* Subscription and Payment Panel */}
-      <Card className="p-6">
-        <h4 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <CreditCard className="h-5 w-5" />
-          Assinatura e Pagamento
-        </h4>
-        
-        <div className="space-y-6">
-          {/* Plan Information */}
-          <div>
-            <h5 className="font-medium text-gray-900 mb-3">Plano Atual</h5>
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-              <div className="flex items-center justify-between">
+          
+          {isLoadingCompany ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500">Carregando informações da empresa...</p>
+            </div>
+          ) : companyInfo ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <h6 className="font-medium text-gray-900">Plano Premium</h6>
-                  <p className="text-sm text-gray-600">Valor mensal: R$ 99,90</p>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Nome/Razão Social
+                  </label>
+                  <div className="bg-gray-50 border border-gray-200 px-3 py-2 rounded-md">
+                    {companyInfo.company_name}
+                  </div>
                 </div>
-                <Badge className="bg-green-100 text-green-800">Ativo</Badge>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    CPF/CNPJ
+                  </label>
+                  <div className="bg-gray-50 border border-gray-200 px-3 py-2 rounded-md">
+                    {companyInfo.cnpj}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Telefone
+                  </label>
+                  <div className="bg-gray-50 border border-gray-200 px-3 py-2 rounded-md">
+                    {companyInfo.phone}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    E-mail
+                  </label>
+                  <div className="bg-gray-50 border border-gray-200 px-3 py-2 rounded-md">
+                    {companyInfo.email}
+                  </div>
+                </div>
+                {/* NOVOS CAMPOS EXTRAPOLADOS */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    CEP
+                  </label>
+                  <div className="bg-gray-50 border border-gray-200 px-3 py-2 rounded-md">
+                    {extracted.cep}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Endereço
+                  </label>
+                  <div className="bg-gray-50 border border-gray-200 px-3 py-2 rounded-md">
+                    {extracted.address}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Bairro
+                  </label>
+                  <div className="bg-gray-50 border border-gray-200 px-3 py-2 rounded-md">
+                    {extracted.neighborhood}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Cidade
+                  </label>
+                  <div className="bg-gray-50 border border-gray-200 px-3 py-2 rounded-md">
+                    {extracted.city}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Estado
+                  </label>
+                  <div className="bg-gray-50 border border-gray-200 px-3 py-2 rounded-md">
+                    {extracted.state}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-gray-500 mb-4">Nenhuma informação da empresa encontrada.</p>
+              <Button 
+                className="bg-blue-600 hover:bg-blue-700"
+                onClick={() => setIsEditCompanyModalOpen(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Cadastrar Informações
+              </Button>
+            </div>
+          )}
+        </Card>
 
-          {/* Card Information */}
-          <div>
-            <h5 className="font-medium text-gray-900 mb-3">Cartão Cadastrado</h5>
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-              <div className="flex items-center gap-3">
-                <CreditCard className="h-8 w-8 text-blue-600" />
-                <div>
-                  <p className="font-medium text-gray-900">**** **** **** 1234</p>
-                  <p className="text-sm text-gray-600">Visa - Exp: 12/26</p>
+        {/* Subscription and Payment Panel */}
+        <Card className="p-6">
+          <h4 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <CreditCard className="h-5 w-5" />
+            Assinatura e Pagamento
+          </h4>
+          
+          <div className="space-y-6">
+            {/* Plan Information */}
+            <div>
+              <h5 className="font-medium text-gray-900 mb-3">Plano Atual</h5>
+              <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h6 className="font-medium text-gray-900">Plano Premium</h6>
+                    <p className="text-sm text-gray-600">Valor mensal: R$ 99,90</p>
+                  </div>
+                  <Badge className="bg-green-100 text-green-800">Ativo</Badge>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Change Payment Method Button */}
-          <div className="pt-4 border-t">
-            <Button 
-              className="bg-blue-600 hover:bg-blue-700"
-              onClick={handleChangePaymentMethod}
-            >
-              <CreditCard className="h-4 w-4 mr-2" />
-              Alterar Forma de Pagamento
-            </Button>
+            {/* Card Information */}
+            <div>
+              <h5 className="font-medium text-gray-900 mb-3">Cartão Cadastrado</h5>
+              <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                <div className="flex items-center gap-3">
+                  <CreditCard className="h-8 w-8 text-blue-600" />
+                  <div>
+                    <p className="font-medium text-gray-900">**** **** **** 1234</p>
+                    <p className="text-sm text-gray-600">Visa - Exp: 12/26</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Change Payment Method Button */}
+            <div className="pt-4 border-t">
+              <Button 
+                className="bg-blue-600 hover:bg-blue-700"
+                onClick={handleChangePaymentMethod}
+              >
+                <CreditCard className="h-4 w-4 mr-2" />
+                Alterar Forma de Pagamento
+              </Button>
+            </div>
           </div>
-        </div>
-      </Card>
-    </div>
-  );
+        </Card>
+      </div>
+    );
+  };
 
   const renderTeamTab = () => (
     <div className="space-y-6">
