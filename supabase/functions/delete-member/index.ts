@@ -52,13 +52,13 @@ serve(async (req) => {
     }
     console.log('Calling user authenticated:', { id: user.id, email: user.email })
 
-    // 2. Check if the calling user is an admin
+    // 2. Check if the calling user is an admin, with self-correction
     console.log('Checking if user is an admin')
-    const { data: roleData, error: roleError } = await supabaseAdmin
+    let { data: roleData, error: roleError } = await supabaseAdmin
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
-      .maybeSingle() // Use maybeSingle to prevent crash on no rows.
+      .maybeSingle()
 
     if (roleError) {
       console.error('Error checking user role:', roleError)
@@ -68,7 +68,40 @@ serve(async (req) => {
       })
     }
 
-    if (!roleData || roleData.role !== 'admin') {
+    let isUserAdmin = roleData?.role === 'admin'
+
+    // If user has no explicit role, check if they are the primary account holder
+    if (!isUserAdmin && !roleData) {
+      console.log(`User ${user.id} has no role. Checking if they are primary user.`)
+      const { data: profileData, error: profileError } = await supabaseAdmin
+        .from('user_profiles')
+        .select('parent_user_id')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (profileError) {
+        console.error('Error checking user profile for admin status:', profileError)
+        // Don't block, just log. The final check will deny access.
+      } else if (profileData && profileData.parent_user_id === null) {
+        console.log(`User ${user.id} is the primary user. Granting admin access for this request.`)
+        isUserAdmin = true
+        
+        // Self-correction: Add the 'admin' role to user_roles table to avoid this check in the future
+        console.log(`Self-correcting: adding 'admin' role for user ${user.id}`)
+        const { error: insertError } = await supabaseAdmin
+          .from('user_roles')
+          .insert({ user_id: user.id, role: 'admin' }, { onConflict: 'user_id' }) // Use onConflict to avoid race conditions
+
+        if (insertError && insertError.code !== '23505') { // 23505 is unique_violation, which is ok here
+          // This is not a critical failure, so just log it and proceed.
+          console.error(`Failed to self-correct admin role for user ${user.id}:`, insertError)
+        } else {
+          console.log(`Successfully self-corrected admin role for user ${user.id}`)
+        }
+      }
+    }
+
+    if (!isUserAdmin) {
       console.error('User is not an admin:', { userId: user.id, role: roleData?.role })
          return new Response(JSON.stringify({ error: 'Unauthorized: Not an admin' }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -89,6 +122,15 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       })
+    }
+    
+    // Admins cannot delete themselves
+    if (memberId === user.id) {
+        console.error('Admin attempting to self-delete');
+        return new Response(JSON.stringify({ error: 'Admins cannot delete their own account.' }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400,
+        });
     }
 
     console.log(`Starting deletion process for memberId: ${memberId}`)
