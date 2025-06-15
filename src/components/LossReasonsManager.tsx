@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Edit2, Save, X } from "lucide-react";
+import { Plus, Edit2, Save, X } from "lucide-react";
 import { useLossReasonsGlobal } from "@/hooks/useLossReasonsGlobal";
 import { useToast } from "@/hooks/use-toast";
+import { DeleteButton } from "@/components/DeleteButton";
 
 export function LossReasonsManager() {
   const { lossReasons, loading, addLossReason, updateLossReason, deleteLossReason, refreshData } = useLossReasonsGlobal();
@@ -63,26 +64,8 @@ export function LossReasonsManager() {
     setEditingValue("");
   };
 
-  const handleDelete = async (id: string, reason: string, isFixed: boolean) => {
-    console.log(`🗑️ LossReasonsManager - Tentativa de exclusão do motivo ID: ${id}, motivo: ${reason}, fixo: ${isFixed}`);
-    
-    if (isFixed) {
-      toast({
-        title: "Erro",
-        description: "Este motivo não pode ser excluído pois é um motivo base do sistema.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsLoading(true);
-    const success = await deleteLossReason(id);
-    setIsLoading(false);
-    
-    if (success) {
-      console.log(`✅ LossReasonsManager - Motivo "${reason}" excluído com sucesso`);
-    }
-  };
+  // Remove o antigo handler de exclusão e usa o DeleteButton
+  // O DeleteButton faz toda a gestão de confirmação/feedback
 
   if (loading) {
     return (
@@ -193,15 +176,18 @@ export function LossReasonsManager() {
                           >
                             <Edit2 className="h-4 w-4" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(reason.id, reason.reason, reason.is_fixed)}
+                          <DeleteButton
+                            onDelete={async () => {
+                              setIsLoading(true);
+                              await deleteLossReason(reason.id);
+                              setIsLoading(false);
+                            }}
+                            itemName={reason.reason}
+                            itemType="motivo de perda"
                             disabled={isLoading}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                            size="sm"
+                            variant="ghost"
+                          />
                         </>
                       )}
                     </div>
