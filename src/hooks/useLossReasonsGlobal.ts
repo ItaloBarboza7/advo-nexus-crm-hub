@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -42,32 +41,21 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
     const { data, error } = await (supabase as any).rpc("get_visible_loss_reasons_for_tenant");
 
     if (error || !data) {
-      // Fallback to older logic: show all reasons
-      const { data: rawReasons, error: fallbackError } = await supabase
-        .from("loss_reasons")
-        .select("*")
-        .order("created_at", { ascending: true });
-
-      if (fallbackError) {
-        toast({
-          title: "Erro",
-          description: "Não foi possível carregar os motivos de perda.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-      // eslint-disable-next-line no-console
-      console.log("🟠 fetchLossReasons - Fallback para loss_reasons. Motivos carregados:", rawReasons);
-      setLossReasons(rawReasons as LossReasonRecord[]);
+      // Agora não há mais fallback: simplesmente mostrar o erro.
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os motivos de perda (RPC).",
+        variant: "destructive",
+      });
+      setLossReasons([]);
       setLoading(false);
+      // eslint-disable-next-line no-console
+      console.error("❌ fetchLossReasons - Erro ao buscar via RPC:", error);
       return;
     }
 
     // eslint-disable-next-line no-console
     console.log("✅ fetchLossReasons - Motivos carregados:", data);
-
-    // Supabase returns 'any' here, so we cast safely.
     setLossReasons(data as LossReasonRecord[]);
     setLoading(false);
   }, [toast]);
@@ -252,4 +240,3 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
     refreshData,
   };
 }
-
