@@ -6,6 +6,7 @@ import { Activity, Users, BarChart3, PieChart as PieChartIcon } from "lucide-rea
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { Lead } from "@/types/lead";
 import { getChartTitle } from "@/components/analysis/ChartTitleProvider";
+import { useActionGroupsAndTypes } from "@/hooks/useActionGroupsAndTypes";
 
 interface ActionTypesChartProps {
   leads: Lead[];
@@ -19,13 +20,27 @@ const COLORS = [
 
 export function ActionTypesChart({ leads, selectedCategory = "all" }: ActionTypesChartProps) {
   const [viewType, setViewType] = useState<'bar' | 'pie'>('bar');
+  const { validActionTypeNames, validActionGroupNames } = useActionGroupsAndTypes();
 
-  // Agora conta 100% dos tipos existentes nos leads, sem validação adicional
+  // Ajusta action_type para "Não especificado" se vazio/nulo, 
+  // e só conta o tipo para leads cujo action_group é válido (senão mostra como "Outros")
   const chartData = useMemo(() => {
     if (!leads || !Array.isArray(leads)) return [];
 
     const typeCounts = leads.reduce((acc, lead) => {
-      const type = lead.action_type || "Não especificado";
+      // Se o grupo de ação do lead é inválido, considera o grupo "Outros" e tipo "Não especificado"
+      let group = lead.action_group && lead.action_group.trim() !== "" ? lead.action_group : "Outros";
+      if (!validActionGroupNames.includes(group)) {
+        group = "Outros";
+      }
+
+      // Se está em "Outros", só aceita tipo se for válido, caso contrário força "Não especificado"
+      let type = lead.action_type && lead.action_type.trim() !== "" ? lead.action_type : "Não especificado";
+      // Se action_type não é válido entre as opções, força para "Não especificado"
+      if (!validActionTypeNames.includes(type)) type = "Não especificado";
+      // (Extra: se o grupo é "Outros", tipo normalmente vira nulo mesmo)
+
+      // Poderíamos fazer agrupamento cruzado com grupo+tipo, mas para ActionTypesChart geralmente só queremos action_type.
       acc[type] = (acc[type] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
@@ -39,7 +54,7 @@ export function ActionTypesChart({ leads, selectedCategory = "all" }: ActionType
         color: COLORS[idx % COLORS.length]
       }))
       .sort((a, b) => b.count - a.count);
-  }, [leads]);
+  }, [leads, validActionTypeNames, validActionGroupNames]);
 
   const totalLeads = leads?.length || 0;
   const chartTitle = getChartTitle({ selectedCategory, chartType: 'actionTypes' });
@@ -186,3 +201,4 @@ export function ActionTypesChart({ leads, selectedCategory = "all" }: ActionType
 
 // IMPORTANTE: Este arquivo está ficando longo (205 linhas). 
 // Considere pedir uma refatoração após as correções para facilitar a manutenção.
+

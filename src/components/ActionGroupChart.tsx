@@ -6,6 +6,7 @@ import { Activity, Users, BarChart3, PieChart as PieChartIcon } from "lucide-rea
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { Lead } from "@/types/lead";
 import { getChartTitle } from "@/components/analysis/ChartTitleProvider";
+import { useActionGroupsAndTypes } from "@/hooks/useActionGroupsAndTypes";
 
 interface ActionGroupChartProps {
   leads: Lead[];
@@ -19,16 +20,19 @@ const COLORS = [
 
 export function ActionGroupChart({ leads, selectedCategory = "all" }: ActionGroupChartProps) {
   const [viewType, setViewType] = useState<'bar' | 'pie'>('bar');
+  const { validActionGroupNames } = useActionGroupsAndTypes();
 
-  // Garante que qualquer lead sem grupo (nulo, branco ou removido) seja mostrado como "Outros"
+  // Garante que qualquer lead sem grupo, grupo removido, nulo/vazio, ou inexistente seja "Outros"
   const chartData = useMemo(() => {
     if (!leads || !Array.isArray(leads)) return [];
 
     const groupCounts = leads.reduce((acc, lead) => {
-      // Tratamento robusto: se grupo é nulo, vazio ou só espaços, conta como "Outros"
-      const group = lead.action_group && lead.action_group.trim() !== ""
-        ? lead.action_group
-        : "Outros";
+      let group = lead.action_group && lead.action_group.trim() !== ""
+        ? lead.action_group : "Outros";
+
+      // Se não for um action_group válido, normaliza pra "Outros"
+      if (!validActionGroupNames.includes(group)) group = "Outros";
+
       acc[group] = (acc[group] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
@@ -42,7 +46,7 @@ export function ActionGroupChart({ leads, selectedCategory = "all" }: ActionGrou
         color: COLORS[idx % COLORS.length]
       }))
       .sort((a, b) => b.count - a.count);
-  }, [leads]);
+  }, [leads, validActionGroupNames]);
 
   const totalLeads = leads?.length || 0;
   const chartTitle = getChartTitle({ selectedCategory, chartType: 'actionGroups' });
