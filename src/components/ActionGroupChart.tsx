@@ -2,51 +2,61 @@
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Activity, Users, BarChart3, PieChart as PieChartIcon } from "lucide-react";
+import { Activity, Users, BarChart3, PieChart as PieChartIcon, AlertCircle } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { Lead } from "@/types/lead";
 import { getChartTitle } from "@/components/analysis/ChartTitleProvider";
+import { useActionGroupsAndTypes } from "@/hooks/useActionGroupsAndTypes";
 
 interface ActionGroupChartProps {
   leads: Lead[];
   selectedCategory?: string;
 }
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316'];
+const COLORS = [
+  "#3b82f6", "#10b981", "#f59e0b", "#ef4444",
+  "#8b5cf6", "#06b6d4", "#84cc16", "#f97316"
+];
 
-export function ActionGroupChart({ leads, selectedCategory = 'all' }: ActionGroupChartProps) {
+export function ActionGroupChart({ leads, selectedCategory = "all" }: ActionGroupChartProps) {
   const [viewType, setViewType] = useState<'bar' | 'pie'>('bar');
+  const { validActionGroupNames, loadingActionOptions } = useActionGroupsAndTypes();
 
   const chartData = useMemo(() => {
-    if (!leads || !Array.isArray(leads)) {
-      return [];
-    }
-    
-    const actionGroups = leads.reduce((acc, lead) => {
-      const actionGroup = lead.action_group || "Sem grupo especificado";
-      acc[actionGroup] = (acc[actionGroup] || 0) + 1;
+    if (!leads || !Array.isArray(leads)) return [];
+
+    // Agrupar por grupo válido, senão "Grupo Removido"
+    const groupCounts = leads.reduce((acc, lead) => {
+      let group = lead.action_group || "Grupo Removido";
+      if (!validActionGroupNames.includes(group)) group = "Grupo Removido";
+      acc[group] = (acc[group] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
-    return Object.entries(actionGroups)
-      .map(([group, count], index) => ({
+    return Object.entries(groupCounts)
+      .map(([group, count], idx) => ({
         name: group,
         actionGroup: group,
         count,
         percentage: leads.length > 0 ? (count / leads.length) * 100 : 0,
-        color: COLORS[index % COLORS.length]
+        color: COLORS[idx % COLORS.length]
       }))
       .sort((a, b) => b.count - a.count);
-  }, [leads]);
+  }, [leads, validActionGroupNames]);
 
+  const hasRemoved = chartData.some(item => item.actionGroup === "Grupo Removido");
   const totalLeads = leads?.length || 0;
   const chartTitle = getChartTitle({ selectedCategory, chartType: 'actionGroups' });
 
-  const renderCustomLabel = (entry: any) => {
-    const percent = entry.percentage;
-    if (percent < 5) return ''; // Não mostra percentual para fatias muito pequenas
-    return `${percent.toFixed(0)}%`;
-  };
+  const renderCustomLabel = (entry: any) => entry.percentage >= 5 ? `${entry.percentage.toFixed(0)}%` : "";
+
+  if (loadingActionOptions) {
+    return (
+      <Card className="p-6">
+        <div className="text-gray-600">Carregando grupos de ação...</div>
+      </Card>
+    );
+  }
 
   if (totalLeads === 0) {
     return (
@@ -95,10 +105,17 @@ export function ActionGroupChart({ leads, selectedCategory = 'all' }: ActionGrou
         </div>
       </div>
 
+      {hasRemoved && (
+        <div className="mb-4 flex items-center gap-2 text-sm text-yellow-700 bg-yellow-50 p-2 rounded-md border border-yellow-200">
+          <AlertCircle className="h-4 w-4" />
+          Leads marcados com grupos de ação removidos foram agrupados como <b>"Grupo Removido"</b>.
+        </div>
+      )}
+
       <div className="h-80">
         {viewType === 'bar' ? (
           <div className="space-y-4 h-full overflow-y-auto px-2">
-            {chartData.map((item, index) => (
+            {chartData.map((item) => (
               <div key={item.actionGroup} className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -145,8 +162,8 @@ export function ActionGroupChart({ leads, selectedCategory = 'all' }: ActionGrou
                 label={renderCustomLabel}
                 labelLine={false}
               >
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
+                {chartData.map((entry, idx) => (
+                  <Cell key={`cell-${idx}`} fill={entry.color} />
                 ))}
               </Pie>
               <Tooltip 
