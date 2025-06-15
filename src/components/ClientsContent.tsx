@@ -48,6 +48,7 @@ export function ClientsContent() {
   const { validActionGroupNames } = useActionGroupsAndTypes();
   const [showOnlyOpportunities, setShowOnlyOpportunities] = useState(false);
 
+  // fetchLeads NÃO precisa isolar user_id nem fazer filtro em JS!
   const fetchLeads = async () => {
     try {
       setIsLoading(true);
@@ -60,16 +61,16 @@ export function ClientsContent() {
         console.error('Erro ao buscar leads:', error);
         toast({
           title: "Erro",
-          description: "Não foi possível carregar os leads.",
+          description: error.message ?? "Não foi possível carregar os leads.",
           variant: "destructive"
         });
         return;
       }
 
-      // Transform the data to match our Lead type by adding missing fields
+      // A conversão/transformation aqui continua igual
       const transformedLeads: Lead[] = (data || []).map(lead => ({
         ...lead,
-        company: undefined, // Handle optional fields that don't exist in database
+        company: undefined,
         interest: undefined,
         lastContact: undefined,
         avatar: undefined

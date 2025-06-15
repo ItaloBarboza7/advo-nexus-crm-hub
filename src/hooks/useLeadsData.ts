@@ -9,32 +9,31 @@ export function useLeadsData() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
-  
-  // Usar o hook global para motivos de perda - mas não interferir no estado
   const { lossReasons } = useLossReasonsGlobal();
 
+  // Aqui não precisa mais filtrar user_id, pois o Supabase RLS já faz o isolamento!
   const fetchLeads = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
+      const { data, error, status } = await supabase
         .from('leads')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Erro ao buscar leads:', error);
+        console.error('Erro ao buscar leads:', error, 'status:', status);
         toast({
           title: "Erro",
-          description: "Não foi possível carregar os leads.",
+          description: error.message || "Não foi possível carregar os leads.",
           variant: "destructive"
         });
         return;
       }
 
-      // Transform the data to match our Lead type by adding missing fields
+      // Nada de filtro manual por user_id!
       const transformedLeads: Lead[] = (data || []).map(lead => ({
         ...lead,
-        company: undefined, // Handle optional fields that don't exist in database
+        company: undefined,
         interest: undefined,
         lastContact: undefined,
         avatar: undefined
@@ -42,7 +41,7 @@ export function useLeadsData() {
 
       console.log(`📊 useLeadsData - ${transformedLeads.length} leads carregados`);
       setLeads(transformedLeads);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro inesperado ao buscar leads:', error);
       toast({
         title: "Erro",
@@ -114,3 +113,4 @@ export function useLeadsData() {
     updateLead
   };
 }
+

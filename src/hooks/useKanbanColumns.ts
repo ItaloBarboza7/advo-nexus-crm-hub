@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -16,6 +15,7 @@ export function useKanbanColumns() {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
+  // Eliminado qualquer logica de filtro por user_id
   const fetchColumns = async () => {
     try {
       setIsLoading(true);
