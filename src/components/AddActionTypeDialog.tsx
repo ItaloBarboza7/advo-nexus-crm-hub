@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ interface ActionType {
   name: string;
   action_group_id: string;
   action_groups?: ActionGroup;
+  user_id: string | null;
 }
 
 interface AddActionTypeDialogProps {
@@ -218,11 +220,13 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
                       {type.action_groups?.description || 'Grupo não encontrado'}
                     </span>
                   </div>
-                  <DeleteButton
-                    onDelete={() => handleDeleteType(type.id)}
-                    itemName={type.name}
-                    itemType="o tipo de ação"
-                  />
+                  {type.user_id && (
+                    <DeleteButton
+                      onDelete={() => handleDeleteType(type.id)}
+                      itemName={type.name}
+                      itemType="o tipo de ação"
+                    />
+                  )}
                 </div>
               ))}
             </div>
