@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { DeleteButton } from "@/components/DeleteButton";
+import { Pencil } from "lucide-react";
 
 interface LeadSource {
   id: string;
@@ -26,6 +26,8 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
   const [isLoading, setIsLoading] = useState(false);
   const [leadSources, setLeadSources] = useState<LeadSource[]>([]);
   const [isLoadingSources, setIsLoadingSources] = useState(false);
+  const [editingSource, setEditingSource] = useState<{ id: string; label: string } | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
   const { toast } = useToast();
 
   // Busca somente fontes visíveis para este tenant
@@ -95,6 +97,39 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleUpdateSource = async () => {
+    if (!editingSource || !editingSource.label.trim()) {
+      toast({ title: "Erro", description: "O nome não pode ser vazio.", variant: "destructive" });
+      return;
+    }
+
+    setIsUpdating(true);
+    const newLabel = editingSource.label.trim();
+    const newName = newLabel.toLowerCase().replace(/\s+/g, "-");
+
+    try {
+      const { error } = await supabase
+        .from("lead_sources")
+        .update({ label: newLabel, name: newName })
+        .eq("id", editingSource.id);
+
+      if (error) {
+        console.error("Erro ao atualizar fonte:", error);
+        toast({ title: "Erro", description: "Não foi possível atualizar a fonte.", variant: "destructive" });
+        return;
+      }
+
+      toast({ title: "Sucesso", description: "Fonte atualizada com sucesso." });
+      setEditingSource(null);
+      fetchLeadSources();
+    } catch (error) {
+      console.error("Erro inesperado ao atualizar fonte:", error);
+      toast({ title: "Erro", description: "Ocorreu um erro inesperado.", variant: "destructive" });
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -187,19 +222,50 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
           ) : (
             <div className="space-y-2 max-h-40 overflow-y-auto">
               {leadSources.map((source) => (
-                <div key={source.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                  <span className="text-sm">
-                    {source.label}
-                    {!source.user_id && (
-                      <span className="ml-2 text-xs text-gray-400">(padrão)</span>
-                    )}
-                  </span>
-                  <DeleteButton
-                    onDelete={() => handleDeleteSource(source.id)}
-                    itemName={source.label}
-                    itemType="a fonte de lead"
-                    disabled={!source.user_id}
-                  />
+                <div key={source.id} className="flex items-center justify-between p-2 bg-gray-50 rounded gap-2">
+                  {editingSource?.id === source.id ? (
+                    <>
+                      <Input
+                        value={editingSource.label}
+                        onChange={(e) => setEditingSource({ ...editingSource, label: e.target.value })}
+                        className="h-9"
+                        disabled={isUpdating}
+                      />
+                      <div className="flex items-center gap-1">
+                        <Button size="sm" onClick={handleUpdateSource} disabled={isUpdating}>
+                          {isUpdating ? "..." : "Salvar"}
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setEditingSource(null)} disabled={isUpdating}>
+                          Cancelar
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-sm">
+                        {source.label}
+                        {!source.user_id && (
+                          <span className="ml-2 text-xs text-gray-400">(padrão)</span>
+                        )}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditingSource({ id: source.id, label: source.label })}
+                          disabled={!source.user_id}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <DeleteButton
+                          onDelete={() => handleDeleteSource(source.id)}
+                          itemName={source.label}
+                          itemType="a fonte de lead"
+                          disabled={!source.user_id}
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               ))}
             </div>

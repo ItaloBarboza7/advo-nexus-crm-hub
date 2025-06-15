@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { DeleteButton } from "@/components/DeleteButton";
+import { Pencil } from "lucide-react";
 
 interface ActionGroup {
   id: string;
@@ -35,6 +36,8 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
   const [isLoading, setIsLoading] = useState(false);
   const [actionTypes, setActionTypes] = useState<ActionType[]>([]);
   const [isLoadingTypes, setIsLoadingTypes] = useState(false);
+  const [editingType, setEditingType] = useState<{ id: string; name: string } | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
   const { toast } = useToast();
 
   const fetchActionTypes = async () => {
@@ -108,6 +111,44 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleUpdateType = async () => {
+    if (!editingType || !editingType.name.trim()) {
+      toast({
+        title: "Erro",
+        description: "O nome não pode ser vazio.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      const { error } = await supabase.from("action_types").update({ name: editingType.name.trim() }).eq("id", editingType.id);
+
+      if (error) {
+        console.error("❌ Erro ao atualizar tipo:", error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível atualizar o tipo de ação.",
+          variant: "destructive",
+        });
+        throw error;
+      }
+
+      toast({
+        title: "Sucesso",
+        description: "Tipo de ação atualizado com sucesso.",
+      });
+
+      setEditingType(null);
+      fetchActionTypes();
+    } catch (e) {
+      // erro já tratado
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -207,23 +248,50 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
               {actionTypes.map((type) => {
                 const group = actionGroups.find((g) => g.id === type.action_group_id);
                 return (
-                  <div key={type.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium">
-                        {type.name}
-                        {!type.user_id && (
-                           <span className="ml-2 text-xs text-gray-400">(padrão)</span>
-                        )}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {group?.description || 'Grupo não encontrado'}
-                      </span>
-                    </div>
-                    <DeleteButton
-                      onDelete={() => handleDeleteType(type.id)}
-                      itemName={type.name}
-                      itemType="o tipo de ação"
-                    />
+                  <div key={type.id} className="flex items-center justify-between p-2 bg-gray-50 rounded gap-2">
+                    {editingType?.id === type.id ? (
+                      <>
+                        <Input
+                          value={editingType.name}
+                          onChange={(e) => setEditingType({ ...editingType, name: e.target.value })}
+                          className="h-9"
+                          disabled={isUpdating}
+                        />
+                        <div className="flex items-center gap-1">
+                          <Button size="sm" onClick={handleUpdateType} disabled={isUpdating}>
+                            {isUpdating ? "..." : "Salvar"}
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setEditingType(null)} disabled={isUpdating}>
+                            Cancelar
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium">
+                            {type.name}
+                            {!type.user_id && <span className="ml-2 text-xs text-gray-400">(padrão)</span>}
+                          </span>
+                          <span className="text-xs text-gray-500">{group?.description || "Grupo não encontrado"}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEditingType({ id: type.id, name: type.name })}
+                            disabled={!type.user_id}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <DeleteButton
+                            onDelete={() => handleDeleteType(type.id)}
+                            itemName={type.name}
+                            itemType="o tipo de ação"
+                          />
+                        </div>
+                      </>
+                    )}
                   </div>
                 );
               })}
