@@ -107,6 +107,30 @@ export type Database = {
         }
         Relationships: []
       }
+      hidden_default_items: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string
+          item_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id: string
+          item_type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string
+          item_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       kanban_columns: {
         Row: {
           color: string
@@ -372,6 +396,38 @@ export type Database = {
       get_tenant_id: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      get_visible_action_groups: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+          user_id: string | null
+        }[]
+      }
+      get_visible_action_types: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          action_group_id: string | null
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string | null
+        }[]
+      }
+      get_visible_lead_sources: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          created_at: string
+          id: string
+          label: string
+          name: string
+          updated_at: string
+        }[]
       }
       has_role: {
         Args: {

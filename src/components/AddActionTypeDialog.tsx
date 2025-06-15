@@ -41,24 +41,20 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
   const fetchActionTypes = async () => {
     setIsLoadingTypes(true);
     try {
-      const { data, error } = await supabase
-        .from('action_types')
-        .select(`
-          *,
-          action_groups:action_group_id (
-            id,
-            name,
-            description
-          )
-        `)
-        .order('name', { ascending: true });
+      const { data: visibleTypes, error: typesError } = await supabase
+        .rpc('get_visible_action_types');
 
-      if (error) {
-        console.error('Erro ao buscar tipos de ação (dialog):', error);
+      if (typesError) {
+        console.error('Erro ao buscar tipos de ação (dialog):', typesError);
         return;
       }
+      
+      const enrichedTypes = (visibleTypes || []).map(type => {
+          const group = actionGroups.find(g => g.id === type.action_group_id);
+          return { ...type, action_groups: group };
+      }).sort((a, b) => a.name.localeCompare(b.name));
 
-      setActionTypes(data || []);
+      setActionTypes(enrichedTypes as ActionType[]);
     } catch (error) {
       console.error('Erro inesperado ao buscar tipos (dialog):', error);
     } finally {
@@ -119,33 +115,35 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
     }
   };
 
-  const handleDeleteType = async (typeId: string) => {
-    console.log('🗑️ Iniciando exclusão do tipo com ID:', typeId);
-    
-    const { error } = await supabase
-      .from('action_types')
-      .delete()
-      .eq('id', typeId);
+  const handleRemoveOrHideType = async (type: ActionType) => {
+    if (type.user_id === null) {
+      const { error } = await supabase
+        .from('hidden_default_items')
+        .insert({ item_id: type.id, item_type: 'action_type' });
 
-    if (error) {
-      console.error('❌ Erro ao excluir tipo:', error);
-      let description = "Não foi possível excluir o tipo de ação.";
-      if (error.code === '42501') { // insufficient_privilege
-        description = "Você não tem permissão para excluir este tipo de ação.";
+      if (error) {
+        console.error('❌ Erro ao ocultar tipo:', error);
+        toast({ title: "Erro", description: "Não foi possível remover o tipo de ação.", variant: "destructive" });
+        return;
       }
-      toast({
-        title: "Erro",
-        description: description,
-        variant: "destructive"
-      });
-      throw error;
-    }
+      toast({ title: "Sucesso", description: "Tipo de ação padrão removido da sua visualização." });
+    } else {
+      const { error } = await supabase
+        .from('action_types')
+        .delete()
+        .eq('id', type.id);
 
-    console.log('✅ Tipo excluído com sucesso');
-    toast({
-      title: "Sucesso",
-      description: "Tipo de ação excluído com sucesso.",
-    });
+      if (error) {
+        console.error('❌ Erro ao excluir tipo:', error);
+        let description = "Não foi possível excluir o tipo de ação.";
+        if (error.code === '42501') {
+          description = "Você não tem permissão para excluir este tipo de ação.";
+        }
+        toast({ title: "Erro", description, variant: "destructive" });
+        return;
+      }
+      toast({ title: "Sucesso", description: "Tipo de ação excluído com sucesso." });
+    }
 
     fetchActionTypes();
     onTypeAdded();
@@ -225,17 +223,16 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    {type.user_id === null ? (
+                    {type.user_id === null && (
                       <Badge variant="secondary" className="text-xs font-medium">
                         Padrão
                       </Badge>
-                    ) : (
-                      <DeleteButton
-                        onDelete={() => handleDeleteType(type.id)}
-                        itemName={type.name}
-                        itemType="o tipo de ação"
-                      />
                     )}
+                    <DeleteButton
+                      onDelete={() => handleRemoveOrHideType(type)}
+                      itemName={type.name}
+                      itemType="o tipo de ação"
+                    />
                   </div>
                 </div>
               ))}

@@ -35,38 +35,35 @@ export const useFilterOptions = () => {
       
       // Buscar grupos de ação
       const { data: groupsData, error: groupsError } = await supabase
-        .from('action_groups')
-        .select('*')
-        .order('name');
+        .rpc('get_visible_action_groups');
 
       if (groupsError) {
         console.error('Erro ao buscar grupos de ação:', groupsError);
       } else {
-        setActionGroups(groupsData || []);
+        const sorted = (groupsData || []).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        setActionGroups(sorted);
       }
 
       // Buscar tipos de ação
       const { data: typesData, error: typesError } = await supabase
-        .from('action_types')
-        .select('*')
-        .order('name');
+        .rpc('get_visible_action_types');
 
       if (typesError) {
         console.error('Erro ao buscar tipos de ação:', typesError);
       } else {
-        setActionTypes(typesData || []);
+        const sorted = (typesData || []).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        setActionTypes(sorted);
       }
 
       // Buscar fontes de leads
       const { data: sourcesData, error: sourcesError } = await supabase
-        .from('lead_sources')
-        .select('*')
-        .order('label');
+        .rpc('get_visible_lead_sources');
 
       if (sourcesError) {
         console.error('Erro ao buscar fontes de leads:', sourcesError);
       } else {
-        setLeadSources(sourcesData || []);
+        const sorted = (sourcesData || []).sort((a, b) => (a.label || '').localeCompare(b.label || ''));
+        setLeadSources(sorted as LeadSource[]);
       }
     } catch (error) {
       console.error('Erro inesperado ao buscar dados:', error);

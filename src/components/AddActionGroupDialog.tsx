@@ -32,16 +32,17 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
     setIsLoadingGroups(true);
     try {
       const { data, error } = await supabase
-        .from('action_groups')
-        .select('*')
-        .order('description', { ascending: true });
+        .rpc('get_visible_action_groups');
 
       if (error) {
         console.error('Erro ao buscar grupos (dialog):', error);
         return;
       }
       
-      setActionGroups(data || []);
+      const sortedData = (data || []).sort((a, b) => 
+        (a.description || a.name).localeCompare(b.description || b.name)
+      );
+      setActionGroups(sortedData as ActionGroup[]);
     } catch (error) {
       console.error('Erro inesperado ao buscar grupos (dialog):', error);
     } finally {
@@ -101,33 +102,35 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
     }
   };
 
-  const handleDeleteGroup = async (groupId: string) => {
-    console.log('🗑️ Iniciando exclusão do grupo com ID:', groupId);
-    
-    const { error } = await supabase
-      .from('action_groups')
-      .delete()
-      .eq('id', groupId);
+  const handleRemoveOrHideGroup = async (group: ActionGroup) => {
+    if (group.user_id === null) {
+      const { error } = await supabase
+        .from('hidden_default_items')
+        .insert({ item_id: group.id, item_type: 'action_group' });
 
-    if (error) {
-      console.error('❌ Erro ao excluir grupo:', error);
-      let description = "Não foi possível excluir o grupo de ação.";
-      if (error.code === '42501') { // insufficient_privilege
-        description = "Você não tem permissão para excluir este grupo de ação.";
+      if (error) {
+        console.error('❌ Erro ao ocultar grupo:', error);
+        toast({ title: "Erro", description: "Não foi possível remover o grupo de ação.", variant: "destructive" });
+        return;
       }
-      toast({
-        title: "Erro",
-        description: description,
-        variant: "destructive"
-      });
-      throw error;
-    }
+      toast({ title: "Sucesso", description: "Grupo de ação padrão removido da sua visualização." });
+    } else {
+      const { error } = await supabase
+        .from('action_groups')
+        .delete()
+        .eq('id', group.id);
 
-    console.log('✅ Grupo excluído com sucesso');
-    toast({
-      title: "Sucesso",
-      description: "Grupo de ação excluído com sucesso.",
-    });
+      if (error) {
+        console.error('❌ Erro ao excluir grupo:', error);
+        let description = "Não foi possível excluir o grupo de ação.";
+        if (error.code === '42501') {
+          description = "Você não tem permissão para excluir este grupo de ação.";
+        }
+        toast({ title: "Erro", description, variant: "destructive" });
+        return;
+      }
+      toast({ title: "Sucesso", description: "Grupo de ação excluído com sucesso." });
+    }
 
     fetchActionGroups();
     onGroupAdded();
@@ -186,17 +189,16 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
                 <div key={group.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                   <span className="text-sm">{group.description}</span>
                   <div className="flex items-center gap-2">
-                    {group.user_id === null ? (
+                    {group.user_id === null && (
                       <Badge variant="secondary" className="text-xs font-medium">
                         Padrão
                       </Badge>
-                    ) : (
-                      <DeleteButton
-                        onDelete={() => handleDeleteGroup(group.id)}
-                        itemName={group.description}
-                        itemType="o grupo de ação"
-                      />
                     )}
+                    <DeleteButton
+                      onDelete={() => handleRemoveOrHideGroup(group)}
+                      itemName={group.description}
+                      itemType="o grupo de ação"
+                    />
                   </div>
                 </div>
               ))}
