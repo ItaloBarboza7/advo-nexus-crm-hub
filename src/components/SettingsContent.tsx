@@ -1296,8 +1296,9 @@ export function SettingsContent() {
       toast({ title: "Erro", description: "Grupo não encontrado.", variant: "destructive" });
       return;
     }
-    // Se grupo default (user_id é null), oculta ao invés de deletar
-    if (!group.user_id) {
+    // Como ActionGroup pode não ter user_id, considera que os defaults são os que NÃO são do usuário
+    // SUPONDO: todos que não tem algum user_id (undefined ou null) são defaults.
+    if ((group as any).user_id == null) {
       // Registrar em hidden_default_items
       const { data: userData, error: userErr } = await supabase.auth.getUser();
       if (userErr || !userData?.user?.id) {
