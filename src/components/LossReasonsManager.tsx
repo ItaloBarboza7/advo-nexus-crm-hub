@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -168,14 +167,6 @@ export function LossReasonsManager() {
                     <div className="flex gap-1">
                       {!reason.is_fixed && (
                         <>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleStartEdit(reason.id, reason.reason)}
-                            disabled={isLoading}
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
                           <DeleteButton
                             onDelete={async () => {
                               setIsLoading(true);
