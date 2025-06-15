@@ -3,17 +3,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit2, Save, X } from "lucide-react";
+import { Plus, Save, X } from "lucide-react";
 import { useLossReasonsGlobal } from "@/hooks/useLossReasonsGlobal";
 import { useToast } from "@/hooks/use-toast";
 import { DeleteButton } from "@/components/DeleteButton";
 
+// Removido: Edit2 do lucide-react
+
 export function LossReasonsManager() {
-  const { lossReasons, loading, addLossReason, updateLossReason, deleteLossReason, refreshData } = useLossReasonsGlobal();
+  const { lossReasons, loading, addLossReason, deleteLossReason } = useLossReasonsGlobal();
   const [newReason, setNewReason] = useState("");
   const [isAddingNew, setIsAddingNew] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingValue, setEditingValue] = useState("");
+  // Removido: editingId, editingValue (edição)
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -25,46 +26,15 @@ export function LossReasonsManager() {
     console.log(`➕ LossReasonsManager - Adicionando novo motivo: ${newReason.trim()}`);
     setIsLoading(true);
     const success = await addLossReason(newReason.trim());
-    
     if (success) {
       console.log(`✅ LossReasonsManager - Motivo adicionado com sucesso`);
       setNewReason("");
       setIsAddingNew(false);
     }
-    
     setIsLoading(false);
   };
 
-  const handleStartEdit = (id: string, currentReason: string) => {
-    console.log(`✏️ LossReasonsManager - Iniciando edição do motivo ID: ${id}, valor: ${currentReason}`);
-    setEditingId(id);
-    setEditingValue(currentReason);
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editingId || !editingValue.trim()) return;
-
-    console.log(`💾 LossReasonsManager - Salvando edição do motivo ID: ${editingId}, novo valor: ${editingValue.trim()}`);
-    setIsLoading(true);
-    const success = await updateLossReason(editingId, editingValue.trim());
-    
-    if (success) {
-      console.log(`✅ LossReasonsManager - Motivo editado com sucesso`);
-      setEditingId(null);
-      setEditingValue("");
-    }
-    
-    setIsLoading(false);
-  };
-
-  const handleCancelEdit = () => {
-    console.log(`❌ LossReasonsManager - Cancelando edição`);
-    setEditingId(null);
-    setEditingValue("");
-  };
-
-  // Remove o antigo handler de exclusão e usa o DeleteButton
-  // O DeleteButton faz toda a gestão de confirmação/feedback
+  // Removido: Funções de edição (handleStartEdit, handleSaveEdit, handleCancelEdit)
 
   if (loading) {
     return (
@@ -133,57 +103,32 @@ export function LossReasonsManager() {
           ) : (
             lossReasons.map((reason) => (
               <div key={reason.id} className="flex items-center gap-2 p-3 border rounded-lg">
-                {editingId === reason.id ? (
-                  <div className="flex gap-2 flex-1">
-                    <Input
-                      value={editingValue}
-                      onChange={(e) => setEditingValue(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleSaveEdit()}
-                      className="flex-1"
-                    />
-                    <Button
-                      onClick={handleSaveEdit}
-                      disabled={isLoading || !editingValue.trim()}
-                      size="sm"
-                    >
-                      <Save className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={handleCancelEdit}
-                      size="sm"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <>
-                    <span className="flex-1 text-sm">{reason.reason}</span>
-                    {reason.is_fixed && (
-                      <Badge variant="secondary" className="text-xs">
-                        Sistema
-                      </Badge>
+                <>
+                  <span className="flex-1 text-sm">{reason.reason}</span>
+                  {reason.is_fixed && (
+                    <Badge variant="secondary" className="text-xs">
+                      Sistema
+                    </Badge>
+                  )}
+                  <div className="flex gap-1">
+                    {!reason.is_fixed && (
+                      <>
+                        <DeleteButton
+                          onDelete={async () => {
+                            setIsLoading(true);
+                            await deleteLossReason(reason.id);
+                            setIsLoading(false);
+                          }}
+                          itemName={reason.reason}
+                          itemType="motivo de perda"
+                          disabled={isLoading}
+                          size="sm"
+                          variant="ghost"
+                        />
+                      </>
                     )}
-                    <div className="flex gap-1">
-                      {!reason.is_fixed && (
-                        <>
-                          <DeleteButton
-                            onDelete={async () => {
-                              setIsLoading(true);
-                              await deleteLossReason(reason.id);
-                              setIsLoading(false);
-                            }}
-                            itemName={reason.reason}
-                            itemType="motivo de perda"
-                            disabled={isLoading}
-                            size="sm"
-                            variant="ghost"
-                          />
-                        </>
-                      )}
-                    </div>
-                  </>
-                )}
+                  </div>
+                </>
               </div>
             ))
           )}
