@@ -1015,7 +1015,6 @@ export function SettingsContent() {
                             itemType="fonte de lead"
                             size="sm"
                             variant="outline"
-                            disabled={!source.user_id}
                           />
                         </div>
                       </div>
