@@ -33,8 +33,7 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
   const fetchLossReasons = useCallback(async () => {
     setLoading(true);
 
-    // Workaround: Supabase types do not recognize custom RPCs.
-    // @ts-expect-error: Supabase codegen does not know about our custom function
+    // Supabase types do not recognize custom RPCs, so we cast supabase as 'any' here.
     const { data, error } = await (supabase as any).rpc("get_visible_loss_reasons_for_tenant");
 
     if (error || !data) {
