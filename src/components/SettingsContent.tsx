@@ -999,19 +999,23 @@ export function SettingsContent() {
                     <p className="text-gray-500">Nenhuma fonte de lead encontrada.</p>
                   </div>
                 ) : (
-                  leadSources.map((source) => (
+                  leadSources.map((source: any) => (
                     <div key={source.id} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
                       <div className="flex items-center justify-between">
-                        <div className="flex-1">
+                        <div className="flex-1 flex items-center gap-2">
                           <h5 className="font-medium text-gray-900">{source.label}</h5>
+                          {!source.user_id && (
+                            <span className="ml-2 text-xs text-gray-400">(padrão)</span>
+                          )}
                         </div>
                         <div className="flex gap-2">
                           <DeleteButton
                             onDelete={() => handleDeleteLeadSource(source.id)}
                             itemName={source.label}
-                            itemType="fonte"
+                            itemType="fonte de lead"
                             size="sm"
                             variant="outline"
+                            disabled={!source.user_id}
                           />
                         </div>
                       </div>
@@ -1093,6 +1097,64 @@ export function SettingsContent() {
     );
   };
 
+  // --- Handler atualizado para deletar/ocultar fonte de lead ---
+  const handleDeleteLeadSource = async (sourceId: string) => {
+    // Descobre a fonte no array atual para verificar user_id
+    const source = leadSources.find((s: any) => s.id === sourceId);
+    if (!source) {
+      toast({
+        title: "Erro",
+        description: "Fonte não encontrada.",
+        variant: "destructive"
+      });
+      return;
+    }
+    if (!source.user_id) {
+      // Global: oculta para o tenant usando hidden_default_items
+      const { error } = await supabase
+        .from('hidden_default_items')
+        .insert({
+          item_id: source.id,
+          item_type: 'lead_source',
+          // user_id será setado automaticamente pelo trigger/função
+        });
+      if (error) {
+        console.error('Erro ao ocultar fonte global:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível ocultar a fonte padrão.",
+          variant: "destructive"
+        });
+        return;
+      }
+      toast({
+        title: "Fonte padrão ocultada!",
+        description: "A fonte global não pode ser excluída, mas foi ocultada para seu workspace.",
+      });
+      refreshData();
+      return;
+    }
+    // Fonte do tenant: deleta normalmente
+    const { error } = await supabase
+      .from('lead_sources')
+      .delete()
+      .eq('id', source.id);
+    if (error) {
+      console.error('Erro ao excluir fonte de lead:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível excluir a fonte.",
+        variant: "destructive"
+      });
+      return;
+    }
+    toast({
+      title: "Sucesso",
+      description: "Fonte de lead excluída.",
+    });
+    refreshData();
+  };
+
   // --- ADDED: Handler para deletar grupo de ação ---
   const handleDeleteActionGroup = async (groupId: string) => {
     try {
@@ -1152,38 +1214,6 @@ export function SettingsContent() {
       toast({
         title: "Erro",
         description: "Ocorreu um erro ao excluir o tipo.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // --- ADDED: Handler para deletar fonte de lead ---
-  const handleDeleteLeadSource = async (sourceId: string) => {
-    try {
-      const { error } = await supabase
-        .from('lead_sources')
-        .delete()
-        .eq('id', sourceId);
-
-      if (error) {
-        console.error('Erro ao excluir fonte de lead:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível excluir a fonte.",
-          variant: "destructive"
-        });
-        return;
-      }
-      toast({
-        title: "Sucesso",
-        description: "Fonte de lead excluída.",
-      });
-      refreshData();
-    } catch (error) {
-      console.error('Erro inesperado ao excluir fonte de lead:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro ao excluir a fonte.",
         variant: "destructive"
       });
     }
