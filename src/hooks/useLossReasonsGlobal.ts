@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -34,9 +33,9 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
   const fetchLossReasons = useCallback(async () => {
     setLoading(true);
 
-    // Custom SQL to support filtering global reasons hidden by the current tenant.
-    // This logic matches the example in the migration notes.
-    const { data, error } = await supabase.rpc("get_visible_loss_reasons_for_tenant");
+    // Workaround: Supabase types do not recognize custom RPCs.
+    // @ts-expect-error: Supabase codegen does not know about our custom function
+    const { data, error } = await (supabase as any).rpc("get_visible_loss_reasons_for_tenant");
 
     if (error || !data) {
       // Fallback to older logic: show all reasons
@@ -58,6 +57,8 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
       setLoading(false);
       return;
     }
+
+    // Supabase returns 'any' here, so we cast safely.
     setLossReasons(data as LossReasonRecord[]);
     setLoading(false);
   }, [toast]);
@@ -189,4 +190,3 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
     refreshData,
   };
 }
-
