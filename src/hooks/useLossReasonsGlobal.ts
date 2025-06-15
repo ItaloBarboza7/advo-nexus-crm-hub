@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -16,7 +17,6 @@ interface UseLossReasonsReturn {
   lossReasons: LossReasonRecord[];
   loading: boolean;
   addLossReason: (reason: string) => Promise<boolean>;
-  updateLossReason: (id: string, newReason: string) => Promise<boolean>;
   deleteLossReason: (id: string) => Promise<boolean>;
   refreshData: () => void;
 }
@@ -34,7 +34,6 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
     setLoading(true);
 
     // Forçar sempre buscar o dado atualizado, sem cache inicial/local
-    // eslint-disable-next-line no-console
     console.log("🔄 fetchLossReasons - Buscando motivos de perda...");
 
     // Supabase types do not recognize custom RPCs, so we cast supabase as 'any' here.
@@ -49,12 +48,10 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
       });
       setLossReasons([]);
       setLoading(false);
-      // eslint-disable-next-line no-console
       console.error("❌ fetchLossReasons - Erro ao buscar via RPC:", error);
       return;
     }
 
-    // eslint-disable-next-line no-console
     console.log("✅ fetchLossReasons - Motivos carregados:", data);
     setLossReasons(data as LossReasonRecord[]);
     setLoading(false);
@@ -66,7 +63,6 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
 
   const refreshData = useCallback(() => {
     // Adicionado para debug detalhado
-    // eslint-disable-next-line no-console
     console.log("🔄 refreshData - Atualizando a lista de motivos de perda...");
     fetchLossReasons();
   }, [fetchLossReasons]);
@@ -81,27 +77,6 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
       toast({
         title: "Erro",
         description: "Não foi possível criar o motivo de perda.",
-        variant: "destructive",
-      });
-      return false;
-    }
-    refreshData();
-    return true;
-  };
-
-  // Updates a loss reason (only tenant-specific and editable)
-  const updateLossReason = async (id: string, newReason: string) => {
-    // Only allow updating tenant-owned, non-fixed reasons from the UI
-    const { error } = await supabase
-      .from("loss_reasons")
-      .update({ reason: newReason })
-      .eq("id", id)
-      .eq("is_fixed", false);
-
-    if (error) {
-      toast({
-        title: "Erro",
-        description: "Não foi possível editar o motivo de perda.",
         variant: "destructive",
       });
       return false;
@@ -235,7 +210,6 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
     lossReasons,
     loading,
     addLossReason,
-    updateLossReason,
     deleteLossReason,
     refreshData,
   };

@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,13 +9,10 @@ import { useLossReasonsGlobal } from "@/hooks/useLossReasonsGlobal";
 import { useToast } from "@/hooks/use-toast";
 import { DeleteButton } from "@/components/DeleteButton";
 
-// Removido: Edit2 do lucide-react
-
 export function LossReasonsManager() {
   const { lossReasons, loading, addLossReason, deleteLossReason } = useLossReasonsGlobal();
   const [newReason, setNewReason] = useState("");
   const [isAddingNew, setIsAddingNew] = useState(false);
-  // Removido: editingId, editingValue (edição)
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -33,8 +31,6 @@ export function LossReasonsManager() {
     }
     setIsLoading(false);
   };
-
-  // Removido: Funções de edição (handleStartEdit, handleSaveEdit, handleCancelEdit)
 
   if (loading) {
     return (
@@ -103,32 +99,28 @@ export function LossReasonsManager() {
           ) : (
             lossReasons.map((reason) => (
               <div key={reason.id} className="flex items-center gap-2 p-3 border rounded-lg">
-                <>
-                  <span className="flex-1 text-sm">{reason.reason}</span>
-                  {reason.is_fixed && (
-                    <Badge variant="secondary" className="text-xs">
-                      Sistema
-                    </Badge>
+                <span className="flex-1 text-sm">{reason.reason}</span>
+                {reason.is_fixed && (
+                  <Badge variant="secondary" className="text-xs">
+                    Sistema
+                  </Badge>
+                )}
+                <div className="flex gap-1">
+                  {!reason.is_fixed && (
+                    <DeleteButton
+                      onDelete={async () => {
+                        setIsLoading(true);
+                        await deleteLossReason(reason.id);
+                        setIsLoading(false);
+                      }}
+                      itemName={reason.reason}
+                      itemType="motivo de perda"
+                      disabled={isLoading}
+                      size="sm"
+                      variant="ghost"
+                    />
                   )}
-                  <div className="flex gap-1">
-                    {!reason.is_fixed && (
-                      <>
-                        <DeleteButton
-                          onDelete={async () => {
-                            setIsLoading(true);
-                            await deleteLossReason(reason.id);
-                            setIsLoading(false);
-                          }}
-                          itemName={reason.reason}
-                          itemType="motivo de perda"
-                          disabled={isLoading}
-                          size="sm"
-                          variant="ghost"
-                        />
-                      </>
-                    )}
-                  </div>
-                </>
+                </div>
               </div>
             ))
           )}
