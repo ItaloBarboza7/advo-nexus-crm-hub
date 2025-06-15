@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Filter, X, DollarSign } from "lucide-react";
+import { useFilterOptions } from "@/hooks/useFilterOptions";
 
 interface LeadFiltersProps {
   onFiltersChange: (filters: FilterOptions) => void;
@@ -33,18 +34,6 @@ const LEAD_STATUSES = [
   { id: "Finalizado", title: "Finalizado", color: "bg-gray-100 text-gray-800" },
 ];
 
-const COMMON_SOURCES = [
-  "Google Ads",
-  "Facebook",
-  "Instagram",
-  "LinkedIn",
-  "Indicação",
-  "Site",
-  "E-mail Marketing",
-  "Telefone",
-  "WhatsApp"
-];
-
 const COMMON_STATES = [
   "São Paulo", "Rio de Janeiro", "Minas Gerais", "Espírito Santo",
   "Paraná", "Santa Catarina", "Rio Grande do Sul", "Bahia",
@@ -62,6 +51,7 @@ const COMMON_ACTION_TYPES = [
 
 export function LeadFilters({ onFiltersChange, activeFilters }: LeadFiltersProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const { sourceOptions, loading: sourcesLoading } = useFilterOptions();
 
   const updateFilters = (key: keyof FilterOptions, value: any) => {
     const newFilters = { ...activeFilters, [key]: value };
@@ -165,24 +155,32 @@ export function LeadFilters({ onFiltersChange, activeFilters }: LeadFiltersProps
               </div>
             </div>
 
-            {/* Fonte */}
+            {/* Fonte (agora dinâmica) */}
             <div>
               <Label className="text-sm font-medium mb-2 block">Fonte</Label>
-              <div className="flex flex-wrap gap-2">
-                {COMMON_SOURCES.map((source) => (
-                  <Badge
-                    key={source}
-                    variant={activeFilters.source.includes(source) ? "default" : "outline"}
-                    className="cursor-pointer"
-                    onClick={() => toggleArrayFilter('source', source)}
-                  >
-                    {source}
-                  </Badge>
-                ))}
+              <div className="flex flex-wrap gap-2 min-h-[32px]">
+                {sourcesLoading ? (
+                  <span className="text-xs text-gray-400">Carregando fontes...</span>
+                ) : (
+                  sourceOptions.length === 0 ? (
+                    <span className="text-xs text-gray-400">Nenhuma fonte cadastrada</span>
+                  ) : (
+                    sourceOptions.map((source) => (
+                      <Badge
+                        key={source.value}
+                        variant={activeFilters.source.includes(source.value) ? "default" : "outline"}
+                        className="cursor-pointer"
+                        onClick={() => toggleArrayFilter('source', source.value)}
+                      >
+                        {source.label}
+                      </Badge>
+                    ))
+                  )
+                )}
               </div>
             </div>
 
-            {/* Estado */}
+            {/* Estado (mantém como antes, lista fixa) */}
             <div>
               <Label className="text-sm font-medium mb-2 block">Estado</Label>
               <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
