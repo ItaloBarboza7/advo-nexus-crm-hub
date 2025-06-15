@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -56,11 +55,22 @@ export function OptimizationContent() {
     fetchLeads();
   }, []);
 
+  // Função utilitária para evitar recomendações conflitantes
+  function isConflicting(target: string | undefined, usedTargets: Set<string>) {
+    if (!target) return false;
+    return usedTargets.has(target.toLowerCase());
+  }
+
   // Análise dos dados para gerar recomendações
   const generateRecommendations = () => {
     const recommendations = [];
+    // Alvos já recomendados para evitar conflito (case insensitive)
+    const usedActionTypes = new Set<string>();
+    const usedStates = new Set<string>();
+    const usedStateActions = new Set<string>();
+    const usedLossReasons = new Set<string>();
 
-    // Análise por estados com dados detalhados
+    // ---- ESTADO: melhores e piores ----
     const stateStats = leads.reduce((acc, lead) => {
       const state = lead.state || 'Não informado';
       if (!acc[state]) {
@@ -81,7 +91,12 @@ export function OptimizationContent() {
       .filter(([state]) => state !== 'Não informado' && stateStats[state].total >= 3)
       .sort(([,a], [,b]) => (a.won / Math.max(a.total, 1)) - (b.won / Math.max(b.total, 1)))[0];
 
-    if (topState && !isRecommendationCompleted('top-state')) {
+    if (
+      topState &&
+      !isRecommendationCompleted('top-state') &&
+      !isConflicting(topState[0], usedStates)
+    ) {
+      usedStates.add(topState[0].toLowerCase());
       const conversionRate = ((topState[1].won / topState[1].total) * 100).toFixed(1);
       recommendations.push({
         id: 'top-state',
@@ -110,7 +125,12 @@ export function OptimizationContent() {
       });
     }
 
-    if (worstState && !isRecommendationCompleted('improve-state')) {
+    if (
+      worstState &&
+      !isRecommendationCompleted('improve-state') &&
+      !isConflicting(worstState[0], usedStates)
+    ) {
+      usedStates.add(worstState[0].toLowerCase());
       const conversionRate = ((worstState[1].won / worstState[1].total) * 100).toFixed(1);
       const lossRate = ((worstState[1].lost / worstState[1].total) * 100).toFixed(1);
       recommendations.push({
@@ -140,7 +160,7 @@ export function OptimizationContent() {
       });
     }
 
-    // Análise por tipos de ação com dados detalhados
+    // ---- TIPO DE AÇÃO: melhores e piores ----
     const actionStats = leads.reduce((acc, lead) => {
       const actionType = lead.action_type || 'Não especificado';
       if (!acc[actionType]) {
@@ -161,7 +181,12 @@ export function OptimizationContent() {
       .filter(([type, stats]) => type !== 'Não especificado' && stats.total >= 3)
       .sort(([,a], [,b]) => (a.won / a.total) - (b.won / b.total))[0];
 
-    if (bestActionType && !isRecommendationCompleted('best-action')) {
+    if (
+      bestActionType &&
+      !isRecommendationCompleted('best-action') &&
+      !isConflicting(bestActionType[0], usedActionTypes)
+    ) {
+      usedActionTypes.add(bestActionType[0].toLowerCase());
       const conversionRate = ((bestActionType[1].won / bestActionType[1].total) * 100).toFixed(1);
       recommendations.push({
         id: 'best-action',
@@ -190,7 +215,12 @@ export function OptimizationContent() {
       });
     }
 
-    if (worstActionType && !isRecommendationCompleted('worst-action')) {
+    if (
+      worstActionType &&
+      !isRecommendationCompleted('worst-action') &&
+      !isConflicting(worstActionType[0], usedActionTypes)
+    ) {
+      usedActionTypes.add(worstActionType[0].toLowerCase());
       const conversionRate = ((worstActionType[1].won / worstActionType[1].total) * 100).toFixed(1);
       recommendations.push({
         id: 'worst-action',
@@ -219,7 +249,7 @@ export function OptimizationContent() {
       });
     }
 
-    // Análise de tipos de ação por estado
+    // ---- COMBINAÇÃO ESTADO + TIPO DE AÇÃO (também evita conflito) ----
     const actionByStateStats = leads.reduce((acc, lead) => {
       const state = lead.state || 'Não informado';
       const actionType = lead.action_type || 'Não especificado';
@@ -232,7 +262,6 @@ export function OptimizationContent() {
       return acc;
     }, {} as Record<string, Record<string, { total: number; won: number }>>);
 
-    // Encontrar melhor combinação estado + tipo de ação
     let bestStateAction: { state: string; action: string; stats: { total: number; won: number } } | null = null;
     let bestConversion = 0;
 
@@ -248,7 +277,16 @@ export function OptimizationContent() {
       });
     });
 
-    if (bestStateAction && !isRecommendationCompleted('best-state-action')) {
+    // Vai evitar conflito de combinação estado+ação
+    const stateActionKey = bestStateAction ? `${bestStateAction.state.toLowerCase()}__${bestStateAction.action.toLowerCase()}` : null;
+
+    if (
+      bestStateAction &&
+      !isRecommendationCompleted('best-state-action') &&
+      stateActionKey &&
+      !usedStateActions.has(stateActionKey)
+    ) {
+      usedStateActions.add(stateActionKey);
       const conversionRate = (bestConversion * 100).toFixed(1);
       recommendations.push({
         id: 'best-state-action',
@@ -277,7 +315,7 @@ export function OptimizationContent() {
       });
     }
 
-    // Análise de motivos de perda com dados detalhados
+    // ---- MOTIVOS DE PERDA ----
     const lossReasons = leads
       .filter(lead => lead.status === 'Perdido' && lead.loss_reason)
       .reduce((acc, lead) => {
@@ -290,7 +328,13 @@ export function OptimizationContent() {
     const mainLossReason = Object.entries(lossReasons)
       .sort(([,a], [,b]) => b - a)[0];
 
-    if (mainLossReason && mainLossReason[1] >= 2 && !isRecommendationCompleted('main-loss')) {
+    if (
+      mainLossReason &&
+      mainLossReason[1] >= 2 &&
+      !isRecommendationCompleted('main-loss') &&
+      !isConflicting(mainLossReason[0], usedLossReasons)
+    ) {
+      usedLossReasons.add(mainLossReason[0].toLowerCase());
       const lossPercentage = ((mainLossReason[1] / totalLosses) * 100).toFixed(1);
       recommendations.push({
         id: 'main-loss',
@@ -319,14 +363,12 @@ export function OptimizationContent() {
       });
     }
 
-    // Recomendação sobre follow-up com dados
+    // ---- RECOMENDAÇÃO DE PIPELINE, sem alvo único, sempre pode aparecer ----
     if (!isRecommendationCompleted('follow-up')) {
       const leadsInProcess = leads.filter(lead => 
         lead.status === 'Proposta' || lead.status === 'Reunião'
       );
-      
       const leadsInProcessCount = leadsInProcess.length;
-
       if (leadsInProcessCount >= 3) {
         recommendations.push({
           id: 'follow-up',
