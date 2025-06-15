@@ -86,14 +86,6 @@ export function SettingsContent() {
     refreshData: refreshLossReasons
   } = useLossReasonsGlobal();
 
-  // Estados para edição inline
-  const [editingActionGroup, setEditingActionGroup] = useState<string | null>(null);
-  const [editingActionType, setEditingActionType] = useState<string | null>(null);
-  const [editingLeadSource, setEditingLeadSource] = useState<string | null>(null);
-  const [editingActionGroupName, setEditingActionGroupName] = useState("");
-  const [editingActionTypeName, setEditingActionTypeName] = useState("");
-  const [editingLeadSourceName, setEditingLeadSourceName] = useState("");
-
   const { toast } = useToast();
 
   // Função para carregar membros da equipe
@@ -923,67 +915,23 @@ export function SettingsContent() {
                         <AccordionTrigger className="hover:no-underline">
                           <div className="flex items-center justify-between w-full mr-4">
                             <div className="flex items-center gap-3">
-                              {editingActionGroup === group.id ? (
-                                <div className="flex items-center gap-2">
-                                  <Input
-                                    value={editingActionGroupName}
-                                    onChange={(e) => setEditingActionGroupName(e.target.value)}
-                                    className="max-w-xs"
-                                    placeholder="Nome do grupo"
-                                    onClick={(e) => e.stopPropagation()}
-                                  />
-                                  <Button 
-                                    size="sm" 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleSaveActionGroup();
-                                    }}
-                                  >
-                                    <Check className="h-4 w-4" />
-                                  </Button>
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setEditingActionGroup(null);
-                                      setEditingActionGroupName("");
-                                    }}
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              ) : (
-                                <div>
-                                  <h5 className="font-medium text-gray-900 text-left">{group.description || group.name}</h5>
-                                  <p className="text-sm text-gray-600 text-left">{groupActionTypes.length} tipos de ação</p>
-                                </div>
-                              )}
-                            </div>
-                            {editingActionGroup !== group.id && (
-                              <div className="flex gap-2">
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleEditActionGroup(group.id, group.description || group.name);
-                                  }}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteActionGroup(group.id);
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                              <div>
+                                <h5 className="font-medium text-gray-900 text-left">{group.description || group.name}</h5>
+                                <p className="text-sm text-gray-600 text-left">{groupActionTypes.length} tipos de ação</p>
                               </div>
-                            )}
+                            </div>
+                            <div className="flex gap-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteActionGroup(group.id);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
                         </AccordionTrigger>
                         <AccordionContent>
@@ -995,56 +943,21 @@ export function SettingsContent() {
                                 <div key={type.id} className="bg-gray-50 rounded-lg p-3 border border-gray-100">
                                   <div className="flex items-center justify-between">
                                     <div className="flex-1">
-                                      {editingActionType === type.id ? (
-                                        <div className="flex items-center gap-2">
-                                          <Input
-                                            value={editingActionTypeName}
-                                            onChange={(e) => setEditingActionTypeName(e.target.value)}
-                                            className="max-w-xs"
-                                            placeholder="Nome do tipo"
-                                          />
-                                          <Button size="sm" onClick={handleSaveActionType}>
-                                            <Check className="h-4 w-4" />
-                                          </Button>
-                                          <Button 
-                                            size="sm" 
-                                            variant="outline" 
-                                            onClick={() => {
-                                              setEditingActionType(null);
-                                              setEditingActionTypeName("");
-                                            }}
-                                          >
-                                            <X className="h-4 w-4" />
-                                          </Button>
-                                        </div>
-                                      ) : (
-                                        <div>
-                                          <h6 className="font-medium text-gray-900">
-                                            {type.name.split('-').map(word => 
-                                              word.charAt(0).toUpperCase() + word.slice(1)
-                                            ).join(' ')}
-                                          </h6>
-                                        </div>
-                                      )}
+                                      <h6 className="font-medium text-gray-900">
+                                        {type.name.split('-').map(word => 
+                                          word.charAt(0).toUpperCase() + word.slice(1)
+                                        ).join(' ')}
+                                      </h6>
                                     </div>
-                                    {editingActionType !== type.id && (
-                                      <div className="flex gap-2">
-                                        <Button 
-                                          variant="outline" 
-                                          size="sm"
-                                          onClick={() => handleEditActionType(type.id, type.name)}
-                                        >
-                                          <Edit className="h-4 w-4" />
-                                        </Button>
-                                        <Button 
-                                          variant="outline" 
-                                          size="sm"
-                                          onClick={() => handleDeleteActionType(type.id)}
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      </div>
-                                    )}
+                                    <div className="flex gap-2">
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm"
+                                        onClick={() => handleDeleteActionType(type.id)}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
                                   </div>
                                 </div>
                               ))
@@ -1090,52 +1003,17 @@ export function SettingsContent() {
                     <div key={source.id} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          {editingLeadSource === source.id ? (
-                            <div className="flex items-center gap-2">
-                              <Input
-                                value={editingLeadSourceName}
-                                onChange={(e) => setEditingLeadSourceName(e.target.value)}
-                                className="max-w-xs"
-                                placeholder="Nome da fonte"
-                              />
-                              <Button size="sm" onClick={handleSaveLeadSource}>
-                                <Check className="h-4 w-4" />
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="outline" 
-                                onClick={() => {
-                                  setEditingLeadSource(null);
-                                  setEditingLeadSourceName("");
-                                }}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <div>
-                              <h5 className="font-medium text-gray-900">{source.label}</h5>
-                            </div>
-                          )}
+                          <h5 className="font-medium text-gray-900">{source.label}</h5>
                         </div>
-                        {editingLeadSource !== source.id && (
-                          <div className="flex gap-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleEditLeadSource(source.id, source.label)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <DeleteButton
-                              onDelete={() => handleDeleteLeadSource(source.id)}
-                              itemName={source.label}
-                              itemType="fonte"
-                              size="sm"
-                              variant="outline"
-                            />
-                          </div>
-                        )}
+                        <div className="flex gap-2">
+                          <DeleteButton
+                            onDelete={() => handleDeleteLeadSource(source.id)}
+                            itemName={source.label}
+                            itemType="fonte"
+                            size="sm"
+                            variant="outline"
+                          />
+                        </div>
                       </div>
                     </div>
                   ))
@@ -1213,170 +1091,6 @@ export function SettingsContent() {
         </Card>
       </div>
     );
-  };
-
-  const handleSaveActionGroup = async () => {
-    if (!editingActionGroup || !editingActionGroupName.trim()) {
-      toast({ title: "Erro", description: "Nome do grupo não pode ser vazio.", variant: "destructive" });
-      return;
-    }
-    const { error } = await supabase.from('action_groups').update({ name: editingActionGroupName.trim(), description: editingActionGroupName.trim() }).eq('id', editingActionGroup);
-    if (error) {
-      toast({ title: "Erro", description: "Não foi possível atualizar o grupo.", variant: "destructive" });
-    } else {
-      toast({ title: "Sucesso", description: "Grupo atualizado." });
-      setEditingActionGroup(null);
-      setEditingActionGroupName("");
-      refreshData();
-    }
-  };
-
-  const handleEditActionGroup = (id: string, name: string) => {
-    setEditingActionGroup(id);
-    setEditingActionGroupName(name);
-  };
-
-  const handleDeleteActionGroup = async (id: string) => {
-    const group = actionGroups.find(g => g.id === id);
-    if (!group) {
-      toast({ title: "Erro", description: "Grupo não encontrado.", variant: "destructive" });
-      return;
-    }
-    // Como ActionGroup pode não ter user_id, considera que os defaults são os que NÃO são do usuário
-    // SUPONDO: todos que não tem algum user_id (undefined ou null) são defaults.
-    if ((group as any).user_id == null) {
-      // Registrar em hidden_default_items
-      const { data: userData, error: userErr } = await supabase.auth.getUser();
-      if (userErr || !userData?.user?.id) {
-        toast({ title: "Erro", description: "Não foi possível identificar o usuário.", variant: "destructive" });
-        return;
-      }
-      const { error: hideErr } = await supabase
-        .from('hidden_default_items')
-        .insert({
-          item_type: 'action_group',
-          item_id: group.id,
-          user_id: userData.user.id,
-        });
-      if (hideErr) {
-        toast({ title: "Erro", description: "Não foi possível ocultar o grupo padrão.", variant: "destructive" });
-      } else {
-        toast({ title: "Sucesso", description: "Grupo padrão ocultado para você." });
-        refreshData();
-      }
-      return;
-    }
-    // Se não for default, deleta normalmente
-    const { error } = await supabase.from('action_groups').delete().eq('id', id);
-    if (error) {
-      toast({ title: "Erro", description: "Não foi possível excluir o grupo.", variant: "destructive"});
-    } else {
-      toast({ title: "Sucesso", description: "Grupo excluído."});
-      refreshData();
-    }
-  };
-
-  const handleSaveActionType = async () => {
-    if (!editingActionType || !editingActionTypeName.trim()) {
-      toast({ title: "Erro", description: "Nome do tipo de ação não pode ser vazio.", variant: "destructive" });
-      return;
-    }
-    const { error } = await supabase.from('action_types').update({ name: editingActionTypeName.trim() }).eq('id', editingActionType);
-    if (error) {
-      toast({ title: "Erro", description: "Não foi possível atualizar o tipo de ação.", variant: "destructive" });
-    } else {
-      toast({ title: "Sucesso", description: "Tipo de ação atualizado." });
-      setEditingActionType(null);
-      setEditingActionTypeName("");
-      refreshData();
-    }
-  };
-
-  const handleEditActionType = (id: string, name: string) => {
-    setEditingActionType(id);
-    setEditingActionTypeName(name);
-  };
-
-  const handleDeleteActionType = async (id: string) => {
-    const { error } = await supabase.from('action_types').delete().eq('id', id);
-    if (error) {
-      toast({ title: "Erro", description: "Não foi possível excluir o tipo de ação.", variant: "destructive" });
-    } else {
-      toast({ title: "Sucesso", description: "Tipo de ação excluído." });
-      refreshData();
-    }
-  };
-
-  const handleSaveLeadSource = async () => {
-    if (!editingLeadSource || !editingLeadSourceName.trim()) {
-      toast({ title: "Erro", description: "Nome da fonte de lead não pode ser vazio.", variant: "destructive" });
-      return;
-    }
-    const { error } = await supabase.from('lead_sources').update({ label: editingLeadSourceName.trim(), name: editingLeadSourceName.trim().toLowerCase().replace(/\s+/g, '-') }).eq('id', editingLeadSource);
-    if (error) {
-      toast({ title: "Erro", description: "Não foi possível atualizar a fonte de lead.", variant: "destructive" });
-    } else {
-      toast({ title: "Sucesso", description: "Fonte de lead atualizada." });
-      setEditingLeadSource(null);
-      setEditingLeadSourceName("");
-      refreshData();
-    }
-  };
-
-  const handleEditLeadSource = (id: string, name: string) => {
-    setEditingLeadSource(id);
-    setEditingLeadSourceName(name);
-  };
-
-  const handleDeleteLeadSource = async (id: string) => {
-    // Find the lead source by ID in leadSources array
-    const source = leadSources.find(ls => ls.id === id);
-
-    if (!source) {
-      toast({
-        title: "Erro",
-        description: "Fonte de lead não encontrada.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // If it's a default (user_id is null), just hide it!
-    if (!source.user_id) {
-      // Registrar em hidden_default_items
-      const { data: userData, error: userErr } = await supabase.auth.getUser();
-      if (userErr || !userData?.user?.id) {
-        toast({ title: "Erro", description: "Não foi possível identificar o usuário.", variant: "destructive" });
-        return;
-      }
-      const { error: hideErr } = await supabase
-        .from('hidden_default_items')
-        .insert({
-          item_type: 'lead_source',
-          item_id: source.id,
-          user_id: userData.user.id,
-        });
-      if (hideErr) {
-        toast({ title: "Erro", description: "Não foi possível ocultar a fonte padrão.", variant: "destructive" });
-      } else {
-        toast({ title: "Sucesso", description: "Fonte padrão ocultada para você." });
-        refreshData();
-      }
-      return;
-    }
-
-    // It's NOT a default - delete as normal
-    const { error } = await supabase.from('lead_sources').delete().eq('id', id);
-    if (error) {
-      toast({ title: "Erro", description: "Não foi possível excluir a fonte de lead.", variant: "destructive" });
-    } else {
-      toast({ title: "Sucesso", description: "Fonte de lead excluída." });
-      refreshData();
-    }
-  };
-  
-  const handleDeleteLossReason = (id: string) => {
-    deleteLossReason(id);
   };
 
   return (
