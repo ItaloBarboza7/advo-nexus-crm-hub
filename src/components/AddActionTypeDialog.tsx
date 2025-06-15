@@ -276,14 +276,6 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
                           <span className="text-xs text-gray-500">{group?.description || "Grupo não encontrado"}</span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setEditingType({ id: type.id, name: type.name })}
-                            disabled={!type.user_id}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
                           <DeleteButton
                             onDelete={() => handleDeleteType(type.id)}
                             itemName={type.name}

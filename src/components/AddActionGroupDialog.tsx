@@ -266,14 +266,6 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
                         )}
                       </span>
                       <div className="flex items-center gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setEditingGroup({ id: group.id, description: group.description })}
-                          disabled={!group.user_id}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
                         <DeleteButton
                           onDelete={() => handleDeleteGroup(group.id, group.description)}
                           itemName={group.description}

@@ -249,14 +249,6 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
                         )}
                       </span>
                       <div className="flex items-center gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setEditingSource({ id: source.id, label: source.label })}
-                          disabled={!source.user_id}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
                         <DeleteButton
                           onDelete={() => handleDeleteSource(source.id)}
                           itemName={source.label}
