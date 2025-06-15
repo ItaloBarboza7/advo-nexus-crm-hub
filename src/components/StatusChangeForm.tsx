@@ -49,11 +49,20 @@ export function StatusChangeForm({ lead, open, onOpenChange, onStatusChanged, ka
     if (lead && open && kanbanColumns.length > 0 && !lossReasonsLoading) {
       console.log("🔄 StatusChangeForm - Inicializando com lead:", lead.name, "Status:", lead.status);
       setSelectedStatus(lead.status);
-      
-      const lossReasonOptions = allLossReasons.map(r => r.reason);
-      const leadLossReason = lead.loss_reason || "";
 
-      if (leadLossReason && !lossReasonOptions.includes(leadLossReason)) {
+      const lossReasonOptions = allLossReasons.map(r => r.reason);
+      let leadLossReason = lead.loss_reason || "";
+
+      // REGRA NOVA: tratar campos em branco/nulo/"outros" como "Outros"
+      if (
+        !leadLossReason ||
+        leadLossReason.trim().toLowerCase() === "outros" ||
+        leadLossReason.trim() === ""
+      ) {
+        leadLossReason = "Outros";
+      }
+
+      if (leadLossReason && !lossReasonOptions.includes(leadLossReason) && leadLossReason !== 'Outros') {
         setLossReason("Outro");
         setCustomLossReason(leadLossReason);
       } else {
