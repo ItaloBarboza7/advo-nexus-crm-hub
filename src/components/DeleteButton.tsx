@@ -24,31 +24,31 @@ export function DeleteButton({
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Abrir dialogo de confirmação
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log(`🗑️ DeleteButton - Botão de excluir clicado para: ${itemName} (${itemType})`);
+    if (disabled || isDeleting) return;
     setShowConfirmDialog(true);
-    console.log('✅ DeleteButton - Dialog de confirmação aberto');
   };
 
+  // Handler para confirmar exclusão
   const handleConfirmDelete = async () => {
-    console.log(`🔥 DeleteButton - Confirmando exclusão de: ${itemName} (${itemType})`);
+    setIsDeleting(true);
     try {
-      setIsDeleting(true);
       await onDelete();
-      console.log(`✅ DeleteButton - Item ${itemName} excluído com sucesso`);
       setShowConfirmDialog(false);
     } catch (error) {
-      console.error(`❌ DeleteButton - Erro ao excluir ${itemName}:`, error);
       setShowConfirmDialog(false);
     } finally {
       setIsDeleting(false);
     }
   };
 
+  // Handler para fechar/cancelar dialogo SEM travar botão
   const handleDialogClose = () => {
-    console.log(`❌ DeleteButton - Dialog de confirmação cancelado para: ${itemName}`);
+    // Ao cancelar, sempre garantir que não fique travado
+    setIsDeleting(false);
     setShowConfirmDialog(false);
   };
 
@@ -67,7 +67,10 @@ export function DeleteButton({
 
       <ConfirmDeleteDialog
         open={showConfirmDialog}
-        onOpenChange={setShowConfirmDialog}
+        onOpenChange={(open) => {
+          if (!open) handleDialogClose();
+          else setShowConfirmDialog(true);
+        }}
         itemName={itemName}
         itemType={itemType}
         onConfirm={handleConfirmDelete}
