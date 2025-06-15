@@ -1,4 +1,3 @@
-
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,25 +21,21 @@ export function ActionTypesChart({ leads, selectedCategory = "all" }: ActionType
   const [viewType, setViewType] = useState<'bar' | 'pie'>('bar');
   const { validActionTypeNames, validActionGroupNames } = useActionGroupsAndTypes();
 
-  // Ajusta action_type para "Não especificado" se vazio/nulo, 
-  // e só conta o tipo para leads cujo action_group é válido (senão mostra como "Outros")
+  // Ajusta action_type para "Outros" se vazio/nulo ou inválido
   const chartData = useMemo(() => {
     if (!leads || !Array.isArray(leads)) return [];
 
     const typeCounts = leads.reduce((acc, lead) => {
-      // Se o grupo de ação do lead é inválido, considera o grupo "Outros" e tipo "Não especificado"
+      // Se o grupo de ação do lead é inválido, tipo vira "Outros"
       let group = lead.action_group && lead.action_group.trim() !== "" ? lead.action_group : "Outros";
       if (!validActionGroupNames.includes(group)) {
         group = "Outros";
       }
 
-      // Se está em "Outros", só aceita tipo se for válido, caso contrário força "Não especificado"
-      let type = lead.action_type && lead.action_type.trim() !== "" ? lead.action_type : "Não especificado";
-      // Se action_type não é válido entre as opções, força para "Não especificado"
-      if (!validActionTypeNames.includes(type)) type = "Não especificado";
-      // (Extra: se o grupo é "Outros", tipo normalmente vira nulo mesmo)
+      // Se action_type é vazio, nulo ou inválido, vira "Outros"
+      let type = lead.action_type && lead.action_type.trim() !== "" ? lead.action_type : "Outros";
+      if (!validActionTypeNames.includes(type)) type = "Outros";
 
-      // Poderíamos fazer agrupamento cruzado com grupo+tipo, mas para ActionTypesChart geralmente só queremos action_type.
       acc[type] = (acc[type] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
@@ -201,4 +196,3 @@ export function ActionTypesChart({ leads, selectedCategory = "all" }: ActionType
 
 // IMPORTANTE: Este arquivo está ficando longo (205 linhas). 
 // Considere pedir uma refatoração após as correções para facilitar a manutenção.
-
