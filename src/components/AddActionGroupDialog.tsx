@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -27,6 +26,7 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
   const [isLoading, setIsLoading] = useState(false);
   const [actionGroups, setActionGroups] = useState<ActionGroup[]>([]);
   const [isLoadingGroups, setIsLoadingGroups] = useState(false);
+  const [removingItemIds, setRemovingItemIds] = useState<string[]>([]);
   const { toast } = useToast();
 
   const fetchActionGroups = async () => {
@@ -104,6 +104,10 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
   };
 
   const handleRemoveOrHideGroup = async (group: ActionGroup) => {
+    setRemovingItemIds(prev => [...prev, group.id]);
+
+    await new Promise(resolve => setTimeout(resolve, 300));
+
     if (group.user_id === null) {
       const { error } = await supabase
         .from('hidden_default_items')
@@ -112,6 +116,7 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
       if (error) {
         console.error('❌ Erro ao ocultar grupo:', error);
         toast({ title: "Erro", description: "Não foi possível remover o grupo de ação.", variant: "destructive" });
+        setRemovingItemIds(prev => prev.filter(id => id !== group.id));
         return;
       }
       toast({ title: "Sucesso", description: "Grupo de ação padrão removido da sua visualização." });
@@ -128,6 +133,7 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
           description = "Você não tem permissão para excluir este grupo de ação.";
         }
         toast({ title: "Erro", description, variant: "destructive" });
+        setRemovingItemIds(prev => prev.filter(id => id !== group.id));
         return;
       }
       toast({ title: "Sucesso", description: "Grupo de ação excluído com sucesso." });
@@ -187,7 +193,10 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
           ) : (
             <div className="space-y-2 max-h-40 overflow-y-auto">
               {actionGroups.map((group) => (
-                <div key={group.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                <div 
+                  key={group.id} 
+                  className={`flex items-center justify-between p-2 bg-gray-50 rounded transition-opacity duration-300 ${removingItemIds.includes(group.id) ? 'opacity-0' : 'opacity-100'}`}
+                >
                   <span className="text-sm">{group.description}</span>
                   <div className="flex items-center gap-2">
                     {group.user_id === null && (
@@ -199,6 +208,7 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
                       onDelete={() => handleRemoveOrHideGroup(group)}
                       itemName={group.description}
                       itemType="o grupo de ação"
+                      isDefault={group.user_id === null}
                     />
                   </div>
                 </div>

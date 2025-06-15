@@ -1,3 +1,4 @@
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -8,6 +9,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import React from "react";
 
 interface ConfirmDeleteDialogProps {
   open: boolean;
@@ -16,6 +18,7 @@ interface ConfirmDeleteDialogProps {
   itemType: string;
   onConfirm: () => void;
   description?: string;
+  isDefault?: boolean;
 }
 
 export function ConfirmDeleteDialog({
@@ -24,48 +27,38 @@ export function ConfirmDeleteDialog({
   itemName,
   itemType,
   onConfirm,
-  description
+  description,
+  isDefault
 }: ConfirmDeleteDialogProps) {
-  console.log(`🔍 ConfirmDeleteDialog - Renderizado: open=${open}, item="${itemName}", tipo="${itemType}"`);
 
-  const handleConfirm = async (e: React.MouseEvent) => {
+  const handleConfirm = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log(`✅ ConfirmDeleteDialog - Usuário confirmou a exclusão de: ${itemName} (${itemType})`);
-    console.log(`🔄 ConfirmDeleteDialog - Chamando onConfirm...`);
-    
-    // Chamar a função de confirmação
-    await onConfirm();
-    
-    console.log(`✅ ConfirmDeleteDialog - onConfirm executado. Fechando diálogo...`);
-    
-    // Fechar o diálogo após a confirmação
-    onOpenChange(false);
+    onConfirm();
   };
 
   const handleCancel = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log(`❌ ConfirmDeleteDialog - Usuário cancelou a exclusão de: ${itemName} (${itemType})`);
     onOpenChange(false);
   };
 
-  const handleOpenChange = (newOpen: boolean) => {
-    console.log(`🔄 ConfirmDeleteDialog - onOpenChange chamado: ${newOpen} para item: ${itemName}`);
-    onOpenChange(newOpen);
-  };
+  const title = isDefault ? "Ocultar Item Padrão" : "Confirmar Exclusão";
+  const confirmText = isDefault ? "Ocultar" : "Excluir";
+  const dialogDescription = isDefault 
+    ? `Deseja ocultar ${itemType} "${itemName}"? Itens padrão serão apenas escondidos da sua lista, não excluídos permanentemente.`
+    : `Tem certeza que deseja excluir ${itemType} "${itemName}"? Esta ação não pode ser desfeita.`;
 
   return (
-    <AlertDialog open={open} onOpenChange={handleOpenChange}>
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent className="z-[60]">
         <AlertDialogHeader>
-          <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>
-            Tem certeza que deseja excluir {itemType} "{itemName}"? 
-            Esta ação não pode ser desfeita.
+            {dialogDescription}
           </AlertDialogDescription>
           {description && (
-            <div className="mt-2 text-xs text-gray-700">{description}</div>
+            <div className="mt-2 text-sm text-gray-700">{description}</div>
           )}
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -74,9 +67,9 @@ export function ConfirmDeleteDialog({
           </AlertDialogCancel>
           <AlertDialogAction 
             onClick={handleConfirm}
-            className="bg-red-600 hover:bg-red-700"
+            className={!isDefault ? "bg-red-600 hover:bg-red-700" : ""}
           >
-            Excluir
+            {confirmText}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

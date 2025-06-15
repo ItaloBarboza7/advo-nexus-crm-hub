@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -37,6 +36,7 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
   const [isLoading, setIsLoading] = useState(false);
   const [actionTypes, setActionTypes] = useState<ActionType[]>([]);
   const [isLoadingTypes, setIsLoadingTypes] = useState(false);
+  const [removingItemIds, setRemovingItemIds] = useState<string[]>([]);
   const { toast } = useToast();
 
   const fetchActionTypes = async () => {
@@ -117,6 +117,10 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
   };
 
   const handleRemoveOrHideType = async (type: ActionType) => {
+    setRemovingItemIds(prev => [...prev, type.id]);
+
+    await new Promise(resolve => setTimeout(resolve, 300));
+
     if (type.user_id === null) {
       const { error } = await supabase
         .from('hidden_default_items')
@@ -125,6 +129,7 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
       if (error) {
         console.error('❌ Erro ao ocultar tipo:', error);
         toast({ title: "Erro", description: "Não foi possível remover o tipo de ação.", variant: "destructive" });
+        setRemovingItemIds(prev => prev.filter(id => id !== type.id));
         return;
       }
       toast({ title: "Sucesso", description: "Tipo de ação padrão removido da sua visualização." });
@@ -141,6 +146,7 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
           description = "Você não tem permissão para excluir este tipo de ação.";
         }
         toast({ title: "Erro", description, variant: "destructive" });
+        setRemovingItemIds(prev => prev.filter(id => id !== type.id));
         return;
       }
       toast({ title: "Sucesso", description: "Tipo de ação excluído com sucesso." });
@@ -216,7 +222,10 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
           ) : (
             <div className="space-y-2 max-h-40 overflow-y-auto">
               {actionTypes.map((type) => (
-                <div key={type.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                <div 
+                  key={type.id} 
+                  className={`flex items-center justify-between p-2 bg-gray-50 rounded transition-opacity duration-300 ${removingItemIds.includes(type.id) ? 'opacity-0' : 'opacity-100'}`}
+                >
                   <div className="flex flex-col">
                     <span className="text-sm font-medium">{type.name}</span>
                     <span className="text-xs text-gray-500">
@@ -233,6 +242,7 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
                       onDelete={() => handleRemoveOrHideType(type)}
                       itemName={type.name}
                       itemType="o tipo de ação"
+                      isDefault={type.user_id === null}
                     />
                   </div>
                 </div>
