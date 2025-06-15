@@ -436,6 +436,17 @@ export type Database = {
           user_id: string | null
         }[]
       }
+      get_visible_loss_reasons_for_tenant: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          created_at: string
+          id: string
+          is_fixed: boolean
+          reason: string
+          updated_at: string
+          user_id: string | null
+        }[]
+      }
       has_role: {
         Args: {
           _user_id: string
