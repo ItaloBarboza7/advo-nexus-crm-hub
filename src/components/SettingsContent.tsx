@@ -1154,13 +1154,48 @@ export function SettingsContent() {
     refreshData();
   };
 
-  // --- ADDED: Handler para deletar grupo de ação ---
+  // --- Handler atualizado para deletar/ocultar grupo de ação (global ou do tenant) ---
   const handleDeleteActionGroup = async (groupId: string) => {
+    // Descobre o grupo no array atual para verificar user_id
+    const group = actionGroups.find((g: any) => g.id === groupId);
+    if (!group) {
+      toast({
+        title: "Erro",
+        description: "Grupo não encontrado.",
+        variant: "destructive"
+      });
+      return;
+    }
+    if (!group.user_id) {
+      // Global: oculta para o tenant usando hidden_default_items
+      const { error } = await supabase
+        .from('hidden_default_items')
+        .insert({
+          item_id: group.id,
+          item_type: 'action_group',
+        });
+      if (error) {
+        console.error('Erro ao ocultar grupo global:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível ocultar o grupo padrão.",
+          variant: "destructive"
+        });
+        return;
+      }
+      toast({
+        title: "Grupo padrão ocultado!",
+        description: "O grupo global não pode ser excluído, mas foi ocultado para seu workspace.",
+      });
+      refreshData();
+      return;
+    }
+    // Grupo do tenant: deleta normalmente
     try {
       const { error } = await supabase
         .from('action_groups')
         .delete()
-        .eq('id', groupId);
+        .eq('id', group.id);
 
       if (error) {
         console.error('Erro ao excluir grupo de ação:', error);
@@ -1186,13 +1221,48 @@ export function SettingsContent() {
     }
   };
 
-  // --- ADDED: Handler para deletar tipo de ação ---
+  // --- Handler atualizado para deletar/ocultar tipo de ação (global ou do tenant) ---
   const handleDeleteActionType = async (typeId: string) => {
+    // Descobre o tipo no array atual para verificar user_id
+    const type = actionTypes.find((t: any) => t.id === typeId);
+    if (!type) {
+      toast({
+        title: "Erro",
+        description: "Tipo não encontrado.",
+        variant: "destructive"
+      });
+      return;
+    }
+    if (!type.user_id) {
+      // Global: oculta para o tenant usando hidden_default_items
+      const { error } = await supabase
+        .from('hidden_default_items')
+        .insert({
+          item_id: type.id,
+          item_type: 'action_type',
+        });
+      if (error) {
+        console.error('Erro ao ocultar tipo global:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível ocultar o tipo padrão.",
+          variant: "destructive"
+        });
+        return;
+      }
+      toast({
+        title: "Tipo padrão ocultado!",
+        description: "O tipo global não pode ser excluído, mas foi ocultado para seu workspace.",
+      });
+      refreshData();
+      return;
+    }
+    // Tipo do tenant: deleta normalmente
     try {
       const { error } = await supabase
         .from('action_types')
         .delete()
-        .eq('id', typeId);
+        .eq('id', type.id);
 
       if (error) {
         console.error('Erro ao excluir tipo de ação:', error);
