@@ -62,12 +62,12 @@ export function AppSidebar({ activeView, setActiveView, userRole }: AppSidebarPr
 
   return (
     <Sidebar className="border-r border-gray-200 dark:border-gray-800">
-      <SidebarHeader className="border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+      <SidebarHeader className="border-b border-gray-200 dark:border-gray-800 px-6 py-2">
         <div className="flex items-center justify-center">
           <img 
             src="/lovable-uploads/cdf6d547-b3db-49aa-a10e-22232822a77e.png" 
             alt="EVOJURIS Logo" 
-            className="h-14"
+            className="h-20"
           />
         </div>
       </SidebarHeader>
