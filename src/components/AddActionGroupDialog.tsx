@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -38,7 +39,6 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
         return;
       }
       
-      console.log('Fetched Action Groups from Dialog:', data);
       setActionGroups(data || []);
     } catch (error) {
       console.error('Erro inesperado ao buscar grupos (dialog):', error);
@@ -99,32 +99,42 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
     }
   };
 
-  const handleDeleteGroup = async (groupId: string) => {
-    console.log('🗑️ Iniciando exclusão do grupo com ID:', groupId);
-    
-    const { error } = await supabase
-      .from('action_groups')
-      .delete()
-      .eq('id', groupId);
-
-    if (error) {
-      console.error('❌ Erro ao excluir grupo:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível excluir o grupo de ação.",
-        variant: "destructive"
-      });
-      throw error;
-    }
-
-    console.log('✅ Grupo excluído com sucesso');
+  const handleDeleteGroup = async (groupId: string, groupDescription: string) => {
+    // Alerta usuário que tipos de ação desse grupo serão excluídos
     toast({
-      title: "Sucesso",
-      description: "Grupo de ação excluído com sucesso.",
+      title: "Atenção",
+      description: `Ao excluir o grupo "${groupDescription}", todos os tipos de ação vinculados a ele também serão excluídos.`,
+      variant: "default",
+      duration: 4000,
     });
 
-    fetchActionGroups();
-    onGroupAdded();
+    try {
+      const { error } = await supabase
+        .from('action_groups')
+        .delete()
+        .eq('id', groupId);
+
+      if (error) {
+        console.error('❌ Erro ao excluir grupo:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível excluir o grupo de ação. Verifique se ele já foi removido.",
+          variant: "destructive"
+        });
+        throw error;
+      }
+
+      toast({
+        title: "Sucesso",
+        description: `Grupo de ação "${groupDescription}" e seus tipos associados foram excluídos.`,
+      });
+
+      // Remove do estado local para sumir da UI imediatamente
+      setActionGroups((prev) => prev.filter((g) => g.id !== groupId));
+      onGroupAdded();
+    } catch (e) {
+      // Silenciar erro já tratado acima.
+    }
   };
 
   const handleClose = () => {
@@ -136,6 +146,7 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
     if (isOpen) {
       fetchActionGroups();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   return (
@@ -144,7 +155,10 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
         <DialogHeader>
           <DialogTitle>Gerenciar Grupos de Ação</DialogTitle>
           <DialogDescription>
-            Crie novos grupos de ação ou gerencie os existentes.
+            Crie novos grupos de ação ou gerencie os existentes.<br />
+            <span className="text-xs text-muted-foreground block mt-1">
+              Ao excluir um grupo, todos os tipos de ação vinculados a ele também serão excluídos automaticamente.
+            </span>
           </DialogDescription>
         </DialogHeader>
         
@@ -180,7 +194,7 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
                 <div key={group.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                   <span className="text-sm">{group.description}</span>
                   <DeleteButton
-                    onDelete={() => handleDeleteGroup(group.id)}
+                    onDelete={() => handleDeleteGroup(group.id, group.description)}
                     itemName={group.description}
                     itemType="o grupo de ação"
                   />
@@ -199,3 +213,4 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
     </Dialog>
   );
 }
+
