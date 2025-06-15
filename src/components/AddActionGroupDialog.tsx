@@ -12,6 +12,7 @@ interface ActionGroup {
   id: string;
   name: string;
   description: string;
+  user_id?: string | null;
 }
 
 interface AddActionGroupDialogProps {
@@ -192,11 +193,17 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
             <div className="space-y-2 max-h-40 overflow-y-auto">
               {actionGroups.map((group) => (
                 <div key={group.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                  <span className="text-sm">{group.description}</span>
+                  <span className="text-sm">
+                    {group.description}
+                    {!group.user_id && (
+                      <span className="ml-2 text-xs text-gray-400">(padrão)</span>
+                    )}
+                  </span>
                   <DeleteButton
                     onDelete={() => handleDeleteGroup(group.id, group.description)}
                     itemName={group.description}
                     itemType="o grupo de ação"
+                    disabled={!group.user_id}
                   />
                 </div>
               ))}
@@ -213,4 +220,3 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
     </Dialog>
   );
 }
-

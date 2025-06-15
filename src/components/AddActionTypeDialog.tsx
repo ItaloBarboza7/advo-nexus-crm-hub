@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ interface ActionType {
   name: string;
   action_group_id: string;
   action_groups?: ActionGroup;
+  user_id?: string | null;
 }
 
 interface AddActionTypeDialogProps {
@@ -203,21 +205,30 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
             <div className="text-sm text-gray-500">Nenhum tipo cadastrado</div>
           ) : (
             <div className="space-y-2 max-h-40 overflow-y-auto">
-              {actionTypes.map((type) => (
-                <div key={type.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium">{type.name}</span>
-                    <span className="text-xs text-gray-500">
-                      {type.action_groups?.description || 'Grupo não encontrado'}
-                    </span>
+              {actionTypes.map((type) => {
+                const group = actionGroups.find((g) => g.id === type.action_group_id);
+                return (
+                  <div key={type.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium">
+                        {type.name}
+                        {!type.user_id && (
+                           <span className="ml-2 text-xs text-gray-400">(padrão)</span>
+                        )}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {group?.description || 'Grupo não encontrado'}
+                      </span>
+                    </div>
+                    <DeleteButton
+                      onDelete={() => handleDeleteType(type.id)}
+                      itemName={type.name}
+                      itemType="o tipo de ação"
+                      disabled={!type.user_id}
+                    />
                   </div>
-                  <DeleteButton
-                    onDelete={() => handleDeleteType(type.id)}
-                    itemName={type.name}
-                    itemType="o tipo de ação"
-                  />
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
