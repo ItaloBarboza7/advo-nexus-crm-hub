@@ -2,11 +2,10 @@
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Activity, Users, BarChart3, PieChart as PieChartIcon, AlertCircle } from "lucide-react";
+import { Activity, Users, BarChart3, PieChart as PieChartIcon } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { Lead } from "@/types/lead";
 import { getChartTitle } from "@/components/analysis/ChartTitleProvider";
-import { useActionGroupsAndTypes } from "@/hooks/useActionGroupsAndTypes";
 
 interface ActionTypesChartProps {
   leads: Lead[];
@@ -20,15 +19,13 @@ const COLORS = [
 
 export function ActionTypesChart({ leads, selectedCategory = "all" }: ActionTypesChartProps) {
   const [viewType, setViewType] = useState<'bar' | 'pie'>('bar');
-  const { validActionTypeNames, loadingActionOptions } = useActionGroupsAndTypes();
 
+  // Agora conta 100% dos tipos existentes nos leads, sem validação adicional
   const chartData = useMemo(() => {
     if (!leads || !Array.isArray(leads)) return [];
 
-    // Agrupa por tipo válido, senão "Tipo Removido"
     const typeCounts = leads.reduce((acc, lead) => {
-      let type = lead.action_type || "Tipo Removido";
-      if (!validActionTypeNames.includes(type)) type = "Tipo Removido";
+      const type = lead.action_type || "Não especificado";
       acc[type] = (acc[type] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
@@ -42,21 +39,12 @@ export function ActionTypesChart({ leads, selectedCategory = "all" }: ActionType
         color: COLORS[idx % COLORS.length]
       }))
       .sort((a, b) => b.count - a.count);
-  }, [leads, validActionTypeNames]);
+  }, [leads]);
 
-  const hasRemoved = chartData.some(item => item.actionType === "Tipo Removido");
   const totalLeads = leads?.length || 0;
   const chartTitle = getChartTitle({ selectedCategory, chartType: 'actionTypes' });
 
   const renderCustomLabel = (entry: any) => entry.percentage >= 5 ? `${entry.percentage.toFixed(0)}%` : "";
-
-  if (loadingActionOptions) {
-    return (
-      <Card className="p-6">
-        <div className="text-gray-600">Carregando tipos de ação...</div>
-      </Card>
-    );
-  }
 
   if (totalLeads === 0) {
     return (
@@ -104,13 +92,6 @@ export function ActionTypesChart({ leads, selectedCategory = "all" }: ActionType
           </div>
         </div>
       </div>
-
-      {hasRemoved && (
-        <div className="mb-4 flex items-center gap-2 text-sm text-yellow-700 bg-yellow-50 p-2 rounded-md border border-yellow-200">
-          <AlertCircle className="h-4 w-4" />
-          Leads marcados com tipos de ação removidos foram agrupados como <b>"Tipo Removido"</b>.
-        </div>
-      )}
 
       <div className="h-80">
         {viewType === 'bar' ? (
@@ -202,3 +183,6 @@ export function ActionTypesChart({ leads, selectedCategory = "all" }: ActionType
     </Card>
   );
 }
+
+// IMPORTANTE: Este arquivo está ficando longo (205 linhas). 
+// Considere pedir uma refatoração após as correções para facilitar a manutenção.

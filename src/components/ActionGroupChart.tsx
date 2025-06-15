@@ -2,11 +2,10 @@
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Activity, Users, BarChart3, PieChart as PieChartIcon, AlertCircle } from "lucide-react";
+import { Activity, Users, BarChart3, PieChart as PieChartIcon } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { Lead } from "@/types/lead";
 import { getChartTitle } from "@/components/analysis/ChartTitleProvider";
-import { useActionGroupsAndTypes } from "@/hooks/useActionGroupsAndTypes";
 
 interface ActionGroupChartProps {
   leads: Lead[];
@@ -20,15 +19,13 @@ const COLORS = [
 
 export function ActionGroupChart({ leads, selectedCategory = "all" }: ActionGroupChartProps) {
   const [viewType, setViewType] = useState<'bar' | 'pie'>('bar');
-  const { validActionGroupNames, loadingActionOptions } = useActionGroupsAndTypes();
 
+  // Conta somente os grupos de ação atuais nas leads
   const chartData = useMemo(() => {
     if (!leads || !Array.isArray(leads)) return [];
 
-    // Agrupar por grupo válido, senão "Grupo Removido"
     const groupCounts = leads.reduce((acc, lead) => {
-      let group = lead.action_group || "Grupo Removido";
-      if (!validActionGroupNames.includes(group)) group = "Grupo Removido";
+      const group = lead.action_group || "Não especificado";
       acc[group] = (acc[group] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
@@ -42,21 +39,12 @@ export function ActionGroupChart({ leads, selectedCategory = "all" }: ActionGrou
         color: COLORS[idx % COLORS.length]
       }))
       .sort((a, b) => b.count - a.count);
-  }, [leads, validActionGroupNames]);
+  }, [leads]);
 
-  const hasRemoved = chartData.some(item => item.actionGroup === "Grupo Removido");
   const totalLeads = leads?.length || 0;
   const chartTitle = getChartTitle({ selectedCategory, chartType: 'actionGroups' });
 
   const renderCustomLabel = (entry: any) => entry.percentage >= 5 ? `${entry.percentage.toFixed(0)}%` : "";
-
-  if (loadingActionOptions) {
-    return (
-      <Card className="p-6">
-        <div className="text-gray-600">Carregando grupos de ação...</div>
-      </Card>
-    );
-  }
 
   if (totalLeads === 0) {
     return (
@@ -104,13 +92,6 @@ export function ActionGroupChart({ leads, selectedCategory = "all" }: ActionGrou
           </div>
         </div>
       </div>
-
-      {hasRemoved && (
-        <div className="mb-4 flex items-center gap-2 text-sm text-yellow-700 bg-yellow-50 p-2 rounded-md border border-yellow-200">
-          <AlertCircle className="h-4 w-4" />
-          Leads marcados com grupos de ação removidos foram agrupados como <b>"Grupo Removido"</b>.
-        </div>
-      )}
 
       <div className="h-80">
         {viewType === 'bar' ? (
@@ -202,3 +183,6 @@ export function ActionGroupChart({ leads, selectedCategory = "all" }: ActionGrou
     </Card>
   );
 }
+
+// IMPORTANTE: Este arquivo está ficando longo (205 linhas). 
+// Considere pedir uma refatoração após as correções para facilitar a manutenção.
