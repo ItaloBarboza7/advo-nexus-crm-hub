@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -6,14 +5,12 @@ interface ActionGroup {
   id: string;
   name: string;
   description: string;
-  user_id: string | null;
 }
 
 interface ActionType {
   id: string;
   name: string;
   action_group_id: string;
-  user_id: string | null;
 }
 
 interface LeadSource {
