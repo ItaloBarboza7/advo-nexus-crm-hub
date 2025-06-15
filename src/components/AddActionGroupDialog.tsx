@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -203,7 +202,6 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
                     onDelete={() => handleDeleteGroup(group.id, group.description)}
                     itemName={group.description}
                     itemType="o grupo de ação"
-                    disabled={!group.user_id}
                   />
                 </div>
               ))}

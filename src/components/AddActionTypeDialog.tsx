@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -224,7 +223,6 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
                       onDelete={() => handleDeleteType(type.id)}
                       itemName={type.name}
                       itemType="o tipo de ação"
-                      disabled={!type.user_id}
                     />
                   </div>
                 );
