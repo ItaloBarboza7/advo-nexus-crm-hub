@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -128,9 +129,13 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
 
     if (error) {
       console.error('❌ Erro ao excluir tipo:', error);
+      let description = "Não foi possível excluir o tipo de ação.";
+      if (error.code === '42501') { // insufficient_privilege
+        description = "Você não tem permissão para excluir este tipo de ação.";
+      }
       toast({
         title: "Erro",
-        description: "Não foi possível excluir o tipo de ação.",
+        description: description,
         variant: "destructive"
       });
       throw error;

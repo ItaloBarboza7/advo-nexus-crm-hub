@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -110,9 +111,13 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
 
     if (error) {
       console.error('❌ Erro ao excluir grupo:', error);
+      let description = "Não foi possível excluir o grupo de ação.";
+      if (error.code === '42501') { // insufficient_privilege
+        description = "Você não tem permissão para excluir este grupo de ação.";
+      }
       toast({
         title: "Erro",
-        description: "Não foi possível excluir o grupo de ação.",
+        description: description,
         variant: "destructive"
       });
       throw error;
@@ -200,3 +205,4 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
     </Dialog>
   );
 }
+
