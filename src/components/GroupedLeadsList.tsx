@@ -93,7 +93,15 @@ export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEdi
     // Para perdas simples, agrupar por loss_reason
     else if (selectedCategory === "perdas") {
       const groups = leads.reduce((acc, lead) => {
-        const lossReason = lead.loss_reason || "Sem motivo especificado";
+        // Tratar vazios/nulos/"outros" como grupo unico "Outros"
+        let lossReason = lead.loss_reason;
+        if (
+          !lossReason ||
+          lossReason.trim().toLowerCase() === "outros" ||
+          lossReason.trim() === ""
+        ) {
+          lossReason = "Outros";
+        }
         if (!acc[lossReason]) {
           acc[lossReason] = [];
         }
