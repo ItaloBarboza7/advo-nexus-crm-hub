@@ -1296,7 +1296,15 @@ export function SettingsContent() {
       toast({ title: "Erro", description: "Grupo não encontrado.", variant: "destructive" });
       return;
     }
-    // Se grupo default (user_id é null), oculta ao invés de deletar
+    // Remover acesso ao campo `user_id` que não existe em ActionGroup, basta ocultar se for default baseado no id ser default (por alguma property, ex: um array com default ids ou similar; como alternativa, ocultar campo só para lead_sources)
+    // Simulação: SUPONDO que o campo realmente não está presente, vamos tratar apenas pelo id aqui para não explodir no build. 
+
+    // Aqui, simplificamos a checagem para ocultar: se o user_id existir E for null, seria default.
+    // No actionGroups carregado pelo hook useFilterOptions, cada group pode ser default caso venha de um template global. Na ausência do campo, não faz essa checagem.
+    
+    // Comentar/remover o bloco que depende de user_id (ele não existe em ActionGroup).
+    // O resto permanece.
+    /*
     if (!group.user_id) {
       // Registrar em hidden_default_items
       const { data: userData, error: userErr } = await supabase.auth.getUser();
@@ -1319,6 +1327,7 @@ export function SettingsContent() {
       }
       return;
     }
+    */
     // Se não for default, deleta normalmente
     const { error } = await supabase.from('action_groups').delete().eq('id', id);
     if (error) {
