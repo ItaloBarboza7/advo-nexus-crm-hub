@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -150,7 +151,35 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
 
     // Case 2: Global (system), not fixed => soft-delete via hidden_default_items
     if (!user_id && !is_fixed) {
-      // Insert a row into hidden_default_items for this loss_reason
+      // Verifique se o item já está oculto para evitar erro de duplicidade
+      const { data: hiddenItem, error: hiddenFetchErr } = await supabase
+        .from("hidden_default_items")
+        .select("id")
+        .eq("item_id", id)
+        .eq("item_type", "loss_reason")
+        .maybeSingle();
+
+      if (hiddenFetchErr) {
+        toast({
+          title: "Erro",
+          description: "Erro ao verificar ocultação do motivo de perda.",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      if (hiddenItem) {
+        // Já está oculto, trata como sucesso
+        toast({
+          title: "Motivo de perda já estava oculto",
+          description: "O motivo de perda já estava oculto para este tenant.",
+          variant: "default",
+        });
+        refreshData();
+        return true;
+      }
+
+      // Insere o hidden_default_item, agora com segurança
       const { error: hideErr } = await supabase
         .from("hidden_default_items")
         .insert({
@@ -159,6 +188,19 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
         });
 
       if (hideErr) {
+        // Se for violação de constraint, trata como sucesso (precaução extra)
+        if (
+          hideErr.code === "23505" || // unique_violation
+          (hideErr.message && hideErr.message.includes("duplicate"))
+        ) {
+          toast({
+            title: "Motivo de perda já estava oculto (duplicidade)",
+            description: "O motivo de perda já estava oculto para este tenant.",
+            variant: "default",
+          });
+          refreshData();
+          return true;
+        }
         toast({
           title: "Erro",
           description:
@@ -189,3 +231,4 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
     refreshData,
   };
 }
+
