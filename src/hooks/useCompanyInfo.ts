@@ -14,7 +14,7 @@ interface CompanyInfo {
 
 export function useCompanyInfo() {
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
   const fetchCompanyInfo = async () => {
@@ -24,6 +24,7 @@ export function useCompanyInfo() {
       
       if (!user) {
         console.log('Usuário não autenticado');
+        setIsLoading(false);
         return;
       }
 
@@ -37,6 +38,7 @@ export function useCompanyInfo() {
 
       if (error) {
         console.error('Erro ao buscar informações da empresa:', error);
+        setIsLoading(false);
         return;
       }
 

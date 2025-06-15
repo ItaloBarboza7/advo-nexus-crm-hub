@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -34,7 +33,7 @@ export const useFilterOptions = () => {
     try {
       setLoading(true);
       
-      // Buscar grupos de ação (incluindo os do usuário e os padrão)
+      // Buscar grupos de ação diretamente da tabela
       const { data: groupsData, error: groupsError } = await supabase
         .from('action_groups')
         .select('*')
@@ -43,11 +42,11 @@ export const useFilterOptions = () => {
       if (groupsError) {
         console.error('Erro ao buscar grupos de ação:', groupsError);
       } else {
-        console.log('Fetched Action Groups from useFilterOptions:', groupsData);
+        console.log('Grupos de ação encontrados:', groupsData);
         setActionGroups(groupsData || []);
       }
 
-      // Buscar tipos de ação (incluindo os do usuário e os padrão)
+      // Buscar tipos de ação diretamente da tabela
       const { data: typesData, error: typesError } = await supabase
         .from('action_types')
         .select('*')
@@ -56,7 +55,7 @@ export const useFilterOptions = () => {
       if (typesError) {
         console.error('Erro ao buscar tipos de ação:', typesError);
       } else {
-        console.log('Fetched Action Types from useFilterOptions:', typesData);
+        console.log('Tipos de ação encontrados:', typesData);
         setActionTypes(typesData || []);
       }
 
@@ -69,7 +68,7 @@ export const useFilterOptions = () => {
       if (sourcesError) {
         console.error('Erro ao buscar fontes de leads:', sourcesError);
       } else {
-        console.log('Fetched Lead Sources from useFilterOptions:', sourcesData);
+        console.log('Fontes de leads encontradas:', sourcesData);
         setLeadSources(sourcesData || []);
       }
     } catch (error) {
