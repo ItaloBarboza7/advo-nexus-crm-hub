@@ -1,4 +1,3 @@
-
 import { Home, Users, Flag, TrendingUp, Settings, Zap } from "lucide-react";
 import {
   Sidebar,
@@ -63,16 +62,12 @@ export function AppSidebar({ activeView, setActiveView, userRole }: AppSidebarPr
   return (
     <Sidebar className="border-r border-gray-200 dark:border-gray-800">
       <SidebarHeader className="border-b border-gray-200 dark:border-gray-800 p-6">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-center">
           <img 
-            src="/lovable-uploads/153d3133-c453-45c0-89e4-e12fff78895f.png" 
+            src="/lovable-uploads/cdf6d547-b3db-49aa-a10e-22232822a77e.png" 
             alt="EVOJURIS Logo" 
-            className="h-8 w-8"
+            className="h-9"
           />
-          <div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">EVOJURIS</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Análise de Leads</p>
-          </div>
         </div>
       </SidebarHeader>
       <SidebarContent>
