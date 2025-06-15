@@ -35,6 +35,14 @@ export function LeadsListView({
     );
   }
 
+  // Função para exibir corretamente o grupo de ação como "Outros"
+  const getActionGroupLabel = (actionGroup: string | null) => {
+    if (!actionGroup || actionGroup.trim() === "") {
+      return "Outros";
+    }
+    return actionGroup;
+  };
+
   return (
     <Card className="overflow-hidden">
       <Table>
@@ -94,7 +102,7 @@ export function LeadsListView({
               </TableCell>
               <TableCell>
                 <span className="text-sm text-gray-600">
-                  {lead.action_group || "Não informado"}
+                  {getActionGroupLabel(lead.action_group)}
                 </span>
               </TableCell>
               <TableCell>
