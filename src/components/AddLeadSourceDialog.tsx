@@ -12,6 +12,7 @@ interface LeadSource {
   id: string;
   name: string;
   label: string;
+  user_id?: string | null;
 }
 
 interface AddLeadSourceDialogProps {
@@ -27,12 +28,13 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
   const [isLoadingSources, setIsLoadingSources] = useState(false);
   const { toast } = useToast();
 
+  // Busca somente fontes visíveis para este tenant
   const fetchLeadSources = async () => {
     setIsLoadingSources(true);
     try {
+      // Use função de visibilidade
       const { data, error } = await supabase
-        .from('lead_sources')
-        .select('*')
+        .rpc('get_visible_lead_sources')
         .order('label', { ascending: true });
 
       if (error) {
@@ -50,19 +52,15 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!name.trim()) {
-      toast({
-        title: "Erro",
-        description: "Nome é obrigatório.",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Nome é obrigatório.", variant: "destructive" });
       return;
     }
 
     setIsLoading(true);
 
     try {
+      // Cria uma fonte "do tenant" (user_id set via trigger no backend)
       const { error } = await supabase
         .from('lead_sources')
         .insert({
@@ -100,9 +98,20 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
     }
   };
 
+  // Só permite excluir fontes do tenant (não as default/globais - proteger frontend)
   const handleDeleteSource = async (sourceId: string) => {
+    const thisSource = leadSources.find(s => s.id === sourceId);
+    if (!thisSource) return; // Não achou, não faz nada
+    if (!thisSource.user_id) {
+      toast({
+        title: "Ação bloqueada",
+        description: "Não é possível excluir uma fonte global/padrão.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     console.log('🗑️ Iniciando exclusão da fonte com ID:', sourceId);
-    
     const { error } = await supabase
       .from('lead_sources')
       .delete()
@@ -179,11 +188,17 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
             <div className="space-y-2 max-h-40 overflow-y-auto">
               {leadSources.map((source) => (
                 <div key={source.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                  <span className="text-sm">{source.label}</span>
+                  <span className="text-sm">
+                    {source.label}
+                    {!source.user_id && (
+                      <span className="ml-2 text-xs text-gray-400">(padrão)</span>
+                    )}
+                  </span>
                   <DeleteButton
                     onDelete={() => handleDeleteSource(source.id)}
                     itemName={source.label}
                     itemType="a fonte de lead"
+                    disabled={!source.user_id}
                   />
                 </div>
               ))}

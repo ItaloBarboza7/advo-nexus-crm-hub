@@ -17,6 +17,7 @@ interface LeadSource {
   id: string;
   name: string;
   label: string;
+  user_id?: string | null;
 }
 
 export const useFilterOptions = () => {
@@ -37,7 +38,6 @@ export const useFilterOptions = () => {
       if (groupsError) {
         console.error('[useFilterOptions] Erro ao buscar grupos de ação:', groupsError);
       } else {
-        console.log('[useFilterOptions] Grupos de ação encontrados:', groupsData);
         setActionGroups(groupsData || []);
       }
 
@@ -49,20 +49,17 @@ export const useFilterOptions = () => {
       if (typesError) {
         console.error('[useFilterOptions] Erro ao buscar tipos de ação:', typesError);
       } else {
-        console.log('[useFilterOptions] Tipos de ação encontrados:', typesData);
         setActionTypes(typesData || []);
       }
 
-      // Buscar fontes de leads 
+      // Buscar fontes de leads usando função get_visible_lead_sources
       const { data: sourcesData, error: sourcesError } = await supabase
-        .from('lead_sources')
-        .select('*')
-        .order('label');
+        .rpc('get_visible_lead_sources')
+        .order('label', { ascending: true });
 
       if (sourcesError) {
         console.error('[useFilterOptions] Erro ao buscar fontes de leads:', sourcesError);
       } else {
-        console.log('[useFilterOptions] Fontes de leads encontradas:', sourcesData);
         setLeadSources(sourcesData || []);
       }
     } catch (error) {
@@ -76,9 +73,7 @@ export const useFilterOptions = () => {
     fetchAllData();
   }, [fetchAllData]);
 
-  const refreshData = () => {
-    fetchAllData();
-  };
+  const refreshData = () => fetchAllData();
 
   // Converter para formato compatível com os selects existentes
   const statusOptions = [
