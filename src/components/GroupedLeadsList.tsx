@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -54,8 +53,8 @@ export function GroupedLeadsList({ leads, selectedCategory, onViewDetails, onEdi
       }
     }
     
-    console.log(`❌ Grupo de ação não encontrado para: ${actionType}, usando "Outros Serviços"`);
-    return "Outros Serviços";
+    console.log(`❌ Grupo de ação não encontrado para: ${actionType}, usando "Outros"`);
+    return "Outros";
   };
 
   const groupedLeads = () => {
