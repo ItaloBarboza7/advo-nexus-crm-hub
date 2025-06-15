@@ -1093,6 +1093,121 @@ export function SettingsContent() {
     );
   };
 
+  // --- ADDED: Handler para deletar grupo de ação ---
+  const handleDeleteActionGroup = async (groupId: string) => {
+    try {
+      const { error } = await supabase
+        .from('action_groups')
+        .delete()
+        .eq('id', groupId);
+
+      if (error) {
+        console.error('Erro ao excluir grupo de ação:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível excluir o grupo.",
+          variant: "destructive"
+        });
+        return;
+      }
+      toast({
+        title: "Sucesso",
+        description: "Grupo de ação excluído.",
+      });
+      refreshData();
+    } catch (error) {
+      console.error('Erro inesperado ao excluir grupo de ação:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao excluir o grupo.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // --- ADDED: Handler para deletar tipo de ação ---
+  const handleDeleteActionType = async (typeId: string) => {
+    try {
+      const { error } = await supabase
+        .from('action_types')
+        .delete()
+        .eq('id', typeId);
+
+      if (error) {
+        console.error('Erro ao excluir tipo de ação:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível excluir o tipo.",
+          variant: "destructive"
+        });
+        return;
+      }
+      toast({
+        title: "Sucesso",
+        description: "Tipo de ação excluído.",
+      });
+      refreshData();
+    } catch (error) {
+      console.error('Erro inesperado ao excluir tipo de ação:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao excluir o tipo.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // --- ADDED: Handler para deletar fonte de lead ---
+  const handleDeleteLeadSource = async (sourceId: string) => {
+    try {
+      const { error } = await supabase
+        .from('lead_sources')
+        .delete()
+        .eq('id', sourceId);
+
+      if (error) {
+        console.error('Erro ao excluir fonte de lead:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível excluir a fonte.",
+          variant: "destructive"
+        });
+        return;
+      }
+      toast({
+        title: "Sucesso",
+        description: "Fonte de lead excluída.",
+      });
+      refreshData();
+    } catch (error) {
+      console.error('Erro inesperado ao excluir fonte de lead:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao excluir a fonte.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // --- ADDED: Handler para deletar motivo de perda ---
+  const handleDeleteLossReason = async (reasonId: string) => {
+    try {
+      await deleteLossReason(reasonId);
+      toast({
+        title: "Motivo de perda excluído!",
+        description: "O motivo de perda foi removido com sucesso.",
+      });
+      refreshLossReasons();
+    } catch (error) {
+      console.error('Erro ao excluir motivo de perda:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível excluir o motivo de perda.",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
