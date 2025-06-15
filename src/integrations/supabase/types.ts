@@ -113,21 +113,21 @@ export type Database = {
           id: string
           item_id: string
           item_type: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
           id?: string
           item_id: string
           item_type: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
           id?: string
           item_id?: string
           item_type?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: []
       }

@@ -38,26 +38,8 @@ interface DashboardComponent {
   visible: boolean;
 }
 
-// Adicionando tipos para os itens de configuração para maior clareza
-interface ActionGroup {
-  id: string;
-  name: string;
-  description: string;
-  user_id: string | null;
-}
-
-interface ActionType {
-  id: string;
-  name: string;
-  action_group_id: string;
-  user_id: string | null;
-}
-
-interface LeadSource {
-  id: string;
-  label: string;
-  user_id: string | null;
-}
+// Removing local interfaces for ActionGroup, ActionType, and LeadSource
+// to avoid conflicts with types from useFilterOptions hook.
 
 export function SettingsContent() {
   const [activeTab, setActiveTab] = useState("company");
@@ -1012,7 +994,7 @@ export function SettingsContent() {
                                   <Edit className="h-4 w-4" />
                                 </Button>
                                 <DeleteButton
-                                  onDelete={() => handleDeleteActionGroup(group as ActionGroup)}
+                                  onDelete={() => handleDeleteActionGroup(group)}
                                   itemName={group.description || group.name}
                                   itemType="grupo de ação"
                                   size="sm"
@@ -1074,7 +1056,7 @@ export function SettingsContent() {
                                           <Edit className="h-4 w-4" />
                                         </Button>
                                         <DeleteButton
-                                          onDelete={() => handleDeleteActionType(type as ActionType)}
+                                          onDelete={() => handleDeleteActionType(type)}
                                           itemName={type.name.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                                           itemType="tipo de ação"
                                           size="sm"
@@ -1166,12 +1148,12 @@ export function SettingsContent() {
                               <Edit className="h-4 w-4" />
                             </Button>
                             <DeleteButton
-                              onDelete={() => handleDeleteLeadSource(source as LeadSource)}
+                              onDelete={() => handleDeleteLeadSource(source)}
                               itemName={source.label}
                               itemType="fonte"
                               size="sm"
                               variant="outline"
-                              isDefault={!source.user_id}
+                              isDefault={true}
                             />
                           </div>
                         )}
@@ -1311,7 +1293,7 @@ export function SettingsContent() {
     setEditingActionGroupName(name);
   };
 
-  const handleDeleteActionGroup = async (group: ActionGroup) => {
+  const handleDeleteActionGroup = async (group: (typeof actionGroups)[number]) => {
     if (!group.user_id) {
         await handleHideDefaultItem(group.id, 'action_group');
     } else {
@@ -1347,7 +1329,7 @@ export function SettingsContent() {
     setEditingActionTypeName(name);
   };
 
-  const handleDeleteActionType = async (type: ActionType) => {
+  const handleDeleteActionType = async (type: (typeof actionTypes)[number]) => {
     if (!type.user_id) {
         await handleHideDefaultItem(type.id, 'action_type');
     } else {
@@ -1382,18 +1364,9 @@ export function SettingsContent() {
     setEditingLeadSourceName(name);
   };
 
-  const handleDeleteLeadSource = async (source: LeadSource) => {
-    if (!source.user_id) {
-        await handleHideDefaultItem(source.id, 'lead_source');
-    } else {
-        const { error } = await supabase.from('lead_sources').delete().eq('id', source.id);
-        if (error) {
-            toast({ title: "Erro", description: `Não foi possível excluir a fonte de lead: ${error.message}`, variant: "destructive" });
-        } else {
-            toast({ title: "Sucesso", description: "Fonte de lead excluída." });
-            refreshData();
-        }
-    }
+  const handleDeleteLeadSource = async (source: (typeof leadSources)[number]) => {
+    // All lead sources are default system items, so they can only be hidden.
+    await handleHideDefaultItem(source.id, 'lead_source');
   };
   
   const handleSaveLossReason = async () => {
@@ -1431,7 +1404,7 @@ export function SettingsContent() {
     const { error } = await supabase.from('hidden_default_items').insert({
         item_id: itemId,
         item_type: itemType,
-    });
+    } as any);
 
     if (error) {
         console.error(`Error hiding ${itemType}:`, error);
