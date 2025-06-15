@@ -1,3 +1,4 @@
+
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,8 +20,12 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
       return [];
     }
     
+    // Tratamento padronizado do motivo de perda: qualquer vazio/nulo/"outros" => "Outros" (único grupo)
     const lossReasons = leads.reduce((acc, lead) => {
-      const reason = lead.loss_reason || "Sem motivo especificado";
+      let reason = lead.loss_reason;
+      if (!reason || reason.trim().toLowerCase() === "outros" || reason.trim() === "") {
+        reason = "Outros";
+      }
       acc[reason] = (acc[reason] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
@@ -40,7 +45,7 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
 
   const renderCustomLabel = (entry: any) => {
     const percent = entry.percentage;
-    if (percent < 5) return ''; // Não mostra percentual para fatias muito pequenas
+    if (percent < 5) return '';
     return `${percent.toFixed(0)}%`;
   };
 
@@ -181,3 +186,4 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
     </Card>
   );
 }
+
