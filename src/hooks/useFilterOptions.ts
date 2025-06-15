@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface ActionGroup {
@@ -26,11 +25,7 @@ export const useFilterOptions = () => {
   const [leadSources, setLeadSources] = useState<LeadSource[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchAllData();
-  }, []);
-
-  const fetchAllData = async () => {
+  const fetchAllData = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -40,9 +35,9 @@ export const useFilterOptions = () => {
         .order('name');
 
       if (groupsError) {
-        console.error('Erro ao buscar grupos de ação:', groupsError);
+        console.error('[useFilterOptions] Erro ao buscar grupos de ação:', groupsError);
       } else {
-        console.log('Grupos de ação encontrados:', groupsData);
+        console.log('[useFilterOptions] Grupos de ação encontrados:', groupsData);
         setActionGroups(groupsData || []);
       }
 
@@ -52,30 +47,34 @@ export const useFilterOptions = () => {
         .order('name');
 
       if (typesError) {
-        console.error('Erro ao buscar tipos de ação:', typesError);
+        console.error('[useFilterOptions] Erro ao buscar tipos de ação:', typesError);
       } else {
-        console.log('Tipos de ação encontrados:', typesData);
+        console.log('[useFilterOptions] Tipos de ação encontrados:', typesData);
         setActionTypes(typesData || []);
       }
 
-      // Buscar fontes de leads (mantém query original, já que não há função personalizada strict)
+      // Buscar fontes de leads 
       const { data: sourcesData, error: sourcesError } = await supabase
         .from('lead_sources')
         .select('*')
         .order('label');
 
       if (sourcesError) {
-        console.error('Erro ao buscar fontes de leads:', sourcesError);
+        console.error('[useFilterOptions] Erro ao buscar fontes de leads:', sourcesError);
       } else {
-        console.log('Fontes de leads encontradas:', sourcesData);
+        console.log('[useFilterOptions] Fontes de leads encontradas:', sourcesData);
         setLeadSources(sourcesData || []);
       }
     } catch (error) {
-      console.error('Erro inesperado ao buscar dados:', error);
+      console.error('[useFilterOptions] Erro inesperado ao buscar dados:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchAllData();
+  }, [fetchAllData]);
 
   const refreshData = () => {
     fetchAllData();

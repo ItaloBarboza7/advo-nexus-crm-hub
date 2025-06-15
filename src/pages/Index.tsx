@@ -70,7 +70,7 @@ const Index = () => {
 
       let role = userRoleData?.role
 
-      // Se o usuário não tiver um cargo, ele pode ser o administrador principal. Vamos verificar.
+      // Se o usuário não tiver um cargo, ele pode ser o administrador principal.
       if (!role) {
         const { data: profileData, error: profileError } = await supabase
           .from('user_profiles')
@@ -78,8 +78,6 @@ const Index = () => {
           .eq('user_id', user.id)
           .maybeSingle();
 
-        // Se houver um perfil e não for um perfil de membro (sem parent_user_id),
-        // este usuário deve ser um administrador.
         if (profileData && !profileData.parent_user_id && !profileError) {
           console.log(`Usuário ${user.id} está sem cargo. Atribuindo cargo 'admin'.`);
           const { error: insertError } = await supabase
@@ -89,7 +87,7 @@ const Index = () => {
           if (insertError) {
             console.error('Erro ao atribuir cargo de admin:', insertError);
           } else {
-            role = 'admin'; // Atualiza o cargo para a execução atual
+            role = 'admin';
             console.log(`Cargo 'admin' atribuído com sucesso para o usuário ${user.id}.`);
           }
         }
@@ -105,6 +103,8 @@ const Index = () => {
       // Manter a lógica original para o administrador
       const isFirstLogin = user.user_metadata?.is_first_login === true
 
+      // LOGGING for visibility:
+      console.log("[Index] Buscar informações da empresa/painel: user_id:", user.id);
       const { data: companyInfo, error } = await supabase
         .from('company_info')
         .select('id')
@@ -114,6 +114,12 @@ const Index = () => {
       if (error) {
         console.error('Erro ao verificar informações da empresa:', error)
         return
+      }
+
+      if (!companyInfo || companyInfo.length === 0) {
+        console.warn("[Index] Nenhuma informação da empresa encontrada para user_id:", user.id);
+      } else {
+        console.log("[Index] Empresa encontrada para user_id:", user.id, companyInfo);
       }
 
       if (isFirstLogin || !companyInfo || companyInfo.length === 0) {

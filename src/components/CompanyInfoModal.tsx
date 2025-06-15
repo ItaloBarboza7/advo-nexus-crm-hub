@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFilterOptions } from "@/hooks/useFilterOptions";
+import { useCompanyInfo } from "@/hooks/useCompanyInfo";
 
 interface CompanyInfoModalProps {
   isOpen: boolean;
@@ -26,12 +28,37 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { stateOptions } = useFilterOptions();
+  const { companyInfo, isLoading: loadingCompany, refreshCompanyInfo } = useCompanyInfo();
 
+  // Preencher campos ao abrir o modal usando os dados já salvos no banco (se houver)
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && companyInfo) {
+      setCompanyName(companyInfo.company_name || "");
+      setCpfCnpj(companyInfo.cnpj || "");
+      setPhone(companyInfo.phone || "");
+      setEmail(companyInfo.email || "");
+      // Fazer parsing do address registrado, caso exista
+      if (companyInfo.address) {
+        const parsed = parseCompanyAddressFields(companyInfo.address);
+        setCep(parsed.cep ?? "");
+        setAddress(parsed.address ?? "");
+        setNeighborhood(parsed.neighborhood ?? "");
+        setCity(parsed.city ?? "");
+        setState(parsed.state ?? "");
+      } else {
+        setCep("");
+        setAddress("");
+        setNeighborhood("");
+        setCity("");
+        setState("");
+      }
+    } else if (isOpen) {
       loadUserEmail();
+      // Limpa os campos se não houver companyInfo
+      setCompanyName(""); setCpfCnpj(""); setPhone(""); setCep(""); setAddress(""); setNeighborhood(""); setCity(""); setState("");
     }
-  }, [isOpen]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, companyInfo]);
 
   const loadUserEmail = async () => {
     try {
@@ -43,6 +70,34 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
       console.error('Erro ao carregar email do usuário:', error);
     }
   };
+
+  function parseCompanyAddressFields(addr: string) {
+    const result = {
+      cep: "",
+      address: "",
+      neighborhood: "",
+      city: "",
+      state: "",
+    };
+    try {
+      const parts = addr.split(",");
+      // O último campo normalmente é "CEP: XXXXX-XXX"
+      if (parts.length > 0) {
+        const cepMatch = parts[parts.length - 1].match(/CEP[:\s]+([0-9\-]+)/i);
+        if (cepMatch) {
+          result.cep = cepMatch[1].trim();
+          parts.pop();
+        }
+      }
+      if (parts[0]) result.address = parts[0].trim();
+      if (parts[1]) result.neighborhood = parts[1].trim();
+      if (parts[2]) result.city = parts[2].trim();
+      if (parts[3]) result.state = parts[3].trim();
+    } catch {
+      // Mantém campos vazios se falhar
+    }
+    return result;
+  }
 
   const handleSave = async () => {
     if (!companyName || !cpfCnpj || !phone || !email || !cep || !address || !neighborhood || !city || !state) {
@@ -112,6 +167,18 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
     }
   };
 
+  // Caso não encontre companyInfo, avisa no modal
+  useEffect(() => {
+    if (isOpen && !loadingCompany && !companyInfo) {
+      toast({
+        title: "Informações da empresa não encontradas!",
+        description: "Nenhum cadastro encontrado. Preencha e salve as informações.",
+        variant: "destructive",
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, loadingCompany, companyInfo]);
+
   return (
     <Dialog open={isOpen} onOpenChange={() => {}} modal>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()}>
@@ -120,6 +187,13 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
         </DialogHeader>
         
         <div className="space-y-4 py-4">
+          <div className="flex justify-between pb-2">
+            <span />
+            <Button onClick={refreshCompanyInfo} variant="outline" size="sm" type="button" disabled={isLoading || loadingCompany}>
+              Recarregar Informações
+            </Button>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="companyName">Nome/Razão Social *</Label>
             <Input
