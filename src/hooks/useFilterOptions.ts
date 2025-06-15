@@ -5,12 +5,14 @@ interface ActionGroup {
   id: string;
   name: string;
   description: string;
+  user_id?: string | null; // Added field
 }
 
 interface ActionType {
   id: string;
   name: string;
-  action_group_id: string;
+  action_group_id: string | null;
+  user_id?: string | null; // Added field
 }
 
 interface LeadSource {
