@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -25,8 +26,6 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
   const [isLoading, setIsLoading] = useState(false);
   const [actionGroups, setActionGroups] = useState<ActionGroup[]>([]);
   const [isLoadingGroups, setIsLoadingGroups] = useState(false);
-  const [editingGroup, setEditingGroup] = useState<{ id: string; description: string } | null>(null);
-  const [isUpdating, setIsUpdating] = useState(false);
   const { toast } = useToast();
 
   const fetchActionGroups = async () => {
@@ -101,53 +100,7 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
     }
   };
 
-  const handleUpdateGroup = async () => {
-    if (!editingGroup || !editingGroup.description.trim()) {
-      toast({
-        title: "Erro",
-        description: "O nome não pode ser vazio.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsUpdating(true);
-    const newDescription = editingGroup.description.trim();
-    const newName = newDescription.toLowerCase().replace(/\s+/g, "-");
-
-    try {
-      const { error } = await supabase
-        .from("action_groups")
-        .update({ description: newDescription, name: newName })
-        .eq("id", editingGroup.id);
-
-      if (error) {
-        console.error("Erro ao atualizar grupo:", error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível atualizar o grupo.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      toast({
-        title: "Sucesso",
-        description: "Grupo de ação atualizado com sucesso.",
-      });
-
-      setEditingGroup(null);
-      fetchActionGroups();
-    } catch (error) {
-      console.error("Erro inesperado ao atualizar grupo:", error);
-      toast({ title: "Erro", description: "Ocorreu um erro inesperado.", variant: "destructive" });
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
   const handleDeleteGroup = async (groupId: string, groupDescription: string) => {
-    // Alerta usuário que tipos de ação desse grupo serão excluídos
     toast({
       title: "Atenção",
       description: `Ao excluir o grupo "${groupDescription}", todos os tipos de ação vinculados a ele também serão excluídos.`,
@@ -176,11 +129,10 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
         description: `Grupo de ação "${groupDescription}" e seus tipos associados foram excluídos.`,
       });
 
-      // Remove do estado local para sumir da UI imediatamente
       setActionGroups((prev) => prev.filter((g) => g.id !== groupId));
       onGroupAdded();
     } catch (e) {
-      // Silenciar erro já tratado acima.
+      // erro já tratado acima
     }
   };
 
@@ -193,7 +145,6 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
     if (isOpen) {
       fetchActionGroups();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   return (
@@ -239,40 +190,19 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
             <div className="space-y-2 max-h-40 overflow-y-auto">
               {actionGroups.map((group) => (
                 <div key={group.id} className="flex items-center justify-between p-2 bg-gray-50 rounded gap-2">
-                  {editingGroup?.id === group.id ? (
-                    <>
-                      <Input
-                        value={editingGroup.description}
-                        onChange={(e) => setEditingGroup({ ...editingGroup, description: e.target.value })}
-                        className="h-9"
-                        disabled={isUpdating}
-                      />
-                      <div className="flex items-center gap-1">
-                        <Button size="sm" onClick={handleUpdateGroup} disabled={isUpdating}>
-                          {isUpdating ? "..." : "Salvar"}
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => setEditingGroup(null)} disabled={isUpdating}>
-                          Cancelar
-                        </Button>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-sm">
-                        {group.description}
-                        {!group.user_id && (
-                          <span className="ml-2 text-xs text-gray-400">(padrão)</span>
-                        )}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        <DeleteButton
-                          onDelete={() => handleDeleteGroup(group.id, group.description)}
-                          itemName={group.description}
-                          itemType="o grupo de ação"
-                        />
-                      </div>
-                    </>
-                  )}
+                  <span className="text-sm">
+                    {group.description}
+                    {!group.user_id && (
+                      <span className="ml-2 text-xs text-gray-400">(padrão)</span>
+                    )}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <DeleteButton
+                      onDelete={() => handleDeleteGroup(group.id, group.description)}
+                      itemName={group.description}
+                      itemType="o grupo de ação"
+                    />
+                  </div>
                 </div>
               ))}
             </div>

@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -35,8 +36,6 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
   const [isLoading, setIsLoading] = useState(false);
   const [actionTypes, setActionTypes] = useState<ActionType[]>([]);
   const [isLoadingTypes, setIsLoadingTypes] = useState(false);
-  const [editingType, setEditingType] = useState<{ id: string; name: string } | null>(null);
-  const [isUpdating, setIsUpdating] = useState(false);
   const { toast } = useToast();
 
   const fetchActionTypes = async () => {
@@ -51,7 +50,6 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
         return;
       }
 
-      console.log('Fetched Action Types from Dialog:', data);
       setActionTypes(data || []);
     } catch (error) {
       console.error('Erro inesperado ao buscar tipos (dialog):', error);
@@ -113,47 +111,7 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
     }
   };
 
-  const handleUpdateType = async () => {
-    if (!editingType || !editingType.name.trim()) {
-      toast({
-        title: "Erro",
-        description: "O nome não pode ser vazio.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsUpdating(true);
-    try {
-      const { error } = await supabase.from("action_types").update({ name: editingType.name.trim() }).eq("id", editingType.id);
-
-      if (error) {
-        console.error("❌ Erro ao atualizar tipo:", error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível atualizar o tipo de ação.",
-          variant: "destructive",
-        });
-        throw error;
-      }
-
-      toast({
-        title: "Sucesso",
-        description: "Tipo de ação atualizado com sucesso.",
-      });
-
-      setEditingType(null);
-      fetchActionTypes();
-    } catch (e) {
-      // erro já tratado
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
   const handleDeleteType = async (typeId: string) => {
-    console.log('🗑️ Iniciando exclusão do tipo com ID:', typeId);
-    
     const { error } = await supabase
       .from('action_types')
       .delete()
@@ -169,7 +127,6 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
       throw error;
     }
 
-    console.log('✅ Tipo excluído com sucesso');
     toast({
       title: "Sucesso",
       description: "Tipo de ação excluído com sucesso.",
@@ -248,41 +205,20 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
                 const group = actionGroups.find((g) => g.id === type.action_group_id);
                 return (
                   <div key={type.id} className="flex items-center justify-between p-2 bg-gray-50 rounded gap-2">
-                    {editingType?.id === type.id ? (
-                      <>
-                        <Input
-                          value={editingType.name}
-                          onChange={(e) => setEditingType({ ...editingType, name: e.target.value })}
-                          className="h-9"
-                          disabled={isUpdating}
-                        />
-                        <div className="flex items-center gap-1">
-                          <Button size="sm" onClick={handleUpdateType} disabled={isUpdating}>
-                            {isUpdating ? "..." : "Salvar"}
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => setEditingType(null)} disabled={isUpdating}>
-                            Cancelar
-                          </Button>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium">
-                            {type.name}
-                            {!type.user_id && <span className="ml-2 text-xs text-gray-400">(padrão)</span>}
-                          </span>
-                          <span className="text-xs text-gray-500">{group?.description || "Grupo não encontrado"}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <DeleteButton
-                            onDelete={() => handleDeleteType(type.id)}
-                            itemName={type.name}
-                            itemType="o tipo de ação"
-                          />
-                        </div>
-                      </>
-                    )}
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium">
+                        {type.name}
+                        {!type.user_id && <span className="ml-2 text-xs text-gray-400">(padrão)</span>}
+                      </span>
+                      <span className="text-xs text-gray-500">{group?.description || "Grupo não encontrado"}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <DeleteButton
+                        onDelete={() => handleDeleteType(type.id)}
+                        itemName={type.name}
+                        itemType="o tipo de ação"
+                      />
+                    </div>
                   </div>
                 );
               })}
