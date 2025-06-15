@@ -34,6 +34,10 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
   const fetchLossReasons = useCallback(async () => {
     setLoading(true);
 
+    // Forçar sempre buscar o dado atualizado, sem cache inicial/local
+    // eslint-disable-next-line no-console
+    console.log("🔄 fetchLossReasons - Buscando motivos de perda...");
+
     // Supabase types do not recognize custom RPCs, so we cast supabase as 'any' here.
     const { data, error } = await (supabase as any).rpc("get_visible_loss_reasons_for_tenant");
 
@@ -53,10 +57,15 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
         setLoading(false);
         return;
       }
+      // eslint-disable-next-line no-console
+      console.log("🟠 fetchLossReasons - Fallback para loss_reasons. Motivos carregados:", rawReasons);
       setLossReasons(rawReasons as LossReasonRecord[]);
       setLoading(false);
       return;
     }
+
+    // eslint-disable-next-line no-console
+    console.log("✅ fetchLossReasons - Motivos carregados:", data);
 
     // Supabase returns 'any' here, so we cast safely.
     setLossReasons(data as LossReasonRecord[]);
@@ -68,6 +77,9 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
   }, [fetchLossReasons]);
 
   const refreshData = useCallback(() => {
+    // Adicionado para debug detalhado
+    // eslint-disable-next-line no-console
+    console.log("🔄 refreshData - Atualizando a lista de motivos de perda...");
     fetchLossReasons();
   }, [fetchLossReasons]);
 
@@ -175,7 +187,10 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
           description: "O motivo de perda já estava oculto para este tenant.",
           variant: "default",
         });
-        refreshData();
+        // Forçar refetch depois, pois pode ser atualização assíncrona do cache do supabase
+        setTimeout(() => {
+          refreshData();
+        }, 350); // Adicionado delay para garantir propagação do banco
         return true;
       }
 
@@ -190,7 +205,7 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
       if (hideErr) {
         // Se for violação de constraint, trata como sucesso (precaução extra)
         if (
-          hideErr.code === "23505" || // unique_violation
+          hideErr.code === "23505" ||
           (hideErr.message && hideErr.message.includes("duplicate"))
         ) {
           toast({
@@ -198,7 +213,10 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
             description: "O motivo de perda já estava oculto para este tenant.",
             variant: "default",
           });
-          refreshData();
+          // Forçar refetch depois, pois pode ser atualização assíncrona do cache do supabase
+          setTimeout(() => {
+            refreshData();
+          }, 350); // delay para evitar race condition de leitura x escrita
           return true;
         }
         toast({
@@ -209,7 +227,10 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
         });
         return false;
       }
-      refreshData();
+      // Forçar refetch após ocultação
+      setTimeout(() => {
+        refreshData();
+      }, 350);
       return true;
     }
 
