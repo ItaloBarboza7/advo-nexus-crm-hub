@@ -1382,6 +1382,43 @@ export function SettingsContent() {
   };
 
   const handleDeleteLeadSource = async (id: string) => {
+    // Find the lead source by ID in leadSources array
+    const source = leadSources.find(ls => ls.id === id);
+
+    if (!source) {
+      toast({
+        title: "Erro",
+        description: "Fonte de lead não encontrada.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // If it's a default (user_id is null), just hide it!
+    if (!source.user_id) {
+      // Registrar em hidden_default_items
+      const { data: userData, error: userErr } = await supabase.auth.getUser();
+      if (userErr || !userData?.user?.id) {
+        toast({ title: "Erro", description: "Não foi possível identificar o usuário.", variant: "destructive" });
+        return;
+      }
+      const { error: hideErr } = await supabase
+        .from('hidden_default_items')
+        .insert({
+          item_type: 'lead_source',
+          item_id: source.id,
+          user_id: userData.user.id,
+        });
+      if (hideErr) {
+        toast({ title: "Erro", description: "Não foi possível ocultar a fonte padrão.", variant: "destructive" });
+      } else {
+        toast({ title: "Sucesso", description: "Fonte padrão ocultada para você." });
+        refreshData();
+      }
+      return;
+    }
+
+    // It's NOT a default - delete as normal
     const { error } = await supabase.from('lead_sources').delete().eq('id', id);
     if (error) {
       toast({ title: "Erro", description: "Não foi possível excluir a fonte de lead.", variant: "destructive" });
