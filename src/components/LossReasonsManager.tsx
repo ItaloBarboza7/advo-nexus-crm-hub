@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,15 +65,6 @@ export function LossReasonsManager() {
   const handleDelete = async (id: string, reason: string, isFixed: boolean) => {
     console.log(`🗑️ LossReasonsManager - Tentativa de exclusão do motivo ID: ${id}, motivo: ${reason}, fixo: ${isFixed}`);
     
-    if (isFixed) {
-      toast({
-        title: "Erro",
-        description: "Este motivo não pode ser excluído pois é um motivo base do sistema.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     setIsLoading(true);
     const success = await deleteLossReason(id);
     setIsLoading(false);
