@@ -35,35 +35,40 @@ export const useFilterOptions = () => {
       
       // Buscar grupos de ação
       const { data: groupsData, error: groupsError } = await supabase
-        .rpc('get_visible_action_groups');
+        .from('action_groups')
+        .select('*')
+        .order('name');
 
       if (groupsError) {
         console.error('Erro ao buscar grupos de ação:', groupsError);
       } else {
-        const sorted = (groupsData || []).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-        setActionGroups(sorted);
+        console.log('Fetched Action Groups from useFilterOptions:', groupsData);
+        setActionGroups(groupsData || []);
       }
 
       // Buscar tipos de ação
       const { data: typesData, error: typesError } = await supabase
-        .rpc('get_visible_action_types');
+        .from('action_types')
+        .select('*')
+        .order('name');
 
       if (typesError) {
         console.error('Erro ao buscar tipos de ação:', typesError);
       } else {
-        const sorted = (typesData || []).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-        setActionTypes(sorted);
+        console.log('Fetched Action Types from useFilterOptions:', typesData);
+        setActionTypes(typesData || []);
       }
 
       // Buscar fontes de leads
       const { data: sourcesData, error: sourcesError } = await supabase
-        .rpc('get_visible_lead_sources');
+        .from('lead_sources')
+        .select('*')
+        .order('label');
 
       if (sourcesError) {
         console.error('Erro ao buscar fontes de leads:', sourcesError);
       } else {
-        const sorted = (sourcesData || []).sort((a, b) => (a.label || '').localeCompare(b.label || ''));
-        setLeadSources(sorted as LeadSource[]);
+        setLeadSources(sourcesData || []);
       }
     } catch (error) {
       console.error('Erro inesperado ao buscar dados:', error);

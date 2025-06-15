@@ -990,13 +990,16 @@ export function SettingsContent() {
                                 >
                                   <Edit className="h-4 w-4" />
                                 </Button>
-                                <DeleteButton
-                                  onDelete={() => handleDeleteActionGroup(group.id)}
-                                  itemName={group.description || group.name}
-                                  itemType="grupo de ação"
+                                <Button 
+                                  variant="outline" 
                                   size="sm"
-                                  variant="outline"
-                                />
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteActionGroup(group.id);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
                               </div>
                             )}
                           </div>
@@ -1051,13 +1054,13 @@ export function SettingsContent() {
                                         >
                                           <Edit className="h-4 w-4" />
                                         </Button>
-                                        <DeleteButton
-                                          onDelete={() => handleDeleteActionType(type.id)}
-                                          itemName={type.name.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                                          itemType="tipo de ação"
+                                        <Button 
+                                          variant="outline" 
                                           size="sm"
-                                          variant="outline"
-                                        />
+                                          onClick={() => handleDeleteActionType(type.id)}
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
                                       </div>
                                     )}
                                   </div>
@@ -1288,13 +1291,16 @@ export function SettingsContent() {
   };
 
   const handleDeleteActionGroup = async (id: string) => {
+    const hasTypes = actionTypes.some(type => type.action_group_id === id);
+    if (hasTypes) {
+      toast({ title: "Ação bloqueada", description: "Não é possível excluir um grupo que contém tipos de ação. Remova os tipos primeiro.", variant: "destructive" });
+      return;
+    }
     const { error } = await supabase.from('action_groups').delete().eq('id', id);
     if (error) {
-      console.error('Erro ao excluir grupo de ação:', error);
-      toast({ title: "Erro", description: "Não foi possível excluir o grupo. Tente novamente.", variant: "destructive"});
-      throw error;
+      toast({ title: "Erro", description: "Não foi possível excluir o grupo.", variant: "destructive"});
     } else {
-      toast({ title: "Sucesso", description: "Grupo de ação e todos os seus tipos foram excluídos."});
+      toast({ title: "Sucesso", description: "Grupo excluído."});
       refreshData();
     }
   };

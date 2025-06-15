@@ -1,7 +1,7 @@
 
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Trash2, Loader2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 
 interface DeleteButtonProps {
@@ -11,7 +11,6 @@ interface DeleteButtonProps {
   disabled?: boolean;
   size?: "sm" | "default" | "lg";
   variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
-  isDefault?: boolean;
 }
 
 export function DeleteButton({ 
@@ -20,8 +19,7 @@ export function DeleteButton({
   itemType, 
   disabled = false, 
   size = "sm",
-  variant = "outline",
-  isDefault = false
+  variant = "outline"
 }: DeleteButtonProps) {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -29,19 +27,29 @@ export function DeleteButton({
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    console.log(`🗑️ DeleteButton - Botão de excluir clicado para: ${itemName} (${itemType})`);
     setShowConfirmDialog(true);
+    console.log('✅ DeleteButton - Dialog de confirmação aberto');
   };
 
   const handleConfirmDelete = async () => {
-    setIsDeleting(true);
+    console.log(`🔥 DeleteButton - Confirmando exclusão de: ${itemName} (${itemType})`);
     try {
+      setIsDeleting(true);
       await onDelete();
+      console.log(`✅ DeleteButton - Item ${itemName} excluído com sucesso`);
+      setShowConfirmDialog(false);
     } catch (error) {
-      console.error(`❌ DeleteButton - Erro ao processar ${itemName}:`, error);
+      console.error(`❌ DeleteButton - Erro ao excluir ${itemName}:`, error);
+      setShowConfirmDialog(false);
     } finally {
       setIsDeleting(false);
-      setShowConfirmDialog(false);
     }
+  };
+
+  const handleDialogClose = () => {
+    console.log(`❌ DeleteButton - Dialog de confirmação cancelado para: ${itemName}`);
+    setShowConfirmDialog(false);
   };
 
   return (
@@ -54,7 +62,7 @@ export function DeleteButton({
         disabled={disabled || isDeleting}
         className="text-red-600 hover:text-red-700 hover:bg-red-50"
       >
-        {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+        <Trash2 className="h-4 w-4" />
       </Button>
 
       <ConfirmDeleteDialog
@@ -63,7 +71,6 @@ export function DeleteButton({
         itemName={itemName}
         itemType={itemType}
         onConfirm={handleConfirmDelete}
-        isDefault={isDefault}
       />
     </>
   );
