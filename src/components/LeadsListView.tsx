@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Phone, Mail, MapPin, Edit, Trash2, Eye, DollarSign } from "lucide-react";
 import { Lead } from "@/types/lead";
+import { useActionGroupsAndTypes } from "@/hooks/useActionGroupsAndTypes";
 
 interface LeadsListViewProps {
   leads: Lead[];
@@ -24,6 +25,9 @@ export function LeadsListView({
   formatDate,
   formatCurrency
 }: LeadsListViewProps) {
+  // Importa todos os grupos de ação visíveis ao usuário
+  const { validActionGroupNames } = useActionGroupsAndTypes();
+
   if (leads.length === 0) {
     return (
       <Card className="p-12 text-center">
@@ -35,11 +39,17 @@ export function LeadsListView({
     );
   }
 
-  // Função para exibir corretamente o grupo de ação como "Outros"
+  // Função para mostrar corretamente "Outros" caso o grupo não exista mais (ou seja nulo/vazio)
   const getActionGroupLabel = (actionGroup: string | null) => {
+    // Se nulo/vazio, é "Outros"
     if (!actionGroup || actionGroup.trim() === "") {
       return "Outros";
     }
+    // Se grupo não existe mais (deletado ou ocultado), também mostra "Outros"
+    if (!validActionGroupNames.includes(actionGroup)) {
+      return "Outros";
+    }
+    // Se for válido, mostra o nome do grupo
     return actionGroup;
   };
 
@@ -175,3 +185,4 @@ export function LeadsListView({
     </Card>
   );
 }
+
