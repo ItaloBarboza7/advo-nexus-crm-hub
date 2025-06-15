@@ -1291,6 +1291,35 @@ export function SettingsContent() {
   };
 
   const handleDeleteActionGroup = async (id: string) => {
+    const group = actionGroups.find(g => g.id === id);
+    if (!group) {
+      toast({ title: "Erro", description: "Grupo não encontrado.", variant: "destructive" });
+      return;
+    }
+    // Se grupo default (user_id é null), oculta ao invés de deletar
+    if (!group.user_id) {
+      // Registrar em hidden_default_items
+      const { data: userData, error: userErr } = await supabase.auth.getUser();
+      if (userErr || !userData?.user?.id) {
+        toast({ title: "Erro", description: "Não foi possível identificar o usuário.", variant: "destructive" });
+        return;
+      }
+      const { error: hideErr } = await supabase
+        .from('hidden_default_items')
+        .insert({
+          item_type: 'action_group',
+          item_id: group.id,
+          user_id: userData.user.id,
+        });
+      if (hideErr) {
+        toast({ title: "Erro", description: "Não foi possível ocultar o grupo padrão.", variant: "destructive" });
+      } else {
+        toast({ title: "Sucesso", description: "Grupo padrão ocultado para você." });
+        refreshData();
+      }
+      return;
+    }
+    // Se não for default, deleta normalmente
     const { error } = await supabase.from('action_groups').delete().eq('id', id);
     if (error) {
       toast({ title: "Erro", description: "Não foi possível excluir o grupo.", variant: "destructive"});
