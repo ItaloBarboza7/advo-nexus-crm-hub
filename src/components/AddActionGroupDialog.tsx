@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -181,13 +180,11 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
               {actionGroups.map((group) => (
                 <div key={group.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                   <span className="text-sm">{group.description}</span>
-                  {group.user_id && (
-                    <DeleteButton
-                      onDelete={() => handleDeleteGroup(group.id)}
-                      itemName={group.description}
-                      itemType="o grupo de ação"
-                    />
-                  )}
+                  <DeleteButton
+                    onDelete={() => handleDeleteGroup(group.id)}
+                    itemName={group.description}
+                    itemType="o grupo de ação"
+                  />
                 </div>
               ))}
             </div>
