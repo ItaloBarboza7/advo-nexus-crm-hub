@@ -109,20 +109,30 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
       // Salvar dados originais do lead
       setOriginalLeadData(lead);
       
+      // Ajuste: tratar campos nulos/vazios/"outros" como "Outros" para campo loss_reason
+      let initialLossReason = lead.loss_reason ?? "";
+      if (
+        !initialLossReason ||
+        initialLossReason.trim().toLowerCase() === "outros" ||
+        initialLossReason.trim() === ""
+      ) {
+        initialLossReason = "Outros";
+      }
+
       const initialData = {
         name: lead.name || "",
         email: lead.email || "",
         phone: lead.phone || "",
         state: lead.state || "",
         source: lead.source || "",
-        status: lead.status || "", // Este será preenchido corretamente agora
+        status: lead.status || "",
         action_group: lead.action_group || "",
         action_type: lead.action_type || "",
         value: lead.value?.toString() || "",
         description: lead.description || "",
-        loss_reason: lead.loss_reason || "",
+        loss_reason: initialLossReason,
       };
-      
+
       console.log("📋 EditLeadForm - Dados iniciais do formulário com status:", initialData);
       setFormData(initialData);
     }
