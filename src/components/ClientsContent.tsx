@@ -46,6 +46,7 @@ export function ClientsContent() {
   });
   const { toast } = useToast();
   const { validActionGroupNames } = useActionGroupsAndTypes();
+  const [showOnlyOpportunities, setShowOnlyOpportunities] = useState(false);
 
   const fetchLeads = async () => {
     try {
@@ -217,6 +218,12 @@ export function ClientsContent() {
     color: `bg-blue-100 text-blue-800` // Pode ser customizado baseado na cor da coluna
   }));
 
+  // NOVA LÓGICA: Determinar os quadros exibidos no Kanban conforme o filtro Oportunidades
+  const opportunityStatuses = ["Novo", "Proposta", "Reunião"];
+  const filteredKanbanStatuses = showOnlyOpportunities
+    ? kanbanStatuses.filter(status => opportunityStatuses.includes(status.id))
+    : kanbanStatuses;
+
   const getStatusColor = (status: string) => {
     const column = kanbanColumns.find(col => col.name === status);
     return column ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800';
@@ -289,7 +296,7 @@ export function ClientsContent() {
       </div>
 
       <Card className="p-6">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <Input
@@ -320,6 +327,17 @@ export function ClientsContent() {
               <LayoutGrid className="h-4 w-4 mr-2" />
               Kanban
             </Button>
+            {/* BOTÃO OPORTUNIDADES, destacado quando ativo */}
+            {viewMode === "kanban" && (
+              <Button
+                variant={showOnlyOpportunities ? "default" : "outline"}
+                size="sm"
+                className={showOnlyOpportunities ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}
+                onClick={() => setShowOnlyOpportunities(v => !v)}
+              >
+                Oportunidades
+              </Button>
+            )}
           </div>
         </div>
       </Card>
@@ -333,7 +351,7 @@ export function ClientsContent() {
       ) : viewMode === "kanban" ? (
         <KanbanView 
           leads={transformedLeads} 
-          statuses={kanbanStatuses} 
+          statuses={filteredKanbanStatuses} 
           onLeadUpdated={fetchLeads}
           onViewDetails={handleViewDetails}
           originalLeads={filteredLeads}
