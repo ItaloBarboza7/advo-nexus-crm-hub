@@ -38,6 +38,27 @@ interface DashboardComponent {
   visible: boolean;
 }
 
+// Adicionando tipos para os itens de configuração para maior clareza
+interface ActionGroup {
+  id: string;
+  name: string;
+  description: string;
+  user_id: string | null;
+}
+
+interface ActionType {
+  id: string;
+  name: string;
+  action_group_id: string;
+  user_id: string | null;
+}
+
+interface LeadSource {
+  id: string;
+  label: string;
+  user_id: string | null;
+}
+
 export function SettingsContent() {
   const [activeTab, setActiveTab] = useState("company");
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
@@ -991,11 +1012,12 @@ export function SettingsContent() {
                                   <Edit className="h-4 w-4" />
                                 </Button>
                                 <DeleteButton
-                                  onDelete={() => handleDeleteActionGroup(group.id)}
+                                  onDelete={() => handleDeleteActionGroup(group as ActionGroup)}
                                   itemName={group.description || group.name}
                                   itemType="grupo de ação"
                                   size="sm"
                                   variant="outline"
+                                  isDefault={!group.user_id}
                                 />
                               </div>
                             )}
@@ -1052,11 +1074,12 @@ export function SettingsContent() {
                                           <Edit className="h-4 w-4" />
                                         </Button>
                                         <DeleteButton
-                                          onDelete={() => handleDeleteActionType(type.id)}
+                                          onDelete={() => handleDeleteActionType(type as ActionType)}
                                           itemName={type.name.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                                           itemType="tipo de ação"
                                           size="sm"
                                           variant="outline"
+                                          isDefault={!type.user_id}
                                         />
                                       </div>
                                     )}
@@ -1143,11 +1166,12 @@ export function SettingsContent() {
                               <Edit className="h-4 w-4" />
                             </Button>
                             <DeleteButton
-                              onDelete={() => handleDeleteLeadSource(source.id)}
+                              onDelete={() => handleDeleteLeadSource(source as LeadSource)}
                               itemName={source.label}
                               itemType="fonte"
                               size="sm"
                               variant="outline"
+                              isDefault={!source.user_id}
                             />
                           </div>
                         )}
@@ -1287,15 +1311,18 @@ export function SettingsContent() {
     setEditingActionGroupName(name);
   };
 
-  const handleDeleteActionGroup = async (id: string) => {
-    const { error } = await supabase.from('action_groups').delete().eq('id', id);
-    if (error) {
-      console.error('Erro ao excluir grupo de ação:', error);
-      toast({ title: "Erro", description: "Não foi possível excluir o grupo. Tente novamente.", variant: "destructive"});
-      throw error;
+  const handleDeleteActionGroup = async (group: ActionGroup) => {
+    if (!group.user_id) {
+        await handleHideDefaultItem(group.id, 'action_group');
     } else {
-      toast({ title: "Sucesso", description: "Grupo de ação e todos os seus tipos foram excluídos."});
-      refreshData();
+        const { error } = await supabase.from('action_groups').delete().eq('id', group.id);
+        if (error) {
+            console.error('Erro ao excluir grupo de ação:', error);
+            toast({ title: "Erro", description: `Não foi possível excluir o grupo: ${error.message}`, variant: "destructive"});
+        } else {
+            toast({ title: "Sucesso", description: "Grupo de ação e todos os seus tipos foram excluídos."});
+            refreshData();
+        }
     }
   };
 
@@ -1320,13 +1347,17 @@ export function SettingsContent() {
     setEditingActionTypeName(name);
   };
 
-  const handleDeleteActionType = async (id: string) => {
-    const { error } = await supabase.from('action_types').delete().eq('id', id);
-    if (error) {
-      toast({ title: "Erro", description: "Não foi possível excluir o tipo de ação.", variant: "destructive" });
+  const handleDeleteActionType = async (type: ActionType) => {
+    if (!type.user_id) {
+        await handleHideDefaultItem(type.id, 'action_type');
     } else {
-      toast({ title: "Sucesso", description: "Tipo de ação excluído." });
-      refreshData();
+        const { error } = await supabase.from('action_types').delete().eq('id', type.id);
+        if (error) {
+            toast({ title: "Erro", description: `Não foi possível excluir o tipo de ação: ${error.message}`, variant: "destructive" });
+        } else {
+            toast({ title: "Sucesso", description: "Tipo de ação excluído." });
+            refreshData();
+        }
     }
   };
 
@@ -1351,13 +1382,17 @@ export function SettingsContent() {
     setEditingLeadSourceName(name);
   };
 
-  const handleDeleteLeadSource = async (id: string) => {
-    const { error } = await supabase.from('lead_sources').delete().eq('id', id);
-    if (error) {
-      toast({ title: "Erro", description: "Não foi possível excluir a fonte de lead.", variant: "destructive" });
+  const handleDeleteLeadSource = async (source: LeadSource) => {
+    if (!source.user_id) {
+        await handleHideDefaultItem(source.id, 'lead_source');
     } else {
-      toast({ title: "Sucesso", description: "Fonte de lead excluída." });
-      refreshData();
+        const { error } = await supabase.from('lead_sources').delete().eq('id', source.id);
+        if (error) {
+            toast({ title: "Erro", description: `Não foi possível excluir a fonte de lead: ${error.message}`, variant: "destructive" });
+        } else {
+            toast({ title: "Sucesso", description: "Fonte de lead excluída." });
+            refreshData();
+        }
     }
   };
   
@@ -1389,6 +1424,29 @@ export function SettingsContent() {
 
   const handleDeleteLossReason = (id: string) => {
     deleteLossReason(id);
+  };
+
+  const handleHideDefaultItem = async (itemId: string, itemType: 'action_group' | 'action_type' | 'lead_source') => {
+    console.log(`Hiding default item: ${itemType} with id ${itemId}`);
+    const { error } = await supabase.from('hidden_default_items').insert({
+        item_id: itemId,
+        item_type: itemType,
+    });
+
+    if (error) {
+        console.error(`Error hiding ${itemType}:`, error);
+        toast({
+            title: "Erro ao ocultar",
+            description: `Não foi possível ocultar o item. Detalhes: ${error.message}`,
+            variant: "destructive"
+        });
+    } else {
+        toast({
+            title: "Item ocultado",
+            description: "O item padrão foi ocultado da sua visualização."
+        });
+        refreshData();
+    }
   };
 
   return (
