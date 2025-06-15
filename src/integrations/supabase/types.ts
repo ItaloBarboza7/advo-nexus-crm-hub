@@ -286,6 +286,7 @@ export type Database = {
           id: string
           is_fixed: boolean
           reason: string
+          updated_at: string
           user_id: string | null
         }
         Insert: {
@@ -293,6 +294,7 @@ export type Database = {
           id?: string
           is_fixed?: boolean
           reason: string
+          updated_at?: string
           user_id?: string | null
         }
         Update: {
@@ -300,6 +302,7 @@ export type Database = {
           id?: string
           is_fixed?: boolean
           reason?: string
+          updated_at?: string
           user_id?: string | null
         }
         Relationships: []
