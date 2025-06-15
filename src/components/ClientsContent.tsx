@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -190,7 +189,13 @@ export function ClientsContent() {
     const matchesStatus = filters.status.length === 0 || filters.status.includes(lead.status);
     const matchesSource = filters.source.length === 0 || (lead.source && filters.source.includes(lead.source));
     const matchesState = filters.state.length === 0 || (lead.state && filters.state.includes(lead.state));
-    const matchesActionType = filters.actionType.length === 0 || (lead.action_group && filters.actionType.includes(lead.action_group));
+
+    // GARANTE tratamento consistente para leads SEM action_group: tratam como "Outros"
+    const currentActionGroup = lead.action_group && lead.action_group.trim() !== "" 
+      ? lead.action_group 
+      : "Outros";
+    
+    const matchesActionType = filters.actionType.length === 0 || filters.actionType.includes(currentActionGroup);
     
     // Filtro de faixa de valor
     const leadValue = lead.value || 0;
@@ -242,7 +247,10 @@ export function ClientsContent() {
     company: lead.state || 'Não informado',
     source: lead.source || 'Não informado',
     status: lead.status,
-    interest: lead.action_group || 'Não informado',
+    // Aqui também garante: mostra sempre "Outros" se action_group for nulo/vazio
+    interest: lead.action_group && lead.action_group.trim() !== "" 
+      ? lead.action_group 
+      : "Outros",
     value: formatCurrency(lead.value),
     lastContact: formatDate(lead.created_at),
     avatar: getInitials(lead.name),

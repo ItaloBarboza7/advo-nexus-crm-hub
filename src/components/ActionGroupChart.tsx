@@ -20,12 +20,15 @@ const COLORS = [
 export function ActionGroupChart({ leads, selectedCategory = "all" }: ActionGroupChartProps) {
   const [viewType, setViewType] = useState<'bar' | 'pie'>('bar');
 
-  // Conta somente os grupos de ação atuais nas leads
+  // Garante que qualquer lead sem grupo (nulo, branco ou removido) seja mostrado como "Outros"
   const chartData = useMemo(() => {
     if (!leads || !Array.isArray(leads)) return [];
 
     const groupCounts = leads.reduce((acc, lead) => {
-      const group = lead.action_group || "Não especificado";
+      // Tratamento robusto: se grupo é nulo, vazio ou só espaços, conta como "Outros"
+      const group = lead.action_group && lead.action_group.trim() !== ""
+        ? lead.action_group
+        : "Outros";
       acc[group] = (acc[group] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
@@ -186,3 +189,4 @@ export function ActionGroupChart({ leads, selectedCategory = "all" }: ActionGrou
 
 // IMPORTANTE: Este arquivo está ficando longo (205 linhas). 
 // Considere pedir uma refatoração após as correções para facilitar a manutenção.
+
