@@ -1291,11 +1291,6 @@ export function SettingsContent() {
   };
 
   const handleDeleteActionGroup = async (id: string) => {
-    const hasTypes = actionTypes.some(type => type.action_group_id === id);
-    if (hasTypes) {
-      toast({ title: "Ação bloqueada", description: "Não é possível excluir um grupo que contém tipos de ação. Remova os tipos primeiro.", variant: "destructive" });
-      return;
-    }
     const { error } = await supabase.from('action_groups').delete().eq('id', id);
     if (error) {
       toast({ title: "Erro", description: "Não foi possível excluir o grupo.", variant: "destructive"});
