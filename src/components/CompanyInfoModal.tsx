@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -166,18 +165,6 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
       setIsLoading(false);
     }
   };
-
-  // Caso não encontre companyInfo, avisa no modal
-  useEffect(() => {
-    if (isOpen && !loadingCompany && !companyInfo) {
-      toast({
-        title: "Informações da empresa não encontradas!",
-        description: "Nenhum cadastro encontrado. Preencha e salve as informações.",
-        variant: "destructive",
-      });
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, loadingCompany, companyInfo]);
 
   return (
     <Dialog open={isOpen} onOpenChange={() => {}} modal>
