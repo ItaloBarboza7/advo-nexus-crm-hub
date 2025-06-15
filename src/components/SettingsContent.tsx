@@ -980,23 +980,31 @@ export function SettingsContent() {
                             </div>
                             {editingActionGroup !== group.id && (
                               <div className="flex gap-2">
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleEditActionGroup(group.id, group.description || group.name);
-                                  }}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <DeleteButton
-                                  onDelete={() => handleDeleteActionGroup(group.id)}
-                                  itemName={group.description || group.name}
-                                  itemType="grupo de ação"
-                                  size="sm"
-                                  variant="outline"
-                                />
+                                {group.user_id ? (
+                                  <>
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleEditActionGroup(group.id, group.description || group.name);
+                                      }}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <DeleteButton
+                                      onDelete={() => handleDeleteActionGroup(group.id)}
+                                      itemName={group.description || group.name}
+                                      itemType="grupo de ação"
+                                      size="sm"
+                                      variant="outline"
+                                    />
+                                  </>
+                                ) : (
+                                  <Badge variant="secondary" className="text-xs">
+                                    Sistema
+                                  </Badge>
+                                )}
                               </div>
                             )}
                           </div>
@@ -1044,20 +1052,28 @@ export function SettingsContent() {
                                     </div>
                                     {editingActionType !== type.id && (
                                       <div className="flex gap-2">
-                                        <Button 
-                                          variant="outline" 
-                                          size="sm"
-                                          onClick={() => handleEditActionType(type.id, type.name)}
-                                        >
-                                          <Edit className="h-4 w-4" />
-                                        </Button>
-                                        <Button 
-                                          variant="outline" 
-                                          size="sm"
-                                          onClick={() => handleDeleteActionType(type.id)}
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
+                                        {type.user_id ? (
+                                          <>
+                                            <Button 
+                                              variant="outline" 
+                                              size="sm"
+                                              onClick={() => handleEditActionType(type.id, type.name)}
+                                            >
+                                              <Edit className="h-4 w-4" />
+                                            </Button>
+                                            <DeleteButton
+                                              onDelete={() => handleDeleteActionType(type.id)}
+                                              itemName={type.name.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                                              itemType="tipo de ação"
+                                              size="sm"
+                                              variant="outline"
+                                            />
+                                          </>
+                                        ) : (
+                                          <Badge variant="secondary" className="text-xs">
+                                            Sistema
+                                          </Badge>
+                                        )}
                                       </div>
                                     )}
                                   </div>
