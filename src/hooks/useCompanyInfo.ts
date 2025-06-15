@@ -22,7 +22,12 @@ export function useCompanyInfo() {
       setIsLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       
-      if (!user) return;
+      if (!user) {
+        console.log('Usuário não autenticado');
+        return;
+      }
+
+      console.log('Buscando informações da empresa para usuário:', user.id);
 
       const { data, error } = await supabase
         .from('company_info')
@@ -35,6 +40,7 @@ export function useCompanyInfo() {
         return;
       }
 
+      console.log('Informações da empresa encontradas:', data);
       setCompanyInfo(data);
     } catch (error) {
       console.error('Erro inesperado ao buscar informações da empresa:', error);
@@ -56,6 +62,8 @@ export function useCompanyInfo() {
         });
         return false;
       }
+
+      console.log('Atualizando informações da empresa:', updatedInfo);
 
       const { error } = await supabase
         .from('company_info')

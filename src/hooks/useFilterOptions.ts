@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -33,7 +34,7 @@ export const useFilterOptions = () => {
     try {
       setLoading(true);
       
-      // Buscar grupos de ação
+      // Buscar grupos de ação (incluindo os do usuário e os padrão)
       const { data: groupsData, error: groupsError } = await supabase
         .from('action_groups')
         .select('*')
@@ -46,7 +47,7 @@ export const useFilterOptions = () => {
         setActionGroups(groupsData || []);
       }
 
-      // Buscar tipos de ação
+      // Buscar tipos de ação (incluindo os do usuário e os padrão)
       const { data: typesData, error: typesError } = await supabase
         .from('action_types')
         .select('*')
@@ -68,6 +69,7 @@ export const useFilterOptions = () => {
       if (sourcesError) {
         console.error('Erro ao buscar fontes de leads:', sourcesError);
       } else {
+        console.log('Fetched Lead Sources from useFilterOptions:', sourcesData);
         setLeadSources(sourcesData || []);
       }
     } catch (error) {
