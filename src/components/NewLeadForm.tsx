@@ -87,7 +87,18 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
     setIsSubmitting(true);
 
     try {
-      // Agora não preciso fornecer user_id - o trigger do Supabase vai preencher automaticamente
+      // Get current user to satisfy TypeScript - the trigger will override this anyway
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: "Erro",
+          description: "Usuário não autenticado.",
+          variant: "destructive"
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from('leads')
         .insert([
@@ -100,7 +111,8 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
             state: formData.state || null,
             action_group: formData.actionGroup || null,
             action_type: formData.actionType || null,
-            status: "Novo"
+            status: "Novo",
+            user_id: user.id // This satisfies TypeScript, but the trigger will set the correct tenant ID
           }
         ]);
 
