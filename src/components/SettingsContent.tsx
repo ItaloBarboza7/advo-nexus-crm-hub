@@ -1133,6 +1133,9 @@ export function SettingsContent() {
                           ) : (
                             <div>
                               <h5 className="font-medium text-gray-900">{source.label}</h5>
+                              {!source.user_id && (
+                                <span className="ml-2 text-xs text-gray-400">(padrão)</span>
+                              )}
                             </div>
                           )}
                         </div>
@@ -1151,6 +1154,7 @@ export function SettingsContent() {
                               itemType="fonte"
                               size="sm"
                               variant="outline"
+                              disabled={!source.user_id}
                             />
                           </div>
                         )}
@@ -1391,6 +1395,19 @@ export function SettingsContent() {
   };
 
   const handleDeleteLeadSource = async (id: string) => {
+    const source = leadSources.find(ls => ls.id === id);
+    if (!source) {
+      toast({ title: "Erro", description: "Fonte não encontrada.", variant: "destructive" });
+      return;
+    }
+    if (!source.user_id) {
+      toast({
+        title: "Ação bloqueada",
+        description: "Não é possível excluir uma fonte global/padrão.",
+        variant: "destructive"
+      });
+      return;
+    }
     const { error } = await supabase.from('lead_sources').delete().eq('id', id);
     if (error) {
       toast({ title: "Erro", description: "Não foi possível excluir a fonte de lead.", variant: "destructive" });
