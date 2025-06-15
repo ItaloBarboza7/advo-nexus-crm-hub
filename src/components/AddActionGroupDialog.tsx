@@ -30,8 +30,7 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
     setIsLoadingGroups(true);
     try {
       const { data, error } = await supabase
-        .from('action_groups')
-        .select('*')
+        .rpc('get_visible_action_groups')
         .order('description', { ascending: true });
 
       if (error) {

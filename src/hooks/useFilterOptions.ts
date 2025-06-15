@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -32,11 +33,10 @@ export const useFilterOptions = () => {
   const fetchAllData = async () => {
     try {
       setLoading(true);
-      
-      // Buscar grupos de ação diretamente da tabela
+
+      // Buscar grupos de ação via função de visibilidade
       const { data: groupsData, error: groupsError } = await supabase
-        .from('action_groups')
-        .select('*')
+        .rpc('get_visible_action_groups')
         .order('name');
 
       if (groupsError) {
@@ -46,10 +46,9 @@ export const useFilterOptions = () => {
         setActionGroups(groupsData || []);
       }
 
-      // Buscar tipos de ação diretamente da tabela
+      // Buscar tipos de ação via função de visibilidade
       const { data: typesData, error: typesError } = await supabase
-        .from('action_types')
-        .select('*')
+        .rpc('get_visible_action_types')
         .order('name');
 
       if (typesError) {
@@ -59,7 +58,7 @@ export const useFilterOptions = () => {
         setActionTypes(typesData || []);
       }
 
-      // Buscar fontes de leads
+      // Buscar fontes de leads (mantém query original, já que não há função personalizada strict)
       const { data: sourcesData, error: sourcesError } = await supabase
         .from('lead_sources')
         .select('*')
@@ -105,7 +104,7 @@ export const useFilterOptions = () => {
   const getAllActionTypeOptions = () => {
     return actionTypes.map(type => ({
       value: type.name,
-      label: type.name.split('-').map(word => 
+      label: type.name.split('-').map(word =>
         word.charAt(0).toUpperCase() + word.slice(1)
       ).join(' ')
     }));
@@ -119,7 +118,7 @@ export const useFilterOptions = () => {
       .filter(type => type.action_group_id === actionGroup.id)
       .map(type => ({
         value: type.name,
-        label: type.name.split('-').map(word => 
+        label: type.name.split('-').map(word =>
           word.charAt(0).toUpperCase() + word.slice(1)
         ).join(' ')
       }));

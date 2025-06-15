@@ -40,15 +40,7 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
     setIsLoadingTypes(true);
     try {
       const { data, error } = await supabase
-        .from('action_types')
-        .select(`
-          *,
-          action_groups:action_group_id (
-            id,
-            name,
-            description
-          )
-        `)
+        .rpc('get_visible_action_types')
         .order('name', { ascending: true });
 
       if (error) {
