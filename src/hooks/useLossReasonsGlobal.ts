@@ -331,17 +331,48 @@ export function useLossReasonsGlobal() {
 
       // Excluir o motivo de perda
       console.log(`🗑️ useLossReasonsGlobal - Excluindo motivo "${reasonToDelete.reason}" do banco de dados...`);
-      const { error: deleteError } = await supabase
+      const { error: deleteError, status, statusText, data } = await supabase
         .from('loss_reasons')
         .delete()
         .eq('id', id);
 
+      // Adicionar logs detalhados para depuração
+      console.log("[DEBUG] Resposta ao deletar motivo:\n", {
+        status,
+        statusText,
+        data,
+        deleteError
+      });
+
       if (deleteError) {
-        console.error('❌ Erro ao excluir motivo no banco:', deleteError);
+        // Inspecionar mensagem de erro para determinar causa provável
+        const lowerMsg = (deleteError.message || "").toLowerCase();
+        let possibleCause = "Erro ao excluir o motivo: " + deleteError.message;
+
+        if (
+          lowerMsg.includes("policy") ||
+          lowerMsg.includes("rls") ||
+          lowerMsg.includes("row level security") ||
+          lowerMsg.includes("permission")
+        ) {
+          possibleCause = "Problema de permissão/RLS detectado ao tentar excluir. Detalhes: " + deleteError.message;
+        } else if (
+          lowerMsg.includes("constraint") ||
+          lowerMsg.includes("foreign key")
+        ) {
+          possibleCause = "Violação de constraint: leads ainda dependem deste motivo. Detalhes: " + deleteError.message;
+        }
+
         toast({
           title: "Erro",
-          description: `Erro ao excluir o motivo: ${deleteError.message}`,
+          description: possibleCause,
           variant: "destructive"
+        });
+        // Deixar bem claro no console também
+        console.error("[ERRO SUPABASE] Falha ao deletar loss_reason:", deleteError, {
+          status,
+          statusText,
+          data
         });
         return false;
       }
@@ -360,13 +391,15 @@ export function useLossReasonsGlobal() {
         description: successMessage,
       });
       return true;
-    } catch (error) {
-      console.error('❌ Erro inesperado ao excluir motivo:', error);
+    } catch (error: any) {
+      // Exibir o erro detalhado para o usuário/admin
+      let errorMsg: string = typeof error === "string" ? error : (error?.message ?? "Ocorreu um erro inesperado ao excluir o motivo.");
       toast({
         title: "Erro",
-        description: "Ocorreu um erro inesperado ao excluir o motivo.",
+        description: "Erro inesperado: " + errorMsg,
         variant: "destructive"
       });
+      console.error('[ERRO] Erro inesperado ao excluir motivo:', error);
       return false;
     }
   }, [toast, checkLeadsUsingReason, updateLeadsToOthers]);
