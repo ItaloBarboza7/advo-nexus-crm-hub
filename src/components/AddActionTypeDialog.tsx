@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { DeleteButton } from "@/components/DeleteButton";
+import { Badge } from "@/components/ui/badge";
 
 interface ActionGroup {
   id: string;
@@ -224,11 +224,19 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
                       {type.action_groups?.description || 'Grupo não encontrado'}
                     </span>
                   </div>
-                  <DeleteButton
-                    onDelete={() => handleDeleteType(type.id)}
-                    itemName={type.name}
-                    itemType="o tipo de ação"
-                  />
+                  <div className="flex items-center gap-2">
+                    {type.user_id === null ? (
+                      <Badge variant="secondary" className="text-xs font-medium">
+                        Padrão
+                      </Badge>
+                    ) : (
+                      <DeleteButton
+                        onDelete={() => handleDeleteType(type.id)}
+                        itemName={type.name}
+                        itemType="o tipo de ação"
+                      />
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

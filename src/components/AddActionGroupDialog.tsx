@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { DeleteButton } from "@/components/DeleteButton";
+import { Badge } from "@/components/ui/badge";
 
 interface ActionGroup {
   id: string;
@@ -185,11 +185,19 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
               {actionGroups.map((group) => (
                 <div key={group.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                   <span className="text-sm">{group.description}</span>
-                  <DeleteButton
-                    onDelete={() => handleDeleteGroup(group.id)}
-                    itemName={group.description}
-                    itemType="o grupo de ação"
-                  />
+                  <div className="flex items-center gap-2">
+                    {group.user_id === null ? (
+                      <Badge variant="secondary" className="text-xs font-medium">
+                        Padrão
+                      </Badge>
+                    ) : (
+                      <DeleteButton
+                        onDelete={() => handleDeleteGroup(group.id)}
+                        itemName={group.description}
+                        itemType="o grupo de ação"
+                      />
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -205,4 +213,3 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
     </Dialog>
   );
 }
-
