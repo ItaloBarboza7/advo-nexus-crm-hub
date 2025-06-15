@@ -25,31 +25,31 @@ const notifySubscribers = () => {
 // Função para buscar dados do Supabase
 const fetchFromSupabase = async (): Promise<LossReason[]> => {
   console.log(`🔄 useLossReasonsGlobal - Buscando motivos de perda do Supabase só do sistema e do tenant atual...`);
-  
-  // Current tenant id é obtido da função 'get_tenant_id' do supabase backend,
-  // mas do lado do client só temos o id do user logado. O SQL/POLICIES já garantem
-  // que só iremos buscar os nossos e do sistema.
+
   const { data, error } = await supabase
     .from('loss_reasons')
     .select('*')
     .order('reason', { ascending: true });
-
-  // Filtrar para mostrar só motivos:
-  // - Do sistema (user_id null)
-  // - Ou do usuário atual (currentUserId)
-  // Evita exibir motivos de outros tenants!
-  const filteredData =
-    data?.filter(item =>
-      item.user_id == null ||
-      (currentUserId && item.user_id === currentUserId)
-    ) ?? [];
 
   if (error) {
     console.error('❌ Erro ao buscar motivos de perda:', error);
     throw error;
   }
 
-  console.log(`✅ useLossReasonsGlobal - ${filteredData.length} motivos de perda carregados (Sistema + usuário):`, filteredData);
+  // 🔒 Filtro extra de segurança: só retornar motivos "do sistema" (user_id null) OU do tenant atual (currentUserId)
+  // Isso impede que motivos de outros tenants apareçam na interface por acidente!
+  const filteredData =
+    (data ?? []).filter(item =>
+      (item.user_id === null) ||
+      (currentUserId && item.user_id === currentUserId)
+    );
+
+  // Debug: mostrar user_id dos motivos retornados
+  filteredData.forEach(item => {
+    console.log(`[DEBUG] Motivo lido: id=${item.id}, reason=${item.reason}, is_fixed=${item.is_fixed}, user_id=${item.user_id}`);
+  });
+
+  console.log(`✅ useLossReasonsGlobal - ${filteredData.length} motivos de perda filtrados (Sistema + tenant):`, filteredData);
   return filteredData;
 };
 
