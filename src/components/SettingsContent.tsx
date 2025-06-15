@@ -82,7 +82,6 @@ export function SettingsContent() {
   const { 
     lossReasons, 
     loading: lossReasonsLoading, 
-    updateLossReason,
     deleteLossReason,
     refreshData: refreshLossReasons
   } = useLossReasonsGlobal();
@@ -91,11 +90,9 @@ export function SettingsContent() {
   const [editingActionGroup, setEditingActionGroup] = useState<string | null>(null);
   const [editingActionType, setEditingActionType] = useState<string | null>(null);
   const [editingLeadSource, setEditingLeadSource] = useState<string | null>(null);
-  const [editingLossReason, setEditingLossReason] = useState<string | null>(null);
   const [editingActionGroupName, setEditingActionGroupName] = useState("");
   const [editingActionTypeName, setEditingActionTypeName] = useState("");
   const [editingLeadSourceName, setEditingLeadSourceName] = useState("");
-  const [editingLossReasonName, setEditingLossReasonName] = useState("");
 
   const { toast } = useToast();
 
@@ -561,15 +558,6 @@ export function SettingsContent() {
     }
   };
 
-  // Remove a função de salvar pois não é mais utilizada
-  // const handleSaveDashboardSettings = () => {
-  //   toast({
-  //     title: "Configurações salvas",
-  //     description: "As configurações do dashboard foram salvas com sucesso.",
-  //   });
-  // };
-
-  // Remove o botão "Salvar Configurações" do Dashboard
   const renderDashboardTab = () => (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -601,12 +589,6 @@ export function SettingsContent() {
             </div>
           ))}
         </div>
-        {/* Botão de salvar configurações removido */}
-        {/* <div className="mt-6 pt-4 border-t">
-          <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSaveDashboardSettings}>
-            Salvar Configurações
-          </Button>
-        </div> */}
       </Card>
     </div>
   );
@@ -1200,63 +1182,27 @@ export function SettingsContent() {
                     <div key={reason.id} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          {editingLossReason === reason.id ? (
-                            <div className="flex items-center gap-2">
-                              <Input
-                                value={editingLossReasonName}
-                                onChange={(e) => setEditingLossReasonName(e.target.value)}
-                                className="max-w-xs"
-                                placeholder="Motivo da perda"
-                              />
-                              <Button 
-                                size="sm" 
-                                onClick={handleSaveLossReason}
-                                disabled={!editingLossReasonName.trim()}
-                              >
-                                <Check className="h-4 w-4" />
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="outline" 
-                                onClick={handleCancelEditLossReason}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <div>
-                              <h5 className="font-medium text-gray-900">{reason.reason}</h5>
-                              {reason.is_fixed && (
-                                <Badge variant="secondary" className="text-xs mt-1">
-                                  Sistema
-                                </Badge>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                        {editingLossReason !== reason.id && (
-                          <div className="flex gap-2">
-                            {!reason.is_fixed && (
-                              <>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={() => handleEditLossReason(reason.id, reason.reason)}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={() => handleDeleteLossReason(reason.id)}
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </>
+                          <div>
+                            <h5 className="font-medium text-gray-900">{reason.reason}</h5>
+                            {reason.is_fixed && (
+                              <Badge variant="secondary" className="text-xs mt-1">
+                                Sistema
+                              </Badge>
                             )}
                           </div>
-                        )}
+                        </div>
+                        <div className="flex gap-2">
+                          {!reason.is_fixed && (
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleDeleteLossReason(reason.id)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))
@@ -1429,32 +1375,6 @@ export function SettingsContent() {
     }
   };
   
-  const handleSaveLossReason = async () => {
-    if (!editingLossReason || !editingLossReasonName.trim()) {
-      toast({
-        title: "Erro",
-        description: "O motivo não pode estar vazio.",
-        variant: "destructive"
-      });
-      return;
-    }
-    const ok = await updateLossReason(editingLossReason, editingLossReasonName.trim());
-    if (ok) {
-      setEditingLossReason(null);
-      setEditingLossReasonName("");
-    }
-  };
-
-  const handleCancelEditLossReason = () => {
-    setEditingLossReason(null);
-    setEditingLossReasonName("");
-  };
-
-  const handleEditLossReason = (id: string, reason: string) => {
-    setEditingLossReason(id);
-    setEditingLossReasonName(reason);
-  };
-
   const handleDeleteLossReason = (id: string) => {
     deleteLossReason(id);
   };
