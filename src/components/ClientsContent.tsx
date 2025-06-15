@@ -48,17 +48,19 @@ export function ClientsContent() {
   const { validActionGroupNames } = useActionGroupsAndTypes();
   const [showOnlyOpportunities, setShowOnlyOpportunities] = useState(false);
 
-  // fetchLeads NÃO precisa isolar user_id nem fazer filtro em JS!
+  // O RLS agora faz todo o isolamento automaticamente - sem filtros manuais!
   const fetchLeads = async () => {
     try {
       setIsLoading(true);
+      console.log("📊 ClientsContent - Carregando leads (RLS automático)...");
+      
       const { data, error } = await supabase
         .from('leads')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Erro ao buscar leads:', error);
+        console.error('❌ Erro ao buscar leads:', error);
         toast({
           title: "Erro",
           description: error.message ?? "Não foi possível carregar os leads.",
@@ -67,7 +69,6 @@ export function ClientsContent() {
         return;
       }
 
-      // A conversão/transformation aqui continua igual
       const transformedLeads: Lead[] = (data || []).map(lead => ({
         ...lead,
         company: undefined,
@@ -76,9 +77,10 @@ export function ClientsContent() {
         avatar: undefined
       }));
 
+      console.log(`✅ ClientsContent - ${transformedLeads.length} leads carregados (isolamento automático por RLS)`);
       setLeads(transformedLeads);
     } catch (error) {
-      console.error('Erro inesperado ao buscar leads:', error);
+      console.error('❌ Erro inesperado ao buscar leads:', error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado ao carregar os leads.",
@@ -91,19 +93,22 @@ export function ClientsContent() {
 
   const fetchKanbanColumns = async () => {
     try {
+      console.log("🏗️ ClientsContent - Carregando colunas Kanban (RLS automático)...");
+      
       const { data, error } = await supabase
         .from('kanban_columns')
         .select('*')
         .order('order_position', { ascending: true });
 
       if (error) {
-        console.error('Erro ao carregar colunas do Kanban:', error);
+        console.error('❌ Erro ao carregar colunas do Kanban:', error);
         return;
       }
 
+      console.log(`✅ ClientsContent - ${(data || []).length} colunas Kanban carregadas`);
       setKanbanColumns(data || []);
     } catch (error) {
-      console.error('Erro inesperado ao carregar colunas:', error);
+      console.error('❌ Erro inesperado ao carregar colunas:', error);
     }
   };
 
@@ -115,7 +120,7 @@ export function ClientsContent() {
         .eq('id', leadId);
 
       if (error) {
-        console.error('Erro ao excluir lead:', error);
+        console.error('❌ Erro ao excluir lead:', error);
         toast({
           title: "Erro",
           description: "Não foi possível excluir o lead.",
@@ -131,7 +136,7 @@ export function ClientsContent() {
 
       fetchLeads();
     } catch (error) {
-      console.error('Erro inesperado ao excluir lead:', error);
+      console.error('❌ Erro inesperado ao excluir lead:', error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado ao excluir o lead.",
@@ -148,10 +153,8 @@ export function ClientsContent() {
 
   const handleEditLead = (lead: Lead) => {
     console.log("✏️ ClientsContent - handleEditLead chamado com lead:", lead.name);
-    console.log("📋 Lead completo:", lead);
     setSelectedLead(lead);
     setIsEditFormOpen(true);
-    // Fechar o dialog de detalhes se estiver aberto
     setIsDetailsDialogOpen(false);
   };
 
@@ -180,7 +183,6 @@ export function ClientsContent() {
 
   // Aplicar filtros e busca
   const filteredLeads = leads.filter(lead => {
-    // Filtro de busca por texto
     const matchesSearch = searchTerm === "" || 
       lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (lead.email && lead.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -189,22 +191,17 @@ export function ClientsContent() {
       (lead.company && lead.company.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (lead.state && lead.state.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    // Filtros específicos
     const matchesStatus = filters.status.length === 0 || filters.status.includes(lead.status);
     const matchesSource = filters.source.length === 0 || (lead.source && filters.source.includes(lead.source));
     const matchesState = filters.state.length === 0 || (lead.state && filters.state.includes(lead.state));
 
-    // GARANTE tratamento consistente para leads SEM action_group: tratam como "Outros"
     const currentActionGroup = lead.action_group && lead.action_group.trim() !== "" 
       ? lead.action_group 
       : "Outros";
     
-    // Agora também valida se o action group realmente existe
     const actionGroupFinal = validActionGroupNames.includes(currentActionGroup) ? currentActionGroup : "Outros";
-    
     const matchesActionType = filters.actionType.length === 0 || filters.actionType.includes(actionGroupFinal);
     
-    // Filtro de faixa de valor
     const leadValue = lead.value || 0;
     const matchesValueMin = filters.valueRange.min === null || leadValue >= filters.valueRange.min;
     const matchesValueMax = filters.valueRange.max === null || leadValue <= filters.valueRange.max;
@@ -212,14 +209,12 @@ export function ClientsContent() {
     return matchesSearch && matchesStatus && matchesSource && matchesState && matchesActionType && matchesValueMin && matchesValueMax;
   });
 
-  // Converter colunas do banco para o formato esperado pelo KanbanView
   const kanbanStatuses = kanbanColumns.map(column => ({
     id: column.name,
     title: column.name,
-    color: `bg-blue-100 text-blue-800` // Pode ser customizado baseado na cor da coluna
+    color: `bg-blue-100 text-blue-800`
   }));
 
-  // NOVA LÓGICA: Determinar os quadros exibidos no Kanban conforme o filtro Oportunidades
   const opportunityStatuses = ["Novo", "Proposta", "Reunião"];
   const filteredKanbanStatuses = showOnlyOpportunities
     ? kanbanStatuses.filter(status => opportunityStatuses.includes(status.id))
@@ -251,7 +246,6 @@ export function ClientsContent() {
     }).format(value);
   };
 
-  // Transform leads for KanbanView component
   const transformedLeads = filteredLeads.map(lead => {
     const actionGroupRaw = lead.action_group && lead.action_group.trim() !== "" ? lead.action_group : "Outros";
     const actionGroup = validActionGroupNames.includes(actionGroupRaw) ? actionGroupRaw : "Outros";
@@ -263,7 +257,6 @@ export function ClientsContent() {
       company: lead.state || 'Não informado',
       source: lead.source || 'Não informado',
       status: lead.status,
-      // interest mostra corretamente "Outros" para grupo inválido
       interest: actionGroup,
       value: formatCurrency(lead.value),
       lastContact: formatDate(lead.created_at),
@@ -328,7 +321,6 @@ export function ClientsContent() {
               <LayoutGrid className="h-4 w-4 mr-2" />
               Kanban
             </Button>
-            {/* BOTÃO OPORTUNIDADES, destacado quando ativo */}
             {viewMode === "kanban" && (
               <Button
                 variant={showOnlyOpportunities ? "default" : "outline"}

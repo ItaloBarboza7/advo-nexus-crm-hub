@@ -11,17 +11,19 @@ export function useLeadsData() {
   const { toast } = useToast();
   const { lossReasons } = useLossReasonsGlobal();
 
-  // Aqui não precisa mais filtrar user_id, pois o Supabase RLS já faz o isolamento!
+  // O Supabase RLS agora faz o isolamento automaticamente - sem filtros manuais!
   const fetchLeads = async () => {
     try {
       setIsLoading(true);
+      console.log("📊 useLeadsData - Buscando leads (RLS automático)...");
+      
       const { data, error, status } = await supabase
         .from('leads')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Erro ao buscar leads:', error, 'status:', status);
+        console.error('❌ Erro ao buscar leads:', error, 'status:', status);
         toast({
           title: "Erro",
           description: error.message || "Não foi possível carregar os leads.",
@@ -30,7 +32,6 @@ export function useLeadsData() {
         return;
       }
 
-      // Nada de filtro manual por user_id!
       const transformedLeads: Lead[] = (data || []).map(lead => ({
         ...lead,
         company: undefined,
@@ -39,10 +40,10 @@ export function useLeadsData() {
         avatar: undefined
       }));
 
-      console.log(`📊 useLeadsData - ${transformedLeads.length} leads carregados`);
+      console.log(`✅ useLeadsData - ${transformedLeads.length} leads carregados (isolamento automático por RLS)`);
       setLeads(transformedLeads);
     } catch (error: any) {
-      console.error('Erro inesperado ao buscar leads:', error);
+      console.error('❌ Erro inesperado ao buscar leads:', error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado ao carregar os leads.",
@@ -58,7 +59,6 @@ export function useLeadsData() {
     fetchLeads();
   };
 
-  // Atualizar um lead específico
   const updateLead = async (leadId: string, updates: Partial<Lead>) => {
     try {
       console.log(`📝 useLeadsData - Atualizando lead ${leadId}:`, updates);
@@ -69,7 +69,7 @@ export function useLeadsData() {
         .eq('id', leadId);
 
       if (error) {
-        console.error('Erro ao atualizar lead:', error);
+        console.error('❌ Erro ao atualizar lead:', error);
         toast({
           title: "Erro",
           description: "Não foi possível atualizar o lead.",
@@ -90,7 +90,7 @@ export function useLeadsData() {
       });
       return true;
     } catch (error) {
-      console.error('Erro inesperado ao atualizar lead:', error);
+      console.error('❌ Erro inesperado ao atualizar lead:', error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado ao atualizar o lead.",
@@ -106,11 +106,10 @@ export function useLeadsData() {
 
   return {
     leads,
-    lossReasons, // Agora vem do hook global com is_fixed
+    lossReasons,
     isLoading,
     fetchLeads,
     refreshData,
     updateLead
   };
 }
-

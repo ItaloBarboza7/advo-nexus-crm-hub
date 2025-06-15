@@ -26,7 +26,6 @@ const Index = () => {
   const [userRole, setUserRole] = useState<string | null>(null)
 
   useEffect(() => {
-    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session)
@@ -40,7 +39,6 @@ const Index = () => {
       }
     )
 
-    // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       setUser(session?.user ?? null)
@@ -55,7 +53,6 @@ const Index = () => {
 
   const checkFirstLoginAndCompanyInfo = async (user: User) => {
     try {
-      // Verificar o cargo do usuário
       const { data: userRoleData, error: roleError } = await supabase
         .from('user_roles')
         .select('role')
@@ -63,14 +60,13 @@ const Index = () => {
         .maybeSingle()
 
       if (roleError) {
-        console.error('Erro ao verificar cargo do usuário:', roleError)
+        console.error('❌ Erro ao verificar cargo do usuário:', roleError)
         setUserRole(null)
         return
       }
 
       let role = userRoleData?.role
 
-      // Se o usuário não tiver um cargo, ele pode ser o administrador principal.
       if (!role) {
         const { data: profileData, error: profileError } = await supabase
           .from('user_profiles')
@@ -79,48 +75,41 @@ const Index = () => {
           .maybeSingle();
 
         if (profileData && !profileData.parent_user_id && !profileError) {
-          console.log(`Usuário ${user.id} está sem cargo. Atribuindo cargo 'admin'.`);
+          console.log(`👤 Usuário ${user.id} está sem cargo. Atribuindo cargo 'admin'.`);
           const { error: insertError } = await supabase
             .from('user_roles')
             .insert({ user_id: user.id, role: 'admin' });
 
           if (insertError) {
-            console.error('Erro ao atribuir cargo de admin:', insertError);
+            console.error('❌ Erro ao atribuir cargo de admin:', insertError);
           } else {
             role = 'admin';
-            console.log(`Cargo 'admin' atribuído com sucesso para o usuário ${user.id}.`);
+            console.log(`✅ Cargo 'admin' atribuído com sucesso para o usuário ${user.id}.`);
           }
         }
       }
 
       setUserRole(role || null)
 
-      // Se o usuário for um 'membro', não mostrar o modal
       if (role === 'member') {
         return
       }
       
-      // Manter a lógica original para o administrador
       const isFirstLogin = user.user_metadata?.is_first_login === true
 
-      // LOGGING for visibility:
-      console.log("[Index] Buscar informações da empresa/painel: user_id:", user.id);
+      // O RLS agora filtra automaticamente por tenant - sem filtro manual!
+      console.log("🏢 Index - Verificando informações da empresa (RLS automático)...");
       const { data: companyInfo, error } = await supabase
         .from('company_info')
         .select('id')
-        .eq('user_id', user.id)
         .limit(1)
 
       if (error) {
-        console.error('Erro ao verificar informações da empresa:', error)
+        console.error('❌ Erro ao verificar informações da empresa:', error)
         return
       }
 
-      if (!companyInfo || companyInfo.length === 0) {
-        console.warn("[Index] Nenhuma informação da empresa encontrada para user_id:", user.id);
-      } else {
-        console.log("[Index] Empresa encontrada para user_id:", user.id, companyInfo);
-      }
+      console.log(`✅ Index - ${(companyInfo || []).length} empresa(s) encontrada(s) para o tenant atual`);
 
       if (isFirstLogin || !companyInfo || companyInfo.length === 0) {
         setShowCompanyModal(true)
@@ -135,7 +124,7 @@ const Index = () => {
         }
       }
     } catch (error) {
-      console.error('Erro ao verificar primeiro login e informações da empresa:', error)
+      console.error('❌ Erro ao verificar primeiro login e informações da empresa:', error)
     }
   }
 
@@ -144,11 +133,9 @@ const Index = () => {
   }
 
   const handleLeadSelect = (lead: Lead) => {
-    // Placeholder for lead selection functionality
-    console.log('Lead selected:', lead)
+    console.log('🎯 Lead selected:', lead)
   }
 
-  // If not authenticated, show login prompt
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
