@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -106,7 +107,7 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
     if (group.user_id === null) {
       const { error } = await supabase
         .from('hidden_default_items')
-        .insert({ item_id: group.id, item_type: 'action_group' });
+        .insert({ item_id: group.id, item_type: 'action_group' } as any);
 
       if (error) {
         console.error('❌ Erro ao ocultar grupo:', error);

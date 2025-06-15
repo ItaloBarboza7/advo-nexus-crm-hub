@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -119,7 +120,7 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
     if (type.user_id === null) {
       const { error } = await supabase
         .from('hidden_default_items')
-        .insert({ item_id: type.id, item_type: 'action_type' });
+        .insert({ item_id: type.id, item_type: 'action_type' } as any);
 
       if (error) {
         console.error('❌ Erro ao ocultar tipo:', error);
