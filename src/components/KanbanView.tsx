@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +9,7 @@ import { Lead } from "@/types/lead";
 import { LossReasonDialog } from "@/components/LossReasonDialog";
 import { DeleteLeadDialog } from "@/components/DeleteLeadDialog";
 import { useLeadStatusHistory } from "@/hooks/useLeadStatusHistory";
+import { useActionGroupsAndTypes } from "@/hooks/useActionGroupsAndTypes";
 
 interface TransformedLead {
   id: number;
@@ -48,6 +48,7 @@ export function KanbanView({ leads, statuses, onLeadUpdated, onViewDetails, orig
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [leadToDelete, setLeadToDelete] = useState<{ id: string; name: string } | null>(null);
   const { hasLeadPassedThroughStatus } = useLeadStatusHistory();
+  const { validActionGroupNames } = useActionGroupsAndTypes();
 
   const getLeadsByStatus = (status: string) => {
     return leads.filter(lead => lead.status === status);
@@ -138,6 +139,17 @@ export function KanbanView({ leads, statuses, onLeadUpdated, onViewDetails, orig
         variant: "destructive"
       });
     }
+  };
+
+  // Função para determinar o nome correto do grupo de ação
+  const getActionGroupLabel = (actionGroup: string | null) => {
+    if (!actionGroup || actionGroup.trim() === "") {
+      return "Outros";
+    }
+    if (!validActionGroupNames.includes(actionGroup)) {
+      return "Outros";
+    }
+    return actionGroup;
   };
 
   const handleViewDetails = (transformedLead: TransformedLead) => {
@@ -232,68 +244,73 @@ export function KanbanView({ leads, statuses, onLeadUpdated, onViewDetails, orig
               )}
             </div>
             <div className="space-y-3">
-              {getLeadsByStatus(status.id).map((lead) => (
-                <Card 
-                  key={lead.id} 
-                  className="p-4 cursor-grab hover:shadow-md transition-shadow active:cursor-grabbing"
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, lead)}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold">
-                      {lead.avatar}
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-medium text-sm text-gray-900">{lead.name}</h4>
-                      <div className="flex items-center gap-1 text-xs">
-                        <DollarSign className="h-3 w-3 text-green-600" />
-                        <span className="text-green-600 font-medium">{lead.value}</span>
+              {getLeadsByStatus(status.id).map((lead) => {
+                // Força o campo interest a "Outros" se grupo de ação não for válido
+                const actionGroup = getActionGroupLabel(lead.interest);
+                return (
+                  <Card 
+                    key={lead.id} 
+                    className="p-4 cursor-grab hover:shadow-md transition-shadow active:cursor-grabbing"
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, lead)}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold">
+                        {lead.avatar}
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-medium text-sm text-gray-900">{lead.name}</h4>
+                        <div className="flex items-center gap-1 text-xs">
+                          <DollarSign className="h-3 w-3 text-green-600" />
+                          <span className="text-green-600 font-medium">{lead.value}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  
-                  <div className="space-y-1 text-xs text-gray-600">
-                    <div className="flex items-center gap-1">
-                      <Mail className="h-3 w-3" />
-                      <span className="truncate">{lead.email}</span>
+                    <div className="space-y-1 text-xs text-gray-600">
+                      <div className="flex items-center gap-1">
+                        <Mail className="h-3 w-3" />
+                        <span className="truncate">{lead.email}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Phone className="h-3 w-3" />
+                        <span>{lead.phone}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <MapPin className="h-3 w-3" />
+                        <span className="truncate">{lead.company}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Phone className="h-3 w-3" />
-                      <span>{lead.phone}</span>
+                    <div className="mt-3 pt-2 border-t border-gray-200">
+                      {/* Mostra grupo de ação para ficar destacado */}
+                      <p className="text-xs text-gray-600">
+                        Grupo de ação: <span className="font-semibold">{actionGroup}</span>
+                      </p>
+                      <p className="text-xs text-gray-500">{lead.interest}</p>
+                      <p className="text-xs text-gray-400">Último contato: {lead.lastContact}</p>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
-                      <span className="truncate">{lead.company}</span>
+                    <div className="mt-2 flex gap-1">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1 text-xs"
+                        onClick={() => handleViewDetails(lead)}
+                      >
+                        <Eye className="h-3 w-3 mr-1" />
+                        Ver
+                      </Button>
+                      <Button 
+                        variant="destructive"
+                        size="sm" 
+                        className="flex-1 text-xs"
+                        onClick={() => handleDeleteLead(lead.originalId, lead.name)}
+                      >
+                        <Trash2 className="h-3 w-3 mr-1" />
+                        Excluir
+                      </Button>
                     </div>
-                  </div>
-
-                  <div className="mt-3 pt-2 border-t border-gray-200">
-                    <p className="text-xs text-gray-500">{lead.interest}</p>
-                    <p className="text-xs text-gray-400">Último contato: {lead.lastContact}</p>
-                  </div>
-
-                  <div className="mt-2 flex gap-1">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="flex-1 text-xs"
-                      onClick={() => handleViewDetails(lead)}
-                    >
-                      <Eye className="h-3 w-3 mr-1" />
-                      Ver
-                    </Button>
-                    <Button 
-                      variant="destructive"
-                      size="sm" 
-                      className="flex-1 text-xs"
-                      onClick={() => handleDeleteLead(lead.originalId, lead.name)}
-                    >
-                      <Trash2 className="h-3 w-3 mr-1" />
-                      Excluir
-                    </Button>
-                  </div>
-                </Card>
-              ))}
+                  </Card>
+                )
+              })}
             </div>
           </div>
         ))}

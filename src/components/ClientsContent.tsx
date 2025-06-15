@@ -14,6 +14,7 @@ import { DeleteLeadDialog } from "@/components/DeleteLeadDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
+import { useActionGroupsAndTypes } from "@/hooks/useActionGroupsAndTypes";
 
 interface KanbanColumn {
   id: string;
@@ -44,6 +45,7 @@ export function ClientsContent() {
     actionType: []
   });
   const { toast } = useToast();
+  const { validActionGroupNames } = useActionGroupsAndTypes();
 
   const fetchLeads = async () => {
     try {
@@ -195,7 +197,10 @@ export function ClientsContent() {
       ? lead.action_group 
       : "Outros";
     
-    const matchesActionType = filters.actionType.length === 0 || filters.actionType.includes(currentActionGroup);
+    // Agora também valida se o action group realmente existe
+    const actionGroupFinal = validActionGroupNames.includes(currentActionGroup) ? currentActionGroup : "Outros";
+    
+    const matchesActionType = filters.actionType.length === 0 || filters.actionType.includes(actionGroupFinal);
     
     // Filtro de faixa de valor
     const leadValue = lead.value || 0;
@@ -239,24 +244,26 @@ export function ClientsContent() {
   };
 
   // Transform leads for KanbanView component
-  const transformedLeads = filteredLeads.map(lead => ({
-    id: parseInt(lead.id.replace(/-/g, '').slice(0, 8), 16),
-    name: lead.name,
-    email: lead.email || '',
-    phone: lead.phone,
-    company: lead.state || 'Não informado',
-    source: lead.source || 'Não informado',
-    status: lead.status,
-    // Aqui também garante: mostra sempre "Outros" se action_group for nulo/vazio
-    interest: lead.action_group && lead.action_group.trim() !== "" 
-      ? lead.action_group 
-      : "Outros",
-    value: formatCurrency(lead.value),
-    lastContact: formatDate(lead.created_at),
-    avatar: getInitials(lead.name),
-    originalId: lead.id,
-    numericValue: lead.value || 0
-  }));
+  const transformedLeads = filteredLeads.map(lead => {
+    const actionGroupRaw = lead.action_group && lead.action_group.trim() !== "" ? lead.action_group : "Outros";
+    const actionGroup = validActionGroupNames.includes(actionGroupRaw) ? actionGroupRaw : "Outros";
+    return {
+      id: parseInt(lead.id.replace(/-/g, '').slice(0, 8), 16),
+      name: lead.name,
+      email: lead.email || '',
+      phone: lead.phone,
+      company: lead.state || 'Não informado',
+      source: lead.source || 'Não informado',
+      status: lead.status,
+      // interest mostra corretamente "Outros" para grupo inválido
+      interest: actionGroup,
+      value: formatCurrency(lead.value),
+      lastContact: formatDate(lead.created_at),
+      avatar: getInitials(lead.name),
+      originalId: lead.id,
+      numericValue: lead.value || 0
+    };
+  });
 
   return (
     <div className="space-y-6">

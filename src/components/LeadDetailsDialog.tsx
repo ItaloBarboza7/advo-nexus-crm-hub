@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
 import { LeadStatusHistory } from "@/types/leadStatusHistory";
 import { useFilterOptions } from "@/hooks/useFilterOptions";
+import { useActionGroupsAndTypes } from "@/hooks/useActionGroupsAndTypes";
 
 interface LeadDetailsDialogProps {
   lead: Lead | null;
@@ -51,6 +52,7 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
   const [customActionTypes, setCustomActionTypes] = useState<string[]>([]);
   const { toast } = useToast();
   const { actionGroupOptions, getActionTypeOptions } = useFilterOptions();
+  const { validActionGroupNames } = useActionGroupsAndTypes();
 
   const fetchStatusHistory = async (leadId: string) => {
     try {
@@ -495,6 +497,27 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
 
   const completeHistory = getCompleteHistory();
 
+  const getActionGroupLabel = (actionGroup: string | null) => {
+    if (!actionGroup || actionGroup.trim() === "") {
+      return "Outros";
+    }
+    if (!validActionGroupNames.includes(actionGroup)) {
+      return "Outros";
+    }
+    return actionGroup;
+  };
+
+  const getActionTypeLabel = (actionType: string | null, actionGroup: string | null) => {
+    if (!actionType) return "Não informado";
+    // Só mostra como não informado se o grupo também é inválido, senão exibe o nome mesmo inválido para debug
+    if (!actionGroup || !validActionGroupNames.includes(actionGroup)) {
+      return "Não informado";
+    }
+    // Busca o label correto se existir na lista
+    const options = getActionTypeOptions(actionGroup);
+    return options.find(o => o.value === actionType)?.label || actionType;
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
@@ -583,15 +606,17 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
               
               <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
                 <span className="font-medium">Grupo de Ação:</span>
-                <span>{lead.action_group || 'Não informado'}</span>
+                <span>{getActionGroupLabel(lead.action_group)}</span>
               </div>
 
-              {lead.action_type && (
-                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-                  <span className="font-medium">Tipo de Ação:</span>
-                  <span>{lead.action_type}</span>
-                </div>
-              )}
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                <span className="font-medium">Tipo de Ação:</span>
+                <span>
+                  {getActionGroupLabel(lead.action_group) === "Outros"
+                    ? "Não informado"
+                    : getActionTypeLabel(lead.action_type, lead.action_group)}
+                </span>
+              </div>
             </div>
           </div>
 
