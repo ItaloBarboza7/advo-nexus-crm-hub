@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useTenantSchema } from '@/hooks/useTenantSchema';
 
 export interface KanbanColumn {
   id: string;
@@ -15,17 +16,22 @@ export function useKanbanColumns() {
   const [columns, setColumns] = useState<KanbanColumn[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const { tenantSchema, ensureTenantSchema } = useTenantSchema();
 
-  // O RLS agora gerencia o isolamento automaticamente - sem filtros manuais!
   const fetchColumns = async () => {
     try {
       setIsLoading(true);
-      console.log("🏗️ useKanbanColumns - Carregando colunas (RLS automático)...");
+      console.log("🏗️ useKanbanColumns - Carregando colunas do esquema do tenant...");
       
-      const { data, error } = await supabase
-        .from('kanban_columns')
-        .select('*')
-        .order('order_position', { ascending: true });
+      const schema = tenantSchema || await ensureTenantSchema();
+      if (!schema) {
+        console.error('❌ Não foi possível obter o esquema do tenant');
+        return;
+      }
+
+      const { data, error } = await supabase.rpc('exec_sql', {
+        sql: `SELECT * FROM ${schema}.kanban_columns ORDER BY order_position ASC`
+      });
 
       if (error) {
         console.error('❌ Erro ao carregar colunas do Kanban:', error);
@@ -37,7 +43,7 @@ export function useKanbanColumns() {
         return;
       }
 
-      console.log(`✅ useKanbanColumns - ${(data || []).length} colunas carregadas (isolamento automático por RLS)`);
+      console.log(`✅ useKanbanColumns - ${(data || []).length} colunas carregadas do esquema ${schema}`);
       setColumns(data || []);
     } catch (error) {
       console.error('❌ Erro inesperado ao carregar colunas:', error);
@@ -52,8 +58,10 @@ export function useKanbanColumns() {
   };
 
   useEffect(() => {
-    fetchColumns();
-  }, []);
+    if (tenantSchema) {
+      fetchColumns();
+    }
+  }, [tenantSchema]);
 
   const refreshColumns = () => {
     fetchColumns();

@@ -4,35 +4,43 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
 import { useLossReasonsGlobal } from "@/hooks/useLossReasonsGlobal";
+import { useTenantSchema } from "@/hooks/useTenantSchema";
 
 export function useLeadsData() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const { lossReasons } = useLossReasonsGlobal();
+  const { tenantSchema, ensureTenantSchema } = useTenantSchema();
 
-  // O Supabase RLS agora faz o isolamento automaticamente - sem filtros manuais!
   const fetchLeads = async () => {
     try {
       setIsLoading(true);
-      console.log("📊 useLeadsData - Buscando leads (RLS automático)...");
+      console.log("📊 useLeadsData - Buscando leads no esquema do tenant...");
       
-      const { data, error, status } = await supabase
-        .from('leads')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Garantir que o esquema do tenant existe
+      const schema = tenantSchema || await ensureTenantSchema();
+      if (!schema) {
+        console.error('❌ Não foi possível obter o esquema do tenant');
+        return;
+      }
+
+      // Buscar leads no esquema do tenant usando SQL customizado
+      const { data, error } = await supabase.rpc('exec_sql', {
+        sql: `SELECT * FROM ${schema}.leads ORDER BY created_at DESC`
+      });
 
       if (error) {
-        console.error('❌ Erro ao buscar leads:', error, 'status:', status);
+        console.error('❌ Erro ao buscar leads:', error);
         toast({
           title: "Erro",
-          description: error.message || "Não foi possível carregar os leads.",
+          description: "Não foi possível carregar os leads.",
           variant: "destructive"
         });
         return;
       }
 
-      const transformedLeads: Lead[] = (data || []).map(lead => ({
+      const transformedLeads: Lead[] = (data || []).map((lead: any) => ({
         ...lead,
         company: undefined,
         interest: undefined,
@@ -40,7 +48,7 @@ export function useLeadsData() {
         avatar: undefined
       }));
 
-      console.log(`✅ useLeadsData - ${transformedLeads.length} leads carregados (isolamento automático por RLS)`);
+      console.log(`✅ useLeadsData - ${transformedLeads.length} leads carregados do esquema ${schema}`);
       setLeads(transformedLeads);
     } catch (error: any) {
       console.error('❌ Erro inesperado ao buscar leads:', error);
@@ -63,10 +71,20 @@ export function useLeadsData() {
     try {
       console.log(`📝 useLeadsData - Atualizando lead ${leadId}:`, updates);
       
-      const { error } = await supabase
-        .from('leads')
-        .update(updates)
-        .eq('id', leadId);
+      const schema = tenantSchema || await ensureTenantSchema();
+      if (!schema) {
+        console.error('❌ Não foi possível obter o esquema do tenant');
+        return false;
+      }
+
+      // Construir a query de update
+      const setClause = Object.keys(updates)
+        .map(key => `${key} = '${updates[key as keyof Lead]}'`)
+        .join(', ');
+
+      const { error } = await supabase.rpc('exec_sql', {
+        sql: `UPDATE ${schema}.leads SET ${setClause}, updated_at = now() WHERE id = '${leadId}'`
+      });
 
       if (error) {
         console.error('❌ Erro ao atualizar lead:', error);
@@ -101,8 +119,10 @@ export function useLeadsData() {
   };
 
   useEffect(() => {
-    fetchLeads();
-  }, []);
+    if (tenantSchema) {
+      fetchLeads();
+    }
+  }, [tenantSchema]);
 
   return {
     leads,

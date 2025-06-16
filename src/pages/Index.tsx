@@ -15,6 +15,7 @@ import { User, Session } from "@supabase/supabase-js"
 import { Button } from "@/components/ui/button"
 import { Link } from "react-router-dom"
 import { Lead } from "@/types/lead"
+import { useTenantSchema } from "@/hooks/useTenantSchema"
 
 export type ActiveView = 'dashboard' | 'clients' | 'cases' | 'calendar' | 'optimization' | 'settings'
 
@@ -24,6 +25,7 @@ const Index = () => {
   const [session, setSession] = useState<Session | null>(null)
   const [showCompanyModal, setShowCompanyModal] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
+  const { ensureTenantSchema } = useTenantSchema()
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -53,6 +55,10 @@ const Index = () => {
 
   const checkFirstLoginAndCompanyInfo = async (user: User) => {
     try {
+      // Primeiro, garantir que o esquema do tenant existe
+      console.log("🏗️ Index - Garantindo esquema do tenant...");
+      await ensureTenantSchema();
+
       const { data: userRoleData, error: roleError } = await supabase
         .from('user_roles')
         .select('role')
@@ -97,31 +103,37 @@ const Index = () => {
       
       const isFirstLogin = user.user_metadata?.is_first_login === true
 
-      // O RLS agora filtra automaticamente por tenant - sem filtro manual!
-      console.log("🏢 Index - Verificando informações da empresa (RLS automático)...");
-      const { data: companyInfo, error } = await supabase
-        .from('company_info')
-        .select('id')
-        .limit(1)
+      // Verificar informações da empresa no esquema do tenant
+      console.log("🏢 Index - Verificando informações da empresa no esquema do tenant...");
+      
+      try {
+        const { data: companyInfo, error } = await supabase.rpc('exec_sql', {
+          sql: `SELECT id FROM ${await ensureTenantSchema()}.company_info LIMIT 1`
+        });
 
-      if (error) {
-        console.error('❌ Erro ao verificar informações da empresa:', error)
-        return
-      }
-
-      console.log(`✅ Index - ${(companyInfo || []).length} empresa(s) encontrada(s) para o tenant atual`);
-
-      if (isFirstLogin || !companyInfo || companyInfo.length === 0) {
-        setShowCompanyModal(true)
-        
-        if (isFirstLogin) {
-          await supabase.auth.updateUser({
-            data: { 
-              ...user.user_metadata,
-              is_first_login: false 
-            }
-          })
+        if (error) {
+          console.error('❌ Erro ao verificar informações da empresa:', error)
+          return
         }
+
+        console.log(`✅ Index - ${(companyInfo || []).length} empresa(s) encontrada(s) no esquema do tenant`);
+
+        if (isFirstLogin || !companyInfo || companyInfo.length === 0) {
+          setShowCompanyModal(true)
+          
+          if (isFirstLogin) {
+            await supabase.auth.updateUser({
+              data: { 
+                ...user.user_metadata,
+                is_first_login: false 
+              }
+            })
+          }
+        }
+      } catch (error) {
+        console.error('❌ Erro ao verificar empresa no esquema do tenant:', error)
+        // Se houver erro ao verificar a empresa, mostrar modal mesmo assim
+        setShowCompanyModal(true)
       }
     } catch (error) {
       console.error('❌ Erro ao verificar primeiro login e informações da empresa:', error)

@@ -396,10 +396,25 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      tenant_schemas: {
+        Row: {
+          exists: unknown | null
+          schema_name: string | null
+          tenant_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      ensure_tenant_schema: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_tenant_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      get_tenant_schema: {
         Args: Record<PropertyKey, never>
         Returns: string
       }
