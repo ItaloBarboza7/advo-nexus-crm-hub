@@ -1,9 +1,9 @@
 
-import { useFilterOptions } from "@/hooks/useFilterOptions";
+import { useTenantFilterOptions } from "@/hooks/useTenantFilterOptions";
 
 // Este hook centraliza o fornecimento dos nomes válidos de actionGroups e actionTypes
 export function useActionGroupsAndTypes() {
-  const { actionGroups, actionTypes, loading } = useFilterOptions();
+  const { actionGroups, actionTypes, loading } = useTenantFilterOptions();
 
   // Extraímos só os nomes atuais (não deletados)
   const validActionGroupNames = actionGroups.map(ag => ag.name);

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -5,10 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
 import { Plus } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useFilterOptions } from "@/hooks/useFilterOptions";
+import { useTenantFilterOptions } from "@/hooks/useTenantFilterOptions";
+import { useTenantLeadOperations } from "@/hooks/useTenantLeadOperations";
 
 interface NewLeadFormProps {
   open: boolean;
@@ -37,22 +37,26 @@ const initialFormData = {
 
 export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormProps) {
   const [formData, setFormData] = useState({ ...initialFormData });
-  const [customActionGroups, setCustomActionGroups] = useState<string[]>([]);
-  const [customActionTypes, setCustomActionTypes] = useState<string[]>([]);
   const [showNewActionGroupInput, setShowNewActionGroupInput] = useState(false);
   const [showNewActionTypeInput, setShowNewActionTypeInput] = useState(false);
+  const [showNewSourceInput, setShowNewSourceInput] = useState(false);
   const [newActionGroup, setNewActionGroup] = useState("");
   const [newActionType, setNewActionType] = useState("");
+  const [newSource, setNewSource] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { toast } = useToast();
   const { 
     sourceOptions, 
     actionGroupOptions, 
     getActionTypeOptions, 
     loading,
-    refreshData 
-  } = useFilterOptions();
+    refreshData,
+    addActionGroup,
+    addActionType,
+    addLeadSource
+  } = useTenantFilterOptions();
+
+  const { createLead } = useTenantLeadOperations();
   
   // Reset form when dialog is closed
   useEffect(() => {
@@ -65,10 +69,10 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
     setFormData({ ...initialFormData });
     setShowNewActionGroupInput(false);
     setShowNewActionTypeInput(false);
+    setShowNewSourceInput(false);
     setNewActionGroup("");
     setNewActionType("");
-    setCustomActionGroups([]);
-    setCustomActionTypes([]);
+    setNewSource("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -76,73 +80,30 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
     
     // Validação básica - email agora é opcional
     if (!formData.name || !formData.phone) {
-      toast({
-        title: "Erro",
-        description: "Por favor, preencha todos os campos obrigatórios (Nome e Telefone).",
-        variant: "destructive"
-      });
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      // Get current user to satisfy TypeScript - the trigger will override this anyway
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        toast({
-          title: "Erro",
-          description: "Usuário não autenticado.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      const { error } = await supabase
-        .from('leads')
-        .insert([
-          {
-            name: formData.name,
-            phone: formData.phone,
-            email: formData.email || null,
-            description: formData.description || null,
-            source: formData.source || null,
-            state: formData.state || null,
-            action_group: formData.actionGroup || null,
-            action_type: formData.actionType || null,
-            status: "Novo",
-            user_id: user.id // This satisfies TypeScript, but the trigger will set the correct tenant ID
-          }
-        ]);
-
-      if (error) {
-        console.error('Erro ao criar lead:', error);
-        toast({
-          title: "Erro",
-          description: "Ocorreu um erro ao criar o lead. Tente novamente.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      toast({
-        title: "Sucesso!",
-        description: "Lead criado com sucesso!",
+      const success = await createLead({
+        name: formData.name,
+        phone: formData.phone,
+        email: formData.email || undefined,
+        description: formData.description || undefined,
+        source: formData.source || undefined,
+        state: formData.state || undefined,
+        action_group: formData.actionGroup || undefined,
+        action_type: formData.actionType || undefined,
       });
 
-      // Reset form
-      resetForm();
-
-      onOpenChange(false);
-      onLeadCreated?.();
+      if (success) {
+        resetForm();
+        onOpenChange(false);
+        onLeadCreated?.();
+      }
     } catch (error) {
-      console.error('Erro inesperado:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado. Tente novamente.",
-        variant: "destructive"
-      });
+      console.error('❌ Erro inesperado no formulário:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -164,113 +125,52 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
   };
 
   const handleAddCustomActionGroup = async () => {
-    if (newActionGroup.trim() && !actionGroupOptions.some(option => option.value === newActionGroup.toLowerCase()) && !customActionGroups.includes(newActionGroup)) {
-      try {
-        const { error } = await supabase
-          .from('action_groups')
-          .insert([
-            {
-              name: newActionGroup.toLowerCase().replace(/\s+/g, '-'),
-              description: newActionGroup.trim()
-            }
-          ]);
-
-        if (error) {
-          console.error('Erro ao adicionar grupo de ação:', error);
-          toast({
-            title: "Erro",
-            description: "Não foi possível adicionar o novo grupo.",
-            variant: "destructive"
-          });
-          return;
-        }
-
-        // Atualizar dados e formulário
-        await refreshData();
-        setFormData(prev => ({ ...prev, actionGroup: newActionGroup.toLowerCase().replace(/\s+/g, '-') }));
+    if (newActionGroup.trim()) {
+      const name = newActionGroup.toLowerCase().replace(/\s+/g, '-');
+      const description = newActionGroup.trim();
+      
+      const success = await addActionGroup(name, description);
+      if (success) {
+        setFormData(prev => ({ ...prev, actionGroup: name }));
         setNewActionGroup("");
         setShowNewActionGroupInput(false);
-        
-        toast({
-          title: "Grupo adicionado!",
-          description: `"${newActionGroup}" foi adicionado às opções.`,
-        });
-      } catch (error) {
-        console.error('Erro inesperado:', error);
-        toast({
-          title: "Erro",
-          description: "Ocorreu um erro inesperado.",
-          variant: "destructive"
-        });
       }
     }
   };
 
   const handleAddCustomActionType = async () => {
-    if (newActionType.trim() && !customActionTypes.includes(newActionType) && formData.actionGroup) {
-      try {
-        // Encontrar o ID do grupo de ação
-        const actionGroup = actionGroupOptions.find(group => group.value === formData.actionGroup);
-        if (!actionGroup) return;
-
-        const { error } = await supabase
-          .from('action_types')
-          .insert([
-            {
-              name: newActionType.toLowerCase().replace(/\s+/g, '-'),
-              action_group_id: actionGroup.value // Assumindo que o value contém o ID
-            }
-          ]);
-
-        if (error) {
-          console.error('Erro ao adicionar tipo de ação:', error);
-          toast({
-            title: "Erro",
-            description: "Não foi possível adicionar o novo tipo.",
-            variant: "destructive"
-          });
-          return;
+    if (newActionType.trim() && formData.actionGroup) {
+      const name = newActionType.toLowerCase().replace(/\s+/g, '-');
+      const actionGroup = actionGroupOptions.find(group => group.value === formData.actionGroup);
+      
+      if (actionGroup) {
+        const success = await addActionType(name, actionGroup.value);
+        if (success) {
+          setFormData(prev => ({ ...prev, actionType: name }));
+          setNewActionType("");
+          setShowNewActionTypeInput(false);
         }
-
-        // Atualizar dados e formulário
-        await refreshData();
-        setFormData(prev => ({ ...prev, actionType: newActionType.toLowerCase().replace(/\s+/g, '-') }));
-        setNewActionType("");
-        setShowNewActionTypeInput(false);
-        
-        toast({
-          title: "Tipo adicionado!",
-          description: `"${newActionType}" foi adicionado às opções.`,
-        });
-      } catch (error) {
-        console.error('Erro inesperado:', error);
-        toast({
-          title: "Erro",
-          description: "Ocorreu um erro inesperado.",
-          variant: "destructive"
-        });
       }
     }
   };
 
-  const getActionGroupOptionsForSelect = () => {
-    const customOptions = customActionGroups.map(group => ({
-      value: group,
-      label: group
-    }));
-    
-    return [...actionGroupOptions, ...customOptions];
+  const handleAddCustomSource = async () => {
+    if (newSource.trim()) {
+      const name = newSource.toLowerCase().replace(/\s+/g, '-');
+      const label = newSource.trim();
+      
+      const success = await addLeadSource(name, label);
+      if (success) {
+        setFormData(prev => ({ ...prev, source: name }));
+        setNewSource("");
+        setShowNewSourceInput(false);
+      }
+    }
   };
 
   const getAvailableActionTypes = () => {
     if (!formData.actionGroup) return [];
-    const defaultTypes = getActionTypeOptions(formData.actionGroup);
-    const customTypes = customActionTypes.map(type => ({
-      value: type,
-      label: type
-    }));
-    
-    return [...defaultTypes, ...customTypes];
+    return getActionTypeOptions(formData.actionGroup);
   };
 
   if (loading) {
@@ -352,16 +252,28 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="source">Origem do Lead</Label>
-              <Select value={formData.source} onValueChange={(value) => handleInputChange("source", value)} disabled={isSubmitting}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a origem" />
-                </SelectTrigger>
-                <SelectContent>
-                  {sourceOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <Select value={formData.source} onValueChange={(value) => handleInputChange("source", value)} disabled={isSubmitting}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Selecione a origem" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sourceOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowNewSourceInput(true)}
+                  className="px-3"
+                  disabled={isSubmitting}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -386,7 +298,7 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
                     <SelectValue placeholder="Selecione o grupo" />
                   </SelectTrigger>
                   <SelectContent>
-                    {getActionGroupOptionsForSelect().map((option) => (
+                    {actionGroupOptions.map((option) => (
                       <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
                     ))}
                   </SelectContent>
@@ -434,6 +346,46 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
             </div>
           )}
           
+          {showNewSourceInput && (
+            <div className="space-y-2 p-4 border rounded-lg bg-gray-50">
+              <Label htmlFor="newSource">Nova Fonte de Lead</Label>
+              <div className="space-y-3">
+                <Input
+                  id="newSource"
+                  placeholder="Digite a nova fonte..."
+                  value={newSource}
+                  onChange={(e) => setNewSource(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleAddCustomSource()}
+                  className="w-full"
+                  disabled={isSubmitting}
+                />
+                <div className="flex gap-2 justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setShowNewSourceInput(false);
+                      setNewSource("");
+                    }}
+                    size="sm"
+                    disabled={isSubmitting}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleAddCustomSource}
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700"
+                    disabled={isSubmitting}
+                  >
+                    Adicionar
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {showNewActionGroupInput && (
             <div className="space-y-2 p-4 border rounded-lg bg-gray-50">
               <Label htmlFor="newActionGroup">Novo Grupo de Ação</Label>

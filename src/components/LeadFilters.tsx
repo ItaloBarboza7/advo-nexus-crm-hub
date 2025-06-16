@@ -1,254 +1,351 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Filter, X, DollarSign } from "lucide-react";
-import { useFilterOptions } from "@/hooks/useFilterOptions";
+import { Filter, X } from "lucide-react";
+import { useTenantFilterOptions } from "@/hooks/useTenantFilterOptions";
+
+export interface FilterOptions {
+  status: string[];
+  source: string[];
+  valueRange: { min: number | null; max: number | null };
+  state: string[];
+  actionType: string[];
+}
 
 interface LeadFiltersProps {
   onFiltersChange: (filters: FilterOptions) => void;
   activeFilters: FilterOptions;
 }
 
-export interface FilterOptions {
-  status: string[];
-  source: string[];
-  valueRange: {
-    min: number | null;
-    max: number | null;
-  };
-  state: string[];
-  actionType: string[];
-}
-
-const LEAD_STATUSES = [
-  { id: "Novo", title: "Novo", color: "bg-blue-100 text-blue-800" },
-  { id: "Proposta", title: "Proposta", color: "bg-purple-100 text-purple-800" },
-  { id: "Reunião", title: "Reunião", color: "bg-orange-100 text-orange-800" },
-  { id: "Contrato Fechado", title: "Contrato Fechado", color: "bg-green-100 text-green-800" },
-  { id: "Perdido", title: "Perdido", color: "bg-red-100 text-red-800" },
-  { id: "Finalizado", title: "Finalizado", color: "bg-gray-100 text-gray-800" },
-];
-
-const COMMON_STATES = [
-  "São Paulo", "Rio de Janeiro", "Minas Gerais", "Espírito Santo",
-  "Paraná", "Santa Catarina", "Rio Grande do Sul", "Bahia",
-  "Pernambuco", "Ceará", "Goiás", "Distrito Federal"
-];
-
-const COMMON_ACTION_TYPES = [
-  "Consulta",
-  "Contrato",
-  "Assessoria",
-  "Representação",
-  "Parecer",
-  "Mediação"
-];
-
 export function LeadFilters({ onFiltersChange, activeFilters }: LeadFiltersProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const { sourceOptions, loading: sourcesLoading } = useFilterOptions();
+  const [localFilters, setLocalFilters] = useState<FilterOptions>(activeFilters);
+  const { 
+    statusOptions, 
+    sourceOptions, 
+    stateOptions, 
+    getAllActionTypeOptions,
+    loading 
+  } = useTenantFilterOptions();
 
-  const updateFilters = (key: keyof FilterOptions, value: any) => {
-    const newFilters = { ...activeFilters, [key]: value };
-    onFiltersChange(newFilters);
+  const applyFilters = () => {
+    onFiltersChange(localFilters);
+    setIsOpen(false);
   };
 
-  const toggleArrayFilter = (key: 'status' | 'source' | 'state' | 'actionType', value: string) => {
-    const currentArray = activeFilters[key];
-    const newArray = currentArray.includes(value)
-      ? currentArray.filter(item => item !== value)
-      : [...currentArray, value];
-    updateFilters(key, newArray);
-  };
-
-  const clearAllFilters = () => {
-    onFiltersChange({
+  const clearFilters = () => {
+    const emptyFilters: FilterOptions = {
       status: [],
       source: [],
       valueRange: { min: null, max: null },
       state: [],
       actionType: []
-    });
+    };
+    setLocalFilters(emptyFilters);
+    onFiltersChange(emptyFilters);
+    setIsOpen(false);
   };
 
-  const hasActiveFilters = () => {
-    return activeFilters.status.length > 0 ||
-           activeFilters.source.length > 0 ||
-           activeFilters.state.length > 0 ||
-           activeFilters.actionType.length > 0 ||
-           activeFilters.valueRange.min !== null ||
-           activeFilters.valueRange.max !== null;
+  const removeFilter = (type: keyof FilterOptions, value: string) => {
+    const newFilters = { ...localFilters };
+    if (type === 'valueRange') return;
+    
+    newFilters[type] = (newFilters[type] as string[]).filter(item => item !== value);
+    setLocalFilters(newFilters);
+    onFiltersChange(newFilters);
   };
 
   const getActiveFiltersCount = () => {
-    return activeFilters.status.length +
-           activeFilters.source.length +
-           activeFilters.state.length +
-           activeFilters.actionType.length +
-           (activeFilters.valueRange.min !== null ? 1 : 0) +
-           (activeFilters.valueRange.max !== null ? 1 : 0);
+    return (
+      activeFilters.status.length +
+      activeFilters.source.length +
+      activeFilters.state.length +
+      activeFilters.actionType.length +
+      (activeFilters.valueRange.min !== null || activeFilters.valueRange.max !== null ? 1 : 0)
+    );
   };
 
-  return (
-    <div className="relative">
-      <Button
-        variant="outline"
-        onClick={() => setIsOpen(!isOpen)}
-        className="relative"
-      >
+  const hasActiveFilters = getActiveFiltersCount() > 0;
+
+  if (loading) {
+    return (
+      <Button variant="outline" disabled>
         <Filter className="h-4 w-4 mr-2" />
-        Filtros
-        {hasActiveFilters() && (
-          <Badge variant="destructive" className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
-            {getActiveFiltersCount()}
-          </Badge>
-        )}
+        Carregando...
       </Button>
+    );
+  }
 
-      {isOpen && (
-        <Card className="absolute top-full left-0 mt-2 w-96 p-4 z-50 shadow-lg">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900">Filtros</h3>
-            <div className="flex gap-2">
-              {hasActiveFilters() && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearAllFilters}
-                  className="text-red-600 hover:text-red-700"
-                >
-                  Limpar Tudo
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsOpen(false)}
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="outline" className="relative">
+            <Filter className="h-4 w-4 mr-2" />
+            Filtros
+            {hasActiveFilters && (
+              <Badge className="ml-2 bg-blue-500 text-white text-xs px-1 py-0.5 rounded-full">
+                {getActiveFiltersCount()}
+              </Badge>
+            )}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-80 p-4 space-y-4" align="start">
+          <div className="flex justify-between items-center">
+            <h3 className="font-medium">Filtros</h3>
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
+              Limpar
+            </Button>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <Label className="text-sm font-medium">Status</Label>
+              <Select
+                value=""
+                onValueChange={(value) => {
+                  if (!localFilters.status.includes(value)) {
+                    setLocalFilters(prev => ({
+                      ...prev,
+                      status: [...prev.status, value]
+                    }));
+                  }
+                }}
               >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            {/* Status */}
-            <div>
-              <Label className="text-sm font-medium mb-2 block">Status</Label>
-              <div className="flex flex-wrap gap-2">
-                {LEAD_STATUSES.map((status) => (
-                  <Badge
-                    key={status.id}
-                    variant={activeFilters.status.includes(status.id) ? "default" : "outline"}
-                    className={`cursor-pointer transition-colors ${
-                      activeFilters.status.includes(status.id) ? status.color : ""
-                    }`}
-                    onClick={() => toggleArrayFilter('status', status.id)}
-                  >
-                    {status.title}
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {statusOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex flex-wrap gap-1 mt-2">
+                {localFilters.status.map(status => (
+                  <Badge key={status} variant="secondary" className="text-xs">
+                    {status}
+                    <X 
+                      className="h-3 w-3 ml-1 cursor-pointer" 
+                      onClick={() => setLocalFilters(prev => ({
+                        ...prev,
+                        status: prev.status.filter(s => s !== status)
+                      }))}
+                    />
                   </Badge>
                 ))}
               </div>
             </div>
 
-            {/* Fonte (agora dinâmica) */}
             <div>
-              <Label className="text-sm font-medium mb-2 block">Fonte</Label>
-              <div className="flex flex-wrap gap-2 min-h-[32px]">
-                {sourcesLoading ? (
-                  <span className="text-xs text-gray-400">Carregando fontes...</span>
-                ) : (
-                  sourceOptions.length === 0 ? (
-                    <span className="text-xs text-gray-400">Nenhuma fonte cadastrada</span>
-                  ) : (
-                    sourceOptions.map((source) => (
-                      <Badge
-                        key={source.value}
-                        variant={activeFilters.source.includes(source.value) ? "default" : "outline"}
-                        className="cursor-pointer"
-                        onClick={() => toggleArrayFilter('source', source.value)}
-                      >
-                        {source.label}
-                      </Badge>
-                    ))
-                  )
-                )}
+              <Label className="text-sm font-medium">Fonte</Label>
+              <Select
+                value=""
+                onValueChange={(value) => {
+                  if (!localFilters.source.includes(value)) {
+                    setLocalFilters(prev => ({
+                      ...prev,
+                      source: [...prev.source, value]
+                    }));
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione uma fonte" />
+                </SelectTrigger>
+                <SelectContent>
+                  {sourceOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex flex-wrap gap-1 mt-2">
+                {localFilters.source.map(source => (
+                  <Badge key={source} variant="secondary" className="text-xs">
+                    {sourceOptions.find(opt => opt.value === source)?.label || source}
+                    <X 
+                      className="h-3 w-3 ml-1 cursor-pointer" 
+                      onClick={() => setLocalFilters(prev => ({
+                        ...prev,
+                        source: prev.source.filter(s => s !== source)
+                      }))}
+                    />
+                  </Badge>
+                ))}
               </div>
             </div>
 
-            {/* Estado (mantém como antes, lista fixa) */}
             <div>
-              <Label className="text-sm font-medium mb-2 block">Estado</Label>
-              <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
-                {COMMON_STATES.map((state) => (
-                  <Badge
-                    key={state}
-                    variant={activeFilters.state.includes(state) ? "default" : "outline"}
-                    className="cursor-pointer"
-                    onClick={() => toggleArrayFilter('state', state)}
-                  >
+              <Label className="text-sm font-medium">Estado</Label>
+              <Select
+                value=""
+                onValueChange={(value) => {
+                  if (!localFilters.state.includes(value)) {
+                    setLocalFilters(prev => ({
+                      ...prev,
+                      state: [...prev.state, value]
+                    }));
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  {stateOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex flex-wrap gap-1 mt-2">
+                {localFilters.state.map(state => (
+                  <Badge key={state} variant="secondary" className="text-xs">
                     {state}
+                    <X 
+                      className="h-3 w-3 ml-1 cursor-pointer" 
+                      onClick={() => setLocalFilters(prev => ({
+                        ...prev,
+                        state: prev.state.filter(s => s !== state)
+                      }))}
+                    />
                   </Badge>
                 ))}
               </div>
             </div>
 
-            {/* Tipo de Ação */}
             <div>
-              <Label className="text-sm font-medium mb-2 block">Tipo de Ação</Label>
-              <div className="flex flex-wrap gap-2">
-                {COMMON_ACTION_TYPES.map((actionType) => (
-                  <Badge
-                    key={actionType}
-                    variant={activeFilters.actionType.includes(actionType) ? "default" : "outline"}
-                    className="cursor-pointer"
-                    onClick={() => toggleArrayFilter('actionType', actionType)}
-                  >
-                    {actionType}
+              <Label className="text-sm font-medium">Grupo de Ação</Label>
+              <Select
+                value=""
+                onValueChange={(value) => {
+                  if (!localFilters.actionType.includes(value)) {
+                    setLocalFilters(prev => ({
+                      ...prev,
+                      actionType: [...prev.actionType, value]
+                    }));
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um grupo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getAllActionTypeOptions().map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex flex-wrap gap-1 mt-2">
+                {localFilters.actionType.map(actionType => (
+                  <Badge key={actionType} variant="secondary" className="text-xs">
+                    {getAllActionTypeOptions().find(opt => opt.value === actionType)?.label || actionType}
+                    <X 
+                      className="h-3 w-3 ml-1 cursor-pointer" 
+                      onClick={() => setLocalFilters(prev => ({
+                        ...prev,
+                        actionType: prev.actionType.filter(at => at !== actionType)
+                      }))}
+                    />
                   </Badge>
                 ))}
               </div>
             </div>
 
-            {/* Faixa de Valor */}
             <div>
-              <Label className="text-sm font-medium mb-2 block flex items-center gap-1">
-                <DollarSign className="h-4 w-4" />
-                Faixa de Valor
-              </Label>
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <Label className="text-xs text-gray-500">Mínimo</Label>
-                  <Input
-                    type="number"
-                    placeholder="R$ 0"
-                    value={activeFilters.valueRange.min || ""}
-                    onChange={(e) => updateFilters('valueRange', {
-                      ...activeFilters.valueRange,
-                      min: e.target.value ? parseFloat(e.target.value) : null
-                    })}
-                  />
-                </div>
-                <div className="flex-1">
-                  <Label className="text-xs text-gray-500">Máximo</Label>
-                  <Input
-                    type="number"
-                    placeholder="R$ 100.000"
-                    value={activeFilters.valueRange.max || ""}
-                    onChange={(e) => updateFilters('valueRange', {
-                      ...activeFilters.valueRange,
-                      max: e.target.value ? parseFloat(e.target.value) : null
-                    })}
-                  />
-                </div>
+              <Label className="text-sm font-medium">Faixa de Valor (R$)</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="number"
+                  placeholder="Mín"
+                  value={localFilters.valueRange.min || ""}
+                  onChange={(e) => setLocalFilters(prev => ({
+                    ...prev,
+                    valueRange: { ...prev.valueRange, min: e.target.value ? Number(e.target.value) : null }
+                  }))}
+                />
+                <Input
+                  type="number"
+                  placeholder="Máx"
+                  value={localFilters.valueRange.max || ""}
+                  onChange={(e) => setLocalFilters(prev => ({
+                    ...prev,
+                    valueRange: { ...prev.valueRange, max: e.target.value ? Number(e.target.value) : null }
+                  }))}
+                />
               </div>
             </div>
           </div>
-        </Card>
+
+          <Button onClick={applyFilters} className="w-full">
+            Aplicar Filtros
+          </Button>
+        </PopoverContent>
+      </Popover>
+
+      {/* Badges dos filtros ativos fora do popover */}
+      {activeFilters.status.map(status => (
+        <Badge key={`status-${status}`} variant="secondary">
+          Status: {status}
+          <X 
+            className="h-3 w-3 ml-1 cursor-pointer" 
+            onClick={() => removeFilter('status', status)}
+          />
+        </Badge>
+      ))}
+      
+      {activeFilters.source.map(source => (
+        <Badge key={`source-${source}`} variant="secondary">
+          Fonte: {sourceOptions.find(opt => opt.value === source)?.label || source}
+          <X 
+            className="h-3 w-3 ml-1 cursor-pointer" 
+            onClick={() => removeFilter('source', source)}
+          />
+        </Badge>
+      ))}
+      
+      {activeFilters.state.map(state => (
+        <Badge key={`state-${state}`} variant="secondary">
+          Estado: {state}
+          <X 
+            className="h-3 w-3 ml-1 cursor-pointer" 
+            onClick={() => removeFilter('state', state)}
+          />
+        </Badge>
+      ))}
+      
+      {activeFilters.actionType.map(actionType => (
+        <Badge key={`actionType-${actionType}`} variant="secondary">
+          Grupo: {getAllActionTypeOptions().find(opt => opt.value === actionType)?.label || actionType}
+          <X 
+            className="h-3 w-3 ml-1 cursor-pointer" 
+            onClick={() => removeFilter('actionType', actionType)}
+          />
+        </Badge>
+      ))}
+      
+      {(activeFilters.valueRange.min !== null || activeFilters.valueRange.max !== null) && (
+        <Badge variant="secondary">
+          Valor: {activeFilters.valueRange.min || 0} - {activeFilters.valueRange.max || "∞"}
+          <X 
+            className="h-3 w-3 ml-1 cursor-pointer" 
+            onClick={() => {
+              const newFilters = { ...activeFilters, valueRange: { min: null, max: null } };
+              onFiltersChange(newFilters);
+            }}
+          />
+        </Badge>
       )}
     </div>
   );
