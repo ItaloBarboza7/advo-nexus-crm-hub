@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,18 +12,11 @@ import { EditLeadForm } from "@/components/EditLeadForm";
 import { LeadFilters, FilterOptions } from "@/components/LeadFilters";
 import { LeadsListView } from "@/components/LeadsListView";
 import { DeleteLeadDialog } from "@/components/DeleteLeadDialog";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
 import { useActionGroupsAndTypes } from "@/hooks/useActionGroupsAndTypes";
-
-interface KanbanColumn {
-  id: string;
-  name: string;
-  color: string;
-  order_position: number;
-  is_default: boolean;
-}
+import { useLeadsData } from "@/hooks/useLeadsData";
+import { useKanbanColumns } from "@/hooks/useKanbanColumns";
 
 export function ClientsContent() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -34,9 +28,6 @@ export function ClientsContent() {
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [leadToDelete, setLeadToDelete] = useState<{ id: string; name: string } | null>(null);
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([]);
   const [filters, setFilters] = useState<FilterOptions>({
     status: [],
     source: [],
@@ -48,76 +39,28 @@ export function ClientsContent() {
   const { validActionGroupNames } = useActionGroupsAndTypes();
   const [showOnlyOpportunities, setShowOnlyOpportunities] = useState(false);
 
-  // O RLS agora faz todo o isolamento automaticamente - sem filtros manuais!
-  const fetchLeads = async () => {
-    try {
-      setIsLoading(true);
-      console.log("📊 ClientsContent - Carregando leads (RLS automático)...");
-      
-      const { data, error } = await supabase
-        .from('leads')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('❌ Erro ao buscar leads:', error);
-        toast({
-          title: "Erro",
-          description: error.message ?? "Não foi possível carregar os leads.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      const transformedLeads: Lead[] = (data || []).map(lead => ({
-        ...lead,
-        company: undefined,
-        interest: undefined,
-        lastContact: undefined,
-        avatar: undefined
-      }));
-
-      console.log(`✅ ClientsContent - ${transformedLeads.length} leads carregados (isolamento automático por RLS)`);
-      setLeads(transformedLeads);
-    } catch (error) {
-      console.error('❌ Erro inesperado ao buscar leads:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado ao carregar os leads.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchKanbanColumns = async () => {
-    try {
-      console.log("🏗️ ClientsContent - Carregando colunas Kanban (RLS automático)...");
-      
-      const { data, error } = await supabase
-        .from('kanban_columns')
-        .select('*')
-        .order('order_position', { ascending: true });
-
-      if (error) {
-        console.error('❌ Erro ao carregar colunas do Kanban:', error);
-        return;
-      }
-
-      console.log(`✅ ClientsContent - ${(data || []).length} colunas Kanban carregadas`);
-      setKanbanColumns(data || []);
-    } catch (error) {
-      console.error('❌ Erro inesperado ao carregar colunas:', error);
-    }
-  };
+  // Usar os hooks que implementam isolamento por tenant
+  const { leads, isLoading, refreshData, updateLead } = useLeadsData();
+  const { columns: kanbanColumns, refreshColumns } = useKanbanColumns();
 
   const deleteLead = async (leadId: string) => {
     try {
-      const { error } = await supabase
-        .from('leads')
-        .delete()
-        .eq('id', leadId);
+      console.log(`🗑️ ClientsContent - Deletando lead ${leadId} do esquema do tenant...`);
+      
+      // Usar updateLead do hook useLeadsData para manter consistência
+      // Como não há método delete específico no hook, vamos usar a abordagem direta
+      const { tenantSchema, ensureTenantSchema } = await import('@/hooks/useTenantSchema');
+      const { supabase } = await import('@/integrations/supabase/client');
+      
+      const schema = await ensureTenantSchema();
+      if (!schema) {
+        console.error('❌ Não foi possível obter o esquema do tenant');
+        return;
+      }
+
+      const { error } = await supabase.rpc('exec_sql' as any, {
+        sql: `DELETE FROM ${schema}.leads WHERE id = '${leadId}'`
+      });
 
       if (error) {
         console.error('❌ Erro ao excluir lead:', error);
@@ -134,7 +77,7 @@ export function ClientsContent() {
         description: "Lead excluído com sucesso.",
       });
 
-      fetchLeads();
+      refreshData(); // Atualizar a lista de leads
     } catch (error) {
       console.error('❌ Erro inesperado ao excluir lead:', error);
       toast({
@@ -176,11 +119,6 @@ export function ClientsContent() {
     }
   };
 
-  useEffect(() => {
-    fetchLeads();
-    fetchKanbanColumns();
-  }, []);
-
   // Aplicar filtros e busca
   const filteredLeads = leads.filter(lead => {
     const matchesSearch = searchTerm === "" || 
@@ -188,7 +126,6 @@ export function ClientsContent() {
       (lead.email && lead.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (lead.phone && lead.phone.includes(searchTerm)) ||
       (lead.description && lead.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (lead.company && lead.company.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (lead.state && lead.state.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const matchesStatus = filters.status.length === 0 || filters.status.includes(lead.status);
@@ -345,7 +282,7 @@ export function ClientsContent() {
         <KanbanView 
           leads={transformedLeads} 
           statuses={filteredKanbanStatuses} 
-          onLeadUpdated={fetchLeads}
+          onLeadUpdated={refreshData}
           onViewDetails={handleViewDetails}
           originalLeads={filteredLeads}
         />
@@ -379,7 +316,7 @@ export function ClientsContent() {
       <NewLeadForm 
         open={isNewLeadFormOpen} 
         onOpenChange={setIsNewLeadFormOpen}
-        onLeadCreated={fetchLeads}
+        onLeadCreated={refreshData}
       />
 
       <LeadDetailsDialog
@@ -393,7 +330,7 @@ export function ClientsContent() {
         lead={selectedLead}
         open={isStatusFormOpen}
         onOpenChange={setIsStatusFormOpen}
-        onStatusChanged={fetchLeads}
+        onStatusChanged={refreshData}
         kanbanColumns={kanbanColumns}
       />
 
@@ -401,7 +338,7 @@ export function ClientsContent() {
         lead={selectedLead}
         open={isEditFormOpen}
         onOpenChange={setIsEditFormOpen}
-        onLeadUpdated={fetchLeads}
+        onLeadUpdated={refreshData}
       />
 
       <DeleteLeadDialog

@@ -1,15 +1,17 @@
+
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Phone, Mail, MapPin, DollarSign, Eye, Trash2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
 import { LossReasonDialog } from "@/components/LossReasonDialog";
 import { DeleteLeadDialog } from "@/components/DeleteLeadDialog";
 import { useLeadStatusHistory } from "@/hooks/useLeadStatusHistory";
 import { useActionGroupsAndTypes } from "@/hooks/useActionGroupsAndTypes";
+import { useTenantSchema } from "@/hooks/useTenantSchema";
+import { supabase } from "@/integrations/supabase/client";
 
 interface TransformedLead {
   id: number;
@@ -49,6 +51,7 @@ export function KanbanView({ leads, statuses, onLeadUpdated, onViewDetails, orig
   const [leadToDelete, setLeadToDelete] = useState<{ id: string; name: string } | null>(null);
   const { hasLeadPassedThroughStatus } = useLeadStatusHistory();
   const { validActionGroupNames } = useActionGroupsAndTypes();
+  const { tenantSchema, ensureTenantSchema } = useTenantSchema();
 
   const getLeadsByStatus = (status: string) => {
     return leads.filter(lead => lead.status === status);
@@ -72,18 +75,26 @@ export function KanbanView({ leads, statuses, onLeadUpdated, onViewDetails, orig
 
   const updateLeadStatus = async (leadId: string, newStatus: string, lossReason?: string) => {
     try {
-      const updateData: any = { status: newStatus };
-      if (lossReason) {
-        updateData.loss_reason = lossReason;
+      console.log(`🔄 KanbanView - Atualizando status do lead ${leadId} para ${newStatus} no esquema do tenant...`);
+      
+      const schema = tenantSchema || await ensureTenantSchema();
+      if (!schema) {
+        console.error('❌ Não foi possível obter o esquema do tenant');
+        return;
       }
 
-      const { error } = await supabase
-        .from('leads')
-        .update(updateData)
-        .eq('id', leadId);
+      // Construir a query de update
+      let setClause = `status = '${newStatus}', updated_at = now()`;
+      if (lossReason) {
+        setClause += `, loss_reason = '${lossReason}'`;
+      }
+
+      const { error } = await supabase.rpc('exec_sql' as any, {
+        sql: `UPDATE ${schema}.leads SET ${setClause} WHERE id = '${leadId}'`
+      });
 
       if (error) {
-        console.error('Erro ao atualizar status do lead:', error);
+        console.error('❌ Erro ao atualizar status do lead:', error);
         toast({
           title: "Erro",
           description: "Não foi possível atualizar o status do lead.",
@@ -99,7 +110,7 @@ export function KanbanView({ leads, statuses, onLeadUpdated, onViewDetails, orig
 
       onLeadUpdated();
     } catch (error) {
-      console.error('Erro inesperado ao atualizar status:', error);
+      console.error('❌ Erro inesperado ao atualizar status:', error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado.",
@@ -110,13 +121,20 @@ export function KanbanView({ leads, statuses, onLeadUpdated, onViewDetails, orig
 
   const deleteLead = async (leadId: string) => {
     try {
-      const { error } = await supabase
-        .from('leads')
-        .delete()
-        .eq('id', leadId);
+      console.log(`🗑️ KanbanView - Deletando lead ${leadId} do esquema do tenant...`);
+      
+      const schema = tenantSchema || await ensureTenantSchema();
+      if (!schema) {
+        console.error('❌ Não foi possível obter o esquema do tenant');
+        return;
+      }
+
+      const { error } = await supabase.rpc('exec_sql' as any, {
+        sql: `DELETE FROM ${schema}.leads WHERE id = '${leadId}'`
+      });
 
       if (error) {
-        console.error('Erro ao excluir lead:', error);
+        console.error('❌ Erro ao excluir lead:', error);
         toast({
           title: "Erro",
           description: "Não foi possível excluir o lead.",
@@ -132,7 +150,7 @@ export function KanbanView({ leads, statuses, onLeadUpdated, onViewDetails, orig
 
       onLeadUpdated();
     } catch (error) {
-      console.error('Erro inesperado ao excluir lead:', error);
+      console.error('❌ Erro inesperado ao excluir lead:', error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado ao excluir o lead.",
