@@ -45,6 +45,24 @@ export function ClientsContent() {
   const { leads, isLoading, refreshData, updateLead } = useLeadsData();
   const { columns: kanbanColumns, refreshColumns } = useKanbanColumns();
 
+  // Função melhorada para abrir o formulário de novo lead
+  const handleNewLeadClick = () => {
+    console.log("📝 ClientsContent - Abrindo formulário de novo lead");
+    setIsNewLeadFormOpen(true);
+  };
+
+  // Função melhorada para fechar o formulário
+  const handleNewLeadFormClose = (open: boolean) => {
+    console.log("❌ ClientsContent - Fechando formulário de novo lead:", open);
+    setIsNewLeadFormOpen(open);
+  };
+
+  // Função para quando um lead for criado
+  const handleLeadCreated = () => {
+    console.log("✅ ClientsContent - Lead criado, atualizando lista");
+    refreshData();
+  };
+
   const deleteLead = async (leadId: string) => {
     try {
       console.log(`🗑️ ClientsContent - Deletando lead ${leadId} do esquema do tenant...`);
@@ -74,7 +92,7 @@ export function ClientsContent() {
         description: "Lead excluído com sucesso.",
       });
 
-      refreshData(); // Atualizar a lista de leads
+      refreshData();
     } catch (error) {
       console.error('❌ Erro inesperado ao excluir lead:', error);
       toast({
@@ -216,7 +234,8 @@ export function ClientsContent() {
         </div>
         <Button 
           className="bg-blue-600 hover:bg-blue-700"
-          onClick={() => setIsNewLeadFormOpen(true)}
+          onClick={handleNewLeadClick}
+          disabled={isNewLeadFormOpen}
         >
           <Plus className="h-4 w-4 mr-2" />
           Novo Lead
@@ -312,8 +331,8 @@ export function ClientsContent() {
 
       <NewLeadForm 
         open={isNewLeadFormOpen} 
-        onOpenChange={setIsNewLeadFormOpen}
-        onLeadCreated={refreshData}
+        onOpenChange={handleNewLeadFormClose}
+        onLeadCreated={handleLeadCreated}
       />
 
       <LeadDetailsDialog
