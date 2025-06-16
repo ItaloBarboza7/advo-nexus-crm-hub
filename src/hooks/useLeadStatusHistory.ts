@@ -27,7 +27,7 @@ export function useLeadStatusHistory() {
         return;
       }
 
-      const { data, error } = await supabase.rpc('exec_sql', {
+      const { data, error } = await supabase.rpc('exec_sql' as any, {
         sql: `SELECT * FROM ${schema}.lead_status_history ORDER BY changed_at DESC`
       });
 
@@ -36,8 +36,9 @@ export function useLeadStatusHistory() {
         return;
       }
 
-      console.log(`✅ useLeadStatusHistory - ${(data || []).length} registros de histórico carregados do esquema ${schema}`);
-      setStatusHistory(data || []);
+      const historyData = Array.isArray(data) ? data : [];
+      console.log(`✅ useLeadStatusHistory - ${historyData.length} registros de histórico carregados do esquema ${schema}`);
+      setStatusHistory(historyData);
     } catch (error) {
       console.error('❌ Erro inesperado ao buscar histórico:', error);
     } finally {

@@ -26,7 +26,7 @@ export function useLeadsData() {
       }
 
       // Buscar leads no esquema do tenant usando SQL customizado
-      const { data, error } = await supabase.rpc('exec_sql', {
+      const { data, error } = await supabase.rpc('exec_sql' as any, {
         sql: `SELECT * FROM ${schema}.leads ORDER BY created_at DESC`
       });
 
@@ -40,7 +40,8 @@ export function useLeadsData() {
         return;
       }
 
-      const transformedLeads: Lead[] = (data || []).map((lead: any) => ({
+      const leadsData = Array.isArray(data) ? data : [];
+      const transformedLeads: Lead[] = leadsData.map((lead: any) => ({
         ...lead,
         company: undefined,
         interest: undefined,
@@ -82,7 +83,7 @@ export function useLeadsData() {
         .map(key => `${key} = '${updates[key as keyof Lead]}'`)
         .join(', ');
 
-      const { error } = await supabase.rpc('exec_sql', {
+      const { error } = await supabase.rpc('exec_sql' as any, {
         sql: `UPDATE ${schema}.leads SET ${setClause}, updated_at = now() WHERE id = '${leadId}'`
       });
 

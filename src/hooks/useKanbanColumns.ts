@@ -29,7 +29,7 @@ export function useKanbanColumns() {
         return;
       }
 
-      const { data, error } = await supabase.rpc('exec_sql', {
+      const { data, error } = await supabase.rpc('exec_sql' as any, {
         sql: `SELECT * FROM ${schema}.kanban_columns ORDER BY order_position ASC`
       });
 
@@ -43,8 +43,9 @@ export function useKanbanColumns() {
         return;
       }
 
-      console.log(`✅ useKanbanColumns - ${(data || []).length} colunas carregadas do esquema ${schema}`);
-      setColumns(data || []);
+      const columnsData = Array.isArray(data) ? data : [];
+      console.log(`✅ useKanbanColumns - ${columnsData.length} colunas carregadas do esquema ${schema}`);
+      setColumns(columnsData);
     } catch (error) {
       console.error('❌ Erro inesperado ao carregar colunas:', error);
       toast({

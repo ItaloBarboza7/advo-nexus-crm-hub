@@ -57,7 +57,7 @@ const Index = () => {
     try {
       // Primeiro, garantir que o esquema do tenant existe
       console.log("🏗️ Index - Garantindo esquema do tenant...");
-      await ensureTenantSchema();
+      const tenantSchema = await ensureTenantSchema();
 
       const { data: userRoleData, error: roleError } = await supabase
         .from('user_roles')
@@ -107,8 +107,8 @@ const Index = () => {
       console.log("🏢 Index - Verificando informações da empresa no esquema do tenant...");
       
       try {
-        const { data: companyInfo, error } = await supabase.rpc('exec_sql', {
-          sql: `SELECT id FROM ${await ensureTenantSchema()}.company_info LIMIT 1`
+        const { data: companyInfo, error } = await supabase.rpc('exec_sql' as any, {
+          sql: `SELECT id FROM ${tenantSchema}.company_info LIMIT 1`
         });
 
         if (error) {
@@ -116,9 +116,10 @@ const Index = () => {
           return
         }
 
-        console.log(`✅ Index - ${(companyInfo || []).length} empresa(s) encontrada(s) no esquema do tenant`);
+        const companyData = Array.isArray(companyInfo) ? companyInfo : [];
+        console.log(`✅ Index - ${companyData.length} empresa(s) encontrada(s) no esquema do tenant`);
 
-        if (isFirstLogin || !companyInfo || companyInfo.length === 0) {
+        if (isFirstLogin || companyData.length === 0) {
           setShowCompanyModal(true)
           
           if (isFirstLogin) {

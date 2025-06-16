@@ -410,6 +410,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      exec_sql: {
+        Args: { sql: string }
+        Returns: Json
+      }
       get_tenant_id: {
         Args: Record<PropertyKey, never>
         Returns: string
