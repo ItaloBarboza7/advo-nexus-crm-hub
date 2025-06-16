@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,6 +16,8 @@ import { Lead } from "@/types/lead";
 import { useActionGroupsAndTypes } from "@/hooks/useActionGroupsAndTypes";
 import { useLeadsData } from "@/hooks/useLeadsData";
 import { useKanbanColumns } from "@/hooks/useKanbanColumns";
+import { useTenantSchema } from "@/hooks/useTenantSchema";
+import { supabase } from "@/integrations/supabase/client";
 
 export function ClientsContent() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -38,6 +39,7 @@ export function ClientsContent() {
   const { toast } = useToast();
   const { validActionGroupNames } = useActionGroupsAndTypes();
   const [showOnlyOpportunities, setShowOnlyOpportunities] = useState(false);
+  const { tenantSchema, ensureTenantSchema } = useTenantSchema();
 
   // Usar os hooks que implementam isolamento por tenant
   const { leads, isLoading, refreshData, updateLead } = useLeadsData();
@@ -47,12 +49,7 @@ export function ClientsContent() {
     try {
       console.log(`🗑️ ClientsContent - Deletando lead ${leadId} do esquema do tenant...`);
       
-      // Usar updateLead do hook useLeadsData para manter consistência
-      // Como não há método delete específico no hook, vamos usar a abordagem direta
-      const { tenantSchema, ensureTenantSchema } = await import('@/hooks/useTenantSchema');
-      const { supabase } = await import('@/integrations/supabase/client');
-      
-      const schema = await ensureTenantSchema();
+      const schema = tenantSchema || await ensureTenantSchema();
       if (!schema) {
         console.error('❌ Não foi possível obter o esquema do tenant');
         return;
