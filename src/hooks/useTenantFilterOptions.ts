@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenantSchema } from "@/hooks/useTenantSchema";
 
@@ -27,9 +27,17 @@ export const useTenantFilterOptions = () => {
   const [leadSources, setLeadSources] = useState<LeadSource[]>([]);
   const [loading, setLoading] = useState(true);
   const { tenantSchema, ensureTenantSchema } = useTenantSchema();
+  const isLoadingRef = useRef(false);
 
   const fetchAllData = useCallback(async () => {
+    // Evita múltiplas chamadas simultâneas
+    if (isLoadingRef.current) {
+      console.log("📊 useTenantFilterOptions - Já está carregando, ignorando chamada duplicada");
+      return;
+    }
+
     try {
+      isLoadingRef.current = true;
       setLoading(true);
       console.log("📊 useTenantFilterOptions - Buscando dados do esquema do tenant...");
       
@@ -81,16 +89,21 @@ export const useTenantFilterOptions = () => {
       console.error('❌ Erro inesperado ao buscar dados do tenant:', error);
     } finally {
       setLoading(false);
+      isLoadingRef.current = false;
     }
   }, [tenantSchema, ensureTenantSchema]);
 
   useEffect(() => {
-    if (tenantSchema) {
+    if (tenantSchema && !isLoadingRef.current) {
       fetchAllData();
     }
   }, [tenantSchema, fetchAllData]);
 
-  const refreshData = () => fetchAllData();
+  const refreshData = () => {
+    if (!isLoadingRef.current) {
+      fetchAllData();
+    }
+  };
 
   // Funções para adicionar novos itens
   const addActionGroup = async (name: string, description: string) => {
@@ -239,7 +252,35 @@ export const useTenantFilterOptions = () => {
     actionGroupOptions,
     getActionTypeOptions,
     getAllActionTypeOptions,
-    stateOptions,
+    stateOptions: [
+      { value: "Acre", label: "Acre" },
+      { value: "Alagoas", label: "Alagoas" },
+      { value: "Amapá", label: "Amapá" },
+      { value: "Amazonas", label: "Amazonas" },
+      { value: "Bahia", label: "Bahia" },
+      { value: "Ceará", label: "Ceará" },
+      { value: "Distrito Federal", label: "Distrito Federal" },
+      { value: "Espírito Santo", label: "Espírito Santo" },
+      { value: "Goiás", label: "Goiás" },
+      { value: "Maranhão", label: "Maranhão" },
+      { value: "Mato Grosso", label: "Mato Grosso" },
+      { value: "Mato Grosso do Sul", label: "Mato Grosso do Sul" },
+      { value: "Minas Gerais", label: "Minas Gerais" },
+      { value: "Pará", label: "Pará" },
+      { value: "Paraíba", label: "Paraíba" },
+      { value: "Paraná", label: "Paraná" },
+      { value: "Pernambuco", label: "Pernambuco" },
+      { value: "Piauí", label: "Piauí" },
+      { value: "Rio de Janeiro", label: "Rio de Janeiro" },
+      { value: "Rio Grande do Norte", label: "Rio Grande do Norte" },
+      { value: "Rio Grande do Sul", label: "Rio Grande do Sul" },
+      { value: "Rondônia", label: "Rondônia" },
+      { value: "Roraima", label: "Roraima" },
+      { value: "Santa Catarina", label: "Santa Catarina" },
+      { value: "São Paulo", label: "São Paulo" },
+      { value: "Sergipe", label: "Sergipe" },
+      { value: "Tocantins", label: "Tocantins" }
+    ],
     actionGroups,
     actionTypes,
     leadSources,

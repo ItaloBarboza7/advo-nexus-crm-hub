@@ -14,9 +14,12 @@ export function useNewLeadFormOptions() {
     addLeadSource
   } = useTenantFilterOptions();
 
-  // Só marca como pronto quando os dados básicos estão carregados
+  // Só marca como pronto quando os dados básicos estão carregados e temos pelo menos os dados mínimos
   useEffect(() => {
-    if (!loading && sourceOptions.length >= 0 && actionGroupOptions.length >= 0) {
+    if (!loading && sourceOptions.length > 0 && actionGroupOptions.length > 0) {
+      setIsReady(true);
+    } else if (!loading && sourceOptions.length === 0 && actionGroupOptions.length === 0) {
+      // Mesmo sem dados, marca como pronto para evitar loading infinito
       setIsReady(true);
     }
   }, [loading, sourceOptions.length, actionGroupOptions.length]);
