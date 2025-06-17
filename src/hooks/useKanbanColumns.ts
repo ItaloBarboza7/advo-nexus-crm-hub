@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useTenantSchema } from '@/hooks/useTenantSchema';
@@ -18,7 +18,7 @@ export function useKanbanColumns() {
   const { toast } = useToast();
   const { tenantSchema, ensureTenantSchema } = useTenantSchema();
 
-  const fetchColumns = async () => {
+  const fetchColumns = useCallback(async (forceRefresh = false) => {
     try {
       setIsLoading(true);
       console.log("🏗️ useKanbanColumns - Carregando colunas do esquema do tenant...");
@@ -47,7 +47,9 @@ export function useKanbanColumns() {
 
       const columnsData = Array.isArray(data) ? data : [];
       console.log(`✅ useKanbanColumns - ${columnsData.length} colunas carregadas do esquema ${schema}:`, columnsData.map(c => c.name));
-      setColumns(columnsData);
+      
+      // Sempre atualizar o estado, mesmo se os dados parecem iguais
+      setColumns([...columnsData]);
     } catch (error) {
       console.error('❌ Erro inesperado ao carregar colunas:', error);
       toast({
@@ -59,7 +61,7 @@ export function useKanbanColumns() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [tenantSchema, ensureTenantSchema, toast]);
 
   const deleteColumn = async (columnId: string): Promise<boolean> => {
     try {
@@ -92,7 +94,7 @@ export function useKanbanColumns() {
       });
 
       // Atualizar a lista de colunas após deletar
-      await fetchColumns();
+      await fetchColumns(true);
       return true;
     } catch (error) {
       console.error('❌ Erro inesperado ao excluir coluna:', error);
@@ -105,15 +107,18 @@ export function useKanbanColumns() {
     }
   };
 
+  // Carregar colunas quando o tenant schema estiver disponível
   useEffect(() => {
     if (tenantSchema) {
+      console.log("🔄 useKanbanColumns - Tenant schema disponível, carregando colunas...");
       fetchColumns();
     }
-  }, [tenantSchema]);
+  }, [tenantSchema, fetchColumns]);
 
-  const refreshColumns = () => {
-    fetchColumns();
-  };
+  const refreshColumns = useCallback(async () => {
+    console.log("🔄 useKanbanColumns - Refresh manual das colunas solicitado");
+    await fetchColumns(true);
+  }, [fetchColumns]);
 
   return {
     columns,

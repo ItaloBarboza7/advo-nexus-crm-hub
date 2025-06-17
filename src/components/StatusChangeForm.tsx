@@ -36,7 +36,15 @@ export function StatusChangeForm({ lead, open, onOpenChange, onStatusChanged }: 
   const [isFormReady, setIsFormReady] = useState(false);
   const { updateLeadStatus, isUpdating } = useLeadStatusUpdate();
   const { lossReasons: allLossReasons, loading: lossReasonsLoading } = useLossReasonsGlobal();
-  const { columns: kanbanColumns, isLoading: kanbanLoading } = useKanbanColumns();
+  const { columns: kanbanColumns, isLoading: kanbanLoading, refreshColumns } = useKanbanColumns();
+
+  // Forçar refresh das colunas quando o modal abrir
+  useEffect(() => {
+    if (open && !kanbanLoading) {
+      console.log("🔄 StatusChangeForm - Modal aberto, forçando refresh das colunas...");
+      refreshColumns();
+    }
+  }, [open, kanbanLoading, refreshColumns]);
 
   useEffect(() => {
     if (lead && open && !kanbanLoading && !lossReasonsLoading) {
@@ -109,7 +117,7 @@ export function StatusChangeForm({ lead, open, onOpenChange, onStatusChanged }: 
 
   const showLossReasonField = selectedStatus === "Perdido";
 
-  // Mostrar loading enquanto o formulário não estiver pronto
+  // Mostrar loading enquanto o formulário não estiver pronto ou se está carregando colunas
   if (!isFormReady || lossReasonsLoading || kanbanLoading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -120,7 +128,9 @@ export function StatusChangeForm({ lead, open, onOpenChange, onStatusChanged }: 
           <div className="flex items-center justify-center p-8">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Carregando...</p>
+              <p className="text-gray-600">
+                {kanbanLoading ? "Carregando colunas..." : "Carregando..."}
+              </p>
             </div>
           </div>
         </DialogContent>

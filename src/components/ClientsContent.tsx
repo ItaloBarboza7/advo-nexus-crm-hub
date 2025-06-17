@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,15 +44,28 @@ export function ClientsContent() {
 
   // Usar os hooks que implementam isolamento por tenant
   const { leads, isLoading, refreshData, updateLead } = useLeadsData();
-  const { columns: kanbanColumns, refreshColumns } = useKanbanColumns();
+  const { columns: kanbanColumns, refreshColumns, isLoading: kanbanLoading } = useKanbanColumns();
 
-  // Efeito para escutar mudanças no esquema do tenant e atualizar as colunas
+  // Efeito para forçar refresh das colunas quando há mudança no tenant schema
   useEffect(() => {
     if (tenantSchema) {
-      console.log("🔄 ClientsContent - Esquema do tenant mudou, atualizando colunas...");
-      refreshColumns();
+      console.log("🔄 ClientsContent - Esquema do tenant mudou, forçando refresh das colunas...");
+      // Usar setTimeout para garantir que o refresh aconteça após o schema estar completamente configurado
+      const timer = setTimeout(() => {
+        refreshColumns();
+      }, 100);
+      
+      return () => clearTimeout(timer);
     }
   }, [tenantSchema, refreshColumns]);
+
+  // Efeito adicional para refresh periódico das colunas (quando necessário)
+  useEffect(() => {
+    if (!kanbanLoading && kanbanColumns.length === 0 && tenantSchema) {
+      console.log("🔄 ClientsContent - Colunas vazias detectadas, tentando refresh...");
+      refreshColumns();
+    }
+  }, [kanbanLoading, kanbanColumns.length, tenantSchema, refreshColumns]);
 
   // Extract valid action group names from the options
   const validActionGroupNames = useMemo(() => {
@@ -148,10 +162,11 @@ export function ClientsContent() {
   };
 
   // Função para atualizar dados quando colunas são modificadas
-  const handleKanbanDataUpdated = () => {
-    console.log("🔄 ClientsContent - Dados do Kanban foram atualizados, refreshing...");
-    refreshColumns();
-    refreshData();
+  const handleKanbanDataUpdated = async () => {
+    console.log("🔄 ClientsContent - Dados do Kanban foram atualizados, refreshing tudo...");
+    // Refresh das colunas primeiro, depois dos leads
+    await refreshColumns();
+    await refreshData();
   };
 
   // Aplicar filtros e busca
@@ -181,11 +196,15 @@ export function ClientsContent() {
     return matchesSearch && matchesStatus && matchesSource && matchesState && matchesActionType && matchesValueMin && matchesValueMax;
   });
 
-  const kanbanStatuses = kanbanColumns.map(column => ({
-    id: column.name,
-    title: column.name,
-    color: `bg-blue-100 text-blue-800`
-  }));
+  // Criar status do Kanban baseado nas colunas carregadas
+  const kanbanStatuses = useMemo(() => {
+    console.log("🔧 ClientsContent - Recriando kanbanStatuses com colunas:", kanbanColumns.map(c => c.name));
+    return kanbanColumns.map(column => ({
+      id: column.name,
+      title: column.name,
+      color: `bg-blue-100 text-blue-800`
+    }));
+  }, [kanbanColumns]);
 
   const opportunityStatuses = ["Novo", "Proposta", "Reunião"];
   const filteredKanbanStatuses = showOnlyOpportunities
@@ -308,7 +327,7 @@ export function ClientsContent() {
         </div>
       </Card>
 
-      {isLoading ? (
+      {isLoading || kanbanLoading ? (
         <Card className="p-12 text-center">
           <div className="text-gray-500">
             <p>Carregando leads...</p>
@@ -334,7 +353,7 @@ export function ClientsContent() {
         />
       )}
 
-      {filteredLeads.length === 0 && !isLoading && (
+      {filteredLeads.length === 0 && !isLoading && !kanbanLoading && (
         <Card className="p-12 text-center">
           <div className="text-gray-500">
             <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />

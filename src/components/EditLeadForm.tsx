@@ -62,8 +62,16 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
     refreshData 
   } = useFilterOptions();
   const { lossReasons, addLossReason } = useLossReasonsGlobal();
-  const { columns: kanbanColumns, isLoading: kanbanLoading } = useKanbanColumns();
+  const { columns: kanbanColumns, isLoading: kanbanLoading, refreshColumns } = useKanbanColumns();
   const { updateLead } = useTenantLeadOperations();
+
+  // Forçar refresh das colunas quando o modal abrir
+  useEffect(() => {
+    if (open && !kanbanLoading) {
+      console.log("🔄 EditLeadForm - Modal aberto, forçando refresh das colunas...");
+      refreshColumns();
+    }
+  }, [open, kanbanLoading, refreshColumns]);
 
   // Atualizar dados do formulário apenas quando o lead E as colunas estiverem carregados
   useEffect(() => {
