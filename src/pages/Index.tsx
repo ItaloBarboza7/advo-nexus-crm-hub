@@ -104,21 +104,12 @@ const Index = () => {
         console.log("👥 Usuário é membro, não mostrando modal de empresa");
         return
       }
-      
-      // Verificar se é primeiro login baseado nos metadados do usuário
-      const isFirstLogin = user.user_metadata?.is_first_login === true;
-      const companyInfoCompleted = user.user_metadata?.company_info_completed === true;
-      
-      console.log("🔎 Verificação de login:", {
-        isFirstLogin,
-        companyInfoCompleted,
-        userEmail: user.email
-      });
 
       // Verificar se já existe informação da empresa na tabela public.company_info
+      console.log("🏢 Verificando se já existem informações da empresa...");
       const { data: companyInfo, error: companyError } = await supabase
         .from('company_info')
-        .select('id')
+        .select('id, company_name')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -128,38 +119,35 @@ const Index = () => {
       }
 
       const hasCompanyInfo = !!companyInfo;
-      console.log("🏢 Informações da empresa:", {
+      console.log("🏢 Status das informações da empresa:", {
         hasCompanyInfo,
+        companyName: companyInfo?.company_name,
         companyInfoId: companyInfo?.id
       });
 
-      // Mostrar modal se:
-      // 1. É primeiro login OU
-      // 2. Não tem informações da empresa cadastradas OU
-      // 3. Informações da empresa não estão marcadas como completas
-      const shouldShowModal = isFirstLogin || !hasCompanyInfo || !companyInfoCompleted;
-      
-      console.log("📋 Decisão do modal:", {
-        shouldShowModal,
-        motivo: isFirstLogin ? "primeiro login" : 
-                !hasCompanyInfo ? "sem informações da empresa" :
-                !companyInfoCompleted ? "informações não completas" : "nenhum"
-      });
-
-      if (shouldShowModal) {
-        setShowCompanyModal(true)
+      // Se já tem informações da empresa, não mostrar o modal
+      if (hasCompanyInfo) {
+        console.log("✅ Usuário já possui informações da empresa cadastradas, não mostrando modal");
         
-        // Se é primeiro login, atualizar metadados
-        if (isFirstLogin) {
-          console.log("🔄 Atualizando metadados - removendo flag de primeiro login");
+        // Garantir que os metadados estão atualizados
+        const currentMetadata = user.user_metadata || {};
+        if (!currentMetadata.company_info_completed) {
+          console.log("🔄 Atualizando metadados para marcar informações como completas");
           await supabase.auth.updateUser({
             data: { 
-              ...user.user_metadata,
+              ...currentMetadata,
+              company_info_completed: true,
               is_first_login: false 
             }
-          })
+          });
         }
+        return;
       }
+
+      // Só mostrar o modal se NÃO tem informações da empresa
+      console.log("📋 Usuário não possui informações da empresa, mostrando modal");
+      setShowCompanyModal(true);
+      
     } catch (error) {
       console.error('❌ Erro ao verificar primeiro login e informações da empresa:', error)
       // Em caso de erro, não mostrar o modal para evitar bloqueio

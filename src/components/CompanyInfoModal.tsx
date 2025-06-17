@@ -25,6 +25,7 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [existingCompanyId, setExistingCompanyId] = useState<string | null>(null);
   const { toast } = useToast();
   const { stateOptions } = useFilterOptions();
 
@@ -40,7 +41,7 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      console.log('🏢 CompanyInfoModal - Carregando informações existentes da empresa');
+      console.log('🏢 CompanyInfoModal - Carregando informações existentes da empresa para usuário:', user.id);
 
       // Verificar se já existe informação da empresa na tabela public.company_info
       const { data: existingCompany, error } = await supabase
@@ -55,7 +56,8 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
       }
 
       if (existingCompany) {
-        console.log('✅ Informações da empresa encontradas, preenchendo campos');
+        console.log('✅ Informações da empresa encontradas, preenchendo campos:', existingCompany);
+        setExistingCompanyId(existingCompany.id);
         setCompanyName(existingCompany.company_name || "");
         setCpfCnpj(existingCompany.cnpj || "");
         setPhone(existingCompany.phone || "");
@@ -73,6 +75,7 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
       } else {
         // Se não há informações, carregar email do usuário
         setEmail(user.email || "");
+        setExistingCompanyId(null);
         console.log('ℹ️ Nenhuma informação de empresa encontrada, campos em branco');
       }
     } catch (error) {
@@ -144,36 +147,65 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
         return;
       }
 
-      console.log('💾 CompanyInfoModal - Salvando informações da empresa');
+      console.log('💾 CompanyInfoModal - Salvando informações da empresa para usuário:', user.id);
 
       // Concatenar endereço completo
       const fullAddress = `${address}, ${neighborhood}, ${city}, ${state}, CEP: ${cep}`;
 
-      // Salvar na tabela public.company_info
-      const { error } = await supabase
-        .from('company_info')
-        .upsert({
-          user_id: user.id,
-          company_name: companyName,
-          cnpj: cpfCnpj,
-          phone,
-          email,
-          address: fullAddress
-        });
+      const companyData = {
+        user_id: user.id,
+        company_name: companyName,
+        cnpj: cpfCnpj,
+        phone,
+        email,
+        address: fullAddress
+      };
+
+      let error;
+
+      if (existingCompanyId) {
+        // Atualizar registro existente
+        console.log('🔄 Atualizando informações da empresa existente:', existingCompanyId);
+        const updateResult = await supabase
+          .from('company_info')
+          .update(companyData)
+          .eq('id', existingCompanyId)
+          .eq('user_id', user.id);
+        
+        error = updateResult.error;
+      } else {
+        // Criar novo registro
+        console.log('➕ Criando novo registro de informações da empresa');
+        const insertResult = await supabase
+          .from('company_info')
+          .insert(companyData);
+        
+        error = insertResult.error;
+      }
 
       if (error) {
         console.error('❌ Erro ao salvar informações da empresa:', error);
-        toast({
-          title: "Erro",
-          description: `Não foi possível salvar as informações da empresa: ${error.message}`,
-          variant: "destructive",
-        });
+        
+        // Tratar erro específico de chave duplicada
+        if (error.code === '23505' && error.message.includes('company_info_user_id_key')) {
+          toast({
+            title: "Informações já existem",
+            description: "As informações da empresa já estão cadastradas para este usuário.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Erro",
+            description: `Não foi possível salvar as informações da empresa: ${error.message}`,
+            variant: "destructive",
+          });
+        }
         return;
       }
 
       console.log('✅ Informações da empresa salvas com sucesso');
 
-      // Atualizar os metadados do usuário para marcar que não é mais primeiro login
+      // Atualizar os metadados do usuário para marcar que as informações estão completas
       const { error: updateError } = await supabase.auth.updateUser({
         data: { 
           is_first_login: false,
@@ -207,7 +239,9 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">Informações da Empresa</DialogTitle>
+          <DialogTitle className="text-xl font-semibold">
+            {existingCompanyId ? 'Editar Informações da Empresa' : 'Informações da Empresa'}
+          </DialogTitle>
         </DialogHeader>
         
         <div className="space-y-4 py-4">
