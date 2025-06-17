@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
@@ -12,9 +12,14 @@ export function useLeadsData() {
   const { toast } = useToast();
   const { lossReasons } = useLossReasonsGlobal();
   const { tenantSchema, ensureTenantSchema } = useTenantSchema();
+  const isFetchingRef = useRef(false);
 
-  const fetchLeads = async () => {
+  const fetchLeads = useCallback(async () => {
+    // Evitar chamadas simultâneas
+    if (isFetchingRef.current) return;
+    
     try {
+      isFetchingRef.current = true;
       setIsLoading(true);
       console.log("📊 useLeadsData - Buscando leads no esquema do tenant...");
       
@@ -60,13 +65,16 @@ export function useLeadsData() {
       });
     } finally {
       setIsLoading(false);
+      isFetchingRef.current = false;
     }
-  };
+  }, [tenantSchema, ensureTenantSchema, toast]);
 
-  const refreshData = () => {
+  const refreshData = useCallback(() => {
     console.log(`🔄 useLeadsData - Atualizando dados dos leads...`);
-    fetchLeads();
-  };
+    if (!isFetchingRef.current) {
+      fetchLeads();
+    }
+  }, [fetchLeads]);
 
   const updateLead = async (leadId: string, updates: Partial<Lead>) => {
     try {
@@ -119,11 +127,12 @@ export function useLeadsData() {
     }
   };
 
+  // Carregar leads apenas uma vez quando o tenant schema estiver disponível
   useEffect(() => {
-    if (tenantSchema) {
+    if (tenantSchema && !isFetchingRef.current) {
       fetchLeads();
     }
-  }, [tenantSchema]);
+  }, [tenantSchema]); // Remover fetchLeads das dependências para evitar loop
 
   return {
     leads,

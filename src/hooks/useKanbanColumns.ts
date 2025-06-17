@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useTenantSchema } from '@/hooks/useTenantSchema';
@@ -17,9 +17,14 @@ export function useKanbanColumns() {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const { tenantSchema, ensureTenantSchema } = useTenantSchema();
+  const isFetchingRef = useRef(false);
 
-  const fetchColumns = useCallback(async (forceRefresh = false) => {
+  const fetchColumns = useCallback(async () => {
+    // Evitar chamadas simultâneas
+    if (isFetchingRef.current) return;
+    
     try {
+      isFetchingRef.current = true;
       setIsLoading(true);
       console.log("🏗️ useKanbanColumns - Carregando colunas do esquema do tenant...");
       
@@ -46,10 +51,9 @@ export function useKanbanColumns() {
       }
 
       const columnsData = Array.isArray(data) ? data : [];
-      console.log(`✅ useKanbanColumns - ${columnsData.length} colunas carregadas do esquema ${schema}:`, columnsData.map(c => c.name));
+      console.log(`✅ useKanbanColumns - ${columnsData.length} colunas carregadas do esquema ${schema}`);
       
-      // Sempre atualizar o estado, mesmo se os dados parecem iguais
-      setColumns([...columnsData]);
+      setColumns(columnsData);
     } catch (error) {
       console.error('❌ Erro inesperado ao carregar colunas:', error);
       toast({
@@ -60,6 +64,7 @@ export function useKanbanColumns() {
       setColumns([]);
     } finally {
       setIsLoading(false);
+      isFetchingRef.current = false;
     }
   }, [tenantSchema, ensureTenantSchema, toast]);
 
@@ -94,7 +99,7 @@ export function useKanbanColumns() {
       });
 
       // Atualizar a lista de colunas após deletar
-      await fetchColumns(true);
+      await fetchColumns();
       return true;
     } catch (error) {
       console.error('❌ Erro inesperado ao excluir coluna:', error);
@@ -107,17 +112,17 @@ export function useKanbanColumns() {
     }
   };
 
-  // Carregar colunas quando o tenant schema estiver disponível
+  // Carregar colunas apenas uma vez quando o tenant schema estiver disponível
   useEffect(() => {
-    if (tenantSchema) {
+    if (tenantSchema && !isFetchingRef.current) {
       console.log("🔄 useKanbanColumns - Tenant schema disponível, carregando colunas...");
       fetchColumns();
     }
-  }, [tenantSchema, fetchColumns]);
+  }, [tenantSchema]); // Remover fetchColumns das dependências para evitar loop
 
   const refreshColumns = useCallback(async () => {
     console.log("🔄 useKanbanColumns - Refresh manual das colunas solicitado");
-    await fetchColumns(true);
+    await fetchColumns();
   }, [fetchColumns]);
 
   return {

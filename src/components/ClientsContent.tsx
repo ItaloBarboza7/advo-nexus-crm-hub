@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -163,10 +162,8 @@ export function ClientsContent() {
 
   // Função para atualizar dados quando colunas são modificadas
   const handleKanbanDataUpdated = async () => {
-    console.log("🔄 ClientsContent - Dados do Kanban foram atualizados, refreshing tudo...");
-    // Refresh das colunas primeiro, depois dos leads
-    await refreshColumns();
-    await refreshData();
+    console.log("🔄 ClientsContent - Dados do Kanban foram atualizados, refreshing dados...");
+    refreshData();
   };
 
   // Aplicar filtros e busca
@@ -198,7 +195,7 @@ export function ClientsContent() {
 
   // Criar status do Kanban baseado nas colunas carregadas
   const kanbanStatuses = useMemo(() => {
-    console.log("🔧 ClientsContent - Recriando kanbanStatuses com colunas:", kanbanColumns.map(c => c.name));
+    console.log("🔧 ClientsContent - Criando kanbanStatuses com colunas:", kanbanColumns.map(c => c.name));
     return kanbanColumns.map(column => ({
       id: column.name,
       title: column.name,

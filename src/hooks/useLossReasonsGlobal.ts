@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -29,42 +28,60 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
   const [lossReasons, setLossReasons] = useState<LossReasonRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const isFetchingRef = useRef(false);
 
   const fetchLossReasons = useCallback(async () => {
-    setLoading(true);
+    // Evitar chamadas simultâneas
+    if (isFetchingRef.current) return;
+    
+    try {
+      isFetchingRef.current = true;
+      setLoading(true);
 
-    // Forçar sempre buscar o dado atualizado, sem cache inicial/local
-    console.log("🔄 fetchLossReasons - Buscando motivos de perda...");
+      console.log("🔄 fetchLossReasons - Buscando motivos de perda...");
 
-    // Supabase types do not recognize custom RPCs, so we cast supabase as 'any' here.
-    const { data, error } = await (supabase as any).rpc("get_visible_loss_reasons_for_tenant");
+      // Supabase types do not recognize custom RPCs, so we cast supabase as 'any' here.
+      const { data, error } = await (supabase as any).rpc("get_visible_loss_reasons_for_tenant");
 
-    if (error || !data) {
-      // Agora não há mais fallback: simplesmente mostrar o erro.
+      if (error || !data) {
+        console.error("❌ fetchLossReasons - Erro ao buscar via RPC:", error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar os motivos de perda.",
+          variant: "destructive",
+        });
+        setLossReasons([]);
+        return;
+      }
+
+      console.log("✅ fetchLossReasons - Motivos carregados:", data);
+      setLossReasons(data as LossReasonRecord[]);
+    } catch (error) {
+      console.error("❌ fetchLossReasons - Erro inesperado:", error);
       toast({
         title: "Erro",
-        description: "Não foi possível carregar os motivos de perda (RPC).",
+        description: "Erro inesperado ao carregar motivos de perda.",
         variant: "destructive",
       });
       setLossReasons([]);
+    } finally {
       setLoading(false);
-      console.error("❌ fetchLossReasons - Erro ao buscar via RPC:", error);
-      return;
+      isFetchingRef.current = false;
     }
-
-    console.log("✅ fetchLossReasons - Motivos carregados:", data);
-    setLossReasons(data as LossReasonRecord[]);
-    setLoading(false);
   }, [toast]);
 
+  // Carregar motivos apenas uma vez no início
   useEffect(() => {
-    fetchLossReasons();
-  }, [fetchLossReasons]);
+    if (!isFetchingRef.current) {
+      fetchLossReasons();
+    }
+  }, []); // Sem dependências para evitar loops
 
   const refreshData = useCallback(() => {
-    // Adicionado para debug detalhado
     console.log("🔄 refreshData - Atualizando a lista de motivos de perda...");
-    fetchLossReasons();
+    if (!isFetchingRef.current) {
+      fetchLossReasons();
+    }
   }, [fetchLossReasons]);
 
   // Adds a new loss reason for the current tenant (always user-specific)
