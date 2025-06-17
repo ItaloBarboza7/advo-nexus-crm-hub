@@ -1,8 +1,8 @@
+
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-// Reason type includes is_fixed for system/user
 export interface LossReasonRecord {
   id: string;
   reason: string;
@@ -20,75 +20,68 @@ interface UseLossReasonsReturn {
   refreshData: () => void;
 }
 
-/**
- * Fetches all visible loss reasons for the current tenant,
- * hiding system reasons marked as hidden for this tenant.
- */
 export function useLossReasonsGlobal(): UseLossReasonsReturn {
   const [lossReasons, setLossReasons] = useState<LossReasonRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const isFetchingRef = useRef(false);
+  const fetchingRef = useRef(false);
+  const mountedRef = useRef(true);
 
   const fetchLossReasons = useCallback(async () => {
-    // Evitar chamadas simultâneas
-    if (isFetchingRef.current) return;
+    if (fetchingRef.current) return;
     
     try {
-      isFetchingRef.current = true;
+      fetchingRef.current = true;
       setLoading(true);
 
       console.log("🔄 fetchLossReasons - Buscando motivos de perda...");
 
-      // Supabase types do not recognize custom RPCs, so we cast supabase as 'any' here.
       const { data, error } = await (supabase as any).rpc("get_visible_loss_reasons_for_tenant");
 
       if (error || !data) {
         console.error("❌ fetchLossReasons - Erro ao buscar via RPC:", error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível carregar os motivos de perda.",
-          variant: "destructive",
-        });
-        setLossReasons([]);
+        if (mountedRef.current) {
+          toast({
+            title: "Erro",
+            description: "Não foi possível carregar os motivos de perda.",
+            variant: "destructive",
+          });
+          setLossReasons([]);
+        }
         return;
       }
 
       console.log("✅ fetchLossReasons - Motivos carregados:", data);
-      setLossReasons(data as LossReasonRecord[]);
+      if (mountedRef.current) {
+        setLossReasons(data as LossReasonRecord[]);
+      }
     } catch (error) {
       console.error("❌ fetchLossReasons - Erro inesperado:", error);
-      toast({
-        title: "Erro",
-        description: "Erro inesperado ao carregar motivos de perda.",
-        variant: "destructive",
-      });
-      setLossReasons([]);
+      if (mountedRef.current) {
+        toast({
+          title: "Erro",
+          description: "Erro inesperado ao carregar motivos de perda.",
+          variant: "destructive",
+        });
+        setLossReasons([]);
+      }
     } finally {
-      setLoading(false);
-      isFetchingRef.current = false;
+      if (mountedRef.current) {
+        setLoading(false);
+      }
+      fetchingRef.current = false;
     }
   }, [toast]);
 
-  // Carregar motivos apenas uma vez no início
-  useEffect(() => {
-    if (!isFetchingRef.current) {
-      fetchLossReasons();
-    }
-  }, []); // Sem dependências para evitar loops
-
   const refreshData = useCallback(() => {
     console.log("🔄 refreshData - Atualizando a lista de motivos de perda...");
-    if (!isFetchingRef.current) {
-      fetchLossReasons();
-    }
+    fetchLossReasons();
   }, [fetchLossReasons]);
 
-  // Adds a new loss reason for the current tenant (always user-specific)
-  const addLossReason = async (reason: string) => {
+  const addLossReason = useCallback(async (reason: string) => {
     const { error } = await supabase
       .from("loss_reasons")
-      .insert([{ reason, is_fixed: false }]); // user_id is set by DB trigger
+      .insert([{ reason, is_fixed: false }]);
 
     if (error) {
       toast({
@@ -100,11 +93,9 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
     }
     refreshData();
     return true;
-  };
+  }, [refreshData, toast]);
 
-  // Soft-delete logic for global reasons, hard-delete for local tenant reasons
-  const deleteLossReason = async (id: string) => {
-    // Fetch the reason to determine if it's global or user-owned
+  const deleteLossReason = useCallback(async (id: string) => {
     const { data: reasonData, error: reasonError } = await supabase
       .from("loss_reasons")
       .select("id, user_id, is_fixed")
@@ -122,7 +113,6 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
 
     const { user_id, is_fixed } = reasonData;
 
-    // Case 1: User-owned (tenant), not fixed => hard delete
     if (user_id && !is_fixed) {
       const { error: delErr } = await supabase
         .from("loss_reasons")
@@ -141,9 +131,7 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
       return true;
     }
 
-    // Case 2: Global (system), not fixed => soft-delete via hidden_default_items
     if (!user_id && !is_fixed) {
-      // Verifique se o item já está oculto para evitar erro de duplicidade
       const { data: hiddenItem, error: hiddenFetchErr } = await supabase
         .from("hidden_default_items")
         .select("id")
@@ -161,20 +149,17 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
       }
 
       if (hiddenItem) {
-        // Já está oculto, trata como sucesso
         toast({
           title: "Motivo de perda já estava oculto",
           description: "O motivo de perda já estava oculto para este tenant.",
           variant: "default",
         });
-        // Forçar refetch depois, pois pode ser atualização assíncrona do cache do supabase
         setTimeout(() => {
           refreshData();
-        }, 350); // Adicionado delay para garantir propagação do banco
+        }, 350);
         return true;
       }
 
-      // Insere o hidden_default_item, agora com segurança
       const { error: hideErr } = await supabase
         .from("hidden_default_items")
         .insert({
@@ -183,7 +168,6 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
         });
 
       if (hideErr) {
-        // Se for violação de constraint, trata como sucesso (precaução extra)
         if (
           hideErr.code === "23505" ||
           (hideErr.message && hideErr.message.includes("duplicate"))
@@ -193,10 +177,9 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
             description: "O motivo de perda já estava oculto para este tenant.",
             variant: "default",
           });
-          // Forçar refetch depois, pois pode ser atualização assíncrona do cache do supabase
           setTimeout(() => {
             refreshData();
-          }, 350); // delay para evitar race condition de leitura x escrita
+          }, 350);
           return true;
         }
         toast({
@@ -207,21 +190,29 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
         });
         return false;
       }
-      // Forçar refetch após ocultação
       setTimeout(() => {
         refreshData();
       }, 350);
       return true;
     }
 
-    // Fixed system reasons cannot be deleted
     toast({
       title: "Erro",
       description: "Motivo de perda do sistema não pode ser excluído.",
       variant: "destructive",
     });
     return false;
-  };
+  }, [toast, refreshData]);
+
+  useEffect(() => {
+    fetchLossReasons();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   return {
     lossReasons,

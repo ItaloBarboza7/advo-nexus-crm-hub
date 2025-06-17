@@ -17,21 +17,23 @@ export function useKanbanColumns() {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const { tenantSchema, ensureTenantSchema } = useTenantSchema();
-  const isFetchingRef = useRef(false);
+  const fetchingRef = useRef(false);
+  const mountedRef = useRef(true);
 
   const fetchColumns = useCallback(async () => {
-    // Evitar chamadas simultâneas
-    if (isFetchingRef.current) return;
+    if (fetchingRef.current || !tenantSchema) return;
     
     try {
-      isFetchingRef.current = true;
+      fetchingRef.current = true;
       setIsLoading(true);
       console.log("🏗️ useKanbanColumns - Carregando colunas do esquema do tenant...");
       
-      const schema = tenantSchema || await ensureTenantSchema();
+      const schema = tenantSchema;
       if (!schema) {
         console.error('❌ Não foi possível obter o esquema do tenant');
-        setColumns([]);
+        if (mountedRef.current) {
+          setColumns([]);
+        }
         return;
       }
 
@@ -41,34 +43,42 @@ export function useKanbanColumns() {
 
       if (error) {
         console.error('❌ Erro ao carregar colunas do Kanban:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível carregar as colunas do Kanban.",
-          variant: "destructive"
-        });
-        setColumns([]);
+        if (mountedRef.current) {
+          toast({
+            title: "Erro",
+            description: "Não foi possível carregar as colunas do Kanban.",
+            variant: "destructive"
+          });
+          setColumns([]);
+        }
         return;
       }
 
       const columnsData = Array.isArray(data) ? data : [];
       console.log(`✅ useKanbanColumns - ${columnsData.length} colunas carregadas do esquema ${schema}`);
       
-      setColumns(columnsData);
+      if (mountedRef.current) {
+        setColumns(columnsData);
+      }
     } catch (error) {
       console.error('❌ Erro inesperado ao carregar colunas:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado ao carregar as colunas.",
-        variant: "destructive"
-      });
-      setColumns([]);
+      if (mountedRef.current) {
+        toast({
+          title: "Erro",
+          description: "Ocorreu um erro inesperado ao carregar as colunas.",
+          variant: "destructive"
+        });
+        setColumns([]);
+      }
     } finally {
-      setIsLoading(false);
-      isFetchingRef.current = false;
+      if (mountedRef.current) {
+        setIsLoading(false);
+      }
+      fetchingRef.current = false;
     }
-  }, [tenantSchema, ensureTenantSchema, toast]);
+  }, [tenantSchema, toast]);
 
-  const deleteColumn = async (columnId: string): Promise<boolean> => {
+  const deleteColumn = useCallback(async (columnId: string): Promise<boolean> => {
     try {
       console.log(`🗑️ useKanbanColumns - Deletando coluna ${columnId} do esquema do tenant...`);
       
@@ -98,7 +108,6 @@ export function useKanbanColumns() {
         description: "Coluna do Kanban excluída com sucesso.",
       });
 
-      // Atualizar a lista de colunas após deletar
       await fetchColumns();
       return true;
     } catch (error) {
@@ -110,20 +119,25 @@ export function useKanbanColumns() {
       });
       return false;
     }
-  };
+  }, [tenantSchema, ensureTenantSchema, toast, fetchColumns]);
 
-  // Carregar colunas apenas uma vez quando o tenant schema estiver disponível
+  const refreshColumns = useCallback(() => {
+    console.log("🔄 useKanbanColumns - Refresh manual das colunas solicitado");
+    fetchColumns();
+  }, [fetchColumns]);
+
   useEffect(() => {
-    if (tenantSchema && !isFetchingRef.current) {
+    if (tenantSchema) {
       console.log("🔄 useKanbanColumns - Tenant schema disponível, carregando colunas...");
       fetchColumns();
     }
-  }, [tenantSchema]); // Remover fetchColumns das dependências para evitar loop
+  }, [tenantSchema]);
 
-  const refreshColumns = useCallback(async () => {
-    console.log("🔄 useKanbanColumns - Refresh manual das colunas solicitado");
-    await fetchColumns();
-  }, [fetchColumns]);
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   return {
     columns,

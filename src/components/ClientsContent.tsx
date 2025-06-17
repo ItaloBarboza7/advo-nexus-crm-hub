@@ -36,54 +36,29 @@ export function ClientsContent() {
     state: [],
     actionType: []
   });
+  const [showOnlyOpportunities, setShowOnlyOpportunities] = useState(false);
+  
   const { toast } = useToast();
   const { actionGroupOptions } = useFilterOptions();
-  const [showOnlyOpportunities, setShowOnlyOpportunities] = useState(false);
   const { tenantSchema, ensureTenantSchema } = useTenantSchema();
 
-  // Usar os hooks que implementam isolamento por tenant
   const { leads, isLoading, refreshData, updateLead } = useLeadsData();
   const { columns: kanbanColumns, refreshColumns, isLoading: kanbanLoading } = useKanbanColumns();
 
-  // Efeito para forçar refresh das colunas quando há mudança no tenant schema
-  useEffect(() => {
-    if (tenantSchema) {
-      console.log("🔄 ClientsContent - Esquema do tenant mudou, forçando refresh das colunas...");
-      // Usar setTimeout para garantir que o refresh aconteça após o schema estar completamente configurado
-      const timer = setTimeout(() => {
-        refreshColumns();
-      }, 100);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [tenantSchema, refreshColumns]);
-
-  // Efeito adicional para refresh periódico das colunas (quando necessário)
-  useEffect(() => {
-    if (!kanbanLoading && kanbanColumns.length === 0 && tenantSchema) {
-      console.log("🔄 ClientsContent - Colunas vazias detectadas, tentando refresh...");
-      refreshColumns();
-    }
-  }, [kanbanLoading, kanbanColumns.length, tenantSchema, refreshColumns]);
-
-  // Extract valid action group names from the options
   const validActionGroupNames = useMemo(() => {
     return actionGroupOptions.map(option => option.value);
   }, [actionGroupOptions]);
 
-  // Função melhorada para abrir o formulário de novo lead
   const handleNewLeadClick = () => {
     console.log("📝 ClientsContent - Abrindo formulário de novo lead");
     setIsNewLeadFormOpen(true);
   };
 
-  // Função melhorada para fechar o formulário
   const handleNewLeadFormClose = (open: boolean) => {
     console.log("❌ ClientsContent - Fechando formulário de novo lead:", open);
     setIsNewLeadFormOpen(open);
   };
 
-  // Função para quando um lead for criado
   const handleLeadCreated = () => {
     console.log("✅ ClientsContent - Lead criado, atualizando lista");
     refreshData();
@@ -160,13 +135,11 @@ export function ClientsContent() {
     }
   };
 
-  // Função para atualizar dados quando colunas são modificadas
-  const handleKanbanDataUpdated = async () => {
+  const handleKanbanDataUpdated = () => {
     console.log("🔄 ClientsContent - Dados do Kanban foram atualizados, refreshing dados...");
     refreshData();
   };
 
-  // Aplicar filtros e busca
   const filteredLeads = leads.filter(lead => {
     const matchesSearch = searchTerm === "" || 
       lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -193,7 +166,6 @@ export function ClientsContent() {
     return matchesSearch && matchesStatus && matchesSource && matchesState && matchesActionType && matchesValueMin && matchesValueMax;
   });
 
-  // Criar status do Kanban baseado nas colunas carregadas
   const kanbanStatuses = useMemo(() => {
     console.log("🔧 ClientsContent - Criando kanbanStatuses com colunas:", kanbanColumns.map(c => c.name));
     return kanbanColumns.map(column => ({

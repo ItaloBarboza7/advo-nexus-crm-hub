@@ -1,18 +1,18 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface ActionGroup {
   id: string;
   name: string;
   description: string;
-  user_id?: string | null; // Added field
+  user_id?: string | null;
 }
 
 interface ActionType {
   id: string;
   name: string;
   action_group_id: string | null;
-  user_id?: string | null; // Added field
+  user_id?: string | null;
 }
 
 interface LeadSource {
@@ -27,55 +27,64 @@ export const useFilterOptions = () => {
   const [actionTypes, setActionTypes] = useState<ActionType[]>([]);
   const [leadSources, setLeadSources] = useState<LeadSource[]>([]);
   const [loading, setLoading] = useState(true);
+  const fetchingRef = useRef(false);
+  const mountedRef = useRef(true);
 
   const fetchAllData = useCallback(async () => {
+    if (fetchingRef.current) return;
+    
     try {
+      fetchingRef.current = true;
       setLoading(true);
 
-      // Buscar grupos de ação via função de visibilidade
-      const { data: groupsData, error: groupsError } = await supabase
-        .rpc('get_visible_action_groups')
-        .order('name');
+      const [groupsResult, typesResult, sourcesResult] = await Promise.all([
+        supabase.rpc('get_visible_action_groups').order('name'),
+        supabase.rpc('get_visible_action_types').order('name'),
+        supabase.rpc('get_visible_lead_sources').order('label', { ascending: true })
+      ]);
 
-      if (groupsError) {
-        console.error('[useFilterOptions] Erro ao buscar grupos de ação:', groupsError);
-      } else {
-        setActionGroups(groupsData || []);
-      }
+      if (mountedRef.current) {
+        if (groupsResult.error) {
+          console.error('[useFilterOptions] Erro ao buscar grupos de ação:', groupsResult.error);
+        } else {
+          setActionGroups(groupsResult.data || []);
+        }
 
-      // Buscar tipos de ação via função de visibilidade
-      const { data: typesData, error: typesError } = await supabase
-        .rpc('get_visible_action_types')
-        .order('name');
+        if (typesResult.error) {
+          console.error('[useFilterOptions] Erro ao buscar tipos de ação:', typesResult.error);
+        } else {
+          setActionTypes(typesResult.data || []);
+        }
 
-      if (typesError) {
-        console.error('[useFilterOptions] Erro ao buscar tipos de ação:', typesError);
-      } else {
-        setActionTypes(typesData || []);
-      }
-
-      // Buscar fontes de leads usando função get_visible_lead_sources
-      const { data: sourcesData, error: sourcesError } = await supabase
-        .rpc('get_visible_lead_sources')
-        .order('label', { ascending: true });
-
-      if (sourcesError) {
-        console.error('[useFilterOptions] Erro ao buscar fontes de leads:', sourcesError);
-      } else {
-        setLeadSources(sourcesData || []);
+        if (sourcesResult.error) {
+          console.error('[useFilterOptions] Erro ao buscar fontes de leads:', sourcesResult.error);
+        } else {
+          setLeadSources(sourcesResult.data || []);
+        }
       }
     } catch (error) {
       console.error('[useFilterOptions] Erro inesperado ao buscar dados:', error);
     } finally {
-      setLoading(false);
+      if (mountedRef.current) {
+        setLoading(false);
+      }
+      fetchingRef.current = false;
     }
   }, []);
 
-  useEffect(() => {
+  const refreshData = useCallback(() => {
     fetchAllData();
   }, [fetchAllData]);
 
-  const refreshData = () => fetchAllData();
+  useEffect(() => {
+    fetchAllData();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   // Converter para formato compatível com os selects existentes
   const statusOptions = [

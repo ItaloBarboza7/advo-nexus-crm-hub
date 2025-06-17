@@ -12,36 +12,36 @@ export function useLeadsData() {
   const { toast } = useToast();
   const { lossReasons } = useLossReasonsGlobal();
   const { tenantSchema, ensureTenantSchema } = useTenantSchema();
-  const isFetchingRef = useRef(false);
+  const fetchingRef = useRef(false);
+  const mountedRef = useRef(true);
 
   const fetchLeads = useCallback(async () => {
-    // Evitar chamadas simultâneas
-    if (isFetchingRef.current) return;
+    if (fetchingRef.current || !tenantSchema) return;
     
     try {
-      isFetchingRef.current = true;
+      fetchingRef.current = true;
       setIsLoading(true);
       console.log("📊 useLeadsData - Buscando leads no esquema do tenant...");
       
-      // Garantir que o esquema do tenant existe
-      const schema = tenantSchema || await ensureTenantSchema();
+      const schema = tenantSchema;
       if (!schema) {
         console.error('❌ Não foi possível obter o esquema do tenant');
         return;
       }
 
-      // Buscar leads no esquema do tenant usando SQL customizado
       const { data, error } = await supabase.rpc('exec_sql' as any, {
         sql: `SELECT * FROM ${schema}.leads ORDER BY created_at DESC`
       });
 
       if (error) {
         console.error('❌ Erro ao buscar leads:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível carregar os leads.",
-          variant: "destructive"
-        });
+        if (mountedRef.current) {
+          toast({
+            title: "Erro",
+            description: "Não foi possível carregar os leads.",
+            variant: "destructive"
+          });
+        }
         return;
       }
 
@@ -55,28 +55,32 @@ export function useLeadsData() {
       }));
 
       console.log(`✅ useLeadsData - ${transformedLeads.length} leads carregados do esquema ${schema}`);
-      setLeads(transformedLeads);
+      if (mountedRef.current) {
+        setLeads(transformedLeads);
+      }
     } catch (error: any) {
       console.error('❌ Erro inesperado ao buscar leads:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado ao carregar os leads.",
-        variant: "destructive"
-      });
+      if (mountedRef.current) {
+        toast({
+          title: "Erro",
+          description: "Ocorreu um erro inesperado ao carregar os leads.",
+          variant: "destructive"
+        });
+      }
     } finally {
-      setIsLoading(false);
-      isFetchingRef.current = false;
+      if (mountedRef.current) {
+        setIsLoading(false);
+      }
+      fetchingRef.current = false;
     }
-  }, [tenantSchema, ensureTenantSchema, toast]);
+  }, [tenantSchema, toast]);
 
   const refreshData = useCallback(() => {
     console.log(`🔄 useLeadsData - Atualizando dados dos leads...`);
-    if (!isFetchingRef.current) {
-      fetchLeads();
-    }
+    fetchLeads();
   }, [fetchLeads]);
 
-  const updateLead = async (leadId: string, updates: Partial<Lead>) => {
+  const updateLead = useCallback(async (leadId: string, updates: Partial<Lead>) => {
     try {
       console.log(`📝 useLeadsData - Atualizando lead ${leadId}:`, updates);
       
@@ -86,7 +90,6 @@ export function useLeadsData() {
         return false;
       }
 
-      // Construir a query de update
       const setClause = Object.keys(updates)
         .map(key => `${key} = '${updates[key as keyof Lead]}'`)
         .join(', ');
@@ -105,7 +108,6 @@ export function useLeadsData() {
         return false;
       }
 
-      // Atualizar a lista local
       setLeads(prev => prev.map(lead => 
         lead.id === leadId ? { ...lead, ...updates } : lead
       ));
@@ -125,14 +127,19 @@ export function useLeadsData() {
       });
       return false;
     }
-  };
+  }, [tenantSchema, ensureTenantSchema, toast]);
 
-  // Carregar leads apenas uma vez quando o tenant schema estiver disponível
   useEffect(() => {
-    if (tenantSchema && !isFetchingRef.current) {
+    if (tenantSchema) {
       fetchLeads();
     }
-  }, [tenantSchema]); // Remover fetchLeads das dependências para evitar loop
+  }, [tenantSchema]);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   return {
     leads,
