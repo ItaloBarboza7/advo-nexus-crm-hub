@@ -1,12 +1,13 @@
 
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Lead } from "@/types/lead";
+import { useTenantSchema } from "@/hooks/useTenantSchema";
+import { supabase } from "@/integrations/supabase/client";
 
 export function useLeadStatusUpdate() {
   const [isUpdating, setIsUpdating] = useState(false);
   const { toast } = useToast();
+  const { tenantSchema, ensureTenantSchema } = useTenantSchema();
 
   const updateLeadStatus = async (
     leadId: string, 
@@ -15,29 +16,36 @@ export function useLeadStatusUpdate() {
   ): Promise<boolean> => {
     try {
       setIsUpdating(true);
+      console.log(`🔄 useLeadStatusUpdate - Atualizando status do lead ${leadId} para ${newStatus} no esquema do tenant...`);
+      
+      const schema = tenantSchema || await ensureTenantSchema();
+      if (!schema) {
+        console.error('❌ Não foi possível obter o esquema do tenant');
+        return false;
+      }
       
       // Preparar os dados para atualização
-      const updateData: any = { status: newStatus };
+      let setClause = `status = '${newStatus.replace(/'/g, "''")}', updated_at = now()`;
       
       // Se está mudando para "Perdido", definir o motivo da perda
       if (newStatus === "Perdido" && lossReason) {
-        updateData.loss_reason = lossReason;
+        setClause += `, loss_reason = '${lossReason.replace(/'/g, "''")}'`;
       }
       
       // SEMPRE limpar o motivo da perda quando NÃO está indo para "Perdido"
       if (newStatus !== "Perdido") {
-        updateData.loss_reason = null;
+        setClause += `, loss_reason = NULL`;
       }
 
-      console.log('Atualizando lead com dados:', updateData);
+      const sql = `UPDATE ${schema}.leads SET ${setClause} WHERE id = '${leadId}'`;
+      console.log('🔧 useLeadStatusUpdate - Executando SQL:', sql);
 
-      const { error } = await supabase
-        .from('leads')
-        .update(updateData)
-        .eq('id', leadId);
+      const { error } = await supabase.rpc('exec_sql' as any, {
+        sql: sql
+      });
 
       if (error) {
-        console.error('Erro ao atualizar status do lead:', error);
+        console.error('❌ Erro ao atualizar status do lead:', error);
         toast({
           title: "Erro",
           description: "Não foi possível atualizar o status do lead.",
@@ -53,7 +61,7 @@ export function useLeadStatusUpdate() {
 
       return true;
     } catch (error) {
-      console.error('Erro inesperado ao atualizar status:', error);
+      console.error('❌ Erro inesperado ao atualizar status:', error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado ao atualizar o status.",

@@ -26,11 +26,12 @@ export function useKanbanColumns() {
       const schema = tenantSchema || await ensureTenantSchema();
       if (!schema) {
         console.error('❌ Não foi possível obter o esquema do tenant');
+        setColumns([]);
         return;
       }
 
       const { data, error } = await supabase.rpc('exec_sql' as any, {
-        sql: `SELECT * FROM ${schema}.kanban_columns ORDER BY order_position ASC`
+        sql: `SELECT id, name, color, order_position, is_default FROM ${schema}.kanban_columns ORDER BY order_position ASC`
       });
 
       if (error) {
@@ -40,11 +41,12 @@ export function useKanbanColumns() {
           description: "Não foi possível carregar as colunas do Kanban.",
           variant: "destructive"
         });
+        setColumns([]);
         return;
       }
 
       const columnsData = Array.isArray(data) ? data : [];
-      console.log(`✅ useKanbanColumns - ${columnsData.length} colunas carregadas do esquema ${schema}`);
+      console.log(`✅ useKanbanColumns - ${columnsData.length} colunas carregadas do esquema ${schema}:`, columnsData.map(c => c.name));
       setColumns(columnsData);
     } catch (error) {
       console.error('❌ Erro inesperado ao carregar colunas:', error);
@@ -53,6 +55,7 @@ export function useKanbanColumns() {
         description: "Ocorreu um erro inesperado ao carregar as colunas.",
         variant: "destructive"
       });
+      setColumns([]);
     } finally {
       setIsLoading(false);
     }

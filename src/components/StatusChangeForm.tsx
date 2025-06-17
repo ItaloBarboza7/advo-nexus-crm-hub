@@ -8,22 +8,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useLeadStatusUpdate } from "@/hooks/useLeadStatusUpdate";
 import { useLossReasonsGlobal } from "@/hooks/useLossReasonsGlobal";
+import { useKanbanColumns } from "@/hooks/useKanbanColumns";
 import { Lead } from "@/types/lead";
-
-interface KanbanColumn {
-  id: string;
-  name: string;
-  color: string;
-  order_position: number;
-  is_default: boolean;
-}
 
 interface StatusChangeFormProps {
   lead: Lead | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onStatusChanged: () => void;
-  kanbanColumns: KanbanColumn[];
 }
 
 const COMMON_LOSS_REASONS = [
@@ -37,17 +29,20 @@ const COMMON_LOSS_REASONS = [
   "Timing inadequado"
 ];
 
-export function StatusChangeForm({ lead, open, onOpenChange, onStatusChanged, kanbanColumns }: StatusChangeFormProps) {
+export function StatusChangeForm({ lead, open, onOpenChange, onStatusChanged }: StatusChangeFormProps) {
   const [selectedStatus, setSelectedStatus] = useState("");
   const [lossReason, setLossReason] = useState("");
   const [customLossReason, setCustomLossReason] = useState("");
   const [isFormReady, setIsFormReady] = useState(false);
   const { updateLeadStatus, isUpdating } = useLeadStatusUpdate();
   const { lossReasons: allLossReasons, loading: lossReasonsLoading } = useLossReasonsGlobal();
+  const { columns: kanbanColumns, isLoading: kanbanLoading } = useKanbanColumns();
 
   useEffect(() => {
-    if (lead && open && kanbanColumns.length > 0 && !lossReasonsLoading) {
+    if (lead && open && !kanbanLoading && !lossReasonsLoading) {
       console.log("🔄 StatusChangeForm - Inicializando com lead:", lead.name, "Status:", lead.status);
+      console.log("🔄 StatusChangeForm - Colunas disponíveis:", kanbanColumns.map(c => c.name));
+      
       setSelectedStatus(lead.status);
 
       const lossReasonOptions = allLossReasons.map(r => r.reason);
@@ -78,12 +73,14 @@ export function StatusChangeForm({ lead, open, onOpenChange, onStatusChanged, ka
       setLossReason("");
       setCustomLossReason("");
     }
-  }, [lead, open, kanbanColumns, allLossReasons, lossReasonsLoading]);
+  }, [lead, open, kanbanColumns, allLossReasons, lossReasonsLoading, kanbanLoading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!lead || !selectedStatus) return;
+
+    console.log("💾 StatusChangeForm - Salvando status:", selectedStatus, "para lead:", lead.name);
 
     // Se está mudando para "Perdido" e não há motivo da perda
     if (selectedStatus === "Perdido" && !lossReason) {
@@ -113,7 +110,7 @@ export function StatusChangeForm({ lead, open, onOpenChange, onStatusChanged, ka
   const showLossReasonField = selectedStatus === "Perdido";
 
   // Mostrar loading enquanto o formulário não estiver pronto
-  if (!isFormReady || lossReasonsLoading) {
+  if (!isFormReady || lossReasonsLoading || kanbanLoading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-md">
