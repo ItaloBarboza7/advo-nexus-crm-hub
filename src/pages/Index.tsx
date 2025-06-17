@@ -55,6 +55,8 @@ const Index = () => {
 
   const checkFirstLoginAndCompanyInfo = async (user: User) => {
     try {
+      console.log("🔍 Index - Verificando primeiro login e informações da empresa para:", user.email);
+      
       // Primeiro, garantir que o esquema do tenant existe
       console.log("🏗️ Index - Garantindo esquema do tenant...");
       const tenantSchema = await ensureTenantSchema();
@@ -97,47 +99,70 @@ const Index = () => {
 
       setUserRole(role || null)
 
+      // Se é membro, não mostrar modal de empresa
       if (role === 'member') {
+        console.log("👥 Usuário é membro, não mostrando modal de empresa");
         return
       }
       
-      const isFirstLogin = user.user_metadata?.is_first_login === true
-
-      // Verificar informações da empresa no esquema do tenant
-      console.log("🏢 Index - Verificando informações da empresa no esquema do tenant...");
+      // Verificar se é primeiro login baseado nos metadados do usuário
+      const isFirstLogin = user.user_metadata?.is_first_login === true;
+      const companyInfoCompleted = user.user_metadata?.company_info_completed === true;
       
-      try {
-        const { data: companyInfo, error } = await supabase.rpc('exec_sql' as any, {
-          sql: `SELECT id FROM ${tenantSchema}.company_info LIMIT 1`
-        });
+      console.log("🔎 Verificação de login:", {
+        isFirstLogin,
+        companyInfoCompleted,
+        userEmail: user.email
+      });
 
-        if (error) {
-          console.error('❌ Erro ao verificar informações da empresa:', error)
-          return
-        }
+      // Verificar se já existe informação da empresa na tabela public.company_info
+      const { data: companyInfo, error: companyError } = await supabase
+        .from('company_info')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-        const companyData = Array.isArray(companyInfo) ? companyInfo : [];
-        console.log(`✅ Index - ${companyData.length} empresa(s) encontrada(s) no esquema do tenant`);
+      if (companyError) {
+        console.error('❌ Erro ao verificar informações da empresa:', companyError)
+        return
+      }
 
-        if (isFirstLogin || companyData.length === 0) {
-          setShowCompanyModal(true)
-          
-          if (isFirstLogin) {
-            await supabase.auth.updateUser({
-              data: { 
-                ...user.user_metadata,
-                is_first_login: false 
-              }
-            })
-          }
-        }
-      } catch (error) {
-        console.error('❌ Erro ao verificar empresa no esquema do tenant:', error)
-        // Se houver erro ao verificar a empresa, mostrar modal mesmo assim
+      const hasCompanyInfo = !!companyInfo;
+      console.log("🏢 Informações da empresa:", {
+        hasCompanyInfo,
+        companyInfoId: companyInfo?.id
+      });
+
+      // Mostrar modal se:
+      // 1. É primeiro login OU
+      // 2. Não tem informações da empresa cadastradas OU
+      // 3. Informações da empresa não estão marcadas como completas
+      const shouldShowModal = isFirstLogin || !hasCompanyInfo || !companyInfoCompleted;
+      
+      console.log("📋 Decisão do modal:", {
+        shouldShowModal,
+        motivo: isFirstLogin ? "primeiro login" : 
+                !hasCompanyInfo ? "sem informações da empresa" :
+                !companyInfoCompleted ? "informações não completas" : "nenhum"
+      });
+
+      if (shouldShowModal) {
         setShowCompanyModal(true)
+        
+        // Se é primeiro login, atualizar metadados
+        if (isFirstLogin) {
+          console.log("🔄 Atualizando metadados - removendo flag de primeiro login");
+          await supabase.auth.updateUser({
+            data: { 
+              ...user.user_metadata,
+              is_first_login: false 
+            }
+          })
+        }
       }
     } catch (error) {
       console.error('❌ Erro ao verificar primeiro login e informações da empresa:', error)
+      // Em caso de erro, não mostrar o modal para evitar bloqueio
     }
   }
 

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,6 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFilterOptions } from "@/hooks/useFilterOptions";
-import { useCompanyInfo } from "@/hooks/useCompanyInfo";
 
 interface CompanyInfoModalProps {
   isOpen: boolean;
@@ -27,37 +27,60 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { stateOptions } = useFilterOptions();
-  const { companyInfo, isLoading: loadingCompany, refreshCompanyInfo } = useCompanyInfo();
 
-  // Preencher campos ao abrir o modal usando os dados já salvos no banco (se houver)
+  // Carregar informações existentes ao abrir o modal
   useEffect(() => {
-    if (isOpen && companyInfo) {
-      setCompanyName(companyInfo.company_name || "");
-      setCpfCnpj(companyInfo.cnpj || "");
-      setPhone(companyInfo.phone || "");
-      setEmail(companyInfo.email || "");
-      // Fazer parsing do address registrado, caso exista
-      if (companyInfo.address) {
-        const parsed = parseCompanyAddressFields(companyInfo.address);
-        setCep(parsed.cep ?? "");
-        setAddress(parsed.address ?? "");
-        setNeighborhood(parsed.neighborhood ?? "");
-        setCity(parsed.city ?? "");
-        setState(parsed.state ?? "");
-      } else {
-        setCep("");
-        setAddress("");
-        setNeighborhood("");
-        setCity("");
-        setState("");
-      }
-    } else if (isOpen) {
-      loadUserEmail();
-      // Limpa os campos se não houver companyInfo
-      setCompanyName(""); setCpfCnpj(""); setPhone(""); setCep(""); setAddress(""); setNeighborhood(""); setCity(""); setState("");
+    if (isOpen) {
+      loadExistingCompanyInfo();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, companyInfo]);
+  }, [isOpen]);
+
+  const loadExistingCompanyInfo = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      console.log('🏢 CompanyInfoModal - Carregando informações existentes da empresa');
+
+      // Verificar se já existe informação da empresa na tabela public.company_info
+      const { data: existingCompany, error } = await supabase
+        .from('company_info')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error('❌ Erro ao carregar informações da empresa:', error);
+        return;
+      }
+
+      if (existingCompany) {
+        console.log('✅ Informações da empresa encontradas, preenchendo campos');
+        setCompanyName(existingCompany.company_name || "");
+        setCpfCnpj(existingCompany.cnpj || "");
+        setPhone(existingCompany.phone || "");
+        setEmail(existingCompany.email || user.email || "");
+
+        // Parse do endereço se existir
+        if (existingCompany.address) {
+          const parsed = parseCompanyAddressFields(existingCompany.address);
+          setCep(parsed.cep ?? "");
+          setAddress(parsed.address ?? "");
+          setNeighborhood(parsed.neighborhood ?? "");
+          setCity(parsed.city ?? "");
+          setState(parsed.state ?? "");
+        }
+      } else {
+        // Se não há informações, carregar email do usuário
+        setEmail(user.email || "");
+        console.log('ℹ️ Nenhuma informação de empresa encontrada, campos em branco');
+      }
+    } catch (error) {
+      console.error('❌ Erro ao carregar informações da empresa:', error);
+      // Em caso de erro, pelo menos carregar o email do usuário
+      loadUserEmail();
+    }
+  };
 
   const loadUserEmail = async () => {
     try {
@@ -66,7 +89,7 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
         setEmail(user.email || "");
       }
     } catch (error) {
-      console.error('Erro ao carregar email do usuário:', error);
+      console.error('❌ Erro ao carregar email do usuário:', error);
     }
   };
 
@@ -110,7 +133,6 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
 
     setIsLoading(true);
     try {
-      // Obter o usuário atual
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
@@ -122,9 +144,12 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
         return;
       }
 
+      console.log('💾 CompanyInfoModal - Salvando informações da empresa');
+
       // Concatenar endereço completo
       const fullAddress = `${address}, ${neighborhood}, ${city}, ${state}, CEP: ${cep}`;
 
+      // Salvar na tabela public.company_info
       const { error } = await supabase
         .from('company_info')
         .upsert({
@@ -137,13 +162,27 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
         });
 
       if (error) {
-        console.error('Erro ao salvar informações da empresa:', error);
+        console.error('❌ Erro ao salvar informações da empresa:', error);
         toast({
           title: "Erro",
-          description: "Não foi possível salvar as informações da empresa.",
+          description: `Não foi possível salvar as informações da empresa: ${error.message}`,
           variant: "destructive",
         });
         return;
+      }
+
+      console.log('✅ Informações da empresa salvas com sucesso');
+
+      // Atualizar os metadados do usuário para marcar que não é mais primeiro login
+      const { error: updateError } = await supabase.auth.updateUser({
+        data: { 
+          is_first_login: false,
+          company_info_completed: true
+        }
+      });
+
+      if (updateError) {
+        console.warn('⚠️ Erro ao atualizar metadados do usuário:', updateError);
       }
 
       toast({
@@ -151,14 +190,12 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
         description: "As informações da empresa foram salvas com sucesso.",
       });
 
-      // Marcar no localStorage que as informações da empresa já foram preenchidas
-      localStorage.setItem('companyInfoCompleted', 'true');
       onClose();
     } catch (error) {
-      console.error('Erro ao salvar informações da empresa:', error);
+      console.error('❌ Erro inesperado ao salvar informações da empresa:', error);
       toast({
         title: "Erro",
-        description: "Não foi possível salvar as informações da empresa.",
+        description: "Não foi possível salvar as informações da empresa. Tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -167,20 +204,13 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={() => {}} modal>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">Informações da Empresa</DialogTitle>
         </DialogHeader>
         
         <div className="space-y-4 py-4">
-          <div className="flex justify-between pb-2">
-            <span />
-            <Button onClick={refreshCompanyInfo} variant="outline" size="sm" type="button" disabled={isLoading || loadingCompany}>
-              Recarregar Informações
-            </Button>
-          </div>
-
           <div className="space-y-2">
             <Label htmlFor="companyName">Nome/Razão Social *</Label>
             <Input
@@ -293,9 +323,12 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
             </Select>
           </div>
 
-          <div className="flex justify-end pt-4">
-            <Button onClick={handleSave} disabled={isLoading} className="w-full">
-              {isLoading ? "Salvando..." : "Salvar e continuar"}
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={onClose} disabled={isLoading}>
+              Fechar
+            </Button>
+            <Button onClick={handleSave} disabled={isLoading}>
+              {isLoading ? "Salvando..." : "Salvar"}
             </Button>
           </div>
         </div>
