@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,13 +37,18 @@ export function ClientsContent() {
     actionType: []
   });
   const { toast } = useToast();
-  const { validActionGroupNames } = useActionGroupsAndTypes();
+  const { actionGroupOptions } = useFilterOptions();
   const [showOnlyOpportunities, setShowOnlyOpportunities] = useState(false);
   const { tenantSchema, ensureTenantSchema } = useTenantSchema();
 
   // Usar os hooks que implementam isolamento por tenant
   const { leads, isLoading, refreshData, updateLead } = useLeadsData();
   const { columns: kanbanColumns, refreshColumns } = useKanbanColumns();
+
+  // Extract valid action group names from the options
+  const validActionGroupNames = useMemo(() => {
+    return actionGroupOptions.map(option => option.value);
+  }, [actionGroupOptions]);
 
   // Função melhorada para abrir o formulário de novo lead
   const handleNewLeadClick = () => {

@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,7 @@ import { Lead } from "@/types/lead";
 import { LossReasonDialog } from "@/components/LossReasonDialog";
 import { DeleteLeadDialog } from "@/components/DeleteLeadDialog";
 import { useLeadStatusHistory } from "@/hooks/useLeadStatusHistory";
-import { useActionGroupsAndTypes } from "@/hooks/useActionGroupsAndTypes";
+import { useFilterOptions } from "@/hooks/useFilterOptions";
 import { useTenantSchema } from "@/hooks/useTenantSchema";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -50,8 +49,13 @@ export function KanbanView({ leads, statuses, onLeadUpdated, onViewDetails, orig
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [leadToDelete, setLeadToDelete] = useState<{ id: string; name: string } | null>(null);
   const { hasLeadPassedThroughStatus } = useLeadStatusHistory();
-  const { validActionGroupNames } = useActionGroupsAndTypes();
+  const { actionGroupOptions } = useFilterOptions();
   const { tenantSchema, ensureTenantSchema } = useTenantSchema();
+
+  // Extract valid action group names from the options
+  const validActionGroupNames = useMemo(() => {
+    return actionGroupOptions.map(option => option.value);
+  }, [actionGroupOptions]);
 
   const getLeadsByStatus = (status: string) => {
     return leads.filter(lead => lead.status === status);

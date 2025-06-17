@@ -6,7 +6,7 @@ import { Activity, Users, BarChart3, PieChart as PieChartIcon } from "lucide-rea
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { Lead } from "@/types/lead";
 import { getChartTitle } from "@/components/analysis/ChartTitleProvider";
-import { useActionGroupsAndTypes } from "@/hooks/useActionGroupsAndTypes";
+import { useFilterOptions } from "@/hooks/useFilterOptions";
 
 interface ActionGroupChartProps {
   leads: Lead[];
@@ -20,7 +20,12 @@ const COLORS = [
 
 export function ActionGroupChart({ leads, selectedCategory = "all" }: ActionGroupChartProps) {
   const [viewType, setViewType] = useState<'bar' | 'pie'>('bar');
-  const { validActionGroupNames } = useActionGroupsAndTypes();
+  const { actionGroupOptions } = useFilterOptions();
+  
+  // Extract valid action group names from the options
+  const validActionGroupNames = useMemo(() => {
+    return actionGroupOptions.map(option => option.value);
+  }, [actionGroupOptions]);
 
   // Garante que qualquer lead sem grupo, grupo removido, nulo/vazio, ou inexistente seja "Outros"
   const chartData = useMemo(() => {
@@ -190,7 +195,3 @@ export function ActionGroupChart({ leads, selectedCategory = "all" }: ActionGrou
     </Card>
   );
 }
-
-// IMPORTANTE: Este arquivo está ficando longo (205 linhas). 
-// Considere pedir uma refatoração após as correções para facilitar a manutenção.
-

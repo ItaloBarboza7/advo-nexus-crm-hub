@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
 import { LeadStatusHistory } from "@/types/leadStatusHistory";
 import { useFilterOptions } from "@/hooks/useFilterOptions";
-import { useActionGroupsAndTypes } from "@/hooks/useActionGroupsAndTypes";
 
 interface LeadDetailsDialogProps {
   lead: Lead | null;
@@ -52,7 +51,11 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
   const [customActionTypes, setCustomActionTypes] = useState<string[]>([]);
   const { toast } = useToast();
   const { actionGroupOptions, getActionTypeOptions } = useFilterOptions();
-  const { validActionGroupNames } = useActionGroupsAndTypes();
+
+  // Extract valid action group names from the options
+  const validActionGroupNames = useMemo(() => {
+    return actionGroupOptions.map(option => option.value);
+  }, [actionGroupOptions]);
 
   const fetchStatusHistory = async (leadId: string) => {
     try {

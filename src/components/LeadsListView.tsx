@@ -1,10 +1,10 @@
-
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Phone, Mail, MapPin, Edit, Trash2, Eye, DollarSign } from "lucide-react";
 import { Lead } from "@/types/lead";
-import { useActionGroupsAndTypes } from "@/hooks/useActionGroupsAndTypes";
+import { useFilterOptions } from "@/hooks/useFilterOptions";
+import { useMemo } from "react";
 
 interface LeadsListViewProps {
   leads: Lead[];
@@ -26,7 +26,12 @@ export function LeadsListView({
   formatCurrency
 }: LeadsListViewProps) {
   // Importa todos os grupos de ação visíveis ao usuário
-  const { validActionGroupNames } = useActionGroupsAndTypes();
+  const { actionGroupOptions } = useFilterOptions();
+
+  // Extract valid action group names from the options
+  const validActionGroupNames = useMemo(() => {
+    return actionGroupOptions.map(option => option.value);
+  }, [actionGroupOptions]);
 
   if (leads.length === 0) {
     return (
@@ -185,4 +190,3 @@ export function LeadsListView({
     </Card>
   );
 }
-

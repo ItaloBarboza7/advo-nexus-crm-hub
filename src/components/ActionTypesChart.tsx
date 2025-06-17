@@ -1,3 +1,4 @@
+
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,7 +6,7 @@ import { Activity, Users, BarChart3, PieChart as PieChartIcon } from "lucide-rea
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { Lead } from "@/types/lead";
 import { getChartTitle } from "@/components/analysis/ChartTitleProvider";
-import { useActionGroupsAndTypes } from "@/hooks/useActionGroupsAndTypes";
+import { useFilterOptions } from "@/hooks/useFilterOptions";
 
 interface ActionTypesChartProps {
   leads: Lead[];
@@ -19,7 +20,16 @@ const COLORS = [
 
 export function ActionTypesChart({ leads, selectedCategory = "all" }: ActionTypesChartProps) {
   const [viewType, setViewType] = useState<'bar' | 'pie'>('bar');
-  const { validActionTypeNames, validActionGroupNames } = useActionGroupsAndTypes();
+  const { actionGroupOptions, getAllActionTypeOptions } = useFilterOptions();
+  
+  // Extract valid names from the options
+  const validActionGroupNames = useMemo(() => {
+    return actionGroupOptions.map(option => option.value);
+  }, [actionGroupOptions]);
+
+  const validActionTypeNames = useMemo(() => {
+    return getAllActionTypeOptions().map(option => option.value);
+  }, [getAllActionTypeOptions]);
 
   // Ajusta action_type para "Outros" se vazio/nulo ou inválido
   const chartData = useMemo(() => {
@@ -193,6 +203,3 @@ export function ActionTypesChart({ leads, selectedCategory = "all" }: ActionType
     </Card>
   );
 }
-
-// IMPORTANTE: Este arquivo está ficando longo (205 linhas). 
-// Considere pedir uma refatoração após as correções para facilitar a manutenção.
