@@ -1,47 +1,20 @@
+
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, MapPin, Users, AlertTriangle, Target, BarChart3 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { Lead } from "@/types/lead";
 import { useCompletedRecommendations } from "@/hooks/useCompletedRecommendations";
 import { RecommendationItem } from "@/components/optimization/RecommendationItem";
 import { useToast } from "@/hooks/use-toast";
+import { useLeadsData } from "@/hooks/useLeadsData";
 
 export function OptimizationContent() {
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const { completeRecommendation, isRecommendationCompleted } = useCompletedRecommendations();
   const { toast } = useToast();
-
-  const fetchLeads = async () => {
-    try {
-      setIsLoading(true);
-      const { data, error } = await supabase
-        .from('leads')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Erro ao buscar leads:', error);
-        return;
-      }
-
-      const transformedLeads: Lead[] = (data || []).map(lead => ({
-        ...lead,
-        company: undefined,
-        interest: undefined,
-        lastContact: undefined,
-        avatar: undefined
-      }));
-
-      setLeads(transformedLeads);
-    } catch (error) {
-      console.error('Erro inesperado ao buscar leads:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  
+  // Usar o hook useLeadsData que já implementa isolamento por tenant
+  const { leads, isLoading } = useLeadsData();
 
   const handleCompleteRecommendation = (recommendationId: string, title: string) => {
     completeRecommendation(recommendationId);
@@ -50,10 +23,6 @@ export function OptimizationContent() {
       description: `"${title}" foi marcada como implementada.`,
     });
   };
-
-  useEffect(() => {
-    fetchLeads();
-  }, []);
 
   // Função utilitária para evitar recomendações conflitantes
   function isConflicting(target: string | undefined, usedTargets: Set<string>) {
@@ -69,6 +38,8 @@ export function OptimizationContent() {
     const usedStates = new Set<string>();
     const usedStateActions = new Set<string>();
     const usedLossReasons = new Set<string>();
+
+    console.log(`🔍 OptimizationContent - Gerando recomendações baseadas em ${leads.length} leads do tenant`);
 
     // ---- ESTADO: melhores e piores ----
     const stateStats = leads.reduce((acc, lead) => {
@@ -398,6 +369,7 @@ export function OptimizationContent() {
       }
     }
 
+    console.log(`📈 OptimizationContent - ${recommendations.length} recomendações geradas baseadas nos leads do tenant`);
     return recommendations;
   };
 
@@ -433,7 +405,7 @@ export function OptimizationContent() {
             </Badge>
           </div>
           <p className="text-gray-700 mb-6 text-sm">
-            Recomendações baseadas em análise quantitativa dos dados de performance, conversão e pipeline.
+            Recomendações baseadas em análise quantitativa dos dados de performance, conversão e pipeline da sua conta.
           </p>
           <div className="space-y-4">
             {recommendations.map((rec) => (
