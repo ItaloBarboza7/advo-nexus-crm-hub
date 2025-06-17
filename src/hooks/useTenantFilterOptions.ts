@@ -28,6 +28,7 @@ export const useTenantFilterOptions = () => {
   const [loading, setLoading] = useState(true);
   const { tenantSchema, ensureTenantSchema } = useTenantSchema();
   const isLoadingRef = useRef(false);
+  const hasInitializedRef = useRef(false);
 
   const fetchAllData = useCallback(async () => {
     // Evita múltiplas chamadas simultâneas
@@ -44,6 +45,8 @@ export const useTenantFilterOptions = () => {
       const schema = tenantSchema || await ensureTenantSchema();
       if (!schema) {
         console.error('❌ Não foi possível obter o esquema do tenant');
+        setLoading(false);
+        isLoadingRef.current = false;
         return;
       }
 
@@ -90,17 +93,19 @@ export const useTenantFilterOptions = () => {
     } finally {
       setLoading(false);
       isLoadingRef.current = false;
+      hasInitializedRef.current = true;
     }
   }, [tenantSchema, ensureTenantSchema]);
 
   useEffect(() => {
-    if (tenantSchema && !isLoadingRef.current) {
+    if (tenantSchema && !hasInitializedRef.current && !isLoadingRef.current) {
       fetchAllData();
     }
   }, [tenantSchema, fetchAllData]);
 
   const refreshData = () => {
     if (!isLoadingRef.current) {
+      hasInitializedRef.current = false;
       fetchAllData();
     }
   };
@@ -182,11 +187,13 @@ export const useTenantFilterOptions = () => {
     { value: "Finalizado", label: "Finalizado" }
   ];
 
+  // CORREÇÃO: Usar corretamente os campos name e label das fontes de leads
   const sourceOptions = leadSources.map(source => ({
     value: source.name,
     label: source.label
   }));
 
+  // CORREÇÃO: Usar description se existir, senão usar name para actionGroups
   const actionGroupOptions = actionGroups.map(group => ({
     value: group.name,
     label: group.description || group.name
@@ -252,35 +259,7 @@ export const useTenantFilterOptions = () => {
     actionGroupOptions,
     getActionTypeOptions,
     getAllActionTypeOptions,
-    stateOptions: [
-      { value: "Acre", label: "Acre" },
-      { value: "Alagoas", label: "Alagoas" },
-      { value: "Amapá", label: "Amapá" },
-      { value: "Amazonas", label: "Amazonas" },
-      { value: "Bahia", label: "Bahia" },
-      { value: "Ceará", label: "Ceará" },
-      { value: "Distrito Federal", label: "Distrito Federal" },
-      { value: "Espírito Santo", label: "Espírito Santo" },
-      { value: "Goiás", label: "Goiás" },
-      { value: "Maranhão", label: "Maranhão" },
-      { value: "Mato Grosso", label: "Mato Grosso" },
-      { value: "Mato Grosso do Sul", label: "Mato Grosso do Sul" },
-      { value: "Minas Gerais", label: "Minas Gerais" },
-      { value: "Pará", label: "Pará" },
-      { value: "Paraíba", label: "Paraíba" },
-      { value: "Paraná", label: "Paraná" },
-      { value: "Pernambuco", label: "Pernambuco" },
-      { value: "Piauí", label: "Piauí" },
-      { value: "Rio de Janeiro", label: "Rio de Janeiro" },
-      { value: "Rio Grande do Norte", label: "Rio Grande do Norte" },
-      { value: "Rio Grande do Sul", label: "Rio Grande do Sul" },
-      { value: "Rondônia", label: "Rondônia" },
-      { value: "Roraima", label: "Roraima" },
-      { value: "Santa Catarina", label: "Santa Catarina" },
-      { value: "São Paulo", label: "São Paulo" },
-      { value: "Sergipe", label: "Sergipe" },
-      { value: "Tocantins", label: "Tocantins" }
-    ],
+    stateOptions,
     actionGroups,
     actionTypes,
     leadSources,

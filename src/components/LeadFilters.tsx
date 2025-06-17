@@ -76,7 +76,7 @@ export function LeadFilters({ onFiltersChange, activeFilters }: LeadFiltersProps
     <div className="flex items-center gap-2 flex-wrap">
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
-          <Button variant="outline" className="relative" disabled={loading}>
+          <Button variant="outline" className="relative">
             <Filter className="h-4 w-4 mr-2" />
             {loading ? "Carregando..." : "Filtros"}
             {hasActiveFilters && !loading && (
@@ -94,203 +94,197 @@ export function LeadFilters({ onFiltersChange, activeFilters }: LeadFiltersProps
             </Button>
           </div>
 
-          {loading ? (
-            <div className="text-center py-4">
-              <p className="text-gray-500">Carregando opções...</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <div>
-                <Label className="text-sm font-medium">Status</Label>
-                <Select
-                  value=""
-                  onValueChange={(value) => {
-                    if (!localFilters.status.includes(value)) {
-                      setLocalFilters(prev => ({
-                        ...prev,
-                        status: [...prev.status, value]
-                      }));
-                    }
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione um status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {statusOptions.map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {localFilters.status.map(status => (
-                    <Badge key={status} variant="secondary" className="text-xs">
-                      {status}
-                      <X 
-                        className="h-3 w-3 ml-1 cursor-pointer" 
-                        onClick={() => setLocalFilters(prev => ({
-                          ...prev,
-                          status: prev.status.filter(s => s !== status)
-                        }))}
-                      />
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <Label className="text-sm font-medium">Fonte</Label>
-                <Select
-                  value=""
-                  onValueChange={(value) => {
-                    if (!localFilters.source.includes(value)) {
-                      setLocalFilters(prev => ({
-                        ...prev,
-                        source: [...prev.source, value]
-                      }));
-                    }
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione uma fonte" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sourceOptions.map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {localFilters.source.map(source => (
-                    <Badge key={source} variant="secondary" className="text-xs">
-                      {sourceOptions.find(opt => opt.value === source)?.label || source}
-                      <X 
-                        className="h-3 w-3 ml-1 cursor-pointer" 
-                        onClick={() => setLocalFilters(prev => ({
-                          ...prev,
-                          source: prev.source.filter(s => s !== source)
-                        }))}
-                      />
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <Label className="text-sm font-medium">Estado</Label>
-                <Select
-                  value=""
-                  onValueChange={(value) => {
-                    if (!localFilters.state.includes(value)) {
-                      setLocalFilters(prev => ({
-                        ...prev,
-                        state: [...prev.state, value]
-                      }));
-                    }
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione um estado" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {stateOptions.map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {localFilters.state.map(state => (
-                    <Badge key={state} variant="secondary" className="text-xs">
-                      {state}
-                      <X 
-                        className="h-3 w-3 ml-1 cursor-pointer" 
-                        onClick={() => setLocalFilters(prev => ({
-                          ...prev,
-                          state: prev.state.filter(s => s !== state)
-                        }))}
-                      />
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <Label className="text-sm font-medium">Grupo de Ação</Label>
-                <Select
-                  value=""
-                  onValueChange={(value) => {
-                    if (!localFilters.actionType.includes(value)) {
-                      setLocalFilters(prev => ({
-                        ...prev,
-                        actionType: [...prev.actionType, value]
-                      }));
-                    }
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione um grupo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getAllActionTypeOptions().map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {localFilters.actionType.map(actionType => (
-                    <Badge key={actionType} variant="secondary" className="text-xs">
-                      {getAllActionTypeOptions().find(opt => opt.value === actionType)?.label || actionType}
-                      <X 
-                        className="h-3 w-3 ml-1 cursor-pointer" 
-                        onClick={() => setLocalFilters(prev => ({
-                          ...prev,
-                          actionType: prev.actionType.filter(at => at !== actionType)
-                        }))}
-                      />
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <Label className="text-sm font-medium">Faixa de Valor (R$)</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    type="number"
-                    placeholder="Mín"
-                    value={localFilters.valueRange.min || ""}
-                    onChange={(e) => setLocalFilters(prev => ({
+          <div className="space-y-3">
+            <div>
+              <Label className="text-sm font-medium">Status</Label>
+              <Select
+                value=""
+                onValueChange={(value) => {
+                  if (!localFilters.status.includes(value)) {
+                    setLocalFilters(prev => ({
                       ...prev,
-                      valueRange: { ...prev.valueRange, min: e.target.value ? Number(e.target.value) : null }
-                    }))}
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Máx"
-                    value={localFilters.valueRange.max || ""}
-                    onChange={(e) => setLocalFilters(prev => ({
-                      ...prev,
-                      valueRange: { ...prev.valueRange, max: e.target.value ? Number(e.target.value) : null }
-                    }))}
-                  />
-                </div>
+                      status: [...prev.status, value]
+                    }));
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {statusOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex flex-wrap gap-1 mt-2">
+                {localFilters.status.map(status => (
+                  <Badge key={status} variant="secondary" className="text-xs">
+                    {status}
+                    <X 
+                      className="h-3 w-3 ml-1 cursor-pointer" 
+                      onClick={() => setLocalFilters(prev => ({
+                        ...prev,
+                        status: prev.status.filter(s => s !== status)
+                      }))}
+                    />
+                  </Badge>
+                ))}
               </div>
             </div>
-          )}
 
-          {!loading && (
-            <Button onClick={applyFilters} className="w-full">
-              Aplicar Filtros
-            </Button>
-          )}
+            <div>
+              <Label className="text-sm font-medium">Fonte</Label>
+              <Select
+                value=""
+                onValueChange={(value) => {
+                  if (!localFilters.source.includes(value)) {
+                    setLocalFilters(prev => ({
+                      ...prev,
+                      source: [...prev.source, value]
+                    }));
+                  }
+                }}
+                disabled={loading}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={loading ? "Carregando..." : "Selecione uma fonte"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {sourceOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex flex-wrap gap-1 mt-2">
+                {localFilters.source.map(source => (
+                  <Badge key={source} variant="secondary" className="text-xs">
+                    {sourceOptions.find(opt => opt.value === source)?.label || source}
+                    <X 
+                      className="h-3 w-3 ml-1 cursor-pointer" 
+                      onClick={() => setLocalFilters(prev => ({
+                        ...prev,
+                        source: prev.source.filter(s => s !== source)
+                      }))}
+                    />
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-sm font-medium">Estado</Label>
+              <Select
+                value=""
+                onValueChange={(value) => {
+                  if (!localFilters.state.includes(value)) {
+                    setLocalFilters(prev => ({
+                      ...prev,
+                      state: [...prev.state, value]
+                    }));
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  {stateOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex flex-wrap gap-1 mt-2">
+                {localFilters.state.map(state => (
+                  <Badge key={state} variant="secondary" className="text-xs">
+                    {state}
+                    <X 
+                      className="h-3 w-3 ml-1 cursor-pointer" 
+                      onClick={() => setLocalFilters(prev => ({
+                        ...prev,
+                        state: prev.state.filter(s => s !== state)
+                      }))}
+                    />
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-sm font-medium">Tipo de Ação</Label>
+              <Select
+                value=""
+                onValueChange={(value) => {
+                  if (!localFilters.actionType.includes(value)) {
+                    setLocalFilters(prev => ({
+                      ...prev,
+                      actionType: [...prev.actionType, value]
+                    }));
+                  }
+                }}
+                disabled={loading}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={loading ? "Carregando..." : "Selecione um tipo"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {getAllActionTypeOptions().map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex flex-wrap gap-1 mt-2">
+                {localFilters.actionType.map(actionType => (
+                  <Badge key={actionType} variant="secondary" className="text-xs">
+                    {getAllActionTypeOptions().find(opt => opt.value === actionType)?.label || actionType}
+                    <X 
+                      className="h-3 w-3 ml-1 cursor-pointer" 
+                      onClick={() => setLocalFilters(prev => ({
+                        ...prev,
+                        actionType: prev.actionType.filter(at => at !== actionType)
+                      }))}
+                    />
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-sm font-medium">Faixa de Valor (R$)</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="number"
+                  placeholder="Mín"
+                  value={localFilters.valueRange.min || ""}
+                  onChange={(e) => setLocalFilters(prev => ({
+                    ...prev,
+                    valueRange: { ...prev.valueRange, min: e.target.value ? Number(e.target.value) : null }
+                  }))}
+                />
+                <Input
+                  type="number"
+                  placeholder="Máx"
+                  value={localFilters.valueRange.max || ""}
+                  onChange={(e) => setLocalFilters(prev => ({
+                    ...prev,
+                    valueRange: { ...prev.valueRange, max: e.target.value ? Number(e.target.value) : null }
+                  }))}
+                />
+              </div>
+            </div>
+          </div>
+
+          <Button onClick={applyFilters} className="w-full">
+            Aplicar Filtros
+          </Button>
         </PopoverContent>
       </Popover>
 
@@ -327,7 +321,7 @@ export function LeadFilters({ onFiltersChange, activeFilters }: LeadFiltersProps
       
       {activeFilters.actionType.map(actionType => (
         <Badge key={`actionType-${actionType}`} variant="secondary">
-          Grupo: {getAllActionTypeOptions().find(opt => opt.value === actionType)?.label || actionType}
+          Tipo: {getAllActionTypeOptions().find(opt => opt.value === actionType)?.label || actionType}
           <X 
             className="h-3 w-3 ml-1 cursor-pointer" 
             onClick={() => removeFilter('actionType', actionType)}

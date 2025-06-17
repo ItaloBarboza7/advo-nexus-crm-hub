@@ -142,9 +142,16 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
 
   const handleAddCustomActionType = async () => {
     if (newActionType.trim() && formData.actionGroup && !isSubmitting) {
+      // CORREÇÃO: Buscar o ID do action group selecionado
+      const actionGroup = actionGroupOptions.find(ag => ag.value === formData.actionGroup);
+      if (!actionGroup) {
+        console.error('Grupo de ação não encontrado');
+        return;
+      }
+
       const name = newActionType.toLowerCase().replace(/\s+/g, '-');
       
-      const success = await addActionType(name, formData.actionGroup);
+      const success = await addActionType(name, actionGroup.value);
       if (success) {
         setFormData(prev => ({ ...prev, actionType: name }));
         setNewActionType("");
@@ -172,13 +179,27 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
     return getActionTypeOptions(formData.actionGroup);
   };
 
-  // Não renderizar o dialog se ainda não estiver pronto
+  // CORREÇÃO: Mostrar o dialog sempre que estiver pronto, mesmo se ainda carregando dados
   if (!isReady) {
-    return null;
+    return (
+      <Dialog open={open} onOpenChange={(newOpen) => !isSubmitting && onOpenChange(newOpen)}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Novo Lead</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center justify-center p-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Carregando opções...</p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
   }
 
   return (
-    <Dialog open={open && isReady} onOpenChange={(newOpen) => !isSubmitting && onOpenChange(newOpen)}>
+    <Dialog open={open} onOpenChange={(newOpen) => !isSubmitting && onOpenChange(newOpen)}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Novo Lead</DialogTitle>
@@ -242,10 +263,10 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
                 <Select 
                   value={formData.source} 
                   onValueChange={(value) => handleInputChange("source", value)} 
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || loading}
                 >
                   <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Selecione a origem" />
+                    <SelectValue placeholder={loading ? "Carregando..." : "Selecione a origem"} />
                   </SelectTrigger>
                   <SelectContent>
                     {sourceOptions.map((option) => (
@@ -294,10 +315,10 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
                 <Select 
                   value={formData.actionGroup} 
                   onValueChange={(value) => handleInputChange("actionGroup", value)} 
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || loading}
                 >
                   <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Selecione o grupo" />
+                    <SelectValue placeholder={loading ? "Carregando..." : "Selecione o grupo"} />
                   </SelectTrigger>
                   <SelectContent>
                     {actionGroupOptions.map((option) => (

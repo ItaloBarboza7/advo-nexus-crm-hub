@@ -14,15 +14,24 @@ export function useNewLeadFormOptions() {
     addLeadSource
   } = useTenantFilterOptions();
 
-  // Só marca como pronto quando os dados básicos estão carregados e temos pelo menos os dados mínimos
+  // CORREÇÃO: Melhorar a lógica de quando o formulário está pronto
   useEffect(() => {
-    if (!loading && sourceOptions.length > 0 && actionGroupOptions.length > 0) {
+    console.log("🔄 useNewLeadFormOptions - Estado de carregamento:", { 
+      loading, 
+      sourceOptionsLength: sourceOptions.length, 
+      actionGroupOptionsLength: actionGroupOptions.length 
+    });
+
+    if (!loading) {
+      // Considera pronto quando não está mais carregando, independente se há dados ou não
+      // Isso permite que o formulário funcione mesmo se não houver dados iniciais
       setIsReady(true);
-    } else if (!loading && sourceOptions.length === 0 && actionGroupOptions.length === 0) {
-      // Mesmo sem dados, marca como pronto para evitar loading infinito
-      setIsReady(true);
+    } else {
+      setIsReady(false);
     }
   }, [loading, sourceOptions.length, actionGroupOptions.length]);
+
+  console.log("📋 useNewLeadFormOptions - Estado final:", { isReady, loading });
 
   return {
     isReady,
