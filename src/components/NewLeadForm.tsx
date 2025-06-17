@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus } from "lucide-react";
 import { useNewLeadFormOptions } from "@/hooks/useNewLeadFormOptions";
 import { useTenantLeadOperations } from "@/hooks/useTenantLeadOperations";
 
@@ -37,12 +36,6 @@ const initialFormData = {
 
 export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormProps) {
   const [formData, setFormData] = useState({ ...initialFormData });
-  const [showNewActionGroupInput, setShowNewActionGroupInput] = useState(false);
-  const [showNewActionTypeInput, setShowNewActionTypeInput] = useState(false);
-  const [showNewSourceInput, setShowNewSourceInput] = useState(false);
-  const [newActionGroup, setNewActionGroup] = useState("");
-  const [newActionType, setNewActionType] = useState("");
-  const [newSource, setNewSource] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { 
@@ -50,10 +43,7 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
     loading,
     sourceOptions, 
     actionGroupOptions, 
-    getActionTypeOptions,
-    addActionGroup,
-    addActionType,
-    addLeadSource
+    getActionTypeOptions
   } = useNewLeadFormOptions();
 
   const { createLead } = useTenantLeadOperations();
@@ -67,12 +57,6 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
   
   const resetForm = () => {
     setFormData({ ...initialFormData });
-    setShowNewActionGroupInput(false);
-    setShowNewActionTypeInput(false);
-    setShowNewSourceInput(false);
-    setNewActionGroup("");
-    setNewActionType("");
-    setNewSource("");
     setIsSubmitting(false);
   };
 
@@ -126,60 +110,11 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
     }
   };
 
-  const handleAddCustomActionGroup = async () => {
-    if (newActionGroup.trim() && !isSubmitting) {
-      const name = newActionGroup.toLowerCase().replace(/\s+/g, '-');
-      const description = newActionGroup.trim();
-      
-      const success = await addActionGroup(name, description);
-      if (success) {
-        setFormData(prev => ({ ...prev, actionGroup: name }));
-        setNewActionGroup("");
-        setShowNewActionGroupInput(false);
-      }
-    }
-  };
-
-  const handleAddCustomActionType = async () => {
-    if (newActionType.trim() && formData.actionGroup && !isSubmitting) {
-      // CORREÇÃO: Buscar o ID do action group selecionado
-      const actionGroup = actionGroupOptions.find(ag => ag.value === formData.actionGroup);
-      if (!actionGroup) {
-        console.error('Grupo de ação não encontrado');
-        return;
-      }
-
-      const name = newActionType.toLowerCase().replace(/\s+/g, '-');
-      
-      const success = await addActionType(name, actionGroup.value);
-      if (success) {
-        setFormData(prev => ({ ...prev, actionType: name }));
-        setNewActionType("");
-        setShowNewActionTypeInput(false);
-      }
-    }
-  };
-
-  const handleAddCustomSource = async () => {
-    if (newSource.trim() && !isSubmitting) {
-      const name = newSource.toLowerCase().replace(/\s+/g, '-');
-      const label = newSource.trim();
-      
-      const success = await addLeadSource(name, label);
-      if (success) {
-        setFormData(prev => ({ ...prev, source: name }));
-        setNewSource("");
-        setShowNewSourceInput(false);
-      }
-    }
-  };
-
   const getAvailableActionTypes = () => {
     if (!formData.actionGroup) return [];
     return getActionTypeOptions(formData.actionGroup);
   };
 
-  // CORREÇÃO: Mostrar o dialog sempre que estiver pronto, mesmo se ainda carregando dados
   if (!isReady) {
     return (
       <Dialog open={open} onOpenChange={(newOpen) => !isSubmitting && onOpenChange(newOpen)}>
@@ -259,34 +194,22 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="source">Origem do Lead</Label>
-              <div className="flex gap-2">
-                <Select 
-                  value={formData.source} 
-                  onValueChange={(value) => handleInputChange("source", value)} 
-                  disabled={isSubmitting || loading}
-                >
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder={loading ? "Carregando..." : "Selecione a origem"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sourceOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowNewSourceInput(true)}
-                  className="px-3"
-                  disabled={isSubmitting}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
+              <Select 
+                value={formData.source} 
+                onValueChange={(value) => handleInputChange("source", value)} 
+                disabled={isSubmitting || loading}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={loading ? "Carregando..." : "Selecione a origem"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {sourceOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
@@ -309,190 +232,46 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
               </Select>
             </div>
 
-            <div className="space-y-2 relative">
+            <div className="space-y-2">
               <Label htmlFor="actionGroup">Grupo de Ação</Label>
-              <div className="flex gap-2">
-                <Select 
-                  value={formData.actionGroup} 
-                  onValueChange={(value) => handleInputChange("actionGroup", value)} 
-                  disabled={isSubmitting || loading}
-                >
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder={loading ? "Carregando..." : "Selecione o grupo"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {actionGroupOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowNewActionGroupInput(true)}
-                  className="px-3"
-                  disabled={isSubmitting}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
+              <Select 
+                value={formData.actionGroup} 
+                onValueChange={(value) => handleInputChange("actionGroup", value)} 
+                disabled={isSubmitting || loading}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={loading ? "Carregando..." : "Selecione o grupo"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {actionGroupOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           {formData.actionGroup && (
             <div className="space-y-2">
               <Label htmlFor="actionType">Tipo de Ação</Label>
-              <div className="flex gap-2">
-                <Select 
-                  value={formData.actionType} 
-                  onValueChange={(value) => handleInputChange("actionType", value)} 
-                  disabled={isSubmitting}
-                >
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Selecione o tipo específico" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getAvailableActionTypes().map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowNewActionTypeInput(true)}
-                  className="px-3"
-                  disabled={isSubmitting}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
-          
-          {showNewSourceInput && (
-            <div className="space-y-2 p-4 border rounded-lg bg-gray-50">
-              <Label htmlFor="newSource">Nova Fonte de Lead</Label>
-              <div className="space-y-3">
-                <Input
-                  id="newSource"
-                  placeholder="Digite a nova fonte..."
-                  value={newSource}
-                  onChange={(e) => setNewSource(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleAddCustomSource()}
-                  className="w-full"
-                  disabled={isSubmitting}
-                />
-                <div className="flex gap-2 justify-end">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setShowNewSourceInput(false);
-                      setNewSource("");
-                    }}
-                    size="sm"
-                    disabled={isSubmitting}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={handleAddCustomSource}
-                    size="sm"
-                    className="bg-blue-600 hover:bg-blue-700"
-                    disabled={isSubmitting}
-                  >
-                    Adicionar
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {showNewActionGroupInput && (
-            <div className="space-y-2 p-4 border rounded-lg bg-gray-50">
-              <Label htmlFor="newActionGroup">Novo Grupo de Ação</Label>
-              <div className="space-y-3">
-                <Input
-                  id="newActionGroup"
-                  placeholder="Digite o novo grupo de ação..."
-                  value={newActionGroup}
-                  onChange={(e) => setNewActionGroup(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleAddCustomActionGroup()}
-                  className="w-full"
-                  disabled={isSubmitting}
-                />
-                <div className="flex gap-2 justify-end">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setShowNewActionGroupInput(false);
-                      setNewActionGroup("");
-                    }}
-                    size="sm"
-                    disabled={isSubmitting}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={handleAddCustomActionGroup}
-                    size="sm"
-                    className="bg-blue-600 hover:bg-blue-700"
-                    disabled={isSubmitting}
-                  >
-                    Adicionar
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {showNewActionTypeInput && (
-            <div className="space-y-2 p-4 border rounded-lg bg-gray-50">
-              <Label htmlFor="newActionType">Novo Tipo de Ação</Label>
-              <div className="space-y-3">
-                <Input
-                  id="newActionType"
-                  placeholder="Digite o novo tipo de ação..."
-                  value={newActionType}
-                  onChange={(e) => setNewActionType(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleAddCustomActionType()}
-                  className="w-full"
-                  disabled={isSubmitting}
-                />
-                <div className="flex gap-2 justify-end">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setShowNewActionTypeInput(false);
-                      setNewActionType("");
-                    }}
-                    size="sm"
-                    disabled={isSubmitting}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={handleAddCustomActionType}
-                    size="sm"
-                    className="bg-blue-600 hover:bg-blue-700"
-                    disabled={isSubmitting}
-                  >
-                    Adicionar
-                  </Button>
-                </div>
-              </div>
+              <Select 
+                value={formData.actionType} 
+                onValueChange={(value) => handleInputChange("actionType", value)} 
+                disabled={isSubmitting}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o tipo específico" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getAvailableActionTypes().map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 

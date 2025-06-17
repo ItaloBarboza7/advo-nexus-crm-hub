@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -7,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Filter, X } from "lucide-react";
-import { useTenantFilterOptions } from "@/hooks/useTenantFilterOptions";
+import { useFilterOptions } from "@/hooks/useFilterOptions";
 
 export interface FilterOptions {
   status: string[];
@@ -31,7 +30,7 @@ export function LeadFilters({ onFiltersChange, activeFilters }: LeadFiltersProps
     stateOptions, 
     getAllActionTypeOptions,
     loading 
-  } = useTenantFilterOptions();
+  } = useFilterOptions();
 
   const applyFilters = () => {
     onFiltersChange(localFilters);

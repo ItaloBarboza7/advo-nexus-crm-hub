@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { useTenantFilterOptions } from "@/hooks/useTenantFilterOptions";
+import { useFilterOptions } from "@/hooks/useFilterOptions";
 
 export function useNewLeadFormOptions() {
   const [isReady, setIsReady] = useState(false);
@@ -9,12 +9,9 @@ export function useNewLeadFormOptions() {
     actionGroupOptions, 
     getActionTypeOptions,
     loading,
-    addActionGroup,
-    addActionType,
-    addLeadSource
-  } = useTenantFilterOptions();
+    refreshData
+  } = useFilterOptions();
 
-  // CORREÇÃO: Melhorar a lógica de quando o formulário está pronto
   useEffect(() => {
     console.log("🔄 useNewLeadFormOptions - Estado de carregamento:", { 
       loading, 
@@ -23,8 +20,6 @@ export function useNewLeadFormOptions() {
     });
 
     if (!loading) {
-      // Considera pronto quando não está mais carregando, independente se há dados ou não
-      // Isso permite que o formulário funcione mesmo se não houver dados iniciais
       setIsReady(true);
     } else {
       setIsReady(false);
@@ -39,8 +34,19 @@ export function useNewLeadFormOptions() {
     sourceOptions,
     actionGroupOptions,
     getActionTypeOptions,
-    addActionGroup,
-    addActionType,
-    addLeadSource
+    addActionGroup: async (name: string, description: string) => {
+      // Esta funcionalidade será removida pois não faz sentido adicionar 
+      // dados nas tabelas públicas diretamente do formulário
+      console.warn("Funcionalidade de adicionar grupos não está mais disponível");
+      return false;
+    },
+    addActionType: async (name: string, actionGroupId: string) => {
+      console.warn("Funcionalidade de adicionar tipos não está mais disponível");
+      return false;
+    },
+    addLeadSource: async (name: string, label: string) => {
+      console.warn("Funcionalidade de adicionar fontes não está mais disponível");
+      return false;
+    }
   };
 }
