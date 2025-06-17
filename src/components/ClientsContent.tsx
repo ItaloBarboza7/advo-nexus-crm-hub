@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -353,7 +352,6 @@ export function ClientsContent() {
         open={isStatusFormOpen}
         onOpenChange={setIsStatusFormOpen}
         onStatusChanged={refreshData}
-        kanbanColumns={kanbanColumns}
       />
 
       <EditLeadForm

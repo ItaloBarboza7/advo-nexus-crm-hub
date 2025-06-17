@@ -12,6 +12,7 @@ import { useFilterOptions } from "@/hooks/useFilterOptions";
 import { useLossReasonsGlobal } from "@/hooks/useLossReasonsGlobal";
 import { useKanbanColumns } from "@/hooks/useKanbanColumns";
 import { useTenantLeadOperations } from "@/hooks/useTenantLeadOperations";
+import { supabase } from "@/integrations/supabase/client";
 
 interface EditLeadFormProps {
   lead: Lead | null;
