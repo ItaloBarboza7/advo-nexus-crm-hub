@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,7 @@ import { LeadsListView } from "@/components/LeadsListView";
 import { DeleteLeadDialog } from "@/components/DeleteLeadDialog";
 import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
-import { useActionGroupsAndTypes } from "@/hooks/useActionGroupsAndTypes";
+import { useFilterOptions } from "@/hooks/useFilterOptions";
 import { useLeadsData } from "@/hooks/useLeadsData";
 import { useKanbanColumns } from "@/hooks/useKanbanColumns";
 import { useTenantSchema } from "@/hooks/useTenantSchema";
