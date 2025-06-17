@@ -61,6 +61,50 @@ export function useKanbanColumns() {
     }
   };
 
+  const deleteColumn = async (columnId: string): Promise<boolean> => {
+    try {
+      console.log(`🗑️ useKanbanColumns - Deletando coluna ${columnId} do esquema do tenant...`);
+      
+      const schema = tenantSchema || await ensureTenantSchema();
+      if (!schema) {
+        console.error('❌ Não foi possível obter o esquema do tenant');
+        return false;
+      }
+
+      const { error } = await supabase.rpc('exec_sql' as any, {
+        sql: `DELETE FROM ${schema}.kanban_columns WHERE id = '${columnId}'`
+      });
+
+      if (error) {
+        console.error('❌ Erro ao excluir coluna:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível excluir a coluna do Kanban.",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      console.log('✅ useKanbanColumns - Coluna deletada com sucesso');
+      toast({
+        title: "Sucesso",
+        description: "Coluna do Kanban excluída com sucesso.",
+      });
+
+      // Atualizar a lista de colunas após deletar
+      await fetchColumns();
+      return true;
+    } catch (error) {
+      console.error('❌ Erro inesperado ao excluir coluna:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado ao excluir a coluna.",
+        variant: "destructive"
+      });
+      return false;
+    }
+  };
+
   useEffect(() => {
     if (tenantSchema) {
       fetchColumns();
@@ -74,6 +118,7 @@ export function useKanbanColumns() {
   return {
     columns,
     isLoading,
-    refreshColumns
+    refreshColumns,
+    deleteColumn
   };
 }

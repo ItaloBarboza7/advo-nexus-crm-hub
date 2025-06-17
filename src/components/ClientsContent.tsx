@@ -45,6 +45,14 @@ export function ClientsContent() {
   const { leads, isLoading, refreshData, updateLead } = useLeadsData();
   const { columns: kanbanColumns, refreshColumns } = useKanbanColumns();
 
+  // Efeito para escutar mudanças no esquema do tenant e atualizar as colunas
+  useEffect(() => {
+    if (tenantSchema) {
+      console.log("🔄 ClientsContent - Esquema do tenant mudou, atualizando colunas...");
+      refreshColumns();
+    }
+  }, [tenantSchema, refreshColumns]);
+
   // Extract valid action group names from the options
   const validActionGroupNames = useMemo(() => {
     return actionGroupOptions.map(option => option.value);
@@ -137,6 +145,13 @@ export function ClientsContent() {
       deleteLead(leadToDelete.id);
       setLeadToDelete(null);
     }
+  };
+
+  // Função para atualizar dados quando colunas são modificadas
+  const handleKanbanDataUpdated = () => {
+    console.log("🔄 ClientsContent - Dados do Kanban foram atualizados, refreshing...");
+    refreshColumns();
+    refreshData();
   };
 
   // Aplicar filtros e busca
@@ -303,7 +318,7 @@ export function ClientsContent() {
         <KanbanView 
           leads={transformedLeads} 
           statuses={filteredKanbanStatuses} 
-          onLeadUpdated={refreshData}
+          onLeadUpdated={handleKanbanDataUpdated}
           onViewDetails={handleViewDetails}
           originalLeads={filteredLeads}
         />
@@ -351,14 +366,14 @@ export function ClientsContent() {
         lead={selectedLead}
         open={isStatusFormOpen}
         onOpenChange={setIsStatusFormOpen}
-        onStatusChanged={refreshData}
+        onStatusChanged={handleKanbanDataUpdated}
       />
 
       <EditLeadForm
         lead={selectedLead}
         open={isEditFormOpen}
         onOpenChange={setIsEditFormOpen}
-        onLeadUpdated={refreshData}
+        onLeadUpdated={handleKanbanDataUpdated}
       />
 
       <DeleteLeadDialog
