@@ -21,6 +21,7 @@ import { useFilterOptions } from "@/hooks/useFilterOptions";
 import { useDashboardSettings } from "@/hooks/useDashboardSettings";
 import { useCompanyInfo } from "@/hooks/useCompanyInfo";
 import { useLossReasonsGlobal } from "@/hooks/useLossReasonsGlobal";
+import { useTenantSchema } from "@/hooks/useTenantSchema";
 import { SubscriptionAndPaymentPanel } from "@/components/SubscriptionAndPaymentPanel";
 
 interface KanbanColumn {
@@ -56,7 +57,7 @@ export function SettingsContent() {
   // Simulating admin check - in real implementation this would come from auth context
   const isAdmin = true; // This should be replaced with actual admin check logic
 
-  // Estados para gerenciar colunas do Kanban
+  // Estados para gerenciar colunas do Kanban do tenant
   const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([]);
   const [isLoadingColumns, setIsLoadingColumns] = useState(true);
 
@@ -68,6 +69,9 @@ export function SettingsContent() {
 
   // Hook para informações da empresa
   const { companyInfo, isLoading: isLoadingCompany, updateCompanyInfo } = useCompanyInfo();
+
+  // Hook para esquema do tenant
+  const { tenantSchema, ensureTenantSchema } = useTenantSchema();
 
   // Usar o hook para obter os dados sincronizados
   const { 
@@ -124,17 +128,25 @@ export function SettingsContent() {
     }
   };
 
-  // Carregar colunas do banco de dados
+  // Carregar colunas do esquema do tenant
   const fetchKanbanColumns = async () => {
     try {
       setIsLoadingColumns(true);
-      const { data, error } = await supabase
-        .from('kanban_columns')
-        .select('*')
-        .order('order_position', { ascending: true });
+      console.log("🏗️ SettingsContent - Carregando colunas SOMENTE do esquema do tenant...");
+      
+      const schema = tenantSchema || await ensureTenantSchema();
+      if (!schema) {
+        console.error('❌ Não foi possível obter o esquema do tenant');
+        return;
+      }
+
+      // SEMPRE usar o esquema do tenant - nunca a tabela global
+      const { data, error } = await supabase.rpc('exec_sql' as any, {
+        sql: `SELECT id, name, color, order_position, is_default FROM ${schema}.kanban_columns ORDER BY order_position ASC`
+      });
 
       if (error) {
-        console.error('Erro ao carregar colunas do Kanban:', error);
+        console.error('❌ Erro ao carregar colunas do tenant:', error);
         toast({
           title: "Erro",
           description: "Não foi possível carregar as colunas do Kanban.",
@@ -142,13 +154,12 @@ export function SettingsContent() {
         });
         return;
       }
-      setKanbanColumns(data || []);
-      console.log(
-        '[fetchKanbanColumns] Carregadas do banco:',
-        (data || []).map(c => ({ id: c.id, name: c.name, order: c.order_position }))
-      );
+
+      const columnsData = Array.isArray(data) ? data : [];
+      console.log(`✅ SettingsContent - ${columnsData.length} colunas carregadas EXCLUSIVAMENTE do esquema ${schema}`);
+      setKanbanColumns(columnsData);
     } catch (error) {
-      console.error('Erro inesperado ao carregar colunas:', error);
+      console.error('❌ Erro inesperado ao carregar colunas do tenant:', error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado ao carregar as colunas.",
@@ -159,15 +170,21 @@ export function SettingsContent() {
     }
   };
 
-  // Função robusta para normalizar a ordem das colunas do Kanban (corrigida)
+  // Função robusta para normalizar a ordem das colunas do Kanban (corrigida para usar tenant schema)
   const normalizeKanbanOrder = async () => {
     setIsLoadingColumns(true);
     try {
-      // Busca atualizado do banco para garantir a situação real
-      const { data, error } = await supabase
-        .from('kanban_columns')
-        .select('*')
-        .order('order_position', { ascending: true });
+      const schema = tenantSchema || await ensureTenantSchema();
+      if (!schema) {
+        console.error('❌ Não foi possível obter o esquema do tenant');
+        setIsLoadingColumns(false);
+        return;
+      }
+
+      // Busca atualizado do esquema do tenant para garantir a situação real
+      const { data, error } = await supabase.rpc('exec_sql' as any, {
+        sql: `SELECT id, name, color, order_position, is_default FROM ${schema}.kanban_columns ORDER BY order_position ASC`
+      });
 
       if (error || !data) {
         console.error('Erro ao buscar colunas para normalizar ordem:', error);
@@ -175,48 +192,35 @@ export function SettingsContent() {
         return;
       }
 
-      // Ordenação garantida só com colunas existentes
-      for (let idx = 0; idx < data.length; idx++) {
-        const col = data[idx];
+      const columnsData = Array.isArray(data) ? data : [];
+
+      // Ordenação garantida só com colunas existentes do tenant
+      for (let idx = 0; idx < columnsData.length; idx++) {
+        const col = columnsData[idx];
         const newOrder = idx + 1;
         if (col.order_position !== newOrder) {
           console.log(`[NORMALIZAR] Atualizando coluna "${col.name}" [id: ${col.id}] de ${col.order_position} para ${newOrder}`);
-          await supabase
-            .from('kanban_columns')
-            .update({ order_position: newOrder })
-            .eq('id', col.id);
+          await supabase.rpc('exec_sql' as any, {
+            sql: `UPDATE ${schema}.kanban_columns SET order_position = ${newOrder} WHERE id = '${col.id}'`
+          });
         }
       }
 
-      // Após atualizar tudo, pega do banco novamente para garantir o estado certo na UI
-      const { data: updated, error: fetchError } = await supabase
-        .from('kanban_columns')
-        .select('*')
-        .order('order_position', { ascending: true });
-
-      if (fetchError || !updated) {
-        console.error('Erro ao buscar colunas após normalização:', fetchError);
-        setIsLoadingColumns(false);
-        return;
-      }
-
-      setKanbanColumns(updated);
-      console.log('[NORMALIZAR] NOVA ordem final:', updated.map(c => ({
-        id: c.id,
-        name: c.name,
-        order_position: c.order_position,
-      })));
-      console.log('🔄 Finalizou normalização das colunas do Kanban');
+      // Após atualizar tudo, pega do esquema do tenant novamente para garantir o estado certo na UI
+      await fetchKanbanColumns();
+      console.log('🔄 Finalizou normalização das colunas do Kanban do tenant');
     } catch (error) {
-      console.error('Erro ao normalizar ordem das colunas:', error);
+      console.error('Erro ao normalizar ordem das colunas do tenant:', error);
     } finally {
       setIsLoadingColumns(false);
     }
   };
 
   useEffect(() => {
-    fetchKanbanColumns();
-  }, []);
+    if (tenantSchema) {
+      fetchKanbanColumns();
+    }
+  }, [tenantSchema]);
 
   // Atualizar dados quando o componente for montado ou a aba de configurações for ativada
   useEffect(() => {
@@ -332,13 +336,26 @@ export function SettingsContent() {
     }
 
     try {
-      const { error } = await supabase
-        .from('kanban_columns')
-        .update({ name: editingColumnName.trim() })
-        .eq('id', columnId);
+      console.log(`💾 SettingsContent - Atualizando nome da coluna ${columnId} SOMENTE no esquema do tenant...`);
+      
+      const schema = tenantSchema || await ensureTenantSchema();
+      if (!schema) {
+        console.error('❌ Não foi possível obter o esquema do tenant');
+        toast({
+          title: "Erro",
+          description: "Não foi possível obter o esquema do tenant.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // SEMPRE usar o esquema do tenant - nunca a tabela global
+      const { error } = await supabase.rpc('exec_sql' as any, {
+        sql: `UPDATE ${schema}.kanban_columns SET name = '${editingColumnName.trim()}' WHERE id = '${columnId}'`
+      });
 
       if (error) {
-        console.error('Erro ao atualizar coluna:', error);
+        console.error('❌ Erro ao atualizar coluna do tenant:', error);
         toast({
           title: "Erro",
           description: "Não foi possível atualizar o nome da coluna.",
@@ -355,12 +372,13 @@ export function SettingsContent() {
       setEditingColumn(null);
       setEditingColumnName("");
 
+      console.log('✅ SettingsContent - Nome da coluna atualizado com sucesso no esquema do tenant');
       toast({
         title: "Sucesso",
         description: "Nome da coluna atualizado com sucesso.",
       });
     } catch (error) {
-      console.error('Erro inesperado ao atualizar coluna:', error);
+      console.error('❌ Erro inesperado ao atualizar coluna do tenant:', error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado ao atualizar a coluna.",
@@ -374,17 +392,31 @@ export function SettingsContent() {
     setEditingColumnName("");
   };
 
-  // Updated handleAddColumn: robust slot logic, force refresh after insert
+  // Updated handleAddColumn: usando esquema do tenant
   const handleAddColumn = async (columnData: { name: string; color: string; order: number }) => {
     try {
       setIsLoadingColumns(true);
-      // Fetch latest columns for accurate placement!
-      const { data: fresh, error: fetchErr } = await supabase
-        .from('kanban_columns')
-        .select('*')
-        .order('order_position', { ascending: true });
+      console.log("💾 SettingsContent - Criando nova coluna SOMENTE no esquema do tenant...");
+      
+      const schema = tenantSchema || await ensureTenantSchema();
+      if (!schema) {
+        console.error('❌ Não foi possível obter o esquema do tenant');
+        toast({
+          title: "Erro",
+          description: "Não foi possível obter o esquema do tenant.",
+          variant: "destructive"
+        });
+        setIsLoadingColumns(false);
+        return;
+      }
+
+      // Fetch latest columns for accurate placement from tenant schema
+      const { data: fresh, error: fetchErr } = await supabase.rpc('exec_sql' as any, {
+        sql: `SELECT id, name, color, order_position, is_default FROM ${schema}.kanban_columns ORDER BY order_position ASC`
+      });
+      
       if (fetchErr) {
-        console.error('Erro ao buscar colunas para adicionar nova:', fetchErr);
+        console.error('❌ Erro ao buscar colunas do tenant para adicionar nova:', fetchErr);
         toast({
           title: "Erro",
           description: "Não foi possível acessar as colunas existentes.",
@@ -393,15 +425,15 @@ export function SettingsContent() {
         setIsLoadingColumns(false);
         return;
       }
-      const currCols = fresh || [];
+      
+      const currCols = Array.isArray(fresh) ? fresh : [];
 
       // Normalize order (just in case)
       for (let idx = 0; idx < currCols.length; idx++) {
         if (currCols[idx].order_position !== idx + 1) {
-          await supabase
-            .from('kanban_columns')
-            .update({ order_position: idx + 1 })
-            .eq('id', currCols[idx].id);
+          await supabase.rpc('exec_sql' as any, {
+            sql: `UPDATE ${schema}.kanban_columns SET order_position = ${idx + 1} WHERE id = '${currCols[idx].id}'`
+          });
         }
       }
 
@@ -411,13 +443,12 @@ export function SettingsContent() {
       if (columnsToUpdate.length > 0) {
         // Update each column individually to increment their order position
         for (const column of columnsToUpdate) {
-          const { error: updateError } = await supabase
-            .from('kanban_columns')
-            .update({ order_position: column.order_position + 1 })
-            .eq('id', column.id);
+          const { error: updateError } = await supabase.rpc('exec_sql' as any, {
+            sql: `UPDATE ${schema}.kanban_columns SET order_position = ${column.order_position + 1} WHERE id = '${column.id}'`
+          });
 
           if (updateError) {
-            console.error('Erro ao reordenar coluna:', updateError);
+            console.error('❌ Erro ao reordenar coluna do tenant:', updateError);
             toast({
               title: "Erro",
               description: "Não foi possível reordenar as colunas existentes.",
@@ -429,18 +460,13 @@ export function SettingsContent() {
         }
       }
 
-      // Inserir nova coluna no slot correto (order_position)
-      const { error: insertError } = await supabase
-        .from('kanban_columns')
-        .insert({
-          name: columnData.name,
-          color: columnData.color,
-          order_position: columnData.order,
-          is_default: false
-        });
+      // Inserir nova coluna no slot correto (order_position) no esquema do tenant
+      const { error: insertError } = await supabase.rpc('exec_sql' as any, {
+        sql: `INSERT INTO ${schema}.kanban_columns (name, color, order_position, is_default) VALUES ('${columnData.name}', '${columnData.color}', ${columnData.order}, false)`
+      });
 
       if (insertError) {
-        console.error('Erro ao criar coluna:', insertError);
+        console.error('❌ Erro ao criar coluna no tenant:', insertError);
         toast({
           title: "Erro",
           description: "Não foi possível criar a nova coluna.",
@@ -450,14 +476,15 @@ export function SettingsContent() {
         return;
       }
 
-      // Refresh from DB to establish reality (no ghosts!)
+      // Refresh from tenant schema to establish reality (no ghosts!)
       await fetchKanbanColumns();
+      console.log('✅ SettingsContent - Nova coluna criada com sucesso no esquema do tenant');
       toast({
         title: "Sucesso",
         description: "Nova coluna criada com sucesso.",
       });
     } catch (error) {
-      console.error('Erro inesperado ao criar coluna:', error);
+      console.error('❌ Erro inesperado ao criar coluna no tenant:', error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado ao criar a coluna.",
@@ -470,14 +497,26 @@ export function SettingsContent() {
 
   const handleDeleteColumn = async (columnId: string) => {
     try {
-      // Deleta a coluna no banco
-      const { error } = await supabase
-        .from('kanban_columns')
-        .delete()
-        .eq('id', columnId);
+      console.log(`🗑️ SettingsContent - Deletando coluna ${columnId} SOMENTE do esquema do tenant...`);
+      
+      const schema = tenantSchema || await ensureTenantSchema();
+      if (!schema) {
+        console.error('❌ Não foi possível obter o esquema do tenant');
+        toast({
+          title: "Erro",
+          description: "Não foi possível obter o esquema do tenant.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Deleta a coluna no esquema do tenant
+      const { error } = await supabase.rpc('exec_sql' as any, {
+        sql: `DELETE FROM ${schema}.kanban_columns WHERE id = '${columnId}'`
+      });
 
       if (error) {
-        console.error('Erro ao excluir coluna:', error);
+        console.error('❌ Erro ao excluir coluna do tenant:', error);
         toast({
           title: "Erro",
           description: "Não foi possível excluir a coluna.",
@@ -486,15 +525,16 @@ export function SettingsContent() {
         return;
       }
 
-      // Após exclusão, normaliza toda ordem no banco e recarrega estado
+      // Após exclusão, normaliza toda ordem no esquema do tenant e recarrega estado
       await normalizeKanbanOrder();
 
+      console.log('✅ SettingsContent - Coluna excluída com sucesso do esquema do tenant');
       toast({
         title: "Sucesso",
         description: "Coluna excluída e ordem atualizada.",
       });
     } catch (error) {
-      console.error('Erro inesperado ao excluir coluna:', error);
+      console.error('❌ Erro inesperado ao excluir coluna do tenant:', error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado ao excluir a coluna.",
@@ -779,7 +819,7 @@ export function SettingsContent() {
   const renderKanbanTab = () => (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">Colunas do Kanban</h3>
+        <h3 className="text-lg font-semibold text-gray-900">Colunas do Kanban (Privadas do Tenant)</h3>
         <Button 
           className="bg-blue-600 hover:bg-blue-700"
           onClick={() => setIsAddColumnDialogOpen(true)}
@@ -791,7 +831,7 @@ export function SettingsContent() {
       
       {isLoadingColumns ? (
         <Card className="p-6 text-center">
-          <p className="text-gray-500">Carregando colunas...</p>
+          <p className="text-gray-500">Carregando colunas do tenant...</p>
         </Card>
       ) : (
         <div className="space-y-4">
