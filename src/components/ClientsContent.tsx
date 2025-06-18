@@ -51,6 +51,7 @@ export function ClientsContent() {
   
   // Novo hook para gerenciar adição de colunas
   const {
+    columns,
     isAddColumnDialogOpen,
     maxOrder,
     handleOpenAddColumnDialog,
@@ -413,6 +414,7 @@ export function ClientsContent() {
         onClose={handleCloseAddColumnDialog}
         onAddColumn={handleColumnAdded}
         maxOrder={maxOrder}
+        columns={columns}
       />
     </div>
   );
