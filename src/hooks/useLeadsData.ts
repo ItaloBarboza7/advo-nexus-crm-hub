@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
@@ -14,12 +14,21 @@ export function useLeadsData() {
   const { tenantSchema, ensureTenantSchema } = useTenantSchema();
   const fetchingRef = useRef(false);
   const mountedRef = useRef(true);
+  const lastFetchTimeRef = useRef(0);
+
+  // Debounce mechanism to prevent rapid successive calls
+  const FETCH_DEBOUNCE_MS = 1000;
 
   const fetchLeads = useCallback(async () => {
-    if (fetchingRef.current || !tenantSchema) return;
+    const now = Date.now();
+    if (fetchingRef.current || !tenantSchema || (now - lastFetchTimeRef.current) < FETCH_DEBOUNCE_MS) {
+      console.log("🚫 useLeadsData - Fetch skipped (debounce, no schema, or already fetching)");
+      return;
+    }
     
     try {
       fetchingRef.current = true;
+      lastFetchTimeRef.current = now;
       setIsLoading(true);
       console.log("📊 useLeadsData - Buscando leads no esquema do tenant...");
       
@@ -56,7 +65,13 @@ export function useLeadsData() {
 
       console.log(`✅ useLeadsData - ${transformedLeads.length} leads carregados do esquema ${schema}`);
       if (mountedRef.current) {
-        setLeads(transformedLeads);
+        setLeads(prev => {
+          // Only update if data has actually changed
+          if (JSON.stringify(prev) !== JSON.stringify(transformedLeads)) {
+            return transformedLeads;
+          }
+          return prev;
+        });
       }
     } catch (error: any) {
       console.error('❌ Erro inesperado ao buscar leads:', error);
@@ -75,9 +90,12 @@ export function useLeadsData() {
     }
   }, [tenantSchema, toast]);
 
-  const refreshData = useCallback(() => {
-    console.log(`🔄 useLeadsData - Atualizando dados dos leads...`);
-    fetchLeads();
+  // Memoize refresh function to prevent recreation
+  const refreshData = useMemo(() => {
+    return () => {
+      console.log(`🔄 useLeadsData - Atualizando dados dos leads...`);
+      fetchLeads();
+    };
   }, [fetchLeads]);
 
   const updateLead = useCallback(async (leadId: string, updates: Partial<Lead>) => {
@@ -130,10 +148,10 @@ export function useLeadsData() {
   }, [tenantSchema, ensureTenantSchema, toast]);
 
   useEffect(() => {
-    if (tenantSchema) {
+    if (tenantSchema && !fetchingRef.current) {
       fetchLeads();
     }
-  }, [tenantSchema]);
+  }, [tenantSchema, fetchLeads]);
 
   useEffect(() => {
     return () => {
@@ -141,12 +159,13 @@ export function useLeadsData() {
     };
   }, []);
 
-  return {
+  // Memoize the return object to prevent recreation
+  return useMemo(() => ({
     leads,
     lossReasons,
     isLoading,
     fetchLeads,
     refreshData,
     updateLead
-  };
+  }), [leads, lossReasons, isLoading, fetchLeads, refreshData, updateLead]);
 }

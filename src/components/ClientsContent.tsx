@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,14 +30,16 @@ export function ClientsContent() {
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [leadToDelete, setLeadToDelete] = useState<{ id: string; name: string } | null>(null);
-  const [filters, setFilters] = useState<FilterOptions>({
+  const [showOnlyOpportunities, setShowOnlyOpportunities] = useState(false);
+  
+  // Memoize filters to prevent recreation
+  const [filters, setFilters] = useState<FilterOptions>(() => ({
     status: [],
     source: [],
     valueRange: { min: null, max: null },
     state: [],
     actionType: []
-  });
-  const [showOnlyOpportunities, setShowOnlyOpportunities] = useState(false);
+  }));
   
   const { toast } = useToast();
   const { actionGroupOptions } = useFilterOptions();
@@ -46,26 +48,28 @@ export function ClientsContent() {
   const { leads, isLoading, refreshData, updateLead } = useLeadsData();
   const { columns: kanbanColumns, refreshColumns, isLoading: kanbanLoading } = useKanbanColumns();
 
+  // Memoize validActionGroupNames to prevent recreation
   const validActionGroupNames = useMemo(() => {
     return actionGroupOptions.map(option => option.value);
   }, [actionGroupOptions]);
 
-  const handleNewLeadClick = () => {
+  // Memoize handlers to prevent recreation
+  const handleNewLeadClick = useCallback(() => {
     console.log("📝 ClientsContent - Abrindo formulário de novo lead");
     setIsNewLeadFormOpen(true);
-  };
+  }, []);
 
-  const handleNewLeadFormClose = (open: boolean) => {
+  const handleNewLeadFormClose = useCallback((open: boolean) => {
     console.log("❌ ClientsContent - Fechando formulário de novo lead:", open);
     setIsNewLeadFormOpen(open);
-  };
+  }, []);
 
-  const handleLeadCreated = () => {
+  const handleLeadCreated = useCallback(() => {
     console.log("✅ ClientsContent - Lead criado, atualizando lista");
     refreshData();
-  };
+  }, [refreshData]);
 
-  const deleteLead = async (leadId: string) => {
+  const deleteLead = useCallback(async (leadId: string) => {
     try {
       console.log(`🗑️ ClientsContent - Deletando lead ${leadId} do esquema do tenant...`);
       
@@ -103,70 +107,74 @@ export function ClientsContent() {
         variant: "destructive"
       });
     }
-  };
+  }, [tenantSchema, ensureTenantSchema, toast, refreshData]);
 
-  const handleViewDetails = (lead: Lead) => {
+  const handleViewDetails = useCallback((lead: Lead) => {
     console.log("🔍 ClientsContent - handleViewDetails chamado com lead:", lead.name);
     setSelectedLead(lead);
     setIsDetailsDialogOpen(true);
-  };
+  }, []);
 
-  const handleEditLead = (lead: Lead) => {
+  const handleEditLead = useCallback((lead: Lead) => {
     console.log("✏️ ClientsContent - handleEditLead chamado com lead:", lead.name);
     setSelectedLead(lead);
     setIsEditFormOpen(true);
     setIsDetailsDialogOpen(false);
-  };
+  }, []);
 
-  const handleEditStatus = (lead: Lead) => {
+  const handleEditStatus = useCallback((lead: Lead) => {
     console.log("🔄 ClientsContent - handleEditStatus chamado com lead:", lead.name);
     setSelectedLead(lead);
     setIsStatusFormOpen(true);
-  };
+  }, []);
 
-  const handleDeleteLead = (leadId: string, leadName: string) => {
+  const handleDeleteLead = useCallback((leadId: string, leadName: string) => {
     setLeadToDelete({ id: leadId, name: leadName });
     setIsDeleteDialogOpen(true);
-  };
+  }, []);
 
-  const confirmDeleteLead = () => {
+  const confirmDeleteLead = useCallback(() => {
     if (leadToDelete) {
       deleteLead(leadToDelete.id);
       setLeadToDelete(null);
     }
-  };
+  }, [leadToDelete, deleteLead]);
 
-  const handleKanbanDataUpdated = () => {
+  const handleKanbanDataUpdated = useCallback(() => {
     console.log("🔄 ClientsContent - Dados do Kanban foram atualizados, refreshing dados...");
     refreshData();
-  };
+  }, [refreshData]);
 
-  const filteredLeads = leads.filter(lead => {
-    const matchesSearch = searchTerm === "" || 
-      lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (lead.email && lead.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (lead.phone && lead.phone.includes(searchTerm)) ||
-      (lead.description && lead.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (lead.state && lead.state.toLowerCase().includes(searchTerm.toLowerCase()));
+  // Memoize filtered leads to prevent unnecessary recalculations
+  const filteredLeads = useMemo(() => {
+    return leads.filter(lead => {
+      const matchesSearch = searchTerm === "" || 
+        lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (lead.email && lead.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (lead.phone && lead.phone.includes(searchTerm)) ||
+        (lead.description && lead.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (lead.state && lead.state.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    const matchesStatus = filters.status.length === 0 || filters.status.includes(lead.status);
-    const matchesSource = filters.source.length === 0 || (lead.source && filters.source.includes(lead.source));
-    const matchesState = filters.state.length === 0 || (lead.state && filters.state.includes(lead.state));
+      const matchesStatus = filters.status.length === 0 || filters.status.includes(lead.status);
+      const matchesSource = filters.source.length === 0 || (lead.source && filters.source.includes(lead.source));
+      const matchesState = filters.state.length === 0 || (lead.state && filters.state.includes(lead.state));
 
-    const currentActionGroup = lead.action_group && lead.action_group.trim() !== "" 
-      ? lead.action_group 
-      : "Outros";
-    
-    const actionGroupFinal = validActionGroupNames.includes(currentActionGroup) ? currentActionGroup : "Outros";
-    const matchesActionType = filters.actionType.length === 0 || filters.actionType.includes(actionGroupFinal);
-    
-    const leadValue = lead.value || 0;
-    const matchesValueMin = filters.valueRange.min === null || leadValue >= filters.valueRange.min;
-    const matchesValueMax = filters.valueRange.max === null || leadValue <= filters.valueRange.max;
+      const currentActionGroup = lead.action_group && lead.action_group.trim() !== "" 
+        ? lead.action_group 
+        : "Outros";
+      
+      const actionGroupFinal = validActionGroupNames.includes(currentActionGroup) ? currentActionGroup : "Outros";
+      const matchesActionType = filters.actionType.length === 0 || filters.actionType.includes(actionGroupFinal);
+      
+      const leadValue = lead.value || 0;
+      const matchesValueMin = filters.valueRange.min === null || leadValue >= filters.valueRange.min;
+      const matchesValueMax = filters.valueRange.max === null || leadValue <= filters.valueRange.max;
 
-    return matchesSearch && matchesStatus && matchesSource && matchesState && matchesActionType && matchesValueMin && matchesValueMax;
-  });
+      return matchesSearch && matchesStatus && matchesSource && matchesState && matchesActionType && matchesValueMin && matchesValueMax;
+    });
+  }, [leads, searchTerm, filters, validActionGroupNames]);
 
+  // Memoize kanban statuses to prevent recreation
   const kanbanStatuses = useMemo(() => {
     console.log("🔧 ClientsContent - Criando kanbanStatuses com colunas:", kanbanColumns.map(c => c.name));
     return kanbanColumns.map(column => ({
@@ -176,56 +184,64 @@ export function ClientsContent() {
     }));
   }, [kanbanColumns]);
 
-  const opportunityStatuses = ["Novo", "Proposta", "Reunião"];
-  const filteredKanbanStatuses = showOnlyOpportunities
-    ? kanbanStatuses.filter(status => opportunityStatuses.includes(status.id))
-    : kanbanStatuses;
+  // Memoize opportunity statuses to prevent recreation
+  const opportunityStatuses = useMemo(() => ["Novo", "Proposta", "Reunião"], []);
+  
+  const filteredKanbanStatuses = useMemo(() => {
+    return showOnlyOpportunities
+      ? kanbanStatuses.filter(status => opportunityStatuses.includes(status.id))
+      : kanbanStatuses;
+  }, [kanbanStatuses, showOnlyOpportunities, opportunityStatuses]);
 
-  const getStatusColor = (status: string) => {
+  // Memoize helper functions to prevent recreation
+  const getStatusColor = useCallback((status: string) => {
     const column = kanbanColumns.find(col => col.name === status);
     return column ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800';
-  };
+  }, [kanbanColumns]);
 
-  const getInitials = (name: string) => {
+  const getInitials = useCallback((name: string) => {
     return name
       .split(' ')
       .map(word => word.charAt(0))
       .join('')
       .toUpperCase()
       .slice(0, 2);
-  };
+  }, []);
 
-  const formatDate = (dateString: string) => {
+  const formatDate = useCallback((dateString: string) => {
     return new Date(dateString).toLocaleDateString('pt-BR');
-  };
+  }, []);
 
-  const formatCurrency = (value: number | null) => {
+  const formatCurrency = useCallback((value: number | null) => {
     if (!value) return 'R$ 0,00';
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL'
     }).format(value);
-  };
+  }, []);
 
-  const transformedLeads = filteredLeads.map(lead => {
-    const actionGroupRaw = lead.action_group && lead.action_group.trim() !== "" ? lead.action_group : "Outros";
-    const actionGroup = validActionGroupNames.includes(actionGroupRaw) ? actionGroupRaw : "Outros";
-    return {
-      id: parseInt(lead.id.replace(/-/g, '').slice(0, 8), 16),
-      name: lead.name,
-      email: lead.email || '',
-      phone: lead.phone,
-      company: lead.state || 'Não informado',
-      source: lead.source || 'Não informado',
-      status: lead.status,
-      interest: actionGroup,
-      value: formatCurrency(lead.value),
-      lastContact: formatDate(lead.created_at),
-      avatar: getInitials(lead.name),
-      originalId: lead.id,
-      numericValue: lead.value || 0
-    };
-  });
+  // Memoize transformed leads to prevent unnecessary recalculations
+  const transformedLeads = useMemo(() => {
+    return filteredLeads.map(lead => {
+      const actionGroupRaw = lead.action_group && lead.action_group.trim() !== "" ? lead.action_group : "Outros";
+      const actionGroup = validActionGroupNames.includes(actionGroupRaw) ? actionGroupRaw : "Outros";
+      return {
+        id: parseInt(lead.id.replace(/-/g, '').slice(0, 8), 16),
+        name: lead.name,
+        email: lead.email || '',
+        phone: lead.phone,
+        company: lead.state || 'Não informado',
+        source: lead.source || 'Não informado',
+        status: lead.status,
+        interest: actionGroup,
+        value: formatCurrency(lead.value),
+        lastContact: formatDate(lead.created_at),
+        avatar: getInitials(lead.name),
+        originalId: lead.id,
+        numericValue: lead.value || 0
+      };
+    });
+  }, [filteredLeads, validActionGroupNames, formatCurrency, formatDate, getInitials]);
 
   return (
     <div className="space-y-6">

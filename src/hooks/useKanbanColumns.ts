@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useTenantSchema } from '@/hooks/useTenantSchema';
@@ -19,12 +19,21 @@ export function useKanbanColumns() {
   const { tenantSchema, ensureTenantSchema } = useTenantSchema();
   const fetchingRef = useRef(false);
   const mountedRef = useRef(true);
+  const lastFetchTimeRef = useRef(0);
+
+  // Debounce mechanism to prevent rapid successive calls
+  const FETCH_DEBOUNCE_MS = 1000;
 
   const fetchColumns = useCallback(async () => {
-    if (fetchingRef.current) return;
+    const now = Date.now();
+    if (fetchingRef.current || (now - lastFetchTimeRef.current) < FETCH_DEBOUNCE_MS) {
+      console.log("🚫 useKanbanColumns - Fetch skipped (debounce or already fetching)");
+      return;
+    }
     
     try {
       fetchingRef.current = true;
+      lastFetchTimeRef.current = now;
       setIsLoading(true);
       console.log("🏗️ useKanbanColumns - Carregando colunas do esquema do tenant...");
       
@@ -58,7 +67,13 @@ export function useKanbanColumns() {
       console.log(`✅ useKanbanColumns - ${columnsData.length} colunas carregadas do esquema ${schema}`);
       
       if (mountedRef.current) {
-        setColumns(columnsData);
+        setColumns(prev => {
+          // Only update if data has actually changed
+          if (JSON.stringify(prev) !== JSON.stringify(columnsData)) {
+            return columnsData;
+          }
+          return prev;
+        });
       }
     } catch (error) {
       console.error('❌ Erro inesperado ao carregar colunas:', error);
@@ -121,13 +136,16 @@ export function useKanbanColumns() {
     }
   }, [tenantSchema, ensureTenantSchema, toast, fetchColumns]);
 
-  const refreshColumns = useCallback(() => {
-    console.log("🔄 useKanbanColumns - Refresh manual das colunas solicitado");
-    fetchColumns();
+  // Memoize the refresh function to prevent recreation
+  const refreshColumns = useMemo(() => {
+    return () => {
+      console.log("🔄 useKanbanColumns - Refresh manual das colunas solicitado");
+      fetchColumns();
+    };
   }, [fetchColumns]);
 
   useEffect(() => {
-    if (tenantSchema) {
+    if (tenantSchema && !fetchingRef.current) {
       console.log("🔄 useKanbanColumns - Tenant schema disponível, carregando colunas...");
       fetchColumns();
     }
@@ -139,10 +157,11 @@ export function useKanbanColumns() {
     };
   }, []);
 
-  return {
+  // Memoize the return object to prevent recreation
+  return useMemo(() => ({
     columns,
     isLoading,
     refreshColumns,
     deleteColumn
-  };
+  }), [columns, isLoading, refreshColumns, deleteColumn]);
 }
