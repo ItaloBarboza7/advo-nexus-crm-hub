@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -47,7 +46,7 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddC
   const fetchKanbanColumns = async () => {
     setIsLoadingColumns(true);
     try {
-      console.log("🏗️ AddColumnDialog - Carregando colunas do esquema do tenant...");
+      console.log("🏗️ AddColumnDialog - Carregando colunas SOMENTE do esquema do tenant...");
       
       const schema = tenantSchema || await ensureTenantSchema();
       if (!schema) {
@@ -55,19 +54,21 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddC
         return;
       }
 
+      // SEMPRE usar o esquema do tenant - nunca a tabela global
       const { data, error } = await supabase.rpc('exec_sql' as any, {
         sql: `SELECT id, name, color, order_position, is_default FROM ${schema}.kanban_columns ORDER BY order_position ASC`
       });
 
       if (error) {
-        console.error('Erro ao buscar colunas:', error);
+        console.error('❌ Erro ao buscar colunas do tenant:', error);
         return;
       }
 
       const columnsData = Array.isArray(data) ? data : [];
+      console.log(`✅ AddColumnDialog - ${columnsData.length} colunas carregadas EXCLUSIVAMENTE do esquema ${schema}`);
       setKanbanColumns(columnsData);
     } catch (error) {
-      console.error('Erro inesperado ao buscar colunas:', error);
+      console.error('❌ Erro inesperado ao buscar colunas do tenant:', error);
     } finally {
       setIsLoadingColumns(false);
     }
@@ -79,7 +80,7 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddC
     }
 
     try {
-      console.log("💾 AddColumnDialog - Criando nova coluna no esquema do tenant...");
+      console.log("💾 AddColumnDialog - Criando nova coluna SOMENTE no esquema do tenant...");
       
       const schema = tenantSchema || await ensureTenantSchema();
       if (!schema) {
@@ -94,12 +95,13 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddC
 
       let safeOrder = Math.max(1, Math.min(columnOrder, maxOrder + 1));
 
+      // SEMPRE usar o esquema do tenant - nunca a tabela global
       const { error } = await supabase.rpc('exec_sql' as any, {
         sql: `INSERT INTO ${schema}.kanban_columns (name, color, order_position, is_default) VALUES ('${columnName.trim()}', '${columnColor}', ${safeOrder}, false)`
       });
 
       if (error) {
-        console.error('❌ Erro ao criar coluna:', error);
+        console.error('❌ Erro ao criar coluna no tenant:', error);
         toast({
           title: "Erro",
           description: "Não foi possível criar a coluna.",
@@ -108,7 +110,7 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddC
         return;
       }
 
-      console.log('✅ AddColumnDialog - Coluna criada com sucesso');
+      console.log('✅ AddColumnDialog - Coluna criada com sucesso no esquema do tenant');
       toast({
         title: "Sucesso",
         description: "Coluna criada com sucesso!",
@@ -127,7 +129,7 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddC
         order: safeOrder,
       });
     } catch (error) {
-      console.error('❌ Erro inesperado ao criar coluna:', error);
+      console.error('❌ Erro inesperado ao criar coluna no tenant:', error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado.",
@@ -153,7 +155,7 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddC
     if (!columnToDelete) return;
 
     try {
-      console.log(`🗑️ AddColumnDialog - Deletando coluna ${columnToDelete.id} do esquema do tenant...`);
+      console.log(`🗑️ AddColumnDialog - Deletando coluna ${columnToDelete.id} SOMENTE do esquema do tenant...`);
       
       const schema = tenantSchema || await ensureTenantSchema();
       if (!schema) {
@@ -166,12 +168,13 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddC
         return;
       }
 
+      // SEMPRE usar o esquema do tenant - nunca a tabela global
       const { error } = await supabase.rpc('exec_sql' as any, {
         sql: `DELETE FROM ${schema}.kanban_columns WHERE id = '${columnToDelete.id}'`
       });
 
       if (error) {
-        console.error('Erro ao excluir coluna:', error);
+        console.error('❌ Erro ao excluir coluna do tenant:', error);
         toast({
           title: "Erro",
           description: "Não foi possível excluir a coluna.",
@@ -180,6 +183,7 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddC
         return;
       }
 
+      console.log('✅ AddColumnDialog - Coluna excluída com sucesso do esquema do tenant');
       toast({
         title: "Sucesso",
         description: "Coluna excluída com sucesso. Todos os leads dessa coluna foram movidos para a coluna 'Novo'.",
@@ -187,7 +191,7 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddC
 
       fetchKanbanColumns();
     } catch (error) {
-      console.error('Erro inesperado ao excluir coluna:', error);
+      console.error('❌ Erro inesperado ao excluir coluna do tenant:', error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado.",
@@ -267,7 +271,7 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddC
           </div>
 
           <div className="border-t pt-4">
-            <h4 className="text-sm font-medium mb-3">Colunas Existentes</h4>
+            <h4 className="text-sm font-medium mb-3">Colunas Existentes (Privadas do Tenant)</h4>
             <div className="text-xs mb-2 text-gray-600">
               Ao excluir uma coluna, todos os leads dela serão automaticamente movidos para a coluna <span className="font-semibold text-blue-900 bg-blue-100 rounded px-1 py-0.5">Novo</span>.
             </div>

@@ -1,9 +1,8 @@
-
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, LayoutGrid, List, Users } from "lucide-react";
+import { Plus, Search, LayoutGrid, List, Users, Settings } from "lucide-react";
 import { KanbanView } from "@/components/KanbanView";
 import { NewLeadForm } from "@/components/NewLeadForm";
 import { LeadDetailsDialog } from "@/components/LeadDetailsDialog";
@@ -12,11 +11,13 @@ import { EditLeadForm } from "@/components/EditLeadForm";
 import { LeadFilters, FilterOptions } from "@/components/LeadFilters";
 import { LeadsListView } from "@/components/LeadsListView";
 import { DeleteLeadDialog } from "@/components/DeleteLeadDialog";
+import { AddColumnDialog } from "@/components/AddColumnDialog";
 import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
 import { useFilterOptions } from "@/hooks/useFilterOptions";
 import { useLeadsData } from "@/hooks/useLeadsData";
 import { useKanbanColumns } from "@/hooks/useKanbanColumns";
+import { useKanbanColumnManager } from "@/hooks/useKanbanColumnManager";
 import { useTenantSchema } from "@/hooks/useTenantSchema";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -47,6 +48,15 @@ export function ClientsContent() {
 
   const { leads, isLoading, refreshData, updateLead } = useLeadsData();
   const { columns: kanbanColumns, refreshColumns, isLoading: kanbanLoading } = useKanbanColumns();
+  
+  // Novo hook para gerenciar adição de colunas
+  const {
+    isAddColumnDialogOpen,
+    maxOrder,
+    handleOpenAddColumnDialog,
+    handleCloseAddColumnDialog,
+    handleColumnAdded
+  } = useKanbanColumnManager();
 
   // Memoize validActionGroupNames to prevent recreation
   const validActionGroupNames = useMemo(() => {
@@ -174,9 +184,9 @@ export function ClientsContent() {
     });
   }, [leads, searchTerm, filters, validActionGroupNames]);
 
-  // Memoize kanban statuses to prevent recreation
+  // Memoize kanban statuses to prevent recreation - AGORA USANDO APENAS DADOS DO TENANT
   const kanbanStatuses = useMemo(() => {
-    console.log("🔧 ClientsContent - Criando kanbanStatuses com colunas:", kanbanColumns.map(c => c.name));
+    console.log("🔧 ClientsContent - Criando kanbanStatuses com colunas DO TENANT:", kanbanColumns.map(c => c.name));
     return kanbanColumns.map(column => ({
       id: column.name,
       title: column.name,
@@ -184,7 +194,6 @@ export function ClientsContent() {
     }));
   }, [kanbanColumns]);
 
-  // Memoize opportunity statuses to prevent recreation
   const opportunityStatuses = useMemo(() => ["Novo", "Proposta", "Reunião"], []);
   
   const filteredKanbanStatuses = useMemo(() => {
@@ -249,7 +258,7 @@ export function ClientsContent() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Leads</h1>
           <p className="text-gray-600">
-            Gerencie seus leads e oportunidades de vendas
+            Gerencie seus leads e oportunidades de vendas (dados privados do tenant)
             {filteredLeads.length !== leads.length && (
               <span className="ml-2 text-blue-600 font-medium">
                 ({filteredLeads.length} de {leads.length} leads)
@@ -300,14 +309,25 @@ export function ClientsContent() {
               Kanban
             </Button>
             {viewMode === "kanban" && (
-              <Button
-                variant={showOnlyOpportunities ? "default" : "outline"}
-                size="sm"
-                className={showOnlyOpportunities ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}
-                onClick={() => setShowOnlyOpportunities(v => !v)}
-              >
-                Oportunidades
-              </Button>
+              <>
+                <Button
+                  variant={showOnlyOpportunities ? "default" : "outline"}
+                  size="sm"
+                  className={showOnlyOpportunities ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}
+                  onClick={() => setShowOnlyOpportunities(v => !v)}
+                >
+                  Oportunidades
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleOpenAddColumnDialog}
+                  title="Adicionar nova coluna do Kanban (privada do tenant)"
+                >
+                  <Settings className="h-4 w-4 mr-1" />
+                  Colunas
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -316,7 +336,7 @@ export function ClientsContent() {
       {isLoading || kanbanLoading ? (
         <Card className="p-12 text-center">
           <div className="text-gray-500">
-            <p>Carregando leads...</p>
+            <p>Carregando leads do tenant...</p>
           </div>
         </Card>
       ) : viewMode === "kanban" ? (
@@ -343,7 +363,7 @@ export function ClientsContent() {
         <Card className="p-12 text-center">
           <div className="text-gray-500">
             <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <h3 className="text-lg font-medium mb-2">Nenhum lead encontrado</h3>
+            <h3 className="text-lg font-medium mb-2">Nenhum lead encontrado no tenant</h3>
             <p>
               {searchTerm || filters.status.length > 0 || filters.source.length > 0 || filters.state.length > 0 || filters.actionType.length > 0 || filters.valueRange.min !== null || filters.valueRange.max !== null
                 ? "Tente ajustar os filtros de busca." 
@@ -386,6 +406,13 @@ export function ClientsContent() {
         onOpenChange={setIsDeleteDialogOpen}
         leadName={leadToDelete?.name || ""}
         onConfirm={confirmDeleteLead}
+      />
+
+      <AddColumnDialog
+        isOpen={isAddColumnDialogOpen}
+        onClose={handleCloseAddColumnDialog}
+        onAddColumn={handleColumnAdded}
+        maxOrder={maxOrder}
       />
     </div>
   );
