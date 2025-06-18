@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -13,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useTenantSchema } from "@/hooks/useTenantSchema";
 import { Trash2 } from "lucide-react";
 
 interface KanbanColumn {
@@ -33,7 +35,6 @@ interface AddColumnDialogProps {
 export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddColumnDialogProps) {
   const [columnName, setColumnName] = useState("");
   const [columnColor, setColumnColor] = useState("#3B82F6");
-  // robust: default order always maxOrder+1 (as lowest is 1)
   const defaultOrder = maxOrder > 0 ? maxOrder + 1 : 1;
   const [columnOrder, setColumnOrder] = useState(defaultOrder);
   const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([]);
@@ -41,21 +42,30 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddC
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [columnToDelete, setColumnToDelete] = useState<KanbanColumn | null>(null);
   const { toast } = useToast();
+  const { tenantSchema, ensureTenantSchema } = useTenantSchema();
 
   const fetchKanbanColumns = async () => {
     setIsLoadingColumns(true);
     try {
-      const { data, error } = await supabase
-        .from('kanban_columns')
-        .select('*')
-        .order('order_position', { ascending: true });
+      console.log("🏗️ AddColumnDialog - Carregando colunas do esquema do tenant...");
+      
+      const schema = tenantSchema || await ensureTenantSchema();
+      if (!schema) {
+        console.error('❌ Não foi possível obter o esquema do tenant');
+        return;
+      }
+
+      const { data, error } = await supabase.rpc('exec_sql' as any, {
+        sql: `SELECT id, name, color, order_position, is_default FROM ${schema}.kanban_columns ORDER BY order_position ASC`
+      });
 
       if (error) {
         console.error('Erro ao buscar colunas:', error);
         return;
       }
 
-      setKanbanColumns(data || []);
+      const columnsData = Array.isArray(data) ? data : [];
+      setKanbanColumns(columnsData);
     } catch (error) {
       console.error('Erro inesperado ao buscar colunas:', error);
     } finally {
@@ -63,23 +73,67 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddC
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!columnName.trim()) {
       return;
     }
-    // Defensive: slot must be between 1 and max+1
-    let safeOrder = Math.max(1, Math.min(columnOrder, maxOrder + 1));
-    onAddColumn({
-      name: columnName.trim(),
-      color: columnColor,
-      order: safeOrder,
-    });
 
-    // Reset form to next order
-    setColumnName("");
-    setColumnColor("#3B82F6");
-    setColumnOrder(defaultOrder);
-    fetchKanbanColumns();
+    try {
+      console.log("💾 AddColumnDialog - Criando nova coluna no esquema do tenant...");
+      
+      const schema = tenantSchema || await ensureTenantSchema();
+      if (!schema) {
+        console.error('❌ Não foi possível obter o esquema do tenant');
+        toast({
+          title: "Erro",
+          description: "Não foi possível obter o esquema do tenant.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      let safeOrder = Math.max(1, Math.min(columnOrder, maxOrder + 1));
+
+      const { error } = await supabase.rpc('exec_sql' as any, {
+        sql: `INSERT INTO ${schema}.kanban_columns (name, color, order_position, is_default) VALUES ('${columnName.trim()}', '${columnColor}', ${safeOrder}, false)`
+      });
+
+      if (error) {
+        console.error('❌ Erro ao criar coluna:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível criar a coluna.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      console.log('✅ AddColumnDialog - Coluna criada com sucesso');
+      toast({
+        title: "Sucesso",
+        description: "Coluna criada com sucesso!",
+      });
+
+      // Reset form
+      setColumnName("");
+      setColumnColor("#3B82F6");
+      setColumnOrder(defaultOrder);
+      
+      // Refresh columns and notify parent
+      await fetchKanbanColumns();
+      onAddColumn({
+        name: columnName.trim(),
+        color: columnColor,
+        order: safeOrder,
+      });
+    } catch (error) {
+      console.error('❌ Erro inesperado ao criar coluna:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleDeleteClick = (column: KanbanColumn) => {
@@ -99,10 +153,22 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddC
     if (!columnToDelete) return;
 
     try {
-      const { error } = await supabase
-        .from('kanban_columns')
-        .delete()
-        .eq('id', columnToDelete.id);
+      console.log(`🗑️ AddColumnDialog - Deletando coluna ${columnToDelete.id} do esquema do tenant...`);
+      
+      const schema = tenantSchema || await ensureTenantSchema();
+      if (!schema) {
+        console.error('❌ Não foi possível obter o esquema do tenant');
+        toast({
+          title: "Erro",
+          description: "Não foi possível obter o esquema do tenant.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const { error } = await supabase.rpc('exec_sql' as any, {
+        sql: `DELETE FROM ${schema}.kanban_columns WHERE id = '${columnToDelete.id}'`
+      });
 
       if (error) {
         console.error('Erro ao excluir coluna:', error);
@@ -137,18 +203,14 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddC
     onClose();
   };
 
-  // Regenerate options array and make sure always starts at 1, ends at maxOrder+1
   const orderOptions = Array.from({ length: Math.max(1, maxOrder) + 1 }, (_, i) => i + 1);
 
-  // Carregar colunas quando o diálogo abre
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && tenantSchema) {
       fetchKanbanColumns();
-      // Reset order, prefer next slot
       setColumnOrder(defaultOrder);
     }
-    // eslint-disable-next-line
-  }, [isOpen, maxOrder]); // include maxOrder!
+  }, [isOpen, maxOrder, tenantSchema]);
 
   return (
     <>
