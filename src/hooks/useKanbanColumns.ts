@@ -16,30 +16,23 @@ export function useKanbanColumns() {
   const [columns, setColumns] = useState<KanbanColumn[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
-  const { tenantSchema, ensureTenantSchema } = useTenantSchema();
+  const { tenantSchema } = useTenantSchema();
   const fetchingRef = useRef(false);
   const mountedRef = useRef(true);
 
   const fetchColumns = useCallback(async () => {
-    if (fetchingRef.current || !tenantSchema) return;
+    if (fetchingRef.current) return;
     
     try {
       fetchingRef.current = true;
       setIsLoading(true);
-      console.log("🏗️ useKanbanColumns - Carregando colunas do esquema do tenant...");
+      console.log("🏗️ useKanbanColumns - Carregando colunas do sistema público...");
       
-      const schema = tenantSchema;
-      if (!schema) {
-        console.error('❌ Não foi possível obter o esquema do tenant');
-        if (mountedRef.current) {
-          setColumns([]);
-        }
-        return;
-      }
-
-      const { data, error } = await supabase.rpc('exec_sql' as any, {
-        sql: `SELECT id, name, color, order_position, is_default FROM ${schema}.kanban_columns ORDER BY order_position ASC`
-      });
+      // Usar o sistema público padronizado em vez do esquema do tenant
+      const { data, error } = await supabase
+        .from('kanban_columns')
+        .select('*')
+        .order('order_position', { ascending: true });
 
       if (error) {
         console.error('❌ Erro ao carregar colunas do Kanban:', error);
@@ -54,8 +47,8 @@ export function useKanbanColumns() {
         return;
       }
 
-      const columnsData = Array.isArray(data) ? data : [];
-      console.log(`✅ useKanbanColumns - ${columnsData.length} colunas carregadas do esquema ${schema}`);
+      const columnsData = data || [];
+      console.log(`✅ useKanbanColumns - ${columnsData.length} colunas carregadas do sistema público`);
       
       if (mountedRef.current) {
         setColumns(columnsData);
@@ -76,21 +69,16 @@ export function useKanbanColumns() {
       }
       fetchingRef.current = false;
     }
-  }, [tenantSchema, toast]);
+  }, [toast]);
 
   const deleteColumn = useCallback(async (columnId: string): Promise<boolean> => {
     try {
-      console.log(`🗑️ useKanbanColumns - Deletando coluna ${columnId} do esquema do tenant...`);
+      console.log(`🗑️ useKanbanColumns - Deletando coluna ${columnId} do sistema público...`);
       
-      const schema = tenantSchema || await ensureTenantSchema();
-      if (!schema) {
-        console.error('❌ Não foi possível obter o esquema do tenant');
-        return false;
-      }
-
-      const { error } = await supabase.rpc('exec_sql' as any, {
-        sql: `DELETE FROM ${schema}.kanban_columns WHERE id = '${columnId}'`
-      });
+      const { error } = await supabase
+        .from('kanban_columns')
+        .delete()
+        .eq('id', columnId);
 
       if (error) {
         console.error('❌ Erro ao excluir coluna:', error);
@@ -119,7 +107,7 @@ export function useKanbanColumns() {
       });
       return false;
     }
-  }, [tenantSchema, ensureTenantSchema, toast, fetchColumns]);
+  }, [toast, fetchColumns]);
 
   const refreshColumns = useCallback(() => {
     console.log("🔄 useKanbanColumns - Refresh manual das colunas solicitado");
@@ -127,11 +115,9 @@ export function useKanbanColumns() {
   }, [fetchColumns]);
 
   useEffect(() => {
-    if (tenantSchema) {
-      console.log("🔄 useKanbanColumns - Tenant schema disponível, carregando colunas...");
-      fetchColumns();
-    }
-  }, [tenantSchema]);
+    console.log("🔄 useKanbanColumns - Carregando colunas...");
+    fetchColumns();
+  }, [fetchColumns]);
 
   useEffect(() => {
     return () => {
