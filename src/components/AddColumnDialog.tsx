@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -27,52 +28,20 @@ interface KanbanColumn {
 interface AddColumnDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddColumn: (columnData: { name: string; color: string; order: number }) => void;
+  onAddColumn: () => void; // Simplified to just notify completion
   maxOrder: number;
+  columns: KanbanColumn[]; // Receive columns from parent
 }
 
-export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddColumnDialogProps) {
+export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder, columns }: AddColumnDialogProps) {
   const [columnName, setColumnName] = useState("");
   const [columnColor, setColumnColor] = useState("#3B82F6");
   const defaultOrder = maxOrder > 0 ? maxOrder + 1 : 1;
   const [columnOrder, setColumnOrder] = useState(defaultOrder);
-  const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([]);
-  const [isLoadingColumns, setIsLoadingColumns] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [columnToDelete, setColumnToDelete] = useState<KanbanColumn | null>(null);
   const { toast } = useToast();
   const { tenantSchema, ensureTenantSchema } = useTenantSchema();
-
-  const fetchKanbanColumns = async () => {
-    setIsLoadingColumns(true);
-    try {
-      console.log("🏗️ AddColumnDialog - Carregando colunas SOMENTE do esquema do tenant...");
-      
-      const schema = tenantSchema || await ensureTenantSchema();
-      if (!schema) {
-        console.error('❌ Não foi possível obter o esquema do tenant');
-        return;
-      }
-
-      // SEMPRE usar o esquema do tenant - nunca a tabela global
-      const { data, error } = await supabase.rpc('exec_sql' as any, {
-        sql: `SELECT id, name, color, order_position, is_default FROM ${schema}.kanban_columns ORDER BY order_position ASC`
-      });
-
-      if (error) {
-        console.error('❌ Erro ao buscar colunas do tenant:', error);
-        return;
-      }
-
-      const columnsData = Array.isArray(data) ? data : [];
-      console.log(`✅ AddColumnDialog - ${columnsData.length} colunas carregadas EXCLUSIVAMENTE do esquema ${schema}`);
-      setKanbanColumns(columnsData);
-    } catch (error) {
-      console.error('❌ Erro inesperado ao buscar colunas do tenant:', error);
-    } finally {
-      setIsLoadingColumns(false);
-    }
-  };
 
   const handleSubmit = async () => {
     if (!columnName.trim()) {
@@ -121,13 +90,8 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddC
       setColumnColor("#3B82F6");
       setColumnOrder(defaultOrder);
       
-      // Refresh columns and notify parent
-      await fetchKanbanColumns();
-      onAddColumn({
-        name: columnName.trim(),
-        color: columnColor,
-        order: safeOrder,
-      });
+      // Notify parent to refresh - ONLY ONE CALL
+      onAddColumn();
     } catch (error) {
       console.error('❌ Erro inesperado ao criar coluna no tenant:', error);
       toast({
@@ -189,7 +153,7 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddC
         description: "Coluna excluída com sucesso. Todos os leads dessa coluna foram movidos para a coluna 'Novo'.",
       });
 
-      fetchKanbanColumns();
+      onAddColumn(); // Refresh after deletion
     } catch (error) {
       console.error('❌ Erro inesperado ao excluir coluna do tenant:', error);
       toast({
@@ -210,11 +174,10 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddC
   const orderOptions = Array.from({ length: Math.max(1, maxOrder) + 1 }, (_, i) => i + 1);
 
   useEffect(() => {
-    if (isOpen && tenantSchema) {
-      fetchKanbanColumns();
+    if (isOpen) {
       setColumnOrder(defaultOrder);
     }
-  }, [isOpen, maxOrder, tenantSchema]);
+  }, [isOpen, defaultOrder]);
 
   return (
     <>
@@ -275,13 +238,11 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder }: AddC
             <div className="text-xs mb-2 text-gray-600">
               Ao excluir uma coluna, todos os leads dela serão automaticamente movidos para a coluna <span className="font-semibold text-blue-900 bg-blue-100 rounded px-1 py-0.5">Novo</span>.
             </div>
-            {isLoadingColumns ? (
-              <div className="text-sm text-gray-500">Carregando...</div>
-            ) : kanbanColumns.length === 0 ? (
+            {columns.length === 0 ? (
               <div className="text-sm text-gray-500">Nenhuma coluna cadastrada</div>
             ) : (
               <div className="space-y-2 max-h-40 overflow-y-auto">
-                {kanbanColumns.map((column) => (
+                {columns.map((column) => (
                   <div key={column.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                     <div className="flex items-center gap-2">
                       <div 

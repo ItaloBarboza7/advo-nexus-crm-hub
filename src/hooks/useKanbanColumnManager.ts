@@ -20,19 +20,21 @@ export function useKanbanColumnManager() {
     setIsAddColumnDialogOpen(false);
   }, []);
 
-  const handleColumnAdded = useCallback((columnData: { name: string; color: string; order: number }) => {
-    console.log("✅ useKanbanColumnManager - Coluna adicionada ao tenant, atualizando lista:", columnData.name);
+  const handleColumnAdded = useCallback(() => {
+    console.log("✅ useKanbanColumnManager - Coluna adicionada ao tenant, atualizando lista");
     refreshColumns();
     setIsAddColumnDialogOpen(false);
   }, [refreshColumns]);
 
   return useMemo(() => ({
+    columns,
     isAddColumnDialogOpen,
     maxOrder,
     handleOpenAddColumnDialog,
     handleCloseAddColumnDialog,
     handleColumnAdded
   }), [
+    columns,
     isAddColumnDialogOpen,
     maxOrder,
     handleOpenAddColumnDialog,
