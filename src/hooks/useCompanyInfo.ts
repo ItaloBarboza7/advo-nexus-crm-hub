@@ -55,6 +55,70 @@ export function useCompanyInfo() {
     }
   }, []);
 
+  // Função para sincronizar informações da empresa com o perfil do usuário
+  const syncUserProfile = async (email: string, phone: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.warn('[CompanyInfo] Usuário não encontrado para sincronização');
+        return;
+      }
+
+      console.log('[CompanyInfo] Sincronizando perfil do usuário com dados da empresa');
+
+      // Verificar se já existe um perfil para este usuário
+      const { data: existingProfile, error: checkError } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('[CompanyInfo] Erro ao verificar perfil existente:', checkError);
+        return;
+      }
+
+      const profileData = {
+        email: email.trim() || null,
+        phone: phone.trim() || null,
+      };
+
+      if (existingProfile) {
+        // Atualizar perfil existente
+        console.log('[CompanyInfo] Atualizando perfil existente');
+        const { error } = await supabase
+          .from('user_profiles')
+          .update(profileData)
+          .eq('user_id', user.id);
+
+        if (error) {
+          console.error('[CompanyInfo] Erro ao atualizar perfil:', error);
+        } else {
+          console.log('[CompanyInfo] Perfil sincronizado com sucesso');
+        }
+      } else {
+        // Criar novo perfil com dados básicos
+        console.log('[CompanyInfo] Criando novo perfil');
+        const { error } = await supabase
+          .from('user_profiles')
+          .insert({
+            user_id: user.id,
+            name: user.user_metadata?.name || user.email?.split('@')[0] || 'Usuário',
+            ...profileData
+          });
+
+        if (error) {
+          console.error('[CompanyInfo] Erro ao criar perfil:', error);
+        } else {
+          console.log('[CompanyInfo] Perfil criado e sincronizado com sucesso');
+        }
+      }
+    } catch (error) {
+      console.error('[CompanyInfo] Erro inesperado na sincronização:', error);
+    }
+  };
+
   // Exposed refresh function for manual reload
   const refreshCompanyInfo = useCallback(() => {
     console.log('[CompanyInfo] Forçando atualização das informações da empresa');
@@ -125,6 +189,9 @@ export function useCompanyInfo() {
         return false;
       }
 
+      // Sincronizar perfil do usuário com email e telefone da empresa
+      await syncUserProfile(updatedInfo.email, updatedInfo.phone);
+
       toast({
         title: "Sucesso",
         description: "Informações da empresa atualizadas com sucesso.",
@@ -168,7 +235,7 @@ export function useCompanyInfo() {
       console.log('[CompanyInfo] Configurando listener para mudanças em tempo real');
       
       const channel = supabase
-        .channel('company_info_changes')
+        .channel('company_and_profile_changes')
         .on(
           'postgres_changes',
           {
@@ -178,9 +245,23 @@ export function useCompanyInfo() {
             filter: `user_id=eq.${user.id}`
           },
           (payload) => {
-            console.log('[CompanyInfo] Mudança detectada:', payload);
+            console.log('[CompanyInfo] Mudança na empresa detectada:', payload);
             // Recarregar dados quando houver mudança
             fetchCompanyInfo();
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'user_profiles',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload) => {
+            console.log('[CompanyInfo] Mudança no perfil detectada:', payload);
+            // Forçar atualização do header quando perfil mudar
+            window.dispatchEvent(new CustomEvent('userProfileUpdated'));
           }
         )
         .subscribe();

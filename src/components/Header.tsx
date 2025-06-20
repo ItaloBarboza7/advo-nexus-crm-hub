@@ -41,6 +41,20 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
     }
   }, [user, companyInfo])
 
+  // Listener para mudanças no perfil
+  useEffect(() => {
+    const handleProfileUpdate = () => {
+      console.log('[Header] Perfil atualizado via evento customizado');
+      loadUserProfile();
+    };
+
+    window.addEventListener('userProfileUpdated', handleProfileUpdate);
+    
+    return () => {
+      window.removeEventListener('userProfileUpdated', handleProfileUpdate);
+    };
+  }, []);
+
   const loadUserProfile = async () => {
     try {
       // Obter o usuário atual
@@ -48,7 +62,8 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
       
       if (!currentUser) return
 
-      console.log('User metadata:', currentUser.user_metadata)
+      console.log('[Header] Carregando perfil do usuário:', currentUser.id)
+      console.log('[Header] Dados da empresa disponíveis:', companyInfo)
 
       // Buscar perfil do usuário atual no banco usando RLS
       const { data: profile, error } = await supabase
@@ -58,25 +73,25 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
         .maybeSingle()
 
       if (error) {
-        console.error('Erro ao carregar perfil:', error)
+        console.error('[Header] Erro ao carregar perfil:', error)
       }
 
       if (profile) {
-        console.log('Profile found:', profile)
+        console.log('[Header] Perfil encontrado no banco:', profile)
         setUserProfile({
           name: profile.name || currentUser.user_metadata?.name || currentUser.email?.split('@')[0] || "Usuário",
           avatar_url: profile.avatar_url || "",
         })
       } else {
         // Se não há perfil no banco, usar dados dos metadados do usuário
-        console.log('No profile found, using metadata')
+        console.log('[Header] Nenhum perfil encontrado, usando metadados')
         setUserProfile({
           name: currentUser.user_metadata?.name || currentUser.email?.split('@')[0] || "Usuário",
           avatar_url: "",
         })
       }
     } catch (error) {
-      console.error('Erro ao carregar perfil:', error)
+      console.error('[Header] Erro ao carregar perfil:', error)
       // Fallback para dados do usuário atual
       if (user) {
         setUserProfile({
@@ -97,6 +112,7 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
   }
 
   const handleProfileModalClose = () => {
+    console.log('[Header] Modal do perfil fechado, recarregando dados');
     setIsProfileModalOpen(false)
     // Recarregar perfil e informações da empresa após fechar modal
     loadUserProfile()
