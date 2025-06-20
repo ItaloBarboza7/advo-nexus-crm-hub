@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Camera } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useCompanyInfo } from "@/hooks/useCompanyInfo";
 
 interface UserProfileModalProps {
   isOpen: boolean;
@@ -22,12 +23,13 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   
   const { toast } = useToast();
+  const { companyInfo, updateCompanyInfo, refreshCompanyInfo } = useCompanyInfo();
 
   useEffect(() => {
     if (isOpen) {
       loadUserProfile();
     }
-  }, [isOpen]);
+  }, [isOpen, companyInfo]);
 
   const loadUserProfile = async () => {
     try {
@@ -39,8 +41,6 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
       if (!user) return;
 
       console.log('Loading profile for user:', user.id);
-      console.log('User email:', user.email);
-      console.log('User metadata:', user.user_metadata);
 
       // Buscar perfil do usuário atual no banco usando RLS
       const { data: profile, error } = await supabase
@@ -61,16 +61,30 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
       if (profile) {
         console.log('Profile found in database:', profile);
         setName(profile.name || "");
-        setEmail(profile.email || user.email || "");
-        setPhone(profile.phone || "");
         setAvatar(profile.avatar_url || "");
+        
+        // Usar dados da empresa se disponíveis, senão usar dados do perfil
+        if (companyInfo) {
+          setEmail(companyInfo.email || user.email || "");
+          setPhone(companyInfo.phone || profile.phone || "");
+        } else {
+          setEmail(profile.email || user.email || "");
+          setPhone(profile.phone || "");
+        }
       } else {
         // Se não há perfil no banco, usar dados dos metadados do usuário
         console.log('No profile in database, using user metadata');
         setName(user.user_metadata?.name || "");
-        setEmail(user.email || "");
-        setPhone(user.user_metadata?.phone || "");
         setAvatar("");
+        
+        // Usar dados da empresa se disponíveis
+        if (companyInfo) {
+          setEmail(companyInfo.email || user.email || "");
+          setPhone(companyInfo.phone || user.user_metadata?.phone || "");
+        } else {
+          setEmail(user.email || "");
+          setPhone(user.user_metadata?.phone || "");
+        }
       }
     } catch (error) {
       console.error('Erro inesperado ao carregar perfil:', error);
@@ -108,14 +122,6 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
       }
 
       console.log('Attempting to save profile for user:', user.id);
-      console.log('User email:', user.email);
-      console.log('Data to save:', {
-        user_id: user.id,
-        name: name.trim(),
-        email: email.trim() || null,
-        phone: phone.trim() || null,
-        avatar_url: avatar.trim() || null,
-      });
 
       // Verificar se já existe um perfil para este usuário
       const { data: existingProfile, error: checkError } = await supabase
@@ -133,8 +139,6 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
         });
         return;
       }
-
-      console.log('Existing profile check result:', existingProfile);
 
       const profileData = {
         user_id: user.id,
@@ -170,6 +174,30 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
           variant: "destructive",
         });
         return;
+      }
+
+      // Atualizar informações da empresa se existirem
+      if (companyInfo) {
+        console.log('Updating company info with new email and phone...');
+        const companyUpdateSuccess = await updateCompanyInfo({
+          company_name: companyInfo.company_name,
+          cnpj: companyInfo.cnpj,
+          phone: phone.trim(),
+          email: email.trim(),
+          address: companyInfo.address
+        });
+
+        if (!companyUpdateSuccess) {
+          // Se falhou ao atualizar empresa, mostrar aviso mas não bloquear
+          toast({
+            title: "Aviso",
+            description: "Perfil salvo, mas houve problema ao sincronizar com informações da empresa.",
+            variant: "destructive",
+          });
+        } else {
+          // Recarregar informações da empresa
+          refreshCompanyInfo();
+        }
       }
 
       console.log('Profile saved successfully!');
@@ -259,6 +287,9 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
                 placeholder="seu@email.com"
                 disabled={isLoading}
               />
+              <p className="text-xs text-muted-foreground">
+                * Alterações aqui também afetarão as informações da empresa
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -270,6 +301,9 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
                 placeholder="(XX) XXXXX-XXXX"
                 disabled={isLoading}
               />
+              <p className="text-xs text-muted-foreground">
+                * Alterações aqui também afetarão as informações da empresa
+              </p>
             </div>
 
             {/* Actions */}

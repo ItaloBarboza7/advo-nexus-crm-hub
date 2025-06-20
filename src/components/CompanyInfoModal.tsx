@@ -124,6 +124,63 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
     return result;
   }
 
+  const updateUserProfile = async (email: string, phone: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return false;
+
+      console.log('👤 Atualizando perfil do usuário com email e telefone sincronizados...');
+
+      // Verificar se já existe um perfil para este usuário
+      const { data: existingProfile, error: checkError } = await supabase
+        .from('user_profiles')
+        .select('id, name')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('Erro ao verificar perfil existente:', checkError);
+        return false;
+      }
+
+      const profileData = {
+        user_id: user.id,
+        email: email.trim() || null,
+        phone: phone.trim() || null,
+      };
+
+      let saveError;
+      if (existingProfile) {
+        // Atualizar perfil existente mantendo o nome
+        const { error } = await supabase
+          .from('user_profiles')
+          .update(profileData)
+          .eq('user_id', user.id);
+        saveError = error;
+      } else {
+        // Criar novo perfil com dados básicos
+        const { error } = await supabase
+          .from('user_profiles')
+          .insert({
+            ...profileData,
+            name: user.user_metadata?.name || user.email?.split('@')[0] || "Usuário"
+          });
+        saveError = error;
+      }
+
+      if (saveError) {
+        console.error('Erro ao atualizar perfil do usuário:', saveError);
+        return false;
+      }
+
+      console.log('✅ Perfil do usuário atualizado com sucesso');
+      return true;
+    } catch (error) {
+      console.error('Erro inesperado ao atualizar perfil do usuário:', error);
+      return false;
+    }
+  };
+
   const handleSave = async () => {
     if (!companyName || !cpfCnpj || !phone || !email || !cep || !address || !neighborhood || !city || !state) {
       toast({
@@ -205,6 +262,15 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
 
       console.log('✅ Informações da empresa salvas com sucesso');
 
+      // Sincronizar com perfil do usuário
+      const profileUpdateSuccess = await updateUserProfile(email, phone);
+      if (!profileUpdateSuccess) {
+        toast({
+          title: "Aviso",
+          description: "Informações da empresa salvas, mas houve problema ao sincronizar com o perfil.",
+        });
+      }
+
       // Atualizar os metadados do usuário para marcar que as informações estão completas
       const { error: updateError } = await supabase.auth.updateUser({
         data: { 
@@ -276,6 +342,9 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
               placeholder="(XX) XXXXX-XXXX"
               disabled={isLoading}
             />
+            <p className="text-xs text-muted-foreground">
+              * Alterações aqui também afetarão o perfil do usuário
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -284,12 +353,12 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
               id="email"
               type="email"
               value={email}
-              readOnly
-              disabled
-              className="bg-muted cursor-not-allowed"
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="seu@email.com"
+              disabled={isLoading}
             />
             <p className="text-xs text-muted-foreground">
-              * E-mail da conta (não editável)
+              * Alterações aqui também afetarão o perfil do usuário
             </p>
           </div>
 
