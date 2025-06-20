@@ -23,12 +23,12 @@ export function useCompanyInfo() {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        console.log('Usuário não autenticado');
+        console.log('[useCompanyInfo] Usuário não autenticado');
         setIsLoading(false);
         return;
       }
 
-      console.log('[CompanyInfo] Buscando informações da empresa para usuário:', user.id);
+      console.log('[useCompanyInfo] Buscando informações da empresa para usuário:', user.id);
 
       const { data, error } = await supabase
         .from('company_info')
@@ -37,19 +37,19 @@ export function useCompanyInfo() {
         .maybeSingle();
 
       if (error) {
-        console.error('[CompanyInfo] Erro ao buscar informações da empresa:', error);
+        console.error('[useCompanyInfo] Erro ao buscar informações da empresa:', error);
         setIsLoading(false);
         return;
       }
 
       if (!data) {
-        console.warn('[CompanyInfo] Nenhuma informação de empresa encontrada para este usuário:', user.id);
+        console.warn('[useCompanyInfo] Nenhuma informação de empresa encontrada para este usuário:', user.id);
       } else {
-        console.log('[CompanyInfo] Informações da empresa encontradas:', data);
+        console.log('[useCompanyInfo] Informações da empresa encontradas:', data);
       }
       setCompanyInfo(data || null);
     } catch (error) {
-      console.error('[CompanyInfo] Erro inesperado ao buscar informações da empresa:', error);
+      console.error('[useCompanyInfo] Erro inesperado ao buscar informações da empresa:', error);
     } finally {
       setIsLoading(false);
     }
@@ -61,11 +61,11 @@ export function useCompanyInfo() {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        console.warn('[CompanyInfo] Usuário não encontrado para sincronização');
+        console.warn('[useCompanyInfo] Usuário não encontrado para sincronização');
         return false;
       }
 
-      console.log('[CompanyInfo] Sincronizando perfil do usuário com dados da empresa');
+      console.log('[useCompanyInfo] Sincronizando perfil do usuário com dados da empresa');
 
       // Verificar se já existe um perfil para este usuário
       const { data: existingProfile, error: checkError } = await supabase
@@ -75,7 +75,7 @@ export function useCompanyInfo() {
         .maybeSingle();
 
       if (checkError) {
-        console.error('[CompanyInfo] Erro ao verificar perfil existente:', checkError);
+        console.error('[useCompanyInfo] Erro ao verificar perfil existente:', checkError);
         return false;
       }
 
@@ -86,22 +86,22 @@ export function useCompanyInfo() {
 
       if (existingProfile) {
         // Atualizar perfil existente
-        console.log('[CompanyInfo] Atualizando perfil existente');
+        console.log('[useCompanyInfo] Atualizando perfil existente');
         const { error } = await supabase
           .from('user_profiles')
           .update(profileData)
           .eq('user_id', user.id);
 
         if (error) {
-          console.error('[CompanyInfo] Erro ao atualizar perfil:', error);
+          console.error('[useCompanyInfo] Erro ao atualizar perfil:', error);
           return false;
         } else {
-          console.log('[CompanyInfo] Perfil sincronizado com sucesso');
+          console.log('[useCompanyInfo] Perfil sincronizado com sucesso');
           return true;
         }
       } else {
         // Criar novo perfil com dados básicos
-        console.log('[CompanyInfo] Criando novo perfil');
+        console.log('[useCompanyInfo] Criando novo perfil');
         const { error } = await supabase
           .from('user_profiles')
           .insert({
@@ -111,22 +111,22 @@ export function useCompanyInfo() {
           });
 
         if (error) {
-          console.error('[CompanyInfo] Erro ao criar perfil:', error);
+          console.error('[useCompanyInfo] Erro ao criar perfil:', error);
           return false;
         } else {
-          console.log('[CompanyInfo] Perfil criado e sincronizado com sucesso');
+          console.log('[useCompanyInfo] Perfil criado e sincronizado com sucesso');
           return true;
         }
       }
     } catch (error) {
-      console.error('[CompanyInfo] Erro inesperado na sincronização:', error);
+      console.error('[useCompanyInfo] Erro inesperado na sincronização:', error);
       return false;
     }
   };
 
   // Exposed refresh function for manual reload
   const refreshCompanyInfo = useCallback(() => {
-    console.log('[CompanyInfo] Forçando atualização das informações da empresa');
+    console.log('[useCompanyInfo] Forçando atualização das informações da empresa');
     return fetchCompanyInfo();
   }, [fetchCompanyInfo]);
 
@@ -144,7 +144,7 @@ export function useCompanyInfo() {
         return false;
       }
 
-      console.log('[CompanyInfo] Atualizando informações da empresa:', updatedInfo);
+      console.log('[useCompanyInfo] Atualizando informações da empresa:', updatedInfo);
 
       // Primeiro, verificar se já existe um registro para este usuário
       const { data: existingCompany, error: checkError } = await supabase
@@ -154,7 +154,7 @@ export function useCompanyInfo() {
         .maybeSingle();
 
       if (checkError) {
-        console.error('[CompanyInfo] Erro ao verificar empresa existente:', checkError);
+        console.error('[useCompanyInfo] Erro ao verificar empresa existente:', checkError);
         toast({
           title: "Erro",
           description: "Não foi possível verificar as informações existentes.",
@@ -166,7 +166,7 @@ export function useCompanyInfo() {
       let error;
       if (existingCompany) {
         // Atualizar registro existente
-        console.log('[CompanyInfo] Atualizando registro existente:', existingCompany.id);
+        console.log('[useCompanyInfo] Atualizando registro existente:', existingCompany.id);
         const { error: updateError } = await supabase
           .from('company_info')
           .update(updatedInfo)
@@ -174,7 +174,7 @@ export function useCompanyInfo() {
         error = updateError;
       } else {
         // Criar novo registro
-        console.log('[CompanyInfo] Criando novo registro');
+        console.log('[useCompanyInfo] Criando novo registro');
         const { error: insertError } = await supabase
           .from('company_info')
           .insert({
@@ -185,7 +185,7 @@ export function useCompanyInfo() {
       }
 
       if (error) {
-        console.error('[CompanyInfo] Erro ao atualizar informações da empresa:', error);
+        console.error('[useCompanyInfo] Erro ao atualizar informações da empresa:', error);
         toast({
           title: "Erro",
           description: "Não foi possível atualizar as informações da empresa.",
@@ -195,15 +195,11 @@ export function useCompanyInfo() {
       }
 
       // Sincronizar perfil do usuário com email e telefone da empresa
-      console.log('[CompanyInfo] Iniciando sincronização do perfil...');
+      console.log('[useCompanyInfo] Iniciando sincronização do perfil...');
       const syncSuccess = await syncUserProfile(updatedInfo.email, updatedInfo.phone);
 
-      if (syncSuccess) {
-        console.log('[CompanyInfo] Sincronização concluída com sucesso, disparando evento userProfileUpdated');
-        // Dispatch event after successful synchronization
-        setTimeout(() => {
-          window.dispatchEvent(new CustomEvent('userProfileUpdated'));
-        }, 200);
+      if (!syncSuccess) {
+        console.warn('[useCompanyInfo] Sincronização do perfil falhou, mas dados da empresa foram salvos');
       }
 
       toast({
@@ -223,7 +219,7 @@ export function useCompanyInfo() {
       
       return true;
     } catch (error) {
-      console.error('[CompanyInfo] Erro inesperado ao atualizar informações da empresa:', error);
+      console.error('[useCompanyInfo] Erro inesperado ao atualizar informações da empresa:', error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado ao atualizar as informações.",
@@ -246,7 +242,7 @@ export function useCompanyInfo() {
       
       if (!user) return;
 
-      console.log('[CompanyInfo] Configurando listener para mudanças em tempo real');
+      console.log('[useCompanyInfo] Configurando listener para mudanças em tempo real');
       
       const channel = supabase
         .channel('company_and_profile_changes')
@@ -259,7 +255,7 @@ export function useCompanyInfo() {
             filter: `user_id=eq.${user.id}`
           },
           (payload) => {
-            console.log('[CompanyInfo] Mudança na empresa detectada:', payload);
+            console.log('[useCompanyInfo] Mudança na empresa detectada:', payload);
             // Recarregar dados quando houver mudança
             fetchCompanyInfo();
           }
@@ -273,17 +269,17 @@ export function useCompanyInfo() {
             filter: `user_id=eq.${user.id}`
           },
           (payload) => {
-            console.log('[CompanyInfo] Mudança no perfil detectada:', payload);
-            // Forçar atualização do header quando perfil mudar
+            console.log('[useCompanyInfo] Mudança no perfil detectada:', payload);
+            // Notificar sobre mudança no perfil para atualização do header
             setTimeout(() => {
               window.dispatchEvent(new CustomEvent('userProfileUpdated'));
-            }, 300);
+            }, 100);
           }
         )
         .subscribe();
 
       return () => {
-        console.log('[CompanyInfo] Removendo listener');
+        console.log('[useCompanyInfo] Removendo listener');
         supabase.removeChannel(channel);
       };
     };

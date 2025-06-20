@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -107,6 +108,8 @@ export function EditCompanyModal({
   }, [companyInfo]);
 
   const handleSave = async () => {
+    console.log('[EditCompanyModal] Iniciando salvamento das informações da empresa');
+    
     // Montar o address no mesmo formato do modal inicial
     const fullAddress = `${address}, ${neighborhood}, ${city}, ${state}, CEP: ${cep}`;
 
@@ -119,15 +122,16 @@ export function EditCompanyModal({
     });
 
     if (success) {
-      console.log('[EditCompanyModal] Salvamento bem-sucedido, aguardando sincronização...');
+      console.log('[EditCompanyModal] Salvamento bem-sucedido');
       
-      // Aguardar um pouco para garantir que a sincronização do perfil seja concluída
-      setTimeout(() => {
-        console.log('[EditCompanyModal] Disparando evento userProfileUpdated após delay');
-        window.dispatchEvent(new CustomEvent('userProfileUpdated'));
-      }, 1000);
+      // Dispatch the event immediately after successful save
+      console.log('[EditCompanyModal] Disparando evento userProfileUpdated');
+      window.dispatchEvent(new CustomEvent('userProfileUpdated'));
       
+      // Close the modal
       onClose();
+    } else {
+      console.error('[EditCompanyModal] Falha no salvamento');
     }
   };
 
