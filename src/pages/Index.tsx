@@ -65,7 +65,7 @@ export default function Index() {
       case "dashboard":
         return <DashboardContent />;
       case "clients":
-        return <ClientsContent />;
+        return <ClientsContent selectedLead={selectedLead} onClearSelection={() => setSelectedLead(null)} />;
       case "cases":
         return <CasesContent />;
       case "calendar":
