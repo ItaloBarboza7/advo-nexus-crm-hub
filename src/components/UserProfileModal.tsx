@@ -25,9 +25,6 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
   const { toast } = useToast();
   const { companyInfo, updateCompanyInfo, refreshCompanyInfo } = useCompanyInfo();
 
-  // NOVO: Estado para força a recarga quando companyInfo muda externamente
-  const [lastCompanyInfoUpdate, setLastCompanyInfoUpdate] = useState<number>(0);
-
   // Carregar perfil quando modal abre
   useEffect(() => {
     if (isOpen) {
@@ -36,33 +33,36 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
     }
   }, [isOpen]);
 
-  // ATUALIZADO: Recarregar dados quando companyInfo muda ou quando recebe evento externo
+  // NOVO: Reação direta às mudanças de companyInfo
   useEffect(() => {
     if (isOpen && companyInfo) {
-      console.log('[UserProfileModal] CompanyInfo mudou enquanto modal estava aberto, recarregando dados');
-      loadUserProfile();
+      console.log('[UserProfileModal] CompanyInfo mudou, atualizando campos de email e telefone');
+      
+      // Atualizar apenas email e telefone (manter nome e avatar do perfil)
+      setEmail(companyInfo.email || "");
+      setPhone(companyInfo.phone || "");
     }
-  }, [companyInfo, lastCompanyInfoUpdate]);
+  }, [companyInfo, isOpen]);
 
-  // NOVO: Listener dedicado para mudanças externas da empresa
+  // NOVO: Listener otimizado para eventos externos
   useEffect(() => {
     if (!isOpen) return;
 
-    const handleExternalCompanyUpdate = async () => {
-      console.log('[UserProfileModal] Evento de atualização externa recebido');
+    const handleProfileUpdate = async () => {
+      console.log('[UserProfileModal] Evento userProfileUpdated recebido');
       
-      // Forçar atualização das informações da empresa primeiro
-      await refreshCompanyInfo();
-      
-      // Marcar que houve uma atualização externa para triggar o useEffect
-      setLastCompanyInfoUpdate(Date.now());
+      // Aguardar um momento para garantir que as mudanças foram processadas
+      setTimeout(async () => {
+        console.log('[UserProfileModal] Recarregando dados após evento');
+        await refreshCompanyInfo();
+        await loadUserProfile();
+      }, 100);
     };
 
-    // Escutar evento específico para atualizações da empresa
-    window.addEventListener('userProfileUpdated', handleExternalCompanyUpdate);
+    window.addEventListener('userProfileUpdated', handleProfileUpdate);
     
     return () => {
-      window.removeEventListener('userProfileUpdated', handleExternalCompanyUpdate);
+      window.removeEventListener('userProfileUpdated', handleProfileUpdate);
     };
   }, [isOpen, refreshCompanyInfo]);
 
@@ -76,7 +76,6 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
       if (!user) return;
 
       console.log('[UserProfileModal] Carregando perfil para usuário:', user.id);
-      console.log('[UserProfileModal] Dados da empresa disponíveis:', companyInfo);
 
       // Buscar perfil do usuário atual no banco usando RLS
       const { data: profile, error } = await supabase
@@ -92,6 +91,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
           description: `Erro ao carregar perfil: ${error.message}`,
           variant: "destructive",
         });
+        return;
       }
 
       if (profile) {
@@ -99,9 +99,9 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
         setName(profile.name || "");
         setAvatar(profile.avatar_url || "");
         
-        // ATUALIZADO: Priorizar dados da empresa para email e telefone SEMPRE
+        // ATUALIZADO: Priorizar dados da empresa SEMPRE
         if (companyInfo) {
-          console.log('[UserProfileModal] Usando dados da empresa para email e telefone (prioritário)');
+          console.log('[UserProfileModal] Priorizando dados da empresa para email e telefone');
           setEmail(companyInfo.email || user.email || "");
           setPhone(companyInfo.phone || "");
         } else {

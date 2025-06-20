@@ -124,10 +124,10 @@ export function useCompanyInfo() {
     }
   };
 
-  // Exposed refresh function for manual reload
-  const refreshCompanyInfo = useCallback(() => {
+  // OTIMIZADO: Exposed refresh function for manual reload
+  const refreshCompanyInfo = useCallback(async () => {
     console.log('[useCompanyInfo] Forçando atualização das informações da empresa');
-    return fetchCompanyInfo();
+    await fetchCompanyInfo();
   }, [fetchCompanyInfo]);
 
   const updateCompanyInfo = async (updatedInfo: Omit<CompanyInfo, 'id'>) => {
@@ -207,15 +207,17 @@ export function useCompanyInfo() {
         description: "Informações da empresa atualizadas com sucesso.",
       });
 
-      // Atualizar estado local imediatamente
-      if (existingCompany) {
-        setCompanyInfo(prevInfo => 
-          prevInfo ? { ...prevInfo, ...updatedInfo } : null
-        );
-      } else {
-        // Buscar o registro recém-criado para obter o ID
-        await fetchCompanyInfo();
-      }
+      // OTIMIZADO: Atualizar estado local imediatamente
+      const newCompanyInfo = existingCompany 
+        ? { ...companyInfo, ...updatedInfo } as CompanyInfo
+        : { ...updatedInfo, id: 'temp' } as CompanyInfo;
+      
+      setCompanyInfo(newCompanyInfo);
+
+      // Buscar dados atualizados do banco
+      setTimeout(() => {
+        fetchCompanyInfo();
+      }, 100);
       
       return true;
     } catch (error) {
@@ -235,7 +237,7 @@ export function useCompanyInfo() {
     fetchCompanyInfo();
   }, [fetchCompanyInfo]);
 
-  // Configurar listener para mudanças em real-time
+  // OTIMIZADO: Configurar listener para mudanças em real-time
   useEffect(() => {
     const setupRealtimeListener = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -257,7 +259,9 @@ export function useCompanyInfo() {
           (payload) => {
             console.log('[useCompanyInfo] Mudança na empresa detectada:', payload);
             // Recarregar dados quando houver mudança
-            fetchCompanyInfo();
+            setTimeout(() => {
+              fetchCompanyInfo();
+            }, 100);
           }
         )
         .on(
@@ -273,7 +277,7 @@ export function useCompanyInfo() {
             // Notificar sobre mudança no perfil para atualização do header
             setTimeout(() => {
               window.dispatchEvent(new CustomEvent('userProfileUpdated'));
-            }, 100);
+            }, 50);
           }
         )
         .subscribe();

@@ -41,31 +41,17 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
     }
   }, [user])
 
-  // ATUALIZADO: Função otimizada para coordenar atualizações
-  const coordinateDataUpdate = async () => {
-    try {
-      console.log('[Header] Iniciando coordenação de atualizações de dados');
-      
-      // 1. Atualizar informações da empresa primeiro
-      console.log('[Header] Atualizando informações da empresa...');
-      await refreshCompanyInfo();
-      
-      // 2. Aguardar um momento e então atualizar o perfil
-      setTimeout(async () => {
-        console.log('[Header] Carregando perfil do usuário...');
-        await loadUserProfile();
-      }, 50); // Reduzido ainda mais o timeout
-      
-    } catch (error) {
-      console.error('[Header] Erro durante coordenação de atualizações:', error);
-    }
-  };
-
-  // ATUALIZADO: Listener mais responsivo para mudanças
+  // OTIMIZADO: Listener mais eficiente para mudanças
   useEffect(() => {
     const handleProfileUpdate = async () => {
-      console.log('[Header] Evento userProfileUpdated recebido - iniciando coordenação');
-      await coordinateDataUpdate();
+      console.log('[Header] Evento userProfileUpdated recebido');
+      
+      // Coordenar atualizações com pequeno delay para evitar race conditions
+      setTimeout(async () => {
+        console.log('[Header] Iniciando atualização coordenada');
+        await refreshCompanyInfo();
+        await loadUserProfile();
+      }, 50);
     };
 
     window.addEventListener('userProfileUpdated', handleProfileUpdate);
@@ -91,7 +77,6 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
       if (!currentUser) return
 
       console.log('[Header] Carregando perfil do usuário:', currentUser.id)
-      console.log('[Header] Dados da empresa disponíveis:', companyInfo)
 
       // Buscar perfil do usuário atual no banco usando RLS
       const { data: profile, error } = await supabase
@@ -140,19 +125,12 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
   }
 
   const handleProfileModalClose = async () => {
-    console.log('[Header] Modal do perfil fechado, coordenando atualizações');
-    setIsProfileModalOpen(false)
-    // Usar função otimizada para atualização coordenada
-    await coordinateDataUpdate()
+    console.log('[Header] Modal do perfil fechado');
+    setIsProfileModalOpen(false);
   }
 
   const handleProfileClick = async () => {
-    console.log('[Header] Clique no perfil - sincronizando dados antes de abrir modal');
-    
-    // Coordenar atualizações antes de abrir o modal
-    await coordinateDataUpdate();
-    
-    console.log('[Header] Dados sincronizados, abrindo modal do perfil');
+    console.log('[Header] Clique no perfil - abrindo modal');
     setIsProfileModalOpen(true);
   }
 
