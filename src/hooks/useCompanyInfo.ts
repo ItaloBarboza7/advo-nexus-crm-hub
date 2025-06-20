@@ -160,34 +160,38 @@ export function useCompanyInfo() {
 
   // Configurar listener para mudanças em real-time
   useEffect(() => {
-    const { data: { user } } = supabase.auth.getUser();
-    
-    if (!user) return;
+    const setupRealtimeListener = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) return;
 
-    console.log('[CompanyInfo] Configurando listener para mudanças em tempo real');
-    
-    const channel = supabase
-      .channel('company_info_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'company_info',
-          filter: `user_id=eq.${user.id}`
-        },
-        (payload) => {
-          console.log('[CompanyInfo] Mudança detectada:', payload);
-          // Recarregar dados quando houver mudança
-          fetchCompanyInfo();
-        }
-      )
-      .subscribe();
+      console.log('[CompanyInfo] Configurando listener para mudanças em tempo real');
+      
+      const channel = supabase
+        .channel('company_info_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'company_info',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload) => {
+            console.log('[CompanyInfo] Mudança detectada:', payload);
+            // Recarregar dados quando houver mudança
+            fetchCompanyInfo();
+          }
+        )
+        .subscribe();
 
-    return () => {
-      console.log('[CompanyInfo] Removendo listener');
-      supabase.removeChannel(channel);
+      return () => {
+        console.log('[CompanyInfo] Removendo listener');
+        supabase.removeChannel(channel);
+      };
     };
+
+    setupRealtimeListener();
   }, [fetchCompanyInfo]);
 
   return {
