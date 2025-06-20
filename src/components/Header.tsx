@@ -1,3 +1,4 @@
+
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import { GlobalSearch } from "./GlobalSearch"
@@ -7,7 +8,7 @@ import { User as SupabaseUser } from "@supabase/supabase-js"
 import { Lead } from "@/types/lead"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { UserProfileModal } from "./UserProfileModal"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { supabase } from "@/integrations/supabase/client"
 import {
   DropdownMenu,
@@ -32,13 +33,7 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
   const [userProfile, setUserProfile] = useState<UserProfile>({ name: "Usuário" })
 
-  useEffect(() => {
-    if (user) {
-      loadUserProfile()
-    }
-  }, [user])
-
-  const loadUserProfile = async () => {
+  const loadUserProfile = useCallback(async () => {
     try {
       // Obter o usuário atual
       const { data: { user: currentUser } } = await supabase.auth.getUser()
@@ -82,7 +77,13 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
         })
       }
     }
-  }
+  }, [user])
+
+  useEffect(() => {
+    if (user) {
+      loadUserProfile()
+    }
+  }, [user, loadUserProfile])
 
   const getInitials = (name: string) => {
     return name
@@ -92,6 +93,24 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
       .toUpperCase()
       .substring(0, 2)
   }
+
+  const handleProfileModalClose = () => {
+    setIsProfileModalOpen(false)
+    loadUserProfile() // Recarregar perfil após fechar modal
+  }
+
+  // Função exposta para recarregar o perfil quando necessário
+  const refreshUserProfile = () => {
+    loadUserProfile()
+  }
+
+  // Disponibilizar a função globalmente para outros componentes
+  useEffect(() => {
+    window.refreshUserProfile = refreshUserProfile
+    return () => {
+      delete window.refreshUserProfile
+    }
+  }, [refreshUserProfile])
 
   return (
     <>
@@ -144,10 +163,7 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
 
       <UserProfileModal 
         isOpen={isProfileModalOpen} 
-        onClose={() => {
-          setIsProfileModalOpen(false)
-          loadUserProfile() // Recarregar perfil após fechar modal
-        }} 
+        onClose={handleProfileModalClose}
       />
     </>
   )

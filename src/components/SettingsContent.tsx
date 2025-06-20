@@ -1,1228 +1,284 @@
-import { useState, useEffect } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Plus, Edit, Trash2, Users, Building, Columns, UserPlus, Settings, CreditCard, X, Check, Eye, EyeOff } from "lucide-react";
-import { AddMemberModal } from "@/components/AddMemberModal";
-import { EditMemberModal } from "@/components/EditMemberModal";
-import { AddColumnDialog } from "@/components/AddColumnDialog";
-import { AddActionGroupDialog } from "@/components/AddActionGroupDialog";
-import { AddActionTypeDialog } from "@/components/AddActionTypeDialog";
-import { AddLeadSourceDialog } from "@/components/AddLeadSourceDialog";
-import { AddLossReasonDialog } from "@/components/AddLossReasonDialog";
-import { EditCompanyModal } from "@/components/EditCompanyModal";
-import { DeleteButton } from "@/components/DeleteButton";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { useFilterOptions } from "@/hooks/useFilterOptions";
-import { useDashboardSettings } from "@/hooks/useDashboardSettings";
-import { useCompanyInfo } from "@/hooks/useCompanyInfo";
-import { useLossReasonsGlobal } from "@/hooks/useLossReasonsGlobal";
-import { useTenantSchema } from "@/hooks/useTenantSchema";
-import { SubscriptionAndPaymentPanel } from "@/components/SubscriptionAndPaymentPanel";
-import { useKanbanColumnManager } from "@/hooks/useKanbanColumnManager";
 
-interface DashboardComponent {
-  id: string;
-  name: string;
-  description: string;
-  visible: boolean;
+import { useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Building2, Users, Settings, BarChart3 } from "lucide-react";
+import { CompanyInfoModal } from "./CompanyInfoModal";
+import { AddMemberModal } from "./AddMemberModal";
+import { EditMemberModal } from "./EditMemberModal";
+import { EditCompanyModal } from "./EditCompanyModal";
+import { LossReasonsManager } from "./LossReasonsManager";
+import { AddActionGroupDialog } from "./AddActionGroupDialog";
+import { AddActionTypeDialog } from "./AddActionTypeDialog";
+import { AddLeadSourceDialog } from "./AddLeadSourceDialog";
+import { AddLossReasonDialog } from "./AddLossReasonDialog";
+import { AddColumnDialog } from "./AddColumnDialog";
+import { PurchaseModal } from "./PurchaseModal";
+import { SubscriptionAndPaymentPanel } from "./SubscriptionAndPaymentPanel";
+import { useCompanyInfo } from "@/hooks/useCompanyInfo";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+
+interface SettingsContentProps {
+  onUserProfileUpdate?: () => void; // Nova prop para notificar atualizações
 }
 
-export function SettingsContent() {
-  const [activeTab, setActiveTab] = useState("company");
+export function SettingsContent({ onUserProfileUpdate }: SettingsContentProps) {
+  const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
   const [isEditMemberModalOpen, setIsEditMemberModalOpen] = useState(false);
-  const [isAddActionGroupDialogOpen, setIsAddActionGroupDialogOpen] = useState(false);
-  const [isAddActionTypeDialogOpen, setIsAddActionTypeDialogOpen] = useState(false);
-  const [isAddLeadSourceDialogOpen, setIsAddLeadSourceDialogOpen] = useState(false);
-  const [isAddLossReasonDialogOpen, setIsAddLossReasonDialogOpen] = useState(false);
   const [isEditCompanyModalOpen, setIsEditCompanyModalOpen] = useState(false);
-  const [editingMember, setEditingMember] = useState(null);
-  
-  const [teamMembers, setTeamMembers] = useState<any[]>([]);
-  const [isLoadingMembers, setIsLoadingMembers] = useState(true);
-
-  // Simulating admin check - in real implementation this would come from auth context
-  const isAdmin = true; // This should be replaced with actual admin check logic
-
-  const [editingColumn, setEditingColumn] = useState<string | null>(null);
-  const [editingColumnName, setEditingColumnName] = useState("");
-
-  // Use the new hook for Kanban column management
-  const {
-    columns: kanbanColumns,
-    isAddColumnDialogOpen,
-    maxOrder,
-    handleOpenAddColumnDialog,
-    handleCloseAddColumnDialog,
-    handleColumnAdded
-  } = useKanbanColumnManager();
-
-  // Hook para configurações do dashboard
-  const { components, toggleComponentVisibility } = useDashboardSettings();
-
-  // Hook para informações da empresa
-  const { companyInfo, isLoading: isLoadingCompany, updateCompanyInfo } = useCompanyInfo();
-
-  // Hook para esquema do tenant
-  const { tenantSchema, ensureTenantSchema } = useTenantSchema();
-
-  // Usar o hook para obter os dados sincronizados
-  const { 
-    actionGroups = [], 
-    actionTypes = [], 
-    leadSources = [], 
-    loading: optionsLoading,
-    refreshData 
-  } = useFilterOptions();
-
-  // Hook global para motivos de perda
-  const { 
-    lossReasons, 
-    loading: lossReasonsLoading, 
-    deleteLossReason,
-    refreshData: refreshLossReasons
-  } = useLossReasonsGlobal();
-
+  const [selectedMember, setSelectedMember] = useState<any>(null);
+  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
+  const { companyInfo, isLoading: isCompanyLoading } = useCompanyInfo();
   const { toast } = useToast();
 
-  // Função para carregar membros da equipe
-  const fetchTeamMembers = async () => {
-    setIsLoadingMembers(true);
-    try {
+  const { data: userRole } = useQuery({
+    queryKey: ['user-role'],
+    queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) return null;
 
-      const { data: profiles, error } = await supabase
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+
+      return data?.role || 'owner';
+    },
+  });
+
+  const { data: members, refetch: refetchMembers } = useQuery({
+    queryKey: ['team-members'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      const { data } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('parent_user_id', user.id);
 
-      if (error) throw error;
-
-      const members = profiles.map(profile => ({
-        id: profile.user_id, // Member's user_id from auth.users
-        profile_id: profile.id, // The UUID of the profile row itself
-        name: profile.name,
-        email: profile.email,
-        role: profile.title,
-        avatar: profile.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'N/A',
-      }));
-
-      setTeamMembers(members);
-    } catch (error) {
-      console.error("Error fetching team members:", error);
-      toast({
-        title: "Erro ao buscar membros",
-        description: (error as Error).message || "Não foi possível carregar os membros da equipe.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoadingMembers(false);
-    }
-  };
-
-  // Atualizar dados quando o componente for montado ou a aba de configurações for ativada
-  useEffect(() => {
-    console.log(`🔄 SettingsContent - Componente montado/aba alterada: ${activeTab}`);
-    if (activeTab === "configurations") {
-      console.log(`🔄 SettingsContent - Aba "configurations" ativa, forçando refresh dos motivos de perda...`);
-      refreshLossReasons();
-    }
-    if (activeTab === "team") {
-      fetchTeamMembers();
-    }
-  }, [activeTab, refreshLossReasons]);
-
-  // Define tabs based on admin status - Dashboard movido para segunda posição
-  const allTabs = [
-    { id: "company", title: "Empresa", icon: Building },
-    { id: "dashboard", title: "Dashboard", icon: Building },
-    { id: "team", title: "Equipe", icon: Users },
-    { id: "kanban", title: "Quadro Kanban", icon: Columns },
-    { id: "configurations", title: "Ações", icon: Settings },
-  ];
-
-  const tabs = isAdmin ? allTabs : allTabs.filter(tab => tab.id !== "company");
-
-  const handleAddMember = () => {
-    fetchTeamMembers();
-  };
+      return data || [];
+    },
+  });
 
   const handleEditMember = (member: any) => {
-    setEditingMember(member);
+    setSelectedMember(member);
     setIsEditMemberModalOpen(true);
   };
 
-  const handleUpdateMember = async (updatedMember: any) => {
-    try {
-      const { error } = await supabase
-        .from('user_profiles')
-        .update({
-          name: updatedMember.name,
-          email: updatedMember.email,
-          title: updatedMember.role,
-        })
-        .eq('user_id', updatedMember.id);
-
-      if (error) throw error;
-      
-      // The modal currently calls onMemberUpdated, which triggers this function.
-      // We are overriding the local state update with a DB call.
-      // The toast from EditMemberModal will still fire.
-      
-      fetchTeamMembers(); // Refetch to display updated data
-    } catch(error) {
-      console.error("Error updating member:", error);
-      toast({
-        title: "Erro ao atualizar membro",
-        description: "Ocorreu um erro ao atualizar os dados do membro.",
-        variant: "destructive",
-      });
+  const handleDeleteMember = async (memberId: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir este membro?')) {
+      return;
     }
-    setEditingMember(null);
-  };
 
-  const handleDeleteMember = async (memberId: string, memberName: string) => {
     try {
-      const { data, error } = await supabase.functions.invoke('delete-member', {
-        body: { memberId },
+      const response = await fetch('https://xltugnmjbcowsuwzkkni.supabase.co/functions/v1/delete-member', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ memberId }),
       });
 
-      if (error) {
-        throw new Error(error.message);
-      }
-      
-      if (data.error) {
-        throw new Error(data.error);
+      if (!response.ok) {
+        throw new Error('Erro ao excluir membro');
       }
 
       toast({
-        title: "Membro removido com sucesso",
-        description: `O membro ${memberName} foi removido permanentemente.`,
+        title: "Membro excluído",
+        description: "O membro foi excluído com sucesso.",
       });
 
-      fetchTeamMembers();
+      refetchMembers();
     } catch (error) {
-      console.error("Error deleting member:", error);
+      console.error('Erro ao excluir membro:', error);
       toast({
-        title: "Erro ao remover membro",
-        description: (error as Error).message || "Não foi possível remover o membro da equipe.",
+        title: "Erro",
+        description: "Não foi possível excluir o membro.",
         variant: "destructive",
       });
     }
   };
 
-  const handleChangePaymentMethod = () => {
-    toast({
-      title: "Funcionalidade em desenvolvimento",
-      description: "A alteração da forma de pagamento será implementada em breve.",
-    });
-  };
-
-  const handleEditColumnName = (columnId: string, currentName: string) => {
-    setEditingColumn(columnId);
-    setEditingColumnName(currentName);
-  };
-
-  const handleSaveColumnName = async (columnId: string) => {
-    if (!editingColumnName.trim()) {
-      toast({
-        title: "Erro",
-        description: "O nome da coluna não pode estar vazio.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      console.log(`💾 SettingsContent - Atualizando nome da coluna ${columnId} SOMENTE no esquema do tenant...`);
-      
-      const schema = tenantSchema || await ensureTenantSchema();
-      if (!schema) {
-        console.error('❌ Não foi possível obter o esquema do tenant');
-        toast({
-          title: "Erro",
-          description: "Não foi possível obter o esquema do tenant.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // SEMPRE usar o esquema do tenant - nunca a tabela global
-      const { error } = await supabase.rpc('exec_sql' as any, {
-        sql: `UPDATE ${schema}.kanban_columns SET name = '${editingColumnName.trim()}' WHERE id = '${columnId}'`
-      });
-
-      if (error) {
-        console.error('❌ Erro ao atualizar coluna do tenant:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível atualizar o nome da coluna.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      setEditingColumn(null);
-      setEditingColumnName("");
-
-      console.log('✅ SettingsContent - Nome da coluna atualizado com sucesso no esquema do tenant');
-      toast({
-        title: "Sucesso",
-        description: "Nome da coluna atualizado com sucesso.",
-      });
-
-      // Refresh columns after update
-      handleColumnAdded();
-    } catch (error) {
-      console.error('❌ Erro inesperado ao atualizar coluna do tenant:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado ao atualizar a coluna.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleCancelEditColumn = () => {
-    setEditingColumn(null);
-    setEditingColumnName("");
-  };
-
-  const handleDeleteColumn = async (columnId: string) => {
-    try {
-      console.log(`🗑️ SettingsContent - Deletando coluna ${columnId} SOMENTE do esquema do tenant...`);
-      
-      const schema = tenantSchema || await ensureTenantSchema();
-      if (!schema) {
-        console.error('❌ Não foi possível obter o esquema do tenant');
-        toast({
-          title: "Erro",
-          description: "Não foi possível obter o esquema do tenant.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // Deleta a coluna no esquema do tenant
-      const { error } = await supabase.rpc('exec_sql' as any, {
-        sql: `DELETE FROM ${schema}.kanban_columns WHERE id = '${columnId}'`
-      });
-
-      if (error) {
-        console.error('❌ Erro ao excluir coluna do tenant:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível excluir a coluna.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      console.log('✅ SettingsContent - Coluna excluída com sucesso do esquema do tenant');
-      toast({
-        title: "Sucesso",
-        description: "Coluna excluída e ordem atualizada.",
-      });
-
-      // Refresh columns after deletion
-      handleColumnAdded();
-    } catch (error) {
-      console.error('❌ Erro inesperado ao excluir coluna do tenant:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado ao excluir a coluna.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Função utilitária para extrair campos do address concatenado
-  function parseCompanyAddressFields(addr: string) {
-    // Exemplo: "Rua dos Testes, 123, Bairro do Centro, Cidade Teste, Estado Teste, CEP: 12345-000"
-    const result = {
-      cep: "",
-      address: "",
-      neighborhood: "",
-      city: "",
-      state: "",
-    };
-
-    try {
-      // Separar por vírgulas
-      const parts = addr.split(",");
-      // O último campo normalmente é "CEP: XXXXX-XXX"
-      if (parts.length > 0) {
-        const cepMatch = parts[parts.length - 1].match(/CEP[:\s]+([0-9\-]+)/i);
-        if (cepMatch) {
-          result.cep = cepMatch[1].trim();
-          parts.pop(); // remove o CEP
-        }
-      }
-      // Agora, os campos:
-      // [address, neighborhood, city, state]
-      if (parts[0]) result.address = parts[0].trim();
-      if (parts[1]) result.neighborhood = parts[1].trim();
-      if (parts[2]) result.city = parts[2].trim();
-      if (parts[3]) result.state = parts[3].trim();
-    } catch {
-      // Caso não consiga fazer o parsing, deixa os campos vazios
-    }
-    return result;
-  }
-
-  // Função para gerenciar visibilidade dos componentes do dashboard
-  const handleToggleComponentVisibility = (componentId: string) => {
-    toggleComponentVisibility(componentId);
-    
-    const component = components.find(comp => comp.id === componentId);
-    if (component) {
-      toast({
-        title: "Visibilidade alterada",
-        description: `${component.name} foi ${component.visible ? 'ocultado' : 'exibido'}.`,
-      });
-    }
-  };
-
-  const renderDashboardTab = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">Configurações do Dashboard</h3>
-        <p className="text-sm text-gray-600">Gerencie a visibilidade dos componentes do dashboard</p>
-      </div>
-      
-      <Card className="p-6">
-        <h4 className="text-md font-semibold text-gray-900 mb-4">Componentes Disponíveis</h4>
-        <div className="space-y-4">
-          {components.map((component) => (
-            <div key={component.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div>
-                <h5 className="font-medium text-gray-900">{component.name}</h5>
-                <p className="text-sm text-gray-600">{component.description}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className={`text-sm ${component.visible ? 'text-green-600' : 'text-gray-600'}`}>
-                  {component.visible ? 'Visível' : 'Oculto'}
-                </span>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => handleToggleComponentVisibility(component.id)}
-                >
-                  {component.visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
-    </div>
-  );
-
-  const renderCompanyTab = () => {
-    // Extrair os campos do companyInfo
-    let extracted = {
-      cep: "",
-      address: "",
-      neighborhood: "",
-      city: "",
-      state: "",
-    };
-    if (companyInfo && companyInfo.address) {
-      extracted = parseCompanyAddressFields(companyInfo.address);
-    }
-    return (
-      <div className="space-y-6">
-        <h3 className="text-lg font-semibold text-gray-900">Configurações e Pagamento</h3>
-        
-        {/* Company Information */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="text-md font-semibold text-gray-900">Informações da Empresa</h4>
-            <Button 
-              variant="outline"
-              onClick={() => setIsEditCompanyModalOpen(true)}
-              disabled={isLoadingCompany}
-            >
-              <Edit className="h-4 w-4 mr-2" />
-              Editar
-            </Button>
-          </div>
-          
-          {isLoadingCompany ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500">Carregando informações da empresa...</p>
-            </div>
-          ) : companyInfo ? (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nome/Razão Social
-                  </label>
-                  <div className="bg-gray-50 border border-gray-200 px-3 py-2 rounded-md">
-                    {companyInfo.company_name}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    CPF/CNPJ
-                  </label>
-                  <div className="bg-gray-50 border border-gray-200 px-3 py-2 rounded-md">
-                    {companyInfo.cnpj}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Telefone
-                  </label>
-                  <div className="bg-gray-50 border border-gray-200 px-3 py-2 rounded-md">
-                    {companyInfo.phone}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    E-mail
-                  </label>
-                  <div className="bg-gray-50 border border-gray-200 px-3 py-2 rounded-md">
-                    {companyInfo.email}
-                  </div>
-                </div>
-                {/* NOVOS CAMPOS EXTRAPOLADOS */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    CEP
-                  </label>
-                  <div className="bg-gray-50 border border-gray-200 px-3 py-2 rounded-md">
-                    {extracted.cep}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Endereço
-                  </label>
-                  <div className="bg-gray-50 border border-gray-200 px-3 py-2 rounded-md">
-                    {extracted.address}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Bairro
-                  </label>
-                  <div className="bg-gray-50 border border-gray-200 px-3 py-2 rounded-md">
-                    {extracted.neighborhood}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Cidade
-                  </label>
-                  <div className="bg-gray-50 border border-gray-200 px-3 py-2 rounded-md">
-                    {extracted.city}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Estado
-                  </label>
-                  <div className="bg-gray-50 border border-gray-200 px-3 py-2 rounded-md">
-                    {extracted.state}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <p className="text-gray-500 mb-4">Nenhuma informação da empresa encontrada.</p>
-              <Button 
-                className="bg-blue-600 hover:bg-blue-700"
-                onClick={() => setIsEditCompanyModalOpen(true)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Cadastrar Informações
-              </Button>
-            </div>
-          )}
-        </Card>
-
-        {/* Subscription and Payment Panel (Stripe) */}
-        <SubscriptionAndPaymentPanel />
-      </div>
-    );
-  };
-
-  const renderTeamTab = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">Membros da Equipe</h3>
-        <Button 
-          className="bg-blue-600 hover:bg-blue-700"
-          onClick={() => setIsAddMemberModalOpen(true)}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Adicionar Membro
-        </Button>
-      </div>
-      {isLoadingMembers ? (
-        <Card className="p-6 text-center">
-          <p className="text-gray-500">Carregando membros da equipe...</p>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          {teamMembers.length > 0 ? teamMembers.map((member) => (
-            <Card key={member.id} className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center font-semibold">
-                    {member.avatar}
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-gray-900">{member.name}</h4>
-                    <p className="text-sm text-gray-600">{member.email}</p>
-                  </div>
-                  <Badge variant="outline">{member.role}</Badge>
-                </div>
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => handleEditMember(member)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <DeleteButton
-                    onDelete={() => handleDeleteMember(member.id, member.name)}
-                    itemName={member.name}
-                    itemType="membro da equipe"
-                    size="sm"
-                    variant="outline"
-                  />
-                </div>
-              </div>
-            </Card>
-          )) : (
-            <Card className="p-6 text-center">
-              <p className="text-gray-500">Nenhum membro na equipe ainda. Adicione o primeiro!</p>
-            </Card>
-          )}
-        </div>
-      )}
-    </div>
-  );
-
-  const renderKanbanTab = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">Colunas do Kanban (Privadas do Tenant)</h3>
-        <Button 
-          className="bg-blue-600 hover:bg-blue-700"
-          onClick={handleOpenAddColumnDialog}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Nova Coluna
-        </Button>
-      </div>
-      
-      <div className="space-y-4">
-        {kanbanColumns.map((column) => (
-          <Card key={column.id} className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div 
-                  className="w-4 h-4 rounded"
-                  style={{ backgroundColor: column.color }}
-                ></div>
-                <div className="flex-1">
-                  {editingColumn === column.id ? (
-                    <div className="flex items-center gap-2">
-                      <Input
-                        value={editingColumnName}
-                        onChange={(e) => setEditingColumnName(e.target.value)}
-                        className="max-w-xs"
-                        placeholder="Nome da coluna"
-                      />
-                      <Button 
-                        size="sm" 
-                        onClick={() => handleSaveColumnName(column.id)}
-                      >
-                        <Check className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={handleCancelEditColumn}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <div>
-                      <h4 className="font-medium text-gray-900">{column.name}</h4>
-                      <p className="text-sm text-gray-600">Posição: {column.order_position}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-              {editingColumn !== column.id && (
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => handleEditColumnName(column.id, column.name)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  {!column.is_default && (
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => handleDeleteColumn(column.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
-          </Card>
-        ))}
-      </div>
-    </div>
-  );
-
-  const renderConfigurationsTab = () => {
-    console.log('🔄 SettingsContent - Renderizando aba Configurações/Ações');
-    console.log(`📊 SettingsContent - Estados de loading: optionsLoading=${optionsLoading}, lossReasonsLoading=${lossReasonsLoading}`);
-    console.log(`📊 SettingsContent - Dados carregados: actionGroups=${actionGroups.length}, actionTypes=${actionTypes.length}, leadSources=${leadSources.length}, lossReasons=${lossReasons.length}`);
-    
-    return (
-      <div className="space-y-6">
-        <h3 className="text-lg font-semibold text-gray-900">Configurações do Sistema</h3>
-        
-        {/* Grupos e Tipos de Ação - Painel Unificado */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="text-md font-semibold text-gray-900">Grupos e Tipos de Ação</h4>
-            <div className="flex gap-2">
-              <Button 
-                className="bg-blue-600 hover:bg-blue-700"
-                onClick={() => setIsAddActionGroupDialogOpen(true)}
-                disabled={optionsLoading}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Grupo
-              </Button>
-              <Button 
-                className="bg-green-600 hover:bg-green-700"
-                onClick={() => setIsAddActionTypeDialogOpen(true)}
-                disabled={optionsLoading}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Tipo
-              </Button>
-            </div>
-          </div>
-          
-          {optionsLoading ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500">Carregando grupos e tipos de ação...</p>
-            </div>
-          ) : (
-            <ScrollArea className="h-96 w-full rounded-md border p-4">
-              <Accordion type="single" collapsible className="w-full">
-                {actionGroups.length === 0 ? (
-                  <div className="text-center py-4">
-                    <p className="text-gray-500">Nenhum grupo de ação encontrado.</p>
-                  </div>
-                ) : (
-                  actionGroups.map((group) => {
-                    const groupActionTypes = actionTypes.filter(type => type.action_group_id === group.id);
-                    
-                    return (
-                      <AccordionItem key={group.id} value={group.id}>
-                        <AccordionTrigger className="hover:no-underline">
-                          <div className="flex items-center justify-between w-full mr-4">
-                            <div className="flex items-center gap-3">
-                              <div>
-                                <h5 className="font-medium text-gray-900 text-left">{group.description || group.name}</h5>
-                                <p className="text-sm text-gray-600 text-left">{groupActionTypes.length} tipos de ação</p>
-                              </div>
-                            </div>
-                            <div className="flex gap-2">
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteActionGroup(group.id);
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          <div className="space-y-2 pl-4">
-                            {groupActionTypes.length === 0 ? (
-                              <p className="text-sm text-gray-500 italic">Nenhum tipo de ação encontrado para este grupo</p>
-                            ) : (
-                              groupActionTypes.map((type) => (
-                                <div key={type.id} className="bg-gray-50 rounded-lg p-3 border border-gray-100">
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex-1">
-                                      <h6 className="font-medium text-gray-900">
-                                        {type.name.split('-').map(word => 
-                                          word.charAt(0).toUpperCase() + word.slice(1)
-                                        ).join(' ')}
-                                      </h6>
-                                    </div>
-                                    <div className="flex gap-2">
-                                      <Button 
-                                        variant="outline" 
-                                        size="sm"
-                                        onClick={() => handleDeleteActionType(type.id)}
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))
-                            )}
-                          </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                    );
-                  })
-                )}
-              </Accordion>
-            </ScrollArea>
-          )}
-        </Card>
-
-        {/* Fontes de Leads */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="text-md font-semibold text-gray-900">Fontes de Leads</h4>
-            <Button 
-              className="bg-blue-600 hover:bg-blue-700"
-              onClick={() => setIsAddLeadSourceDialogOpen(true)}
-              disabled={optionsLoading}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Nova Fonte
-            </Button>
-          </div>
-          
-          {optionsLoading ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500">Carregando fontes de leads...</p>
-            </div>
-          ) : (
-            <ScrollArea className="h-64 w-full rounded-md border p-4">
-              <div className="space-y-3">
-                {leadSources.length === 0 ? (
-                  <div className="text-center py-4">
-                    <p className="text-gray-500">Nenhuma fonte de lead encontrada.</p>
-                  </div>
-                ) : (
-                  leadSources.map((source: any) => (
-                    <div key={source.id} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1 flex items-center gap-2">
-                          <h5 className="font-medium text-gray-900">{source.label}</h5>
-                          {!source.user_id && (
-                            <span className="ml-2 text-xs text-gray-400">(padrão)</span>
-                          )}
-                        </div>
-                        <div className="flex gap-2">
-                          <DeleteButton
-                            onDelete={() => handleDeleteLeadSource(source.id)}
-                            itemName={source.label}
-                            itemType="fonte de lead"
-                            size="sm"
-                            variant="outline"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </ScrollArea>
-          )}
-        </Card>
-
-        {/* SIMPLIFIED LOSS REASONS PANEL */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="text-md font-semibold text-gray-900">Tipos de Perdas</h4>
-            <Button 
-              className="bg-blue-600 hover:bg-blue-700"
-              onClick={() => setIsAddLossReasonDialogOpen(true)}
-              disabled={lossReasonsLoading}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Motivo
-            </Button>
-          </div>
-          
-          {lossReasonsLoading ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500">Carregando motivos de perda...</p>
-            </div>
-          ) : (
-            <ScrollArea className="h-64 w-full rounded-md border p-4">
-              <div className="space-y-3">
-                {lossReasons.length === 0 ? (
-                  <div className="text-center py-4">
-                    <p className="text-gray-500">Nenhum motivo de perda encontrado.</p>
-                    <Button 
-                      variant="outline"
-                      onClick={refreshLossReasons}
-                      className="mt-2"
-                    >
-                      🔄 Tentar Novamente
-                    </Button>
-                  </div>
-                ) : (
-                  lossReasons.map((reason) => (
-                    <div key={reason.id} className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div>
-                            <h5 className="font-medium text-gray-900">{reason.reason}</h5>
-                            {reason.is_fixed && (
-                              <Badge variant="secondary" className="text-xs mt-1">
-                                Sistema
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          {!reason.is_fixed && (
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleDeleteLossReason(reason.id)}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </ScrollArea>
-          )}
-        </Card>
-      </div>
-    );
-  };
-
-  // --- Handler atualizado para deletar/ocultar fonte de lead ---
-  const handleDeleteLeadSource = async (sourceId: string) => {
-    // Descobre a fonte no array atual para verificar user_id
-    const source = leadSources.find((s: any) => s.id === sourceId);
-    if (!source) {
-      toast({
-        title: "Erro",
-        description: "Fonte não encontrada.",
-        variant: "destructive"
-      });
-      return;
-    }
-    if (!source.user_id) {
-      // Global: oculta para o tenant usando hidden_default_items
-      const { error } = await supabase
-        .from('hidden_default_items')
-        .insert({
-          item_id: source.id,
-          item_type: 'lead_source',
-          // user_id será setado automaticamente pelo trigger/função
-        });
-      if (error) {
-        console.error('Erro ao ocultar fonte global:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível ocultar a fonte padrão.",
-          variant: "destructive"
-        });
-        return;
-      }
-      toast({
-        title: "Fonte padrão ocultada!",
-        description: "A fonte global não pode ser excluída, mas foi ocultada para seu workspace.",
-      });
-      refreshData();
-      return;
-    }
-    // Fonte do tenant: deleta normalmente
-    const { error } = await supabase
-      .from('lead_sources')
-      .delete()
-      .eq('id', source.id);
-    if (error) {
-      console.error('Erro ao excluir fonte de lead:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível excluir a fonte.",
-        variant: "destructive"
-      });
-      return;
-    }
-    toast({
-      title: "Sucesso",
-      description: "Fonte de lead excluída.",
-    });
-    refreshData();
-  };
-
-  // --- Handler atualizado para deletar/ocultar grupo de ação (global ou do tenant) ---
-  const handleDeleteActionGroup = async (groupId: string) => {
-    // Descobre o grupo no array atual para verificar user_id
-    const group = actionGroups.find((g: any) => g.id === groupId);
-    if (!group) {
-      toast({
-        title: "Erro",
-        description: "Grupo não encontrado.",
-        variant: "destructive"
-      });
-      return;
-    }
-    if (!group.user_id) {
-      // Global: oculta para o tenant usando hidden_default_items
-      const { error } = await supabase
-        .from('hidden_default_items')
-        .insert({
-          item_id: group.id,
-          item_type: 'action_group',
-        });
-      if (error) {
-        console.error('Erro ao ocultar grupo global:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível ocultar o grupo padrão.",
-          variant: "destructive"
-        });
-        return;
-      }
-      toast({
-        title: "Grupo padrão ocultado!",
-        description: "O grupo global não pode ser excluído, mas foi ocultado para seu workspace.",
-      });
-      refreshData();
-      return;
-    }
-    // Grupo do tenant: deleta normalmente
-    try {
-      const { error } = await supabase
-        .from('action_groups')
-        .delete()
-        .eq('id', group.id);
-
-      if (error) {
-        console.error('Erro ao excluir grupo de ação:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível excluir o grupo.",
-          variant: "destructive"
-        });
-        return;
-      }
-      toast({
-        title: "Sucesso",
-        description: "Grupo de ação excluído.",
-      });
-      refreshData();
-    } catch (error) {
-      console.error('Erro inesperado ao excluir grupo de ação:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro ao excluir o grupo.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // --- Handler atualizado para deletar/ocultar tipo de ação (global ou do tenant) ---
-  const handleDeleteActionType = async (typeId: string) => {
-    // Descobre o tipo no array atual para verificar user_id
-    const type = actionTypes.find((t: any) => t.id === typeId);
-    if (!type) {
-      toast({
-        title: "Erro",
-        description: "Tipo não encontrado.",
-        variant: "destructive"
-      });
-      return;
-    }
-    if (!type.user_id) {
-      // Global: oculta para o tenant usando hidden_default_items
-      const { error } = await supabase
-        .from('hidden_default_items')
-        .insert({
-          item_id: type.id,
-          item_type: 'action_type',
-        });
-      if (error) {
-        console.error('Erro ao ocultar tipo global:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível ocultar o tipo padrão.",
-          variant: "destructive"
-        });
-        return;
-      }
-      toast({
-        title: "Tipo padrão ocultado!",
-        description: "O tipo global não pode ser excluído, mas foi ocultado para seu workspace.",
-      });
-      refreshData();
-      return;
-    }
-    // Tipo do tenant: deleta normalmente
-    try {
-      const { error } = await supabase
-        .from('action_types')
-        .delete()
-        .eq('id', type.id);
-
-      if (error) {
-        console.error('Erro ao excluir tipo de ação:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível excluir o tipo.",
-          variant: "destructive"
-        });
-        return;
-      }
-      toast({
-        title: "Sucesso",
-        description: "Tipo de ação excluído.",
-      });
-      refreshData();
-    } catch (error) {
-      console.error('Erro inesperado ao excluir tipo de ação:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro ao excluir o tipo.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // --- ADDED: Handler para deletar motivo de perda ---
-  const handleDeleteLossReason = async (reasonId: string) => {
-    try {
-      await deleteLossReason(reasonId);
-      toast({
-        title: "Motivo de perda excluído!",
-        description: "O motivo de perda foi removido com sucesso.",
-      });
-      refreshLossReasons();
-    } catch (error) {
-      console.error('Erro ao excluir motivo de perda:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível excluir o motivo de perda.",
-        variant: "destructive"
-      });
+  const handleCompanyUpdated = () => {
+    // Notificar o componente pai (que inclui o Header) sobre a atualização
+    if (onUserProfileUpdate) {
+      onUserProfileUpdate();
     }
   };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Configurações</h1>
-        <p className="text-gray-600">Gerencie configurações do sistema, equipe e empresa</p>
-      </div>
-
-      {/* Tabs */}
-      <Card className="p-6">
-        <div className="flex flex-wrap gap-2 mb-6">
-          {tabs.map((tab) => (
-            <Button
-              key={tab.id}
-              variant={activeTab === tab.id ? "default" : "outline"}
-              onClick={() => setActiveTab(tab.id)}
-              className="flex items-center gap-2"
-            >
-              <tab.icon className="h-4 w-4" />
-              {tab.title}
-            </Button>
-          ))}
-        </div>
-
-        {/* Tab Content */}
-        {activeTab === "company" && renderCompanyTab()}
-        {activeTab === "dashboard" && renderDashboardTab()}
-        {activeTab === "team" && renderTeamTab()}
-        {activeTab === "kanban" && renderKanbanTab()}
-        {activeTab === "configurations" && renderConfigurationsTab()}
+      {/* Seção de Informações da Empresa */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Building2 className="h-5 w-5" />
+            Informações da Empresa
+          </CardTitle>
+          <CardDescription>
+            Configure as informações básicas da sua empresa
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isCompanyLoading ? (
+            <p>Carregando informações da empresa...</p>
+          ) : companyInfo ? (
+            <div className="space-y-2">
+              <p><strong>Empresa:</strong> {companyInfo.company_name}</p>
+              <p><strong>CNPJ:</strong> {companyInfo.cnpj}</p>
+              <p><strong>Email:</strong> {companyInfo.email}</p>
+              <p><strong>Telefone:</strong> {companyInfo.phone}</p>
+              <p><strong>Endereço:</strong> {companyInfo.address}</p>
+              <Button 
+                onClick={() => setIsCompanyModalOpen(true)}
+                className="mt-4"
+              >
+                Editar Informações
+              </Button>
+            </div>
+          ) : (
+            <div>
+              <p className="text-muted-foreground mb-4">
+                Nenhuma informação da empresa cadastrada
+              </p>
+              <Button onClick={() => setIsCompanyModalOpen(true)}>
+                Adicionar Informações da Empresa
+              </Button>
+            </div>
+          )}
+        </CardContent>
       </Card>
 
+      {/* Seção de Gerenciamento de Equipe */}
+      {userRole !== 'member' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Gerenciamento de Equipe
+            </CardTitle>
+            <CardDescription>
+              Gerencie os membros da sua equipe
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <Button onClick={() => setIsAddMemberModalOpen(true)}>
+                Adicionar Membro
+              </Button>
+              
+              {members && members.length > 0 ? (
+                <div className="space-y-2">
+                  <h4 className="font-medium">Membros da Equipe:</h4>
+                  {members.map((member) => (
+                    <div key={member.id} className="flex items-center justify-between p-2 border rounded">
+                      <div>
+                        <p className="font-medium">{member.name}</p>
+                        <p className="text-sm text-muted-foreground">{member.email}</p>
+                        <p className="text-xs text-muted-foreground">{member.title || 'Sem cargo definido'}</p>
+                      </div>
+                      <div className="space-x-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleEditMember(member)}
+                        >
+                          Editar
+                        </Button>
+                        <Button 
+                          variant="destructive" 
+                          size="sm"
+                          onClick={() => handleDeleteMember(member.user_id)}
+                        >
+                          Excluir
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground">Nenhum membro adicionado ainda</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Seção de Configurações do Sistema */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Settings className="h-5 w-5" />
+            Configurações do Sistema
+          </CardTitle>
+          <CardDescription>
+            Configure grupos de ação, tipos de ação, fontes de leads e motivos de perda
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <AddActionGroupDialog />
+            <AddActionTypeDialog />
+            <AddLeadSourceDialog />
+            <AddLossReasonDialog />
+            <AddColumnDialog />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Seção de Motivos de Perda */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            Gerenciar Motivos de Perda
+          </CardTitle>
+          <CardDescription>
+            Configure e gerencie os motivos de perda de leads
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <LossReasonsManager />
+        </CardContent>
+      </Card>
+
+      {/* Seção de Assinatura e Pagamento */}
+      <SubscriptionAndPaymentPanel onUpgrade={() => setIsPurchaseModalOpen(true)} />
+
+      {/* Modais */}
+      <CompanyInfoModal 
+        isOpen={isCompanyModalOpen} 
+        onClose={() => setIsCompanyModalOpen(false)}
+        onCompanyUpdated={handleCompanyUpdated}
+      />
+      
       <AddMemberModal
         isOpen={isAddMemberModalOpen}
         onClose={() => setIsAddMemberModalOpen(false)}
-        onMemberAdded={handleAddMember}
+        onMemberAdded={() => refetchMembers()}
       />
 
       <EditMemberModal
         isOpen={isEditMemberModalOpen}
         onClose={() => setIsEditMemberModalOpen(false)}
-        member={editingMember}
-        onMemberUpdated={handleUpdateMember}
-      />
-
-      <AddColumnDialog
-        isOpen={isAddColumnDialogOpen}
-        onClose={handleCloseAddColumnDialog}
-        onAddColumn={handleColumnAdded}
-        maxOrder={maxOrder}
-        columns={kanbanColumns}
-      />
-
-      <AddActionGroupDialog
-        isOpen={isAddActionGroupDialogOpen}
-        onClose={() => setIsAddActionGroupDialogOpen(false)}
-        onGroupAdded={refreshData}
-      />
-
-      <AddActionTypeDialog
-        isOpen={isAddActionTypeDialogOpen}
-        onClose={() => setIsAddActionTypeDialogOpen(false)}
-        onTypeAdded={refreshData}
-        actionGroups={actionGroups}
-      />
-
-      <AddLeadSourceDialog
-        isOpen={isAddLeadSourceDialogOpen}
-        onClose={() => setIsAddLeadSourceDialogOpen(false)}
-        onSourceAdded={refreshData}
-      />
-
-      <AddLossReasonDialog
-        isOpen={isAddLossReasonDialogOpen}
-        onClose={() => setIsAddLossReasonDialogOpen(false)}
-        onReasonAdded={refreshLossReasons}
+        member={selectedMember}
+        onMemberUpdated={() => refetchMembers()}
       />
 
       <EditCompanyModal
         isOpen={isEditCompanyModalOpen}
         onClose={() => setIsEditCompanyModalOpen(false)}
-        companyInfo={companyInfo}
-        onSave={updateCompanyInfo}
-        isLoading={isLoadingCompany}
+      />
+
+      <PurchaseModal
+        isOpen={isPurchaseModalOpen}
+        onClose={() => setIsPurchaseModalOpen(false)}
       />
     </div>
   );

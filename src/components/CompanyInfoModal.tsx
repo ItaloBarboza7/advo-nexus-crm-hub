@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -12,9 +11,10 @@ import { useFilterOptions } from "@/hooks/useFilterOptions";
 interface CompanyInfoModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onCompanyUpdated?: () => void; // Nova prop para notificar atualizações
 }
 
-export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
+export function CompanyInfoModal({ isOpen, onClose, onCompanyUpdated }: CompanyInfoModalProps) {
   const [companyName, setCompanyName] = useState("");
   const [cpfCnpj, setCpfCnpj] = useState("");
   const [phone, setPhone] = useState("");
@@ -287,6 +287,11 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
         title: "Informações salvas",
         description: "As informações da empresa foram salvas com sucesso.",
       });
+
+      // Notificar o componente pai sobre a atualização
+      if (onCompanyUpdated) {
+        onCompanyUpdated();
+      }
 
       onClose();
     } catch (error) {
