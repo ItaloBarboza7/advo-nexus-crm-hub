@@ -146,8 +146,17 @@ export function EditCompanyModal({
       };
     };
 
-    const cleanup = setupRealtimeSync();
-    return () => cleanup;
+    let cleanup: (() => void) | undefined;
+    
+    setupRealtimeSync().then((cleanupFn) => {
+      cleanup = cleanupFn;
+    });
+
+    return () => {
+      if (cleanup) {
+        cleanup();
+      }
+    };
   }, [isOpen]);
 
   const handleSave = async () => {

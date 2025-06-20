@@ -283,8 +283,17 @@ export function useCompanyInfo() {
       };
     };
 
-    const cleanup = setupRealtimeSubscriptions();
-    return () => cleanup;
+    let cleanup: (() => void) | undefined;
+    
+    setupRealtimeSubscriptions().then((cleanupFn) => {
+      cleanup = cleanupFn;
+    });
+
+    return () => {
+      if (cleanup) {
+        cleanup();
+      }
+    };
   }, [fetchCompanyInfo]);
 
   return {

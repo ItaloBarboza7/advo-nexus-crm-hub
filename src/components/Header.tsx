@@ -1,4 +1,3 @@
-
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import { GlobalSearch } from "./GlobalSearch"
@@ -71,8 +70,17 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
       };
     };
 
-    const cleanup = setupRealtimeSync();
-    return () => cleanup;
+    let cleanup: (() => void) | undefined;
+    
+    setupRealtimeSync().then((cleanupFn) => {
+      cleanup = cleanupFn;
+    });
+
+    return () => {
+      if (cleanup) {
+        cleanup();
+      }
+    };
   }, [user]);
 
   const loadUserProfile = async () => {
