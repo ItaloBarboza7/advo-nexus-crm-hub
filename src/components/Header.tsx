@@ -1,4 +1,5 @@
 
+
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import { GlobalSearch } from "./GlobalSearch"
@@ -41,18 +42,29 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
     }
   }, [user, companyInfo])
 
-  // Listener para mudanças no perfil
+  // Unified update function that coordinates company and profile updates
+  const updateProfileAndCompanyData = async () => {
+    try {
+      console.log('[Header] Iniciando atualização coordenada de dados');
+      
+      // First, refresh company info and wait for completion
+      await refreshCompanyInfo();
+      console.log('[Header] Atualização da empresa concluída');
+      
+      // Then load user profile with fresh company data
+      await loadUserProfile();
+      console.log('[Header] Carregamento do perfil concluído');
+      
+    } catch (error) {
+      console.error('[Header] Erro durante atualização coordenada:', error);
+    }
+  };
+
+  // Listener para mudanças no perfil - simplified and more robust
   useEffect(() => {
     const handleProfileUpdate = async () => {
-      console.log('[Header] Perfil atualizado via evento customizado');
-      // Primeiro, força atualização das informações da empresa
-      console.log('[Header] Forçando atualização das informações da empresa...');
-      await refreshCompanyInfo();
-      // Pequeno delay para garantir que as mudanças sejam processadas
-      setTimeout(() => {
-        console.log('[Header] Carregando perfil do usuário após atualização...');
-        loadUserProfile();
-      }, 500);
+      console.log('[Header] Evento userProfileUpdated recebido');
+      await updateProfileAndCompanyData();
     };
 
     window.addEventListener('userProfileUpdated', handleProfileUpdate);
@@ -121,30 +133,18 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
   const handleProfileModalClose = async () => {
     console.log('[Header] Modal do perfil fechado, recarregando dados');
     setIsProfileModalOpen(false)
-    // Recarregar perfil e informações da empresa após fechar modal
-    await refreshCompanyInfo()
-    setTimeout(() => {
-      loadUserProfile()
-    }, 300)
+    // Use the unified update function
+    await updateProfileAndCompanyData()
   }
 
   const handleProfileClick = async () => {
-    console.log('[Header] Clique no perfil - forçando refresh antes de abrir modal');
+    console.log('[Header] Clique no perfil - iniciando atualização antes de abrir modal');
     
-    // Forçar atualização das informações da empresa
-    await refreshCompanyInfo();
+    // Use the unified update function to ensure everything is synchronized
+    await updateProfileAndCompanyData();
     
-    // Pequeno delay para garantir sincronização
-    setTimeout(() => {
-      console.log('[Header] Recarregando perfil após refresh da empresa');
-      loadUserProfile();
-      
-      // Outro pequeno delay antes de abrir o modal
-      setTimeout(() => {
-        console.log('[Header] Abrindo modal do perfil com dados atualizados');
-        setIsProfileModalOpen(true);
-      }, 200);
-    }, 300);
+    console.log('[Header] Dados atualizados, abrindo modal do perfil');
+    setIsProfileModalOpen(true);
   }
 
   return (
@@ -203,3 +203,4 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
     </>
   )
 }
+
