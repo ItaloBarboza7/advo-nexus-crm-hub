@@ -119,6 +119,9 @@ export function EditCompanyModal({
     });
 
     if (success) {
+      // Dispatch event to update header profile
+      console.log('[EditCompanyModal] Disparando evento userProfileUpdated');
+      window.dispatchEvent(new CustomEvent('userProfileUpdated'));
       onClose();
     }
   };
