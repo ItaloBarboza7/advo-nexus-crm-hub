@@ -150,7 +150,7 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder, column
       console.log('✅ AddColumnDialog - Coluna excluída com sucesso do esquema do tenant');
       toast({
         title: "Sucesso",
-        description: "Coluna excluída com sucesso. Todos os leads dessa coluna foram movidos para a coluna 'Novo'.",
+        description: "Coluna excluída com sucesso. Todos os leads dessa coluna foram movidos para a coluna 'Finalizado'.",
       });
 
       onAddColumn(); // Refresh after deletion
@@ -236,7 +236,7 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder, column
           <div className="border-t pt-4">
             <h4 className="text-sm font-medium mb-3">Colunas Existentes (Privadas do Tenant)</h4>
             <div className="text-xs mb-2 text-gray-600">
-              Ao excluir uma coluna, todos os leads dela serão automaticamente movidos para a coluna <span className="font-semibold text-blue-900 bg-blue-100 rounded px-1 py-0.5">Novo</span>.
+              Ao excluir uma coluna, todos os leads dela serão automaticamente movidos para a coluna <span className="font-semibold text-gray-900 bg-gray-100 rounded px-1 py-0.5">Finalizado</span>.
             </div>
             {columns.length === 0 ? (
               <div className="text-sm text-gray-500">Nenhuma coluna cadastrada</div>
@@ -285,7 +285,7 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder, column
         onOpenChange={setDeleteDialogOpen}
         itemName={columnToDelete?.name || ""}
         itemType="a coluna do Kanban"
-        description="Todos os leads dessa coluna serão movidos automaticamente para a coluna 'Novo'."
+        description="Todos os leads dessa coluna serão movidos automaticamente para a coluna 'Finalizado'."
         onConfirm={handleDeleteConfirm}
       />
     </>

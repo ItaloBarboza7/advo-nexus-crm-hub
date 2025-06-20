@@ -406,6 +406,10 @@ export type Database = {
       }
     }
     Functions: {
+      add_column_delete_trigger_to_tenant: {
+        Args: { schema_name: string }
+        Returns: undefined
+      }
       ensure_tenant_schema: {
         Args: Record<PropertyKey, never>
         Returns: string
