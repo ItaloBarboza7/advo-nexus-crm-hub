@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 interface SettingsContentProps {
-  onUserProfileUpdate?: () => void; // Nova prop para notificar atualizações
+  onUserProfileUpdate?: () => void;
 }
 
 export function SettingsContent({ onUserProfileUpdate }: SettingsContentProps) {
@@ -132,7 +133,6 @@ export function SettingsContent({ onUserProfileUpdate }: SettingsContentProps) {
   };
 
   const handleCompanyUpdated = () => {
-    // Notificar o componente pai (que inclui o Header) sobre a atualização
     if (onUserProfileUpdate) {
       onUserProfileUpdate();
     }
