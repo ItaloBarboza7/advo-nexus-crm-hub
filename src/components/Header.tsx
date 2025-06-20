@@ -1,3 +1,4 @@
+
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import { GlobalSearch } from "./GlobalSearch"
@@ -9,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { UserProfileModal } from "./UserProfileModal"
 import { useState, useEffect } from "react"
 import { supabase } from "@/integrations/supabase/client"
+import { useCompanyInfo } from "@/hooks/useCompanyInfo"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,12 +33,13 @@ interface UserProfile {
 export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
   const [userProfile, setUserProfile] = useState<UserProfile>({ name: "Usuário" })
+  const { companyInfo } = useCompanyInfo()
 
   useEffect(() => {
     if (user) {
       loadUserProfile()
     }
-  }, [user])
+  }, [user, companyInfo]) // Adicionar companyInfo como dependência
 
   const loadUserProfile = async () => {
     try {
@@ -93,6 +96,12 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
       .substring(0, 2)
   }
 
+  const handleProfileModalClose = () => {
+    setIsProfileModalOpen(false)
+    // Recarregar perfil após fechar modal
+    loadUserProfile()
+  }
+
   return (
     <>
       <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
@@ -144,10 +153,7 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
 
       <UserProfileModal 
         isOpen={isProfileModalOpen} 
-        onClose={() => {
-          setIsProfileModalOpen(false)
-          loadUserProfile() // Recarregar perfil após fechar modal
-        }} 
+        onClose={handleProfileModalClose}
       />
     </>
   )
