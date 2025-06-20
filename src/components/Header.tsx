@@ -39,33 +39,33 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
     if (user) {
       loadUserProfile()
     }
-  }, [user, companyInfo])
+  }, [user])
 
-  // Função otimizada para atualizar dados do perfil e empresa
-  const updateProfileAndCompanyData = async () => {
+  // ATUALIZADO: Função otimizada para coordenar atualizações
+  const coordinateDataUpdate = async () => {
     try {
-      console.log('[Header] Iniciando atualização coordenada de dados');
+      console.log('[Header] Iniciando coordenação de atualizações de dados');
       
-      // Atualizar informações da empresa primeiro
+      // 1. Atualizar informações da empresa primeiro
+      console.log('[Header] Atualizando informações da empresa...');
       await refreshCompanyInfo();
-      console.log('[Header] Informações da empresa atualizadas');
       
-      // Aguardar um tempo menor e carregar o perfil do usuário
+      // 2. Aguardar um momento e então atualizar o perfil
       setTimeout(async () => {
+        console.log('[Header] Carregando perfil do usuário...');
         await loadUserProfile();
-        console.log('[Header] Perfil do usuário carregado');
-      }, 100); // Reduzido de 200ms para 100ms
+      }, 50); // Reduzido ainda mais o timeout
       
     } catch (error) {
-      console.error('[Header] Erro durante atualização coordenada:', error);
+      console.error('[Header] Erro durante coordenação de atualizações:', error);
     }
   };
 
-  // Listener para mudanças no perfil - otimizado
+  // ATUALIZADO: Listener mais responsivo para mudanças
   useEffect(() => {
     const handleProfileUpdate = async () => {
-      console.log('[Header] Evento userProfileUpdated recebido - iniciando sincronização');
-      await updateProfileAndCompanyData();
+      console.log('[Header] Evento userProfileUpdated recebido - iniciando coordenação');
+      await coordinateDataUpdate();
     };
 
     window.addEventListener('userProfileUpdated', handleProfileUpdate);
@@ -74,6 +74,14 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
       window.removeEventListener('userProfileUpdated', handleProfileUpdate);
     };
   }, [refreshCompanyInfo]);
+
+  // NOVO: Recarregar perfil quando companyInfo muda
+  useEffect(() => {
+    if (companyInfo && user) {
+      console.log('[Header] CompanyInfo mudou, atualizando perfil do header');
+      loadUserProfile();
+    }
+  }, [companyInfo, user]);
 
   const loadUserProfile = async () => {
     try {
@@ -132,17 +140,17 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
   }
 
   const handleProfileModalClose = async () => {
-    console.log('[Header] Modal do perfil fechado, atualizando dados');
+    console.log('[Header] Modal do perfil fechado, coordenando atualizações');
     setIsProfileModalOpen(false)
-    // Usar função otimizada para atualização
-    await updateProfileAndCompanyData()
+    // Usar função otimizada para atualização coordenada
+    await coordinateDataUpdate()
   }
 
   const handleProfileClick = async () => {
     console.log('[Header] Clique no perfil - sincronizando dados antes de abrir modal');
     
-    // Usar função otimizada para garantir sincronização
-    await updateProfileAndCompanyData();
+    // Coordenar atualizações antes de abrir o modal
+    await coordinateDataUpdate();
     
     console.log('[Header] Dados sincronizados, abrindo modal do perfil');
     setIsProfileModalOpen(true);

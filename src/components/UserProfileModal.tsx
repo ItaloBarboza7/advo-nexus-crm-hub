@@ -25,21 +25,46 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
   const { toast } = useToast();
   const { companyInfo, updateCompanyInfo, refreshCompanyInfo } = useCompanyInfo();
 
+  // NOVO: Estado para força a recarga quando companyInfo muda externamente
+  const [lastCompanyInfoUpdate, setLastCompanyInfoUpdate] = useState<number>(0);
+
   // Carregar perfil quando modal abre
   useEffect(() => {
     if (isOpen) {
       console.log('[UserProfileModal] Modal aberto, carregando perfil');
       loadUserProfile();
     }
-  }, [isOpen, companyInfo]);
+  }, [isOpen]);
 
-  // NOVO: Recarregar dados quando companyInfo muda (apenas se modal estiver aberto)
+  // ATUALIZADO: Recarregar dados quando companyInfo muda ou quando recebe evento externo
   useEffect(() => {
     if (isOpen && companyInfo) {
       console.log('[UserProfileModal] CompanyInfo mudou enquanto modal estava aberto, recarregando dados');
       loadUserProfile();
     }
-  }, [companyInfo]);
+  }, [companyInfo, lastCompanyInfoUpdate]);
+
+  // NOVO: Listener dedicado para mudanças externas da empresa
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleExternalCompanyUpdate = async () => {
+      console.log('[UserProfileModal] Evento de atualização externa recebido');
+      
+      // Forçar atualização das informações da empresa primeiro
+      await refreshCompanyInfo();
+      
+      // Marcar que houve uma atualização externa para triggar o useEffect
+      setLastCompanyInfoUpdate(Date.now());
+    };
+
+    // Escutar evento específico para atualizações da empresa
+    window.addEventListener('userProfileUpdated', handleExternalCompanyUpdate);
+    
+    return () => {
+      window.removeEventListener('userProfileUpdated', handleExternalCompanyUpdate);
+    };
+  }, [isOpen, refreshCompanyInfo]);
 
   const loadUserProfile = async () => {
     try {
@@ -74,11 +99,11 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
         setName(profile.name || "");
         setAvatar(profile.avatar_url || "");
         
-        // Usar dados da empresa se disponíveis, senão usar dados do perfil
+        // ATUALIZADO: Priorizar dados da empresa para email e telefone SEMPRE
         if (companyInfo) {
-          console.log('[UserProfileModal] Usando dados da empresa para email e telefone');
+          console.log('[UserProfileModal] Usando dados da empresa para email e telefone (prioritário)');
           setEmail(companyInfo.email || user.email || "");
-          setPhone(companyInfo.phone || profile.phone || "");
+          setPhone(companyInfo.phone || "");
         } else {
           console.log('[UserProfileModal] Usando dados do perfil para email e telefone');
           setEmail(profile.email || user.email || "");
@@ -212,7 +237,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
         } else {
           // Garantir que as informações sejam atualizadas
           console.log('[UserProfileModal] Forçando atualização das informações da empresa após salvamento...');
-          refreshCompanyInfo();
+          await refreshCompanyInfo();
         }
       }
 
