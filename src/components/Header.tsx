@@ -41,20 +41,20 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
     }
   }, [user, companyInfo])
 
-  // Função unificada para atualizar dados do perfil e empresa
+  // Função otimizada para atualizar dados do perfil e empresa
   const updateProfileAndCompanyData = async () => {
     try {
       console.log('[Header] Iniciando atualização coordenada de dados');
       
-      // Primeiro, atualizar informações da empresa
+      // Atualizar informações da empresa primeiro
       await refreshCompanyInfo();
       console.log('[Header] Informações da empresa atualizadas');
       
-      // Aguardar um pouco e então carregar o perfil do usuário
+      // Aguardar um tempo menor e carregar o perfil do usuário
       setTimeout(async () => {
         await loadUserProfile();
         console.log('[Header] Perfil do usuário carregado');
-      }, 200);
+      }, 100); // Reduzido de 200ms para 100ms
       
     } catch (error) {
       console.error('[Header] Erro durante atualização coordenada:', error);
@@ -134,14 +134,14 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
   const handleProfileModalClose = async () => {
     console.log('[Header] Modal do perfil fechado, atualizando dados');
     setIsProfileModalOpen(false)
-    // Usar função unificada para atualização
+    // Usar função otimizada para atualização
     await updateProfileAndCompanyData()
   }
 
   const handleProfileClick = async () => {
     console.log('[Header] Clique no perfil - sincronizando dados antes de abrir modal');
     
-    // Usar função unificada para garantir sincronização
+    // Usar função otimizada para garantir sincronização
     await updateProfileAndCompanyData();
     
     console.log('[Header] Dados sincronizados, abrindo modal do perfil');

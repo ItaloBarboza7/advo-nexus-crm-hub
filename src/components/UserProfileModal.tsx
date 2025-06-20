@@ -25,11 +25,21 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
   const { toast } = useToast();
   const { companyInfo, updateCompanyInfo, refreshCompanyInfo } = useCompanyInfo();
 
+  // Carregar perfil quando modal abre
   useEffect(() => {
     if (isOpen) {
+      console.log('[UserProfileModal] Modal aberto, carregando perfil');
       loadUserProfile();
     }
   }, [isOpen, companyInfo]);
+
+  // NOVO: Recarregar dados quando companyInfo muda (apenas se modal estiver aberto)
+  useEffect(() => {
+    if (isOpen && companyInfo) {
+      console.log('[UserProfileModal] CompanyInfo mudou enquanto modal estava aberto, recarregando dados');
+      loadUserProfile();
+    }
+  }, [companyInfo]);
 
   const loadUserProfile = async () => {
     try {
@@ -40,7 +50,8 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
       
       if (!user) return;
 
-      console.log('Loading profile for user:', user.id);
+      console.log('[UserProfileModal] Carregando perfil para usuário:', user.id);
+      console.log('[UserProfileModal] Dados da empresa disponíveis:', companyInfo);
 
       // Buscar perfil do usuário atual no banco usando RLS
       const { data: profile, error } = await supabase
@@ -50,7 +61,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
         .maybeSingle();
 
       if (error) {
-        console.error('Erro ao carregar perfil:', error);
+        console.error('[UserProfileModal] Erro ao carregar perfil:', error);
         toast({
           title: "Erro",
           description: `Erro ao carregar perfil: ${error.message}`,
@@ -59,35 +70,39 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
       }
 
       if (profile) {
-        console.log('Profile found in database:', profile);
+        console.log('[UserProfileModal] Perfil encontrado no banco:', profile);
         setName(profile.name || "");
         setAvatar(profile.avatar_url || "");
         
         // Usar dados da empresa se disponíveis, senão usar dados do perfil
         if (companyInfo) {
+          console.log('[UserProfileModal] Usando dados da empresa para email e telefone');
           setEmail(companyInfo.email || user.email || "");
           setPhone(companyInfo.phone || profile.phone || "");
         } else {
+          console.log('[UserProfileModal] Usando dados do perfil para email e telefone');
           setEmail(profile.email || user.email || "");
           setPhone(profile.phone || "");
         }
       } else {
         // Se não há perfil no banco, usar dados dos metadados do usuário
-        console.log('No profile in database, using user metadata');
+        console.log('[UserProfileModal] Nenhum perfil no banco, usando metadados do usuário');
         setName(user.user_metadata?.name || "");
         setAvatar("");
         
         // Usar dados da empresa se disponíveis
         if (companyInfo) {
+          console.log('[UserProfileModal] Usando dados da empresa (sem perfil no banco)');
           setEmail(companyInfo.email || user.email || "");
           setPhone(companyInfo.phone || user.user_metadata?.phone || "");
         } else {
+          console.log('[UserProfileModal] Usando metadados do usuário (sem perfil e sem empresa)');
           setEmail(user.email || "");
           setPhone(user.user_metadata?.phone || "");
         }
       }
     } catch (error) {
-      console.error('Erro inesperado ao carregar perfil:', error);
+      console.error('[UserProfileModal] Erro inesperado ao carregar perfil:', error);
       toast({
         title: "Erro",
         description: `Erro inesperado: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
@@ -121,7 +136,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
         return;
       }
 
-      console.log('Attempting to save profile for user:', user.id);
+      console.log('[UserProfileModal] Tentando salvar perfil para usuário:', user.id);
 
       // Verificar se já existe um perfil para este usuário
       const { data: existingProfile, error: checkError } = await supabase
@@ -131,7 +146,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
         .maybeSingle();
 
       if (checkError) {
-        console.error('Erro ao verificar perfil existente:', checkError);
+        console.error('[UserProfileModal] Erro ao verificar perfil existente:', checkError);
         toast({
           title: "Erro",
           description: `Erro ao verificar perfil: ${checkError.message}`,
@@ -151,7 +166,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
       let saveError;
       if (existingProfile) {
         // Atualizar perfil existente
-        console.log('Updating existing profile...');
+        console.log('[UserProfileModal] Atualizando perfil existente...');
         const { error } = await supabase
           .from('user_profiles')
           .update(profileData)
@@ -159,7 +174,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
         saveError = error;
       } else {
         // Criar novo perfil
-        console.log('Creating new profile...');
+        console.log('[UserProfileModal] Criando novo perfil...');
         const { error } = await supabase
           .from('user_profiles')
           .insert(profileData);
@@ -167,7 +182,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
       }
 
       if (saveError) {
-        console.error('Erro ao salvar perfil:', saveError);
+        console.error('[UserProfileModal] Erro ao salvar perfil:', saveError);
         toast({
           title: "Erro",
           description: `Não foi possível salvar o perfil: ${saveError.message}`,
@@ -178,7 +193,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
 
       // Atualizar informações da empresa se existirem
       if (companyInfo) {
-        console.log('Updating company info with new email and phone...');
+        console.log('[UserProfileModal] Atualizando informações da empresa com novo email e telefone...');
         const companyUpdateSuccess = await updateCompanyInfo({
           company_name: companyInfo.company_name,
           cnpj: companyInfo.cnpj,
@@ -196,20 +211,24 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
           });
         } else {
           // Garantir que as informações sejam atualizadas
-          console.log('Forcing company info refresh after update...');
+          console.log('[UserProfileModal] Forçando atualização das informações da empresa após salvamento...');
           refreshCompanyInfo();
         }
       }
 
-      console.log('Profile saved successfully!');
+      console.log('[UserProfileModal] Perfil salvo com sucesso!');
       toast({
         title: "Perfil atualizado",
         description: "Suas informações foram salvas com sucesso.",
       });
 
+      // Disparar evento para notificar outros componentes
+      console.log('[UserProfileModal] Disparando evento userProfileUpdated após salvamento');
+      window.dispatchEvent(new CustomEvent('userProfileUpdated'));
+
       onClose();
     } catch (error) {
-      console.error('Erro inesperado ao salvar perfil:', error);
+      console.error('[UserProfileModal] Erro inesperado ao salvar perfil:', error);
       toast({
         title: "Erro",
         description: `Ocorreu um erro inesperado: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
