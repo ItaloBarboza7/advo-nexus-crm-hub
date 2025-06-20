@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -141,6 +140,16 @@ export function SettingsContent({ onUserProfileUpdate }: SettingsContentProps) {
 
   const handleDataRefresh = () => {
     refreshData();
+  };
+
+  const handleCompanySave = async (info: Omit<any, 'id'>): Promise<boolean> => {
+    try {
+      handleCompanyUpdated();
+      return true;
+    } catch (error) {
+      console.error('Error saving company info:', error);
+      return false;
+    }
   };
 
   return (
@@ -316,14 +325,14 @@ export function SettingsContent({ onUserProfileUpdate }: SettingsContentProps) {
         isOpen={isEditCompanyModalOpen}
         onClose={() => setIsEditCompanyModalOpen(false)}
         companyInfo={companyInfo}
-        onSave={handleCompanyUpdated}
+        onSave={handleCompanySave}
         isLoading={false}
       />
 
       <PurchaseModal
         isOpen={isPurchaseModalOpen}
         onClose={() => setIsPurchaseModalOpen(false)}
-        planType="premium"
+        planType="monthly"
       />
 
       {/* Diálogos de Configuração */}
