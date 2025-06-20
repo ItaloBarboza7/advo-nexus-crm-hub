@@ -195,7 +195,8 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
             variant: "destructive",
           });
         } else {
-          // Recarregar informações da empresa
+          // Garantir que as informações sejam atualizadas
+          console.log('Forcing company info refresh after update...');
           refreshCompanyInfo();
         }
       }

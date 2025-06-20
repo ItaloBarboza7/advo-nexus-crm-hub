@@ -56,9 +56,10 @@ export function useCompanyInfo() {
   }, []);
 
   // Exposed refresh function for manual reload
-  const refreshCompanyInfo = () => {
+  const refreshCompanyInfo = useCallback(() => {
+    console.log('[CompanyInfo] Forçando atualização das informações da empresa');
     fetchCompanyInfo();
-  };
+  }, [fetchCompanyInfo]);
 
   const updateCompanyInfo = async (updatedInfo: Omit<CompanyInfo, 'id'>) => {
     try {
@@ -129,7 +130,7 @@ export function useCompanyInfo() {
         description: "Informações da empresa atualizadas com sucesso.",
       });
 
-      // Atualizar estado local
+      // Atualizar estado local imediatamente
       if (existingCompany) {
         setCompanyInfo(prevInfo => 
           prevInfo ? { ...prevInfo, ...updatedInfo } : null
@@ -155,6 +156,38 @@ export function useCompanyInfo() {
 
   useEffect(() => {
     fetchCompanyInfo();
+  }, [fetchCompanyInfo]);
+
+  // Configurar listener para mudanças em real-time
+  useEffect(() => {
+    const { data: { user } } = supabase.auth.getUser();
+    
+    if (!user) return;
+
+    console.log('[CompanyInfo] Configurando listener para mudanças em tempo real');
+    
+    const channel = supabase
+      .channel('company_info_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'company_info',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('[CompanyInfo] Mudança detectada:', payload);
+          // Recarregar dados quando houver mudança
+          fetchCompanyInfo();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('[CompanyInfo] Removendo listener');
+      supabase.removeChannel(channel);
+    };
   }, [fetchCompanyInfo]);
 
   return {

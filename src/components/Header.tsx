@@ -33,13 +33,13 @@ interface UserProfile {
 export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
   const [userProfile, setUserProfile] = useState<UserProfile>({ name: "Usuário" })
-  const { companyInfo } = useCompanyInfo()
+  const { companyInfo, refreshCompanyInfo } = useCompanyInfo()
 
   useEffect(() => {
     if (user) {
       loadUserProfile()
     }
-  }, [user, companyInfo]) // Adicionar companyInfo como dependência
+  }, [user, companyInfo])
 
   const loadUserProfile = async () => {
     try {
@@ -98,8 +98,9 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
 
   const handleProfileModalClose = () => {
     setIsProfileModalOpen(false)
-    // Recarregar perfil após fechar modal
+    // Recarregar perfil e informações da empresa após fechar modal
     loadUserProfile()
+    refreshCompanyInfo()
   }
 
   return (
