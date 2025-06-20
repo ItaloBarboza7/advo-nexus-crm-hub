@@ -1,3 +1,4 @@
+
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import { GlobalSearch } from "./GlobalSearch"
@@ -127,6 +128,25 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
     }, 300)
   }
 
+  const handleProfileClick = async () => {
+    console.log('[Header] Clique no perfil - forçando refresh antes de abrir modal');
+    
+    // Forçar atualização das informações da empresa
+    await refreshCompanyInfo();
+    
+    // Pequeno delay para garantir sincronização
+    setTimeout(() => {
+      console.log('[Header] Recarregando perfil após refresh da empresa');
+      loadUserProfile();
+      
+      // Outro pequeno delay antes de abrir o modal
+      setTimeout(() => {
+        console.log('[Header] Abrindo modal do perfil com dados atualizados');
+        setIsProfileModalOpen(true);
+      }, 200);
+    }, 300);
+  }
+
   return (
     <>
       <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
@@ -159,7 +179,7 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuItem onClick={() => setIsProfileModalOpen(true)}>
+                <DropdownMenuItem onClick={handleProfileClick}>
                   <User className="mr-2 h-4 w-4" />
                   <span>Perfil</span>
                 </DropdownMenuItem>
