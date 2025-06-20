@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -6,11 +5,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFilterOptions } from "@/hooks/useFilterOptions";
-import { useCompanyInfo } from "@/hooks/useCompanyInfo";
+
+interface CompanyInfo {
+  id: string;
+  company_name: string;
+  cnpj: string;
+  phone: string;
+  email: string;
+  address: string;
+}
 
 interface EditCompanyModalProps {
   isOpen: boolean;
   onClose: () => void;
+  companyInfo: CompanyInfo | null;
+  onSave: (info: Omit<CompanyInfo, 'id'>) => Promise<boolean>;
+  isLoading: boolean;
 }
 
 // Faz o parsing reverso do campo address
@@ -44,7 +54,10 @@ function parseCompanyAddressFields(addr: string) {
 
 export function EditCompanyModal({ 
   isOpen, 
-  onClose
+  onClose, 
+  companyInfo, 
+  onSave, 
+  isLoading 
 }: EditCompanyModalProps) {
   const [companyName, setCompanyName] = useState("");
   const [cnpj, setCnpj] = useState("");
@@ -56,11 +69,9 @@ export function EditCompanyModal({
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const { stateOptions } = useFilterOptions();
-  const { companyInfo, updateCompanyInfo, isLoading } = useCompanyInfo();
 
   useEffect(() => {
     if (companyInfo) {
-      console.log('[EditCompanyModal] Carregando dados da empresa:', companyInfo);
       setCompanyName(companyInfo.company_name);
       setCnpj(companyInfo.cnpj);
       setPhone(companyInfo.phone);
@@ -82,8 +93,7 @@ export function EditCompanyModal({
         setState("");
       }
     } else {
-      // Limpar todos os campos se não há dados
-      console.log('[EditCompanyModal] Limpando campos - nenhuma empresa encontrada');
+      // Limpar todos
       setCompanyName("");
       setCnpj("");
       setPhone("");
@@ -97,12 +107,10 @@ export function EditCompanyModal({
   }, [companyInfo]);
 
   const handleSave = async () => {
-    console.log('[EditCompanyModal] Salvando informações da empresa');
-    
     // Montar o address no mesmo formato do modal inicial
     const fullAddress = `${address}, ${neighborhood}, ${city}, ${state}, CEP: ${cep}`;
 
-    const success = await updateCompanyInfo({
+    const success = await onSave({
       company_name: companyName,
       cnpj,
       phone,
@@ -111,11 +119,6 @@ export function EditCompanyModal({
     });
 
     if (success) {
-      console.log('[EditCompanyModal] Informações salvas com sucesso, fechando modal');
-      
-      // Disparar evento customizado para notificar o header
-      window.dispatchEvent(new CustomEvent('userProfileUpdated'));
-      
       onClose();
     }
   };
