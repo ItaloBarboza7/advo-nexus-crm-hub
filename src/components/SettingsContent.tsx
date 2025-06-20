@@ -16,13 +16,12 @@ import { AddColumnDialog } from "./AddColumnDialog";
 import { PurchaseModal } from "./PurchaseModal";
 import { SubscriptionAndPaymentPanel } from "./SubscriptionAndPaymentPanel";
 import { useCompanyInfo } from "@/hooks/useCompanyInfo";
-import { useFilterOptions } from "@/hooks/useFilterOptions";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 interface SettingsContentProps {
-  onUserProfileUpdate?: () => void;
+  onUserProfileUpdate?: () => void; // Nova prop para notificar atualizações
 }
 
 export function SettingsContent({ onUserProfileUpdate }: SettingsContentProps) {
@@ -32,16 +31,7 @@ export function SettingsContent({ onUserProfileUpdate }: SettingsContentProps) {
   const [isEditCompanyModalOpen, setIsEditCompanyModalOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<any>(null);
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
-  
-  // Estados para os diálogos de configuração
-  const [isActionGroupDialogOpen, setIsActionGroupDialogOpen] = useState(false);
-  const [isActionTypeDialogOpen, setIsActionTypeDialogOpen] = useState(false);
-  const [isLeadSourceDialogOpen, setIsLeadSourceDialogOpen] = useState(false);
-  const [isLossReasonDialogOpen, setIsLossReasonDialogOpen] = useState(false);
-  const [isColumnDialogOpen, setIsColumnDialogOpen] = useState(false);
-  
   const { companyInfo, isLoading: isCompanyLoading } = useCompanyInfo();
-  const { actionGroups, refreshData } = useFilterOptions();
   const { toast } = useToast();
 
   const { data: userRole } = useQuery({
@@ -70,23 +60,6 @@ export function SettingsContent({ onUserProfileUpdate }: SettingsContentProps) {
         .from('user_profiles')
         .select('*')
         .eq('parent_user_id', user.id);
-
-      return data || [];
-    },
-  });
-
-  const { data: columns } = useQuery({
-    queryKey: ['kanban-columns'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('kanban_columns')
-        .select('*')
-        .order('order_position');
-
-      if (error) {
-        console.error('Erro ao buscar colunas:', error);
-        return [];
-      }
 
       return data || [];
     },
@@ -133,22 +106,9 @@ export function SettingsContent({ onUserProfileUpdate }: SettingsContentProps) {
   };
 
   const handleCompanyUpdated = () => {
+    // Notificar o componente pai (que inclui o Header) sobre a atualização
     if (onUserProfileUpdate) {
       onUserProfileUpdate();
-    }
-  };
-
-  const handleDataRefresh = () => {
-    refreshData();
-  };
-
-  const handleCompanySave = async (info: Omit<any, 'id'>): Promise<boolean> => {
-    try {
-      handleCompanyUpdated();
-      return true;
-    } catch (error) {
-      console.error('Error saving company info:', error);
-      return false;
     }
   };
 
@@ -263,21 +223,11 @@ export function SettingsContent({ onUserProfileUpdate }: SettingsContentProps) {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Button onClick={() => setIsActionGroupDialogOpen(true)}>
-              Gerenciar Grupos de Ação
-            </Button>
-            <Button onClick={() => setIsActionTypeDialogOpen(true)}>
-              Gerenciar Tipos de Ação
-            </Button>
-            <Button onClick={() => setIsLeadSourceDialogOpen(true)}>
-              Gerenciar Fontes de Leads
-            </Button>
-            <Button onClick={() => setIsLossReasonDialogOpen(true)}>
-              Gerenciar Motivos de Perda
-            </Button>
-            <Button onClick={() => setIsColumnDialogOpen(true)}>
-              Gerenciar Colunas
-            </Button>
+            <AddActionGroupDialog />
+            <AddActionTypeDialog />
+            <AddLeadSourceDialog />
+            <AddLossReasonDialog />
+            <AddColumnDialog />
           </div>
         </CardContent>
       </Card>
@@ -299,7 +249,7 @@ export function SettingsContent({ onUserProfileUpdate }: SettingsContentProps) {
       </Card>
 
       {/* Seção de Assinatura e Pagamento */}
-      <SubscriptionAndPaymentPanel />
+      <SubscriptionAndPaymentPanel onUpgrade={() => setIsPurchaseModalOpen(true)} />
 
       {/* Modais */}
       <CompanyInfoModal 
@@ -324,49 +274,11 @@ export function SettingsContent({ onUserProfileUpdate }: SettingsContentProps) {
       <EditCompanyModal
         isOpen={isEditCompanyModalOpen}
         onClose={() => setIsEditCompanyModalOpen(false)}
-        companyInfo={companyInfo}
-        onSave={handleCompanySave}
-        isLoading={false}
       />
 
       <PurchaseModal
         isOpen={isPurchaseModalOpen}
         onClose={() => setIsPurchaseModalOpen(false)}
-        planType="monthly"
-      />
-
-      {/* Diálogos de Configuração */}
-      <AddActionGroupDialog
-        isOpen={isActionGroupDialogOpen}
-        onClose={() => setIsActionGroupDialogOpen(false)}
-        onGroupAdded={handleDataRefresh}
-      />
-
-      <AddActionTypeDialog
-        isOpen={isActionTypeDialogOpen}
-        onClose={() => setIsActionTypeDialogOpen(false)}
-        onTypeAdded={handleDataRefresh}
-        actionGroups={actionGroups || []}
-      />
-
-      <AddLeadSourceDialog
-        isOpen={isLeadSourceDialogOpen}
-        onClose={() => setIsLeadSourceDialogOpen(false)}
-        onSourceAdded={handleDataRefresh}
-      />
-
-      <AddLossReasonDialog
-        isOpen={isLossReasonDialogOpen}
-        onClose={() => setIsLossReasonDialogOpen(false)}
-        onReasonAdded={handleDataRefresh}
-      />
-
-      <AddColumnDialog
-        isOpen={isColumnDialogOpen}
-        onClose={() => setIsColumnDialogOpen(false)}
-        onAddColumn={handleDataRefresh}
-        maxOrder={(columns?.length || 0) + 1}
-        columns={columns || []}
       />
     </div>
   );
