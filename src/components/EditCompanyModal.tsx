@@ -119,9 +119,14 @@ export function EditCompanyModal({
     });
 
     if (success) {
-      // Dispatch event to update header profile
-      console.log('[EditCompanyModal] Disparando evento userProfileUpdated');
-      window.dispatchEvent(new CustomEvent('userProfileUpdated'));
+      console.log('[EditCompanyModal] Salvamento bem-sucedido, aguardando sincronização...');
+      
+      // Aguardar um pouco para garantir que a sincronização do perfil seja concluída
+      setTimeout(() => {
+        console.log('[EditCompanyModal] Disparando evento userProfileUpdated após delay');
+        window.dispatchEvent(new CustomEvent('userProfileUpdated'));
+      }, 1000);
+      
       onClose();
     }
   };

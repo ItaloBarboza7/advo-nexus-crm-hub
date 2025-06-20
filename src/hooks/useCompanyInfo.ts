@@ -62,7 +62,7 @@ export function useCompanyInfo() {
       
       if (!user) {
         console.warn('[CompanyInfo] Usuário não encontrado para sincronização');
-        return;
+        return false;
       }
 
       console.log('[CompanyInfo] Sincronizando perfil do usuário com dados da empresa');
@@ -76,7 +76,7 @@ export function useCompanyInfo() {
 
       if (checkError) {
         console.error('[CompanyInfo] Erro ao verificar perfil existente:', checkError);
-        return;
+        return false;
       }
 
       const profileData = {
@@ -94,8 +94,10 @@ export function useCompanyInfo() {
 
         if (error) {
           console.error('[CompanyInfo] Erro ao atualizar perfil:', error);
+          return false;
         } else {
           console.log('[CompanyInfo] Perfil sincronizado com sucesso');
+          return true;
         }
       } else {
         // Criar novo perfil com dados básicos
@@ -110,19 +112,22 @@ export function useCompanyInfo() {
 
         if (error) {
           console.error('[CompanyInfo] Erro ao criar perfil:', error);
+          return false;
         } else {
           console.log('[CompanyInfo] Perfil criado e sincronizado com sucesso');
+          return true;
         }
       }
     } catch (error) {
       console.error('[CompanyInfo] Erro inesperado na sincronização:', error);
+      return false;
     }
   };
 
   // Exposed refresh function for manual reload
   const refreshCompanyInfo = useCallback(() => {
     console.log('[CompanyInfo] Forçando atualização das informações da empresa');
-    fetchCompanyInfo();
+    return fetchCompanyInfo();
   }, [fetchCompanyInfo]);
 
   const updateCompanyInfo = async (updatedInfo: Omit<CompanyInfo, 'id'>) => {
@@ -190,7 +195,16 @@ export function useCompanyInfo() {
       }
 
       // Sincronizar perfil do usuário com email e telefone da empresa
-      await syncUserProfile(updatedInfo.email, updatedInfo.phone);
+      console.log('[CompanyInfo] Iniciando sincronização do perfil...');
+      const syncSuccess = await syncUserProfile(updatedInfo.email, updatedInfo.phone);
+
+      if (syncSuccess) {
+        console.log('[CompanyInfo] Sincronização concluída com sucesso, disparando evento userProfileUpdated');
+        // Dispatch event after successful synchronization
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('userProfileUpdated'));
+        }, 200);
+      }
 
       toast({
         title: "Sucesso",
@@ -261,7 +275,9 @@ export function useCompanyInfo() {
           (payload) => {
             console.log('[CompanyInfo] Mudança no perfil detectada:', payload);
             // Forçar atualização do header quando perfil mudar
-            window.dispatchEvent(new CustomEvent('userProfileUpdated'));
+            setTimeout(() => {
+              window.dispatchEvent(new CustomEvent('userProfileUpdated'));
+            }, 300);
           }
         )
         .subscribe();
