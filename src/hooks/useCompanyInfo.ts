@@ -76,12 +76,43 @@ export function useCompanyInfo() {
 
       console.log('[CompanyInfo] Atualizando informações da empresa:', updatedInfo);
 
-      const { error } = await supabase
+      // Primeiro, verificar se já existe um registro para este usuário
+      const { data: existingCompany, error: checkError } = await supabase
         .from('company_info')
-        .upsert({
-          user_id: user.id,
-          ...updatedInfo
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('[CompanyInfo] Erro ao verificar empresa existente:', checkError);
+        toast({
+          title: "Erro",
+          description: "Não foi possível verificar as informações existentes.",
+          variant: "destructive",
         });
+        return false;
+      }
+
+      let error;
+      if (existingCompany) {
+        // Atualizar registro existente
+        console.log('[CompanyInfo] Atualizando registro existente:', existingCompany.id);
+        const { error: updateError } = await supabase
+          .from('company_info')
+          .update(updatedInfo)
+          .eq('user_id', user.id);
+        error = updateError;
+      } else {
+        // Criar novo registro
+        console.log('[CompanyInfo] Criando novo registro');
+        const { error: insertError } = await supabase
+          .from('company_info')
+          .insert({
+            user_id: user.id,
+            ...updatedInfo
+          });
+        error = insertError;
+      }
 
       if (error) {
         console.error('[CompanyInfo] Erro ao atualizar informações da empresa:', error);
@@ -98,9 +129,16 @@ export function useCompanyInfo() {
         description: "Informações da empresa atualizadas com sucesso.",
       });
 
-      setCompanyInfo(prevInfo => 
-        prevInfo ? { ...prevInfo, ...updatedInfo } : null
-      );
+      // Atualizar estado local
+      if (existingCompany) {
+        setCompanyInfo(prevInfo => 
+          prevInfo ? { ...prevInfo, ...updatedInfo } : null
+        );
+      } else {
+        // Buscar o registro recém-criado para obter o ID
+        await fetchCompanyInfo();
+      }
+      
       return true;
     } catch (error) {
       console.error('[CompanyInfo] Erro inesperado ao atualizar informações da empresa:', error);
