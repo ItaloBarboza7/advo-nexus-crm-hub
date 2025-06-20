@@ -124,7 +124,6 @@ export function useCompanyInfo() {
     }
   };
 
-  // OTIMIZADO: Exposed refresh function for manual reload
   const refreshCompanyInfo = useCallback(async () => {
     console.log('[useCompanyInfo] Forçando atualização das informações da empresa');
     await fetchCompanyInfo();
@@ -207,7 +206,7 @@ export function useCompanyInfo() {
         description: "Informações da empresa atualizadas com sucesso.",
       });
 
-      // OTIMIZADO: Atualizar estado local imediatamente
+      // Atualizar estado local imediatamente
       const newCompanyInfo = existingCompany 
         ? { ...companyInfo, ...updatedInfo } as CompanyInfo
         : { ...updatedInfo, id: 'temp' } as CompanyInfo;
@@ -237,17 +236,17 @@ export function useCompanyInfo() {
     fetchCompanyInfo();
   }, [fetchCompanyInfo]);
 
-  // OTIMIZADO: Configurar listener para mudanças em real-time
+  // Real-time subscription para mudanças na empresa e perfil
   useEffect(() => {
-    const setupRealtimeListener = async () => {
+    const setupRealtimeSubscriptions = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) return;
 
-      console.log('[useCompanyInfo] Configurando listener para mudanças em tempo real');
+      console.log('[useCompanyInfo] Configurando subscriptions em tempo real');
       
       const channel = supabase
-        .channel('company_and_profile_changes')
+        .channel('company_profile_sync')
         .on(
           'postgres_changes',
           {
@@ -259,9 +258,7 @@ export function useCompanyInfo() {
           (payload) => {
             console.log('[useCompanyInfo] Mudança na empresa detectada:', payload);
             // Recarregar dados quando houver mudança
-            setTimeout(() => {
-              fetchCompanyInfo();
-            }, 100);
+            fetchCompanyInfo();
           }
         )
         .on(
@@ -274,21 +271,20 @@ export function useCompanyInfo() {
           },
           (payload) => {
             console.log('[useCompanyInfo] Mudança no perfil detectada:', payload);
-            // Notificar sobre mudança no perfil para atualização do header
-            setTimeout(() => {
-              window.dispatchEvent(new CustomEvent('userProfileUpdated'));
-            }, 50);
+            // Notificar sobre mudança no perfil
+            window.dispatchEvent(new CustomEvent('userProfileUpdated'));
           }
         )
         .subscribe();
 
       return () => {
-        console.log('[useCompanyInfo] Removendo listener');
+        console.log('[useCompanyInfo] Removendo subscriptions');
         supabase.removeChannel(channel);
       };
     };
 
-    setupRealtimeListener();
+    const cleanup = setupRealtimeSubscriptions();
+    return () => cleanup;
   }, [fetchCompanyInfo]);
 
   return {

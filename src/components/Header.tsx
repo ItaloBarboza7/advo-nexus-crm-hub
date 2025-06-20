@@ -41,33 +41,39 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
     }
   }, [user])
 
-  // OTIMIZADO: Listener mais eficiente para mudanças
+  // Real-time subscription para mudanças no perfil
   useEffect(() => {
-    const handleProfileUpdate = async () => {
-      console.log('[Header] Evento userProfileUpdated recebido');
+    if (!user) return;
+
+    const setupRealtimeSync = async () => {
+      console.log('[Header] Configurando sincronização em tempo real');
       
-      // Coordenar atualizações com pequeno delay para evitar race conditions
-      setTimeout(async () => {
-        console.log('[Header] Iniciando atualização coordenada');
-        await refreshCompanyInfo();
-        await loadUserProfile();
-      }, 50);
+      const channel = supabase
+        .channel('header_profile_sync')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'user_profiles',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload) => {
+            console.log('[Header] Mudança no perfil detectada:', payload);
+            loadUserProfile();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        console.log('[Header] Removendo subscription');
+        supabase.removeChannel(channel);
+      };
     };
 
-    window.addEventListener('userProfileUpdated', handleProfileUpdate);
-    
-    return () => {
-      window.removeEventListener('userProfileUpdated', handleProfileUpdate);
-    };
-  }, [refreshCompanyInfo]);
-
-  // NOVO: Recarregar perfil quando companyInfo muda
-  useEffect(() => {
-    if (companyInfo && user) {
-      console.log('[Header] CompanyInfo mudou, atualizando perfil do header');
-      loadUserProfile();
-    }
-  }, [companyInfo, user]);
+    const cleanup = setupRealtimeSync();
+    return () => cleanup;
+  }, [user]);
 
   const loadUserProfile = async () => {
     try {

@@ -33,38 +33,47 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
     }
   }, [isOpen]);
 
-  // NOVO: Reação direta às mudanças de companyInfo
-  useEffect(() => {
-    if (isOpen && companyInfo) {
-      console.log('[UserProfileModal] CompanyInfo mudou, atualizando campos de email e telefone');
-      
-      // Atualizar apenas email e telefone (manter nome e avatar do perfil)
-      setEmail(companyInfo.email || "");
-      setPhone(companyInfo.phone || "");
-    }
-  }, [companyInfo, isOpen]);
-
-  // NOVO: Listener otimizado para eventos externos
+  // Real-time subscription para mudanças na empresa
   useEffect(() => {
     if (!isOpen) return;
 
-    const handleProfileUpdate = async () => {
-      console.log('[UserProfileModal] Evento userProfileUpdated recebido');
+    const setupRealtimeSync = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
       
-      // Aguardar um momento para garantir que as mudanças foram processadas
-      setTimeout(async () => {
-        console.log('[UserProfileModal] Recarregando dados após evento');
-        await refreshCompanyInfo();
-        await loadUserProfile();
-      }, 100);
+      if (!user) return;
+
+      console.log('[UserProfileModal] Configurando sincronização em tempo real');
+      
+      const channel = supabase
+        .channel('user_profile_company_sync')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'company_info',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload) => {
+            console.log('[UserProfileModal] Mudança na empresa detectada:', payload);
+            if (payload.new && typeof payload.new === 'object') {
+              const newData = payload.new as any;
+              setEmail(newData.email || "");
+              setPhone(newData.phone || "");
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        console.log('[UserProfileModal] Removendo subscription');
+        supabase.removeChannel(channel);
+      };
     };
 
-    window.addEventListener('userProfileUpdated', handleProfileUpdate);
-    
-    return () => {
-      window.removeEventListener('userProfileUpdated', handleProfileUpdate);
-    };
-  }, [isOpen, refreshCompanyInfo]);
+    const cleanup = setupRealtimeSync();
+    return () => cleanup;
+  }, [isOpen]);
 
   const loadUserProfile = async () => {
     try {
@@ -99,9 +108,9 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
         setName(profile.name || "");
         setAvatar(profile.avatar_url || "");
         
-        // ATUALIZADO: Priorizar dados da empresa SEMPRE
+        // Priorizar dados da empresa se disponíveis
         if (companyInfo) {
-          console.log('[UserProfileModal] Priorizando dados da empresa para email e telefone');
+          console.log('[UserProfileModal] Usando dados da empresa para email e telefone');
           setEmail(companyInfo.email || user.email || "");
           setPhone(companyInfo.phone || "");
         } else {
@@ -234,10 +243,6 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
             description: "Perfil salvo, mas houve problema ao sincronizar com informações da empresa.",
             variant: "destructive",
           });
-        } else {
-          // Garantir que as informações sejam atualizadas
-          console.log('[UserProfileModal] Forçando atualização das informações da empresa após salvamento...');
-          await refreshCompanyInfo();
         }
       }
 
@@ -246,10 +251,6 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
         title: "Perfil atualizado",
         description: "Suas informações foram salvas com sucesso.",
       });
-
-      // Disparar evento para notificar outros componentes
-      console.log('[UserProfileModal] Disparando evento userProfileUpdated após salvamento');
-      window.dispatchEvent(new CustomEvent('userProfileUpdated'));
 
       onClose();
     } catch (error) {

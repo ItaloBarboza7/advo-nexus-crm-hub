@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFilterOptions } from "@/hooks/useFilterOptions";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CompanyInfo {
   id: string;
@@ -107,6 +108,48 @@ export function EditCompanyModal({
     }
   }, [companyInfo]);
 
+  // Real-time subscription para mudanças no perfil do usuário
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const setupRealtimeSync = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) return;
+
+      console.log('[EditCompanyModal] Configurando sincronização em tempo real');
+      
+      const channel = supabase
+        .channel('company_user_profile_sync')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'user_profiles',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload) => {
+            console.log('[EditCompanyModal] Mudança no perfil detectada:', payload);
+            if (payload.new && typeof payload.new === 'object') {
+              const newData = payload.new as any;
+              setEmail(newData.email || "");
+              setPhone(newData.phone || "");
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        console.log('[EditCompanyModal] Removendo subscription');
+        supabase.removeChannel(channel);
+      };
+    };
+
+    const cleanup = setupRealtimeSync();
+    return () => cleanup;
+  }, [isOpen]);
+
   const handleSave = async () => {
     console.log('[EditCompanyModal] Iniciando salvamento das informações da empresa');
     
@@ -123,12 +166,6 @@ export function EditCompanyModal({
 
     if (success) {
       console.log('[EditCompanyModal] Salvamento bem-sucedido');
-      
-      // Dispatch the event immediately after successful save
-      console.log('[EditCompanyModal] Disparando evento userProfileUpdated');
-      window.dispatchEvent(new CustomEvent('userProfileUpdated'));
-      
-      // Close the modal
       onClose();
     } else {
       console.error('[EditCompanyModal] Falha no salvamento');
@@ -176,6 +213,9 @@ export function EditCompanyModal({
               placeholder="(XX) XXXXX-XXXX"
               disabled={isLoading}
             />
+            <p className="text-xs text-muted-foreground">
+              * Alterações aqui também afetarão o perfil do usuário
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -189,7 +229,7 @@ export function EditCompanyModal({
               disabled={isLoading}
             />
             <p className="text-xs text-muted-foreground">
-              * O e-mail pode ser alterado.
+              * Alterações aqui também afetarão o perfil do usuário
             </p>
           </div>
 
