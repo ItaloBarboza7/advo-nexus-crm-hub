@@ -133,6 +133,7 @@ export function EditCompanyModal({
             console.log('[EditCompanyModal] Mudança no perfil detectada:', payload);
             if (payload.new && typeof payload.new === 'object') {
               const newData = payload.new as any;
+              console.log('[EditCompanyModal] Atualizando campos com dados do perfil:', newData);
               setEmail(newData.email || "");
               setPhone(newData.phone || "");
             }

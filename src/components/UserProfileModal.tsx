@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -57,6 +58,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
             console.log('[UserProfileModal] Mudança na empresa detectada:', payload);
             if (payload.new && typeof payload.new === 'object') {
               const newData = payload.new as any;
+              console.log('[UserProfileModal] Atualizando campos com dados da empresa:', newData);
               setEmail(newData.email || "");
               setPhone(newData.phone || "");
             }
