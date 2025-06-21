@@ -159,32 +159,16 @@ export function SettingsContent() {
   };
 
   const handleUpdateMember = async (updatedMember: any) => {
-    try {
-      const { error } = await supabase
-        .from('user_profiles')
-        .update({
-          name: updatedMember.name,
-          email: updatedMember.email,
-          title: updatedMember.role,
-        })
-        .eq('user_id', updatedMember.id);
-
-      if (error) throw error;
-      
-      // The modal currently calls onMemberUpdated, which triggers this function.
-      // We are overriding the local state update with a DB call.
-      // The toast from EditMemberModal will still fire.
-      
-      fetchTeamMembers(); // Refetch to display updated data
-    } catch(error) {
-      console.error("Error updating member:", error);
-      toast({
-        title: "Erro ao atualizar membro",
-        description: "Ocorreu um erro ao atualizar os dados do membro.",
-        variant: "destructive",
-      });
-    }
+    console.log(`[SettingsContent] Membro atualizado via modal:`, updatedMember);
+    
+    // A atualização já foi feita pela Edge Function no EditMemberModal
+    // Agora só precisamos atualizar a lista local e recarregar os dados
     setEditingMember(null);
+    
+    // Recarregar a lista de membros para refletir as mudanças
+    fetchTeamMembers();
+    
+    // Toast já foi exibido no EditMemberModal
   };
 
   const handleDeleteMember = async (memberId: string, memberName: string) => {

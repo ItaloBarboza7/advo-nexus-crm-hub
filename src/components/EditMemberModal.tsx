@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface EditMemberModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ export function EditMemberModal({ isOpen, onClose, member, onMemberUpdated }: Ed
   const [role, setRole] = useState("");
   const [password, setPassword] = useState("");
   const [hasAnalysisAccess, setHasAnalysisAccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -33,7 +35,7 @@ export function EditMemberModal({ isOpen, onClose, member, onMemberUpdated }: Ed
     }
   }, [member]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!name || !email || !role) {
@@ -45,25 +47,65 @@ export function EditMemberModal({ isOpen, onClose, member, onMemberUpdated }: Ed
       return;
     }
 
-    const updatedMember = {
-      ...member,
-      name,
-      email,
-      role,
-      hasAnalysisAccess,
-      avatar: name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
-      // Only update password if a new one was provided
-      ...(password && { password })
-    };
+    setIsLoading(true);
 
-    onMemberUpdated(updatedMember);
-    
-    toast({
-      title: "Membro atualizado",
-      description: `${name} foi atualizado com sucesso.`,
-    });
+    try {
+      console.log(`[EditMemberModal] Atualizando membro ${member.id} com email ${email}`);
 
-    onClose();
+      // Usar a Edge Function para atualizar tanto o perfil quanto os dados de autenticação
+      const { data, error } = await supabase.functions.invoke('update-member', {
+        body: { 
+          memberId: member.id,
+          name: name.trim(),
+          email: email.trim(),
+          role,
+          password: password.trim() || undefined
+        },
+      });
+
+      if (error) {
+        console.error('[EditMemberModal] Erro da Edge Function:', error);
+        throw new Error(error.message);
+      }
+      
+      if (data.error) {
+        console.error('[EditMemberModal] Erro retornado pela função:', data.error);
+        toast({
+          title: "Erro ao atualizar membro",
+          description: data.error,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const updatedMember = {
+        ...member,
+        name,
+        email,
+        role,
+        hasAnalysisAccess,
+        avatar: name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
+      };
+
+      onMemberUpdated(updatedMember);
+      
+      console.log(`[EditMemberModal] Membro ${name} atualizado com sucesso`);
+      toast({
+        title: "Membro atualizado",
+        description: `${name} foi atualizado com sucesso. Agora pode fazer login com o email ${email}.`,
+      });
+
+      onClose();
+    } catch (error) {
+      console.error('[EditMemberModal] Erro ao atualizar membro:', error);
+      toast({
+        title: "Erro",
+        description: (error as Error).message || "Não foi possível atualizar o membro. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -82,6 +124,7 @@ export function EditMemberModal({ isOpen, onClose, member, onMemberUpdated }: Ed
               onChange={(e) => setName(e.target.value)}
               placeholder="Digite o nome completo"
               required
+              disabled={isLoading}
             />
           </div>
 
@@ -94,7 +137,11 @@ export function EditMemberModal({ isOpen, onClose, member, onMemberUpdated }: Ed
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Digite o e-mail"
               required
+              disabled={isLoading}
             />
+            <p className="text-xs text-muted-foreground">
+              * Alterar o email também atualizará os dados de login
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -105,12 +152,13 @@ export function EditMemberModal({ isOpen, onClose, member, onMemberUpdated }: Ed
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Digite uma nova senha (deixe em branco para manter a atual)"
+              disabled={isLoading}
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="edit-role">Cargo</Label>
-            <Select value={role} onValueChange={setRole} required>
+            <Select value={role} onValueChange={setRole} required disabled={isLoading}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione o cargo" />
               </SelectTrigger>
@@ -131,6 +179,7 @@ export function EditMemberModal({ isOpen, onClose, member, onMemberUpdated }: Ed
                 id="edit-analysis-access"
                 checked={hasAnalysisAccess}
                 onCheckedChange={(checked) => setHasAnalysisAccess(checked as boolean)}
+                disabled={isLoading}
               />
               <Label htmlFor="edit-analysis-access" className="text-sm font-normal">
                 Acesso a análises
@@ -139,11 +188,11 @@ export function EditMemberModal({ isOpen, onClose, member, onMemberUpdated }: Ed
           </div>
 
           <div className="flex gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1" disabled={isLoading}>
               Cancelar
             </Button>
-            <Button type="submit" className="flex-1">
-              Salvar Alterações
+            <Button type="submit" className="flex-1" disabled={isLoading}>
+              {isLoading ? "Salvando..." : "Salvar Alterações"}
             </Button>
           </div>
         </form>
