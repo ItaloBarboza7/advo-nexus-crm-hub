@@ -87,46 +87,64 @@ export function ChartsSection({
   const isContractsCategory = selectedCategory.startsWith("contratos");
   const isOpportunitiesCategory = selectedCategory.startsWith("oportunidades");
 
+  // NOVA LÓGICA: Verificar se estamos em visualização de Estados
+  const isEstadosView = selectedCategory.endsWith("-estados");
+
   console.log(`🔍 [ChartsSection] Categorias detectadas:`, {
     isAllCategory,
     isContractsCategory,
     isOpportunitiesCategory,
+    isEstadosView,
     selectedCategory
   });
 
   return (
     <>
-      {/* Gráfico de Leads Gerais - só aparece na categoria "all" e quando showLeadsChart for true */}
-      {isAllCategory && showLeadsChart && (
-        <LeadsChart 
-          leads={leads}
-          title="Todos os Leads"
-          viewMode={leadsViewMode}
+      {/* CORREÇÃO: Só mostrar gráficos se NÃO estivermos em visualização de Estados */}
+      {!isEstadosView && (
+        <>
+          {/* Gráfico de Leads Gerais - só aparece na categoria "all" e quando showLeadsChart for true */}
+          {isAllCategory && showLeadsChart && (
+            <LeadsChart 
+              leads={leads}
+              title="Todos os Leads"
+              viewMode={leadsViewMode}
+            />
+          )}
+
+          {/* Gráfico de Contratos - CORRIGIDO: aparece em qualquer categoria que comece com "contratos" */}
+          {isContractsCategory && showContractsChart && (
+            <LeadsChart 
+              leads={leads}
+              title="Novos Contratos"
+              filterFunction={(lead) => lead.status === "Contrato Fechado"}
+              viewMode={contractsViewMode}
+            />
+          )}
+
+          {/* Gráfico de Oportunidades - CORRIGIDO: aparece em qualquer categoria que comece com "oportunidades" */}
+          {isOpportunitiesCategory && showOpportunitiesChart && (
+            <LeadsChart 
+              leads={leads}
+              title="Oportunidades"
+              filterFunction={isOpportunityLead}
+              viewMode={opportunitiesViewMode}
+            />
+          )}
+        </>
+      )}
+
+      {/* Gráfico de Estados - CORRIGIDO: aparece quando estamos em visualização de Estados */}
+      {isEstadosView && shouldShowStateChart && (
+        <StateStatsChart 
+          leads={leads} 
+          selectedCategory={selectedCategory}
+          hasLeadPassedThroughStatus={hasLeadPassedThroughStatus}
         />
       )}
 
-      {/* Gráfico de Contratos - CORRIGIDO: aparece em qualquer categoria que comece com "contratos" */}
-      {isContractsCategory && showContractsChart && (
-        <LeadsChart 
-          leads={leads}
-          title="Novos Contratos"
-          filterFunction={(lead) => lead.status === "Contrato Fechado"}
-          viewMode={contractsViewMode}
-        />
-      )}
-
-      {/* Gráfico de Oportunidades - CORRIGIDO: aparece em qualquer categoria que comece com "oportunidades" */}
-      {isOpportunitiesCategory && showOpportunitiesChart && (
-        <LeadsChart 
-          leads={leads}
-          title="Oportunidades"
-          filterFunction={isOpportunityLead}
-          viewMode={opportunitiesViewMode}
-        />
-      )}
-
-      {/* Gráficos de análise só aparecem quando NÃO há gráfico de leads sendo exibido */}
-      {!showLeadsChart && !showContractsChart && !showOpportunitiesChart && (
+      {/* Gráficos de análise só aparecem quando NÃO há gráfico de leads sendo exibido E não estamos em Estados */}
+      {!showLeadsChart && !showContractsChart && !showOpportunitiesChart && !isEstadosView && (
         <>
           {shouldShowLossReasonsChart && (
             <LossReasonsChart leads={leads} />
@@ -143,14 +161,6 @@ export function ChartsSection({
             <ActionGroupChart 
               leads={leads} 
               selectedCategory={selectedCategory}
-            />
-          )}
-
-          {shouldShowStateChart && (
-            <StateStatsChart 
-              leads={leads} 
-              selectedCategory={selectedCategory}
-              hasLeadPassedThroughStatus={hasLeadPassedThroughStatus}
             />
           )}
         </>

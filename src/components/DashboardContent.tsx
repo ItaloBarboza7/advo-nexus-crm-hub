@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserPlus, UserX, DollarSign, TrendingUp, Target, BarChart3 } from "lucide-react";
 import { DateRange } from "react-day-picker";
@@ -8,6 +9,7 @@ import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Legend, BarChart, B
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDashboardSettings } from "@/hooks/useDashboardSettings";
 import { useLeadsData } from "@/hooks/useLeadsData";
+import { getDay, getMonth, format } from "date-fns";
 
 export function DashboardContent() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
@@ -101,55 +103,125 @@ export function DashboardContent() {
     },
   ];
 
-  const weeklyConversionData = [
-    { day: "Segunda", sales: 12, conversion: 18.5 },
-    { day: "Terça", sales: 9, conversion: 14.2 },
-    { day: "Quarta", sales: 15, conversion: 23.1 },
-    { day: "Quinta", sales: 11, conversion: 16.9 },
-    { day: "Sexta", sales: 8, conversion: 12.3 },
-    { day: "Sábado", sales: 6, conversion: 9.2 },
-    { day: "Domingo", sales: 4, conversion: 6.1 },
-  ];
+  // CORREÇÃO: Gerar dados reais de conversão por período baseados nos leads
+  const getRealConversionData = useMemo(() => {
+    if (!leads || leads.length === 0) {
+      // Dados de fallback se não houver leads
+      const weeklyData = [
+        { day: "Segunda", sales: 0, conversion: 0 },
+        { day: "Terça", sales: 0, conversion: 0 },
+        { day: "Quarta", sales: 0, conversion: 0 },
+        { day: "Quinta", sales: 0, conversion: 0 },
+        { day: "Sexta", sales: 0, conversion: 0 },
+        { day: "Sábado", sales: 0, conversion: 0 },
+        { day: "Domingo", sales: 0, conversion: 0 },
+      ];
+      
+      const monthlyData = [
+        { month: "Jan", sales: 0, conversion: 0 },
+        { month: "Fev", sales: 0, conversion: 0 },
+        { month: "Mar", sales: 0, conversion: 0 },
+        { month: "Abr", sales: 0, conversion: 0 },
+        { month: "Mai", sales: 0, conversion: 0 },
+        { month: "Jun", sales: 0, conversion: 0 },
+        { month: "Jul", sales: 0, conversion: 0 },
+        { month: "Ago", sales: 0, conversion: 0 },
+        { month: "Set", sales: 0, conversion: 0 },
+        { month: "Out", sales: 0, conversion: 0 },
+        { month: "Nov", sales: 0, conversion: 0 },
+        { month: "Dez", sales: 0, conversion: 0 },
+      ];
+      
+      return { weekly: weeklyData, monthly: monthlyData };
+    }
 
-  const monthlyConversionData = [
-    { month: "Jan", sales: 95, conversion: 18.2 },
-    { month: "Fev", sales: 87, conversion: 16.8 },
-    { month: "Mar", sales: 102, conversion: 19.4 },
-    { month: "Abr", sales: 78, conversion: 15.1 },
-    { month: "Mai", sales: 118, conversion: 22.3 },
-    { month: "Jun", sales: 92, conversion: 17.9 },
-    { month: "Jul", sales: 105, conversion: 20.1 },
-    { month: "Ago", sales: 88, conversion: 16.7 },
-    { month: "Set", sales: 97, conversion: 18.6 },
-    { month: "Out", sales: 112, conversion: 21.4 },
-    { month: "Nov", sales: 89, conversion: 17.2 },
-    { month: "Dez", sales: 94, conversion: 18.8 },
-  ];
+    // Dados reais de conversão semanal
+    const weekDays = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+    const weeklyData = weekDays.map((day, index) => {
+      const dayLeads = leads.filter(lead => lead.created_at && getDay(new Date(lead.created_at)) === index);
+      const daySales = dayLeads.filter(lead => lead.status === "Contrato Fechado").length;
+      const dayOpportunities = dayLeads.filter(lead => 
+        lead.status === "Proposta" || lead.status === "Reunião"
+      ).length;
+      
+      const conversion = dayOpportunities > 0 ? (daySales / dayOpportunities) * 100 : 0;
+      
+      return {
+        day,
+        sales: daySales,
+        conversion: parseFloat(conversion.toFixed(1))
+      };
+    });
 
-  const weeklyLeadsData = [
-    { day: "Segunda", leads: 52 },
-    { day: "Terça", leads: 48 },
-    { day: "Quarta", leads: 65 },
-    { day: "Quinta", leads: 43 },
-    { day: "Sexta", leads: 38 },
-    { day: "Sábado", leads: 28 },
-    { day: "Domingo", leads: 15 },
-  ];
+    // Dados reais de conversão mensal
+    const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const monthlyData = months.map((month, index) => {
+      const monthLeads = leads.filter(lead => lead.created_at && getMonth(new Date(lead.created_at)) === index);
+      const monthSales = monthLeads.filter(lead => lead.status === "Contrato Fechado").length;
+      const monthOpportunities = monthLeads.filter(lead => 
+        lead.status === "Proposta" || lead.status === "Reunião"
+      ).length;
+      
+      const conversion = monthOpportunities > 0 ? (monthSales / monthOpportunities) * 100 : 0;
+      
+      return {
+        month,
+        sales: monthSales,
+        conversion: parseFloat(conversion.toFixed(1))
+      };
+    });
 
-  const monthlyLeadsData = [
-    { month: "Jan", leads: 285 },
-    { month: "Fev", leads: 267 },
-    { month: "Mar", leads: 312 },
-    { month: "Abr", leads: 241 },
-    { month: "Mai", leads: 389 },
-    { month: "Jun", leads: 298 },
-    { month: "Jul", leads: 325 },
-    { month: "Ago", leads: 276 },
-    { month: "Set", leads: 301 },
-    { month: "Out", leads: 342 },
-    { month: "Nov", leads: 287 },
-    { month: "Dez", leads: 295 },
-  ];
+    return { weekly: weeklyData, monthly: monthlyData };
+  }, [leads]);
+
+  // CORREÇÃO: Gerar dados reais de leads por período
+  const getRealLeadsData = useMemo(() => {
+    if (!leads || leads.length === 0) {
+      // Dados de fallback se não houver leads
+      const weeklyData = [
+        { day: "Segunda", leads: 0 },
+        { day: "Terça", leads: 0 },
+        { day: "Quarta", leads: 0 },
+        { day: "Quinta", leads: 0 },
+        { day: "Sexta", leads: 0 },
+        { day: "Sábado", leads: 0 },
+        { day: "Domingo", leads: 0 },
+      ];
+      
+      const monthlyData = [
+        { month: "Jan", leads: 0 },
+        { month: "Fev", leads: 0 },
+        { month: "Mar", leads: 0 },
+        { month: "Abr", leads: 0 },
+        { month: "Mai", leads: 0 },
+        { month: "Jun", leads: 0 },
+        { month: "Jul", leads: 0 },
+        { month: "Ago", leads: 0 },
+        { month: "Set", leads: 0 },
+        { month: "Out", leads: 0 },
+        { month: "Nov", leads: 0 },
+        { month: "Dez", leads: 0 },
+      ];
+      
+      return { weekly: weeklyData, monthly: monthlyData };
+    }
+
+    // Dados reais semanais de leads
+    const weekDays = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+    const weeklyData = weekDays.map((day, index) => ({
+      day,
+      leads: leads.filter(lead => lead.created_at && getDay(new Date(lead.created_at)) === index).length
+    }));
+
+    // Dados reais mensais de leads
+    const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const monthlyData = months.map((month, index) => ({
+      month,
+      leads: leads.filter(lead => lead.created_at && getMonth(new Date(lead.created_at)) === index).length
+    }));
+
+    return { weekly: weeklyData, monthly: monthlyData };
+  }, [leads]);
 
   // Gerar dados reais de ação baseados nos leads
   const getActionData = () => {
@@ -244,11 +316,11 @@ export function DashboardContent() {
   };
 
   const getConversionData = () => {
-    return conversionView === 'weekly' ? weeklyConversionData : monthlyConversionData;
+    return conversionView === 'weekly' ? getRealConversionData.weekly : getRealConversionData.monthly;
   };
 
   const getLeadsData = () => {
-    return leadsView === 'weekly' ? weeklyLeadsData : monthlyLeadsData;
+    return leadsView === 'weekly' ? getRealLeadsData.weekly : getRealLeadsData.monthly;
   };
 
   const getConversionDataKey = () => {
