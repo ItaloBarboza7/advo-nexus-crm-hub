@@ -425,6 +425,10 @@ export type Database = {
         Args: { sql: string }
         Returns: Json
       }
+      fix_closed_by_tracking_in_tenant: {
+        Args: { schema_name: string }
+        Returns: undefined
+      }
       get_tenant_id: {
         Args: Record<PropertyKey, never>
         Returns: string
