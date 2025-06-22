@@ -1,3 +1,4 @@
+
 import { LossReasonsChart } from "@/components/LossReasonsChart";
 import { ActionTypesChart } from "@/components/ActionTypesChart";
 import { ActionGroupChart } from "@/components/ActionGroupChart";
@@ -81,10 +82,22 @@ export function ChartsSection({
   console.log(`📊 ChartsSection - showLeadsChart: ${showLeadsChart}, showContractsChart: ${showContractsChart}, showOpportunitiesChart: ${showOpportunitiesChart}`);
   console.log(`📅 ChartsSection - viewModes:`, { leadsViewMode, contractsViewMode, opportunitiesViewMode });
 
+  // CORREÇÃO: Usar startsWith em vez de igualdade exata para permitir subcategorias
+  const isAllCategory = selectedCategory === "all";
+  const isContractsCategory = selectedCategory.startsWith("contratos");
+  const isOpportunitiesCategory = selectedCategory.startsWith("oportunidades");
+
+  console.log(`🔍 [ChartsSection] Categorias detectadas:`, {
+    isAllCategory,
+    isContractsCategory,
+    isOpportunitiesCategory,
+    selectedCategory
+  });
+
   return (
     <>
       {/* Gráfico de Leads Gerais - só aparece na categoria "all" e quando showLeadsChart for true */}
-      {selectedCategory === "all" && showLeadsChart && (
+      {isAllCategory && showLeadsChart && (
         <LeadsChart 
           leads={leads}
           title="Todos os Leads"
@@ -92,8 +105,8 @@ export function ChartsSection({
         />
       )}
 
-      {/* Gráfico de Contratos - só aparece na categoria "contratos" e quando showContractsChart for true */}
-      {selectedCategory === "contratos" && showContractsChart && (
+      {/* Gráfico de Contratos - CORRIGIDO: aparece em qualquer categoria que comece com "contratos" */}
+      {isContractsCategory && showContractsChart && (
         <LeadsChart 
           leads={leads}
           title="Novos Contratos"
@@ -102,8 +115,8 @@ export function ChartsSection({
         />
       )}
 
-      {/* Gráfico de Oportunidades - só aparece na categoria "oportunidades" e quando showOpportunitiesChart for true */}
-      {selectedCategory === "oportunidades" && showOpportunitiesChart && (
+      {/* Gráfico de Oportunidades - CORRIGIDO: aparece em qualquer categoria que comece com "oportunidades" */}
+      {isOpportunitiesCategory && showOpportunitiesChart && (
         <LeadsChart 
           leads={leads}
           title="Oportunidades"
