@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserPlus, UserX, DollarSign, TrendingUp, Target, BarChart3 } from "lucide-react";
@@ -7,6 +8,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Legend, BarChart, Bar } from "recharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDashboardSettings } from "@/hooks/useDashboardSettings";
+import { useLeadsData } from "@/hooks/useLeadsData";
 
 export function DashboardContent() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
@@ -15,6 +17,7 @@ export function DashboardContent() {
   const [actionView, setActionView] = useState<'type' | 'group'>('type');
   
   const { components } = useDashboardSettings();
+  const { leads, isLoading } = useLeadsData();
 
   // Função para verificar se um componente deve ser exibido
   const isComponentVisible = (componentId: string) => {
@@ -22,31 +25,39 @@ export function DashboardContent() {
     return component ? component.visible : true;
   };
 
+  // Calcular estatísticas reais baseadas nos leads
+  const totalLeads = leads?.length || 0;
+  const proposalsAndMeetings = leads?.filter(lead => 
+    lead.status === "Proposta" || lead.status === "Reunião"
+  ).length || 0;
+  const lostLeads = leads?.filter(lead => lead.status === "Perdido").length || 0;
+  const closedDeals = leads?.filter(lead => lead.status === "Contrato Fechado").length || 0;
+
   const stats = [
     {
       title: "Leads",
-      value: "347",
+      value: totalLeads.toString(),
       icon: Users,
       change: "+12%",
       changeType: "positive" as const,
     },
     {
       title: "Propostas/Reuniões",
-      value: "89",
+      value: proposalsAndMeetings.toString(),
       icon: UserPlus,
       change: "+8%",
       changeType: "positive" as const,
     },
     {
       title: "Perdas",
-      value: "23",
+      value: lostLeads.toString(),
       icon: UserX,
       change: "-15%",
       changeType: "positive" as const,
     },
     {
       title: "Vendas",
-      value: "65",
+      value: closedDeals.toString(),
       icon: DollarSign,
       change: "+22%",
       changeType: "positive" as const,
@@ -82,12 +93,12 @@ export function DashboardContent() {
 
   const conversionData = [
     {
-      totalLeads: 347,
-      opportunities: 89,
-      sales: 65,
-      opportunityRate: "25.6%",
-      salesRate: "18.7%",
-      overallConversion: "73.0%",
+      totalLeads: totalLeads,
+      opportunities: proposalsAndMeetings,
+      sales: closedDeals,
+      opportunityRate: totalLeads > 0 ? `${((proposalsAndMeetings / totalLeads) * 100).toFixed(1)}%` : "0%",
+      salesRate: totalLeads > 0 ? `${((closedDeals / totalLeads) * 100).toFixed(1)}%` : "0%",
+      overallConversion: proposalsAndMeetings > 0 ? `${((closedDeals / proposalsAndMeetings) * 100).toFixed(1)}%` : "0%",
     },
   ];
 
@@ -141,21 +152,74 @@ export function DashboardContent() {
     { month: "Dez", leads: 295 },
   ];
 
-  const actionTypeData = [
-    { type: "Marketing Digital", opportunities: 45, closures: 28 },
-    { type: "Vendas Diretas", opportunities: 38, closures: 22 },
-    { type: "Parcerias", opportunities: 32, closures: 18 },
-    { type: "Referências", opportunities: 28, closures: 15 },
-    { type: "Cold Calling", opportunities: 22, closures: 8 },
-  ];
+  // Gerar dados reais de ação baseados nos leads
+  const getActionData = () => {
+    if (!leads || leads.length === 0) return [];
 
-  const actionGroupData = [
-    { group: "Inbound", opportunities: 65, closures: 43 },
-    { group: "Outbound", opportunities: 48, closures: 28 },
-    { group: "Referral", opportunities: 35, closures: 22 },
-    { group: "Partnership", opportunities: 28, closures: 15 },
-    { group: "Events", opportunities: 19, closures: 7 },
-  ];
+    if (actionView === 'type') {
+      // Agrupar por action_type
+      const actionTypeCounts = leads.reduce((acc, lead) => {
+        // Considerar leads que são oportunidades (Proposta, Reunião) ou que fecharam (Contrato Fechado)
+        const isOpportunityOrClosed = ['Proposta', 'Reunião', 'Contrato Fechado'].includes(lead.status);
+        if (!isOpportunityOrClosed) return acc;
+
+        const actionType = lead.action_type || 'Outros';
+        if (!acc[actionType]) {
+          acc[actionType] = { opportunities: 0, closures: 0 };
+        }
+        
+        if (['Proposta', 'Reunião'].includes(lead.status)) {
+          acc[actionType].opportunities++;
+        }
+        if (lead.status === 'Contrato Fechado') {
+          acc[actionType].closures++;
+          acc[actionType].opportunities++; // Contrato fechado também conta como oportunidade
+        }
+        
+        return acc;
+      }, {} as Record<string, { opportunities: number; closures: number }>);
+
+      return Object.entries(actionTypeCounts)
+        .map(([type, data]) => ({
+          type,
+          opportunities: data.opportunities,
+          closures: data.closures
+        }))
+        .sort((a, b) => b.opportunities - a.opportunities)
+        .slice(0, 5); // Limitar a 5 tipos principais
+    } else {
+      // Agrupar por action_group
+      const actionGroupCounts = leads.reduce((acc, lead) => {
+        // Considerar leads que são oportunidades (Proposta, Reunião) ou que fecharam (Contrato Fechado)
+        const isOpportunityOrClosed = ['Proposta', 'Reunião', 'Contrato Fechado'].includes(lead.status);
+        if (!isOpportunityOrClosed) return acc;
+
+        const actionGroup = lead.action_group || 'Outros';
+        if (!acc[actionGroup]) {
+          acc[actionGroup] = { opportunities: 0, closures: 0 };
+        }
+        
+        if (['Proposta', 'Reunião'].includes(lead.status)) {
+          acc[actionGroup].opportunities++;
+        }
+        if (lead.status === 'Contrato Fechado') {
+          acc[actionGroup].closures++;
+          acc[actionGroup].opportunities++; // Contrato fechado também conta como oportunidade
+        }
+        
+        return acc;
+      }, {} as Record<string, { opportunities: number; closures: number }>);
+
+      return Object.entries(actionGroupCounts)
+        .map(([group, data]) => ({
+          group,
+          opportunities: data.opportunities,
+          closures: data.closures
+        }))
+        .sort((a, b) => b.opportunities - a.opportunities)
+        .slice(0, 5); // Limitar a 5 grupos principais
+    }
+  };
 
   const chartConfig = {
     conversion: {
@@ -186,10 +250,6 @@ export function DashboardContent() {
 
   const getLeadsData = () => {
     return leadsView === 'weekly' ? weeklyLeadsData : monthlyLeadsData;
-  };
-
-  const getActionData = () => {
-    return actionView === 'type' ? actionTypeData : actionGroupData;
   };
 
   const getConversionDataKey = () => {
@@ -228,14 +288,29 @@ export function DashboardContent() {
 
   const getBestActionPeriod = () => {
     const data = getActionData();
+    if (data.length === 0) return 'N/A';
+    
     const best = data.reduce((prev, current) => 
       current.opportunities > prev.opportunities ? current : prev
     );
     const dataKey = actionView === 'type' ? 'type' : 'group';
     const value = best[dataKey as keyof typeof best];
-    const conversionRate = ((best.closures / best.opportunities) * 100).toFixed(1);
+    const conversionRate = best.opportunities > 0 ? ((best.closures / best.opportunities) * 100).toFixed(1) : '0';
     return `${value} (${conversionRate}% taxa)`;
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center py-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Carregando dados do dashboard...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
