@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserPlus, UserX, DollarSign, TrendingUp, Target, BarChart3 } from "lucide-react";
@@ -624,7 +623,6 @@ export function DashboardContent() {
                       />
                       <ChartTooltip 
                         content={<ChartTooltipContent />}
-                        formatter={(value, name) => [value, name === 'opportunities' ? 'Oportunidades' : 'Fechamentos']}
                       />
                       <Legend 
                         verticalAlign="top" 
