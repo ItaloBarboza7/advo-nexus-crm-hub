@@ -7,10 +7,14 @@ import { ChevronLeft, ChevronRight, Flag } from "lucide-react";
 import { UserComparisonCard } from "@/components/UserComparisonCard";
 import { DailyContractsPanel } from "@/components/DailyContractsPanel";
 import { RecoverableLeadsTask } from "@/components/RecoverableLeadsTask";
+import { useLeadsData } from "@/hooks/useLeadsData";
+import { supabase } from "@/integrations/supabase/client";
 
 export function CalendarContent() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const { leads, isLoading } = useLeadsData();
 
   // Definir automaticamente o dia atual quando a página carrega
   useEffect(() => {
@@ -18,26 +22,83 @@ export function CalendarContent() {
     setSelectedDate(today);
   }, []);
 
-  const monthlyGoals = {
-    totalGoal: 50,
-    achieved: 32,
-    percentage: 64,
-    month: "Junho 2025",
-    remaining: 18
+  // Buscar informações do usuário atual
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Buscar o perfil do usuário para obter o nome
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('name')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        setCurrentUser({
+          id: user.id,
+          name: profile?.name || user.email || 'Usuário'
+        });
+      }
+    };
+
+    getCurrentUser();
+  }, []);
+
+  // Calcular estatísticas reais baseadas nos leads
+  const getContractsStats = () => {
+    if (!leads || leads.length === 0) {
+      return {
+        currentMonth: { completed: 0, points: 0 },
+        previousMonth: { completed: 0, points: 0 },
+        goal: 1000
+      };
+    }
+
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const previousMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+    const previousYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+
+    // Contratos fechados no mês atual
+    const currentMonthContracts = leads.filter(lead => {
+      if (lead.status !== "Contrato Fechado") return false;
+      const leadDate = new Date(lead.created_at);
+      return leadDate.getMonth() === currentMonth && leadDate.getFullYear() === currentYear;
+    }).length;
+
+    // Contratos fechados no mês anterior
+    const previousMonthContracts = leads.filter(lead => {
+      if (lead.status !== "Contrato Fechado") return false;
+      const leadDate = new Date(lead.created_at);
+      return leadDate.getMonth() === previousMonth && leadDate.getFullYear() === previousYear;
+    }).length;
+
+    // Calcular pontos (assumindo 75 pontos por contrato fechado)
+    const pointsPerContract = 75;
+    
+    return {
+      currentMonth: {
+        completed: currentMonthContracts,
+        points: currentMonthContracts * pointsPerContract
+      },
+      previousMonth: {
+        completed: previousMonthContracts,
+        points: previousMonthContracts * pointsPerContract
+      },
+      goal: 1000
+    };
   };
 
-  // Dados do usuário logado (simulado) - atualizados para contratos
-  const currentUser = {
-    name: "Maria Silva",
-    currentMonth: {
-      completed: 12, // contratos fechados este mês
-      points: 925   // pontos atualizados para corresponder ao gráfico
-    },
-    previousMonth: {
-      completed: 8,  // contratos fechados mês anterior
-      points: 780
-    },
-    goal: 1000
+  const contractsStats = getContractsStats();
+
+  // Metas mensais baseadas nos dados reais
+  const monthlyGoals = {
+    totalGoal: 50,
+    achieved: contractsStats.currentMonth.completed,
+    percentage: Math.round((contractsStats.currentMonth.completed / 50) * 100),
+    month: "Junho 2025",
+    remaining: Math.max(0, 50 - contractsStats.currentMonth.completed)
   };
 
   const handleDateClick = (day: number) => {
@@ -50,6 +111,19 @@ export function CalendarContent() {
   const handleCloseDailyPanel = () => {
     setSelectedDate(null);
   };
+
+  if (isLoading || !currentUser) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center py-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Carregando dados das metas...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -65,9 +139,9 @@ export function CalendarContent() {
         <div className="lg:col-span-2">
           <UserComparisonCard
             userName={currentUser.name}
-            currentMonth={currentUser.currentMonth}
-            previousMonth={currentUser.previousMonth}
-            goal={currentUser.goal}
+            currentMonth={contractsStats.currentMonth}
+            previousMonth={contractsStats.previousMonth}
+            goal={contractsStats.goal}
           />
         </div>
 
