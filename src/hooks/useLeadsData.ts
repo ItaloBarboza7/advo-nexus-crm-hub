@@ -109,12 +109,35 @@ export function useLeadsData() {
         return false;
       }
 
-      const setClause = Object.keys(updates)
-        .map(key => `${key} = '${updates[key as keyof Lead]}'`)
+      // Usar exec_sql para atualizar no esquema do tenant específico
+      // Remover campos undefined e preparar os valores para SQL
+      const validUpdates: Record<string, any> = {};
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value !== undefined) {
+          validUpdates[key] = value;
+        }
+      });
+
+      if (Object.keys(validUpdates).length === 0) {
+        console.log('Nenhuma atualização válida para aplicar');
+        return true;
+      }
+
+      // Construir a query SQL de forma segura
+      const setClause = Object.keys(validUpdates)
+        .map(key => {
+          const value = validUpdates[key];
+          // Escapar aspas simples nos valores string
+          const escapedValue = typeof value === 'string' ? value.replace(/'/g, "''") : value;
+          return `${key} = '${escapedValue}'`;
+        })
         .join(', ');
 
+      const sql = `UPDATE ${schema}.leads SET ${setClause}, updated_at = now() WHERE id = '${leadId}'`;
+      console.log('🔧 SQL de atualização:', sql);
+
       const { error } = await supabase.rpc('exec_sql' as any, {
-        sql: `UPDATE ${schema}.leads SET ${setClause}, updated_at = now() WHERE id = '${leadId}'`
+        sql: sql
       });
 
       if (error) {
@@ -128,7 +151,7 @@ export function useLeadsData() {
       }
 
       setLeads(prev => prev.map(lead => 
-        lead.id === leadId ? { ...lead, ...updates } : lead
+        lead.id === leadId ? { ...lead, ...validUpdates } : lead
       ));
 
       console.log(`✅ useLeadsData - Lead ${leadId} atualizado com sucesso`);
