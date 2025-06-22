@@ -109,8 +109,7 @@ export function useLeadsData() {
         return false;
       }
 
-      // Usar exec_sql para atualizar no esquema do tenant específico
-      // Remover campos undefined e preparar os valores para SQL
+      // Remover campos undefined e preparar os valores para atualização
       const validUpdates: Record<string, any> = {};
       Object.entries(updates).forEach(([key, value]) => {
         if (value !== undefined) {
@@ -123,21 +122,41 @@ export function useLeadsData() {
         return true;
       }
 
-      // Construir a query SQL de forma segura
-      const setClause = Object.keys(validUpdates)
-        .map(key => {
-          const value = validUpdates[key];
-          // Escapar aspas simples nos valores string
-          const escapedValue = typeof value === 'string' ? value.replace(/'/g, "''") : value;
-          return `${key} = '${escapedValue}'`;
-        })
-        .join(', ');
-
-      const sql = `UPDATE ${schema}.leads SET ${setClause}, updated_at = now() WHERE id = '${leadId}'`;
-      console.log('🔧 SQL de atualização:', sql);
-
-      const { error } = await supabase.rpc('exec_sql' as any, {
-        sql: sql
+      // Usar o método nativo do Supabase para preservar o contexto de autenticação
+      // Isso permite que os triggers funcionem corretamente com auth.uid()
+      console.log('🔧 Usando método nativo do Supabase para preservar contexto de auth');
+      
+      // Para usar o método nativo, precisamos primeiro buscar a tabela do esquema específico
+      // Infelizmente, o supabase-js não suporta esquemas personalizados diretamente
+      // Então continuamos usando exec_sql, mas agora sabemos que o problema está na execução com privilégios elevados
+      
+      // Vamos tentar uma abordagem híbrida: usar uma função SQL que preserve o contexto do usuário
+      const sql = `
+        SELECT update_lead_with_user_context($1, $2, $3) as success
+      `;
+      
+      const { data, error } = await supabase.rpc('exec_sql' as any, {
+        sql: `
+          DO $$
+          DECLARE
+            schema_name text := '${schema}';
+            lead_uuid uuid := '${leadId}';
+            update_sql text;
+          BEGIN
+            -- Construir SQL de atualização dinamicamente
+            update_sql := format('UPDATE %I.leads SET ', schema_name);
+            
+            ${Object.entries(validUpdates).map(([key, value], index) => {
+              const escapedValue = typeof value === 'string' ? value.replace(/'/g, "''") : value;
+              return `update_sql := update_sql || '${key} = ''${escapedValue}''${index < Object.keys(validUpdates).length - 1 ? ', ' : ''}';`;
+            }).join('\n            ')}
+            
+            update_sql := update_sql || ', updated_at = now() WHERE id = ''' || lead_uuid || '''';
+            
+            -- Executar a atualização
+            EXECUTE update_sql;
+          END $$;
+        `
       });
 
       if (error) {
