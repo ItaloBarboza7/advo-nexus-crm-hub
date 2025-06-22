@@ -21,6 +21,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
   const [phone, setPhone] = useState("");
   const [avatar, setAvatar] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [originalEmail, setOriginalEmail] = useState("");
   
   const { toast } = useToast();
   const { companyInfo, updateCompanyInfo, refreshCompanyInfo } = useCompanyInfo();
@@ -145,6 +146,9 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
           setPhone(user.user_metadata?.phone || "");
         }
       }
+
+      // Guardar o email original para comparação
+      setOriginalEmail(user.email || "");
     } catch (error) {
       console.error('[UserProfileModal] Erro inesperado ao carregar perfil:', error);
       toast({
@@ -156,6 +160,65 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (isOpen) {
+      console.log('[UserProfileModal] Modal aberto, carregando perfil');
+      loadUserProfile();
+    }
+  }, [isOpen]);
+
+  // Real-time subscription para mudanças na empresa
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const setupRealtimeSync = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) return;
+
+      console.log('[UserProfileModal] Configurando sincronização em tempo real');
+      
+      const channel = supabase
+        .channel('user_profile_company_sync')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'company_info',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload) => {
+            console.log('[UserProfileModal] Mudança na empresa detectada:', payload);
+            if (payload.new && typeof payload.new === 'object') {
+              const newData = payload.new as any;
+              console.log('[UserProfileModal] Atualizando campos com dados da empresa:', newData);
+              setEmail(newData.email || "");
+              setPhone(newData.phone || "");
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        console.log('[UserProfileModal] Removendo subscription');
+        supabase.removeChannel(channel);
+      };
+    };
+
+    let cleanup: (() => void) | undefined;
+    
+    setupRealtimeSync().then((cleanupFn) => {
+      cleanup = cleanupFn;
+    });
+
+    return () => {
+      if (cleanup) {
+        cleanup();
+      }
+    };
+  }, [isOpen]);
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -181,6 +244,33 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
       }
 
       console.log('[UserProfileModal] Tentando salvar perfil para usuário:', user.id);
+
+      // Se o email foi alterado, usar a Edge Function para atualizar o email de autenticação
+      if (email.trim() !== originalEmail) {
+        console.log('[UserProfileModal] Email alterado, atualizando via Edge Function');
+        const { data, error } = await supabase.functions.invoke('update-user-email', {
+          body: { 
+            newEmail: email.trim()
+          },
+        });
+
+        if (error) {
+          console.error('[UserProfileModal] Erro da Edge Function:', error);
+          throw new Error(error.message);
+        }
+        
+        if (data.error) {
+          console.error('[UserProfileModal] Erro retornado pela função:', data.error);
+          toast({
+            title: "Erro ao atualizar email",
+            description: data.error,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        console.log('[UserProfileModal] Email de autenticação atualizado com sucesso');
+      }
 
       // Verificar se já existe um perfil para este usuário
       const { data: existingProfile, error: checkError } = await supabase
@@ -259,7 +349,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
       console.log('[UserProfileModal] Perfil salvo com sucesso!');
       toast({
         title: "Perfil atualizado",
-        description: "Suas informações foram salvas com sucesso.",
+        description: "Suas informações foram salvas com sucesso. Se você alterou o email, faça login novamente com o novo email.",
       });
 
       onClose();
@@ -344,7 +434,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
                 disabled={isLoading}
               />
               <p className="text-xs text-muted-foreground">
-                * Alterações aqui também afetarão as informações da empresa
+                * Alterações no email também afetarão o login do sistema
               </p>
             </div>
 

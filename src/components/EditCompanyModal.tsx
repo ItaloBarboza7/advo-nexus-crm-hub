@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFilterOptions } from "@/hooks/useFilterOptions";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface CompanyInfo {
   id: string;
@@ -70,9 +70,22 @@ export function EditCompanyModal({
   const [neighborhood, setNeighborhood] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
+  const [originalEmail, setOriginalEmail] = useState("");
   const { stateOptions } = useFilterOptions();
+  const { toast } = useToast();
 
   useEffect(() => {
+    const loadUserEmail = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email) {
+        setOriginalEmail(user.email);
+      }
+    };
+
+    if (isOpen) {
+      loadUserEmail();
+    }
+
     if (companyInfo) {
       setCompanyName(companyInfo.company_name);
       setCnpj(companyInfo.cnpj);
@@ -106,7 +119,7 @@ export function EditCompanyModal({
       setCity("");
       setState("");
     }
-  }, [companyInfo]);
+  }, [companyInfo, isOpen]);
 
   // Real-time subscription para mudanças no perfil do usuário
   useEffect(() => {
@@ -163,22 +176,69 @@ export function EditCompanyModal({
   const handleSave = async () => {
     console.log('[EditCompanyModal] Iniciando salvamento das informações da empresa');
     
-    // Montar o address no mesmo formato do modal inicial
-    const fullAddress = `${address}, ${neighborhood}, ${city}, ${state}, CEP: ${cep}`;
+    try {
+      // Se o email foi alterado, usar a Edge Function para atualizar o email de autenticação
+      if (email.trim() !== originalEmail) {
+        console.log('[EditCompanyModal] Email alterado, atualizando via Edge Function');
+        const { data, error } = await supabase.functions.invoke('update-user-email', {
+          body: { 
+            newEmail: email.trim()
+          },
+        });
 
-    const success = await onSave({
-      company_name: companyName,
-      cnpj,
-      phone,
-      email,
-      address: fullAddress
-    });
+        if (error) {
+          console.error('[EditCompanyModal] Erro da Edge Function:', error);
+          toast({
+            title: "Erro ao atualizar email",
+            description: error.message,
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        if (data.error) {
+          console.error('[EditCompanyModal] Erro retornado pela função:', data.error);
+          toast({
+            title: "Erro ao atualizar email",
+            description: data.error,
+            variant: "destructive",
+          });
+          return;
+        }
 
-    if (success) {
-      console.log('[EditCompanyModal] Salvamento bem-sucedido');
-      onClose();
-    } else {
-      console.error('[EditCompanyModal] Falha no salvamento');
+        console.log('[EditCompanyModal] Email de autenticação atualizado com sucesso');
+      }
+
+      // Montar o address no mesmo formato do modal inicial
+      const fullAddress = `${address}, ${neighborhood}, ${city}, ${state}, CEP: ${cep}`;
+
+      const success = await onSave({
+        company_name: companyName,
+        cnpj,
+        phone,
+        email,
+        address: fullAddress
+      });
+
+      if (success) {
+        console.log('[EditCompanyModal] Salvamento bem-sucedido');
+        toast({
+          title: "Informações atualizadas",
+          description: email.trim() !== originalEmail ? 
+            "Informações salvas com sucesso. Se você alterou o email, faça login novamente com o novo email." :
+            "Informações da empresa atualizadas com sucesso.",
+        });
+        onClose();
+      } else {
+        console.error('[EditCompanyModal] Falha no salvamento');
+      }
+    } catch (error) {
+      console.error('[EditCompanyModal] Erro inesperado:', error);
+      toast({
+        title: "Erro",
+        description: `Ocorreu um erro inesperado: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+        variant: "destructive",
+      });
     }
   };
 
@@ -239,7 +299,7 @@ export function EditCompanyModal({
               disabled={isLoading}
             />
             <p className="text-xs text-muted-foreground">
-              * Alterações aqui também afetarão o perfil do usuário
+              * Alterações no email também afetarão o login do sistema
             </p>
           </div>
 
