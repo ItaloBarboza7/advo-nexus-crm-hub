@@ -60,7 +60,8 @@ export function useLeadsData() {
         company: undefined,
         interest: undefined,
         lastContact: undefined,
-        avatar: undefined
+        avatar: undefined,
+        closed_by_user_id: lead.closed_by_user_id || null
       }));
 
       console.log(`✅ useLeadsData - ${transformedLeads.length} leads carregados do esquema ${schema}`);

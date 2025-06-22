@@ -230,6 +230,7 @@ export type Database = {
         Row: {
           action_group: string | null
           action_type: string | null
+          closed_by_user_id: string | null
           created_at: string
           description: string | null
           email: string | null
@@ -247,6 +248,7 @@ export type Database = {
         Insert: {
           action_group?: string | null
           action_type?: string | null
+          closed_by_user_id?: string | null
           created_at?: string
           description?: string | null
           email?: string | null
@@ -264,6 +266,7 @@ export type Database = {
         Update: {
           action_group?: string | null
           action_type?: string | null
+          closed_by_user_id?: string | null
           created_at?: string
           description?: string | null
           email?: string | null
@@ -406,6 +409,10 @@ export type Database = {
       }
     }
     Functions: {
+      add_closed_by_tracking_to_tenant: {
+        Args: { schema_name: string }
+        Returns: undefined
+      }
       add_column_delete_trigger_to_tenant: {
         Args: { schema_name: string }
         Returns: undefined

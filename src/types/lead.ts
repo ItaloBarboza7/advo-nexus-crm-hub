@@ -16,6 +16,7 @@ export interface Lead {
   action_group: string | null; // Renomeado de action_type
   action_type: string | null; // Novo campo para tipo específico
   loss_reason: string | null;
+  closed_by_user_id: string | null; // Novo campo para rastrear quem fechou o contrato
   created_at: string;
   updated_at: string;
 }

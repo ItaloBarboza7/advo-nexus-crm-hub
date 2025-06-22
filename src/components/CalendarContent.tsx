@@ -44,9 +44,9 @@ export function CalendarContent() {
     getCurrentUser();
   }, []);
 
-  // Calcular estatísticas reais baseadas nos leads
+  // Calcular estatísticas reais baseadas nos leads fechados pelo usuário atual
   const getContractsStats = () => {
-    if (!leads || leads.length === 0) {
+    if (!leads || leads.length === 0 || !currentUser) {
       return {
         currentMonth: { completed: 0, points: 0 },
         previousMonth: { completed: 0, points: 0 },
@@ -60,16 +60,18 @@ export function CalendarContent() {
     const previousMonth = currentMonth === 0 ? 11 : currentMonth - 1;
     const previousYear = currentMonth === 0 ? currentYear - 1 : currentYear;
 
-    // Contratos fechados no mês atual
+    // Contratos fechados pelo usuário atual no mês atual
     const currentMonthContracts = leads.filter(lead => {
       if (lead.status !== "Contrato Fechado") return false;
+      if (lead.closed_by_user_id !== currentUser.id) return false;
       const leadDate = new Date(lead.created_at);
       return leadDate.getMonth() === currentMonth && leadDate.getFullYear() === currentYear;
     }).length;
 
-    // Contratos fechados no mês anterior
+    // Contratos fechados pelo usuário atual no mês anterior
     const previousMonthContracts = leads.filter(lead => {
       if (lead.status !== "Contrato Fechado") return false;
+      if (lead.closed_by_user_id !== currentUser.id) return false;
       const leadDate = new Date(lead.created_at);
       return leadDate.getMonth() === previousMonth && leadDate.getFullYear() === previousYear;
     }).length;
@@ -92,7 +94,7 @@ export function CalendarContent() {
 
   const contractsStats = getContractsStats();
 
-  // Metas mensais baseadas nos dados reais
+  // Metas mensais baseadas nos dados reais do usuário
   const monthlyGoals = {
     totalGoal: 50,
     achieved: contractsStats.currentMonth.completed,
@@ -130,7 +132,7 @@ export function CalendarContent() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Metas</h1>
-          <p className="text-gray-600">Acompanhe as metas de contratos fechados da equipe</p>
+          <p className="text-gray-600">Acompanhe suas metas de contratos fechados</p>
         </div>
       </div>
 
@@ -207,22 +209,22 @@ export function CalendarContent() {
       <Card className="p-6">
         <div className="flex items-center gap-3 mb-4">
           <Flag className="h-6 w-6 text-blue-600" />
-          <h3 className="text-lg font-semibold text-gray-900">Meta Mensal - {monthlyGoals.month}</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Sua Meta Mensal - {monthlyGoals.month}</h3>
         </div>
         
         <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-lg border-l-4 border-blue-500">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="text-center">
               <div className="text-3xl font-bold text-blue-600">{monthlyGoals.achieved}</div>
-              <div className="text-sm text-gray-600">Contratos Fechados</div>
+              <div className="text-sm text-gray-600">Contratos Fechados por Você</div>
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-gray-700">{monthlyGoals.totalGoal}</div>
-              <div className="text-sm text-gray-600">Meta Total</div>
+              <div className="text-sm text-gray-600">Sua Meta Total</div>
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-green-600">{monthlyGoals.percentage}%</div>
-              <div className="text-sm text-gray-600">Progresso</div>
+              <div className="text-sm text-gray-600">Seu Progresso</div>
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-red-600">{monthlyGoals.remaining}</div>
@@ -232,7 +234,7 @@ export function CalendarContent() {
           
           <div className="mt-4">
             <div className="flex justify-between text-sm text-gray-600 mb-1">
-              <span>Progresso da Meta</span>
+              <span>Progresso da Sua Meta</span>
               <span>{monthlyGoals.achieved}/{monthlyGoals.totalGoal}</span>
             </div>
             <Progress value={monthlyGoals.percentage} className="h-3 [&>div]:bg-blue-500" />
