@@ -87,8 +87,8 @@ export function ChartsSection({
   const isContractsCategory = selectedCategory.startsWith("contratos");
   const isOpportunitiesCategory = selectedCategory.startsWith("oportunidades");
 
-  // NOVA LÓGICA: Verificar se estamos em visualização de Estados
-  const isEstadosView = selectedCategory.endsWith("-estados");
+  // CORREÇÃO: Verificar se estamos em visualização de Estados (incluindo "estados" principal)
+  const isEstadosView = selectedCategory === "estados" || selectedCategory.endsWith("-estados");
 
   console.log(`🔍 [ChartsSection] Categorias detectadas:`, {
     isAllCategory,
@@ -134,7 +134,7 @@ export function ChartsSection({
         </>
       )}
 
-      {/* Gráfico de Estados - CORRIGIDO: aparece quando estamos em visualização de Estados */}
+      {/* Gráfico de Estados - CORRIGIDO: aparece quando estamos em visualização de Estados (incluindo "estados" principal) */}
       {isEstadosView && shouldShowStateChart && (
         <StateStatsChart 
           leads={leads} 

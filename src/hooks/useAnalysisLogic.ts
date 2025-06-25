@@ -1,3 +1,4 @@
+
 import { useMemo } from "react";
 import { Lead } from "@/types/lead";
 
@@ -117,10 +118,13 @@ export const useAnalysisLogic = (
   
   const shouldShowStateChart = () => {
     console.log(`🔍 shouldShowStateChart - selectedCategory: ${selectedCategory}`);
-    return selectedCategory === "estados" || 
-           selectedCategory === "contratos-estados" || 
-           selectedCategory === "oportunidades-estados" || 
-           selectedCategory === "perdas-estados";
+    // CORREÇÃO: Incluir a categoria "estados" principal
+    const shouldShow = selectedCategory === "estados" || 
+                      selectedCategory === "contratos-estados" || 
+                      selectedCategory === "oportunidades-estados" || 
+                      selectedCategory === "perdas-estados";
+    console.log(`📊 shouldShowStateChart - shouldShow: ${shouldShow} para ${selectedCategory}`);
+    return shouldShow;
   };
 
   return {
