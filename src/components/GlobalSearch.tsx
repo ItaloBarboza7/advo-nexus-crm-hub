@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { Lead } from "@/types/lead";
+import { useTenantSchema } from "@/hooks/useTenantSchema";
 
 interface GlobalSearchProps {
   onLeadSelect: (lead: Lead) => void;
@@ -15,28 +16,48 @@ export function GlobalSearch({ onLeadSelect }: GlobalSearchProps) {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [filteredLeads, setFilteredLeads] = useState<Lead[]>([]);
   const [showResults, setShowResults] = useState(false);
+  const { tenantSchema, ensureTenantSchema } = useTenantSchema();
 
   useEffect(() => {
     const fetchLeads = async () => {
-      const { data, error } = await supabase
-        .from('leads')
-        .select('*')
-        .order('created_at', { ascending: false });
+      try {
+        console.log("🔍 GlobalSearch - Buscando leads do tenant...");
+        
+        const schema = tenantSchema || await ensureTenantSchema();
+        if (!schema) {
+          console.error('❌ Não foi possível obter o esquema do tenant');
+          return;
+        }
 
-      if (data && !error) {
-        const transformedLeads: Lead[] = data.map(lead => ({
+        const { data, error } = await supabase.rpc('exec_sql' as any, {
+          sql: `SELECT * FROM ${schema}.leads ORDER BY created_at DESC`
+        });
+
+        if (error) {
+          console.error('❌ Erro ao buscar leads:', error);
+          return;
+        }
+
+        const leadsData = Array.isArray(data) ? data : [];
+        const transformedLeads: Lead[] = leadsData.map((lead: any) => ({
           ...lead,
           company: undefined,
           interest: undefined,
           lastContact: undefined,
           avatar: undefined
         }));
+
+        console.log(`✅ GlobalSearch - ${transformedLeads.length} leads carregados do tenant`);
         setLeads(transformedLeads);
+      } catch (error) {
+        console.error('❌ Erro inesperado ao buscar leads:', error);
       }
     };
 
-    fetchLeads();
-  }, []);
+    if (tenantSchema) {
+      fetchLeads();
+    }
+  }, [tenantSchema, ensureTenantSchema]);
 
   useEffect(() => {
     if (searchTerm.length > 0) {
@@ -44,7 +65,7 @@ export function GlobalSearch({ onLeadSelect }: GlobalSearchProps) {
         lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (lead.email && lead.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (lead.phone && lead.phone.includes(searchTerm)) ||
-        (lead.company && lead.company.toLowerCase().includes(searchTerm.toLowerCase()))
+        (lead.state && lead.state.toLowerCase().includes(searchTerm.toLowerCase()))
       );
       setFilteredLeads(filtered);
       setShowResults(true);
