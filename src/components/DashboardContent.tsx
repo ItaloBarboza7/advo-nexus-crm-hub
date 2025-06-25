@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserPlus, UserX, DollarSign, TrendingUp, Target, BarChart3 } from "lucide-react";
@@ -92,6 +91,7 @@ export function DashboardContent() {
     },
   ];
 
+  // CORREÇÃO: Calcular taxa de conversão corretamente (máximo 100%)
   const conversionData = [
     {
       totalLeads: totalLeads,
@@ -99,7 +99,8 @@ export function DashboardContent() {
       sales: closedDeals,
       opportunityRate: totalLeads > 0 ? `${((proposalsAndMeetings / totalLeads) * 100).toFixed(1)}%` : "0%",
       salesRate: totalLeads > 0 ? `${((closedDeals / totalLeads) * 100).toFixed(1)}%` : "0%",
-      overallConversion: proposalsAndMeetings > 0 ? `${((closedDeals / proposalsAndMeetings) * 100).toFixed(1)}%` : "0%",
+      // CORREÇÃO: Taxa geral deve ser vendas/oportunidades, não vendas/leads
+      overallConversion: proposalsAndMeetings > 0 ? `${Math.min(((closedDeals / proposalsAndMeetings) * 100), 100).toFixed(1)}%` : "0%",
     },
   ];
 
@@ -144,7 +145,8 @@ export function DashboardContent() {
         lead.status === "Proposta" || lead.status === "Reunião"
       ).length;
       
-      const conversion = dayOpportunities > 0 ? (daySales / dayOpportunities) * 100 : 0;
+      // CORREÇÃO: Limitar conversão a 100% máximo
+      const conversion = dayOpportunities > 0 ? Math.min((daySales / dayOpportunities) * 100, 100) : 0;
       
       return {
         day,
@@ -162,7 +164,8 @@ export function DashboardContent() {
         lead.status === "Proposta" || lead.status === "Reunião"
       ).length;
       
-      const conversion = monthOpportunities > 0 ? (monthSales / monthOpportunities) * 100 : 0;
+      // CORREÇÃO: Limitar conversão a 100% máximo
+      const conversion = monthOpportunities > 0 ? Math.min((monthSales / monthOpportunities) * 100, 100) : 0;
       
       return {
         month,
@@ -388,7 +391,7 @@ export function DashboardContent() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
-          <p className="text-gray-600">Análise de leads e performance de vendas</p>
+          {/* CORREÇÃO: Remover o texto descritivo */}
         </div>
         <DateFilter date={dateRange} setDate={setDateRange} />
       </div>
