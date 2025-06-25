@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, LayoutGrid, List, Users, Settings } from "lucide-react";
+import { Plus, Search, LayoutGrid, List, Users } from "lucide-react";
 import { KanbanView } from "@/components/KanbanView";
 import { NewLeadForm } from "@/components/NewLeadForm";
 import { LeadDetailsDialog } from "@/components/LeadDetailsDialog";
@@ -258,14 +258,11 @@ export function ClientsContent() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Leads</h1>
-          <p className="text-gray-600">
-            Gerencie seus leads e oportunidades de vendas (dados privados do tenant)
-            {filteredLeads.length !== leads.length && (
-              <span className="ml-2 text-blue-600 font-medium">
-                ({filteredLeads.length} de {leads.length} leads)
-              </span>
-            )}
-          </p>
+          {filteredLeads.length !== leads.length && (
+            <p className="text-blue-600 font-medium">
+              ({filteredLeads.length} de {leads.length} leads)
+            </p>
+          )}
         </div>
         <Button 
           className="bg-blue-600 hover:bg-blue-700"
@@ -310,25 +307,14 @@ export function ClientsContent() {
               Kanban
             </Button>
             {viewMode === "kanban" && (
-              <>
-                <Button
-                  variant={showOnlyOpportunities ? "default" : "outline"}
-                  size="sm"
-                  className={showOnlyOpportunities ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}
-                  onClick={() => setShowOnlyOpportunities(v => !v)}
-                >
-                  Oportunidades
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleOpenAddColumnDialog}
-                  title="Adicionar nova coluna do Kanban (privada do tenant)"
-                >
-                  <Settings className="h-4 w-4 mr-1" />
-                  Colunas
-                </Button>
-              </>
+              <Button
+                variant={showOnlyOpportunities ? "default" : "outline"}
+                size="sm"
+                className={showOnlyOpportunities ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}
+                onClick={() => setShowOnlyOpportunities(v => !v)}
+              >
+                Oportunidades
+              </Button>
             )}
           </div>
         </div>
