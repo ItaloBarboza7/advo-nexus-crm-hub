@@ -1,4 +1,3 @@
-
 import { Card } from "@/components/ui/card";
 import { Calendar, User, FileText } from "lucide-react";
 import { format } from "date-fns";
@@ -80,7 +79,7 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
         setIsLoading(true);
         setError(null);
         
-        // Corrigir sincronismo de data - usar timezone brasileiro
+        // Corrigir sincronismo de data - usar timezone brasileiro (agora para junho)
         const brasiliaOffset = -3; // UTC-3 para Brasília
         const selectedDateBrasilia = new Date(selectedDate.getTime() - (brasiliaOffset * 60 * 60 * 1000));
         const selectedDateStr = selectedDateBrasilia.toISOString().slice(0, 10); // YYYY-MM-DD
