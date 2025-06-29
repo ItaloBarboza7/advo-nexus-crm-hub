@@ -1,3 +1,4 @@
+
 import { Card } from "@/components/ui/card";
 import { Calendar, User, FileText } from "lucide-react";
 import { format } from "date-fns";
@@ -79,43 +80,42 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
         setIsLoading(true);
         setError(null);
         
-        // Corrigir sincronismo de data - usar timezone brasileiro (agora para junho)
-        const brasiliaOffset = -3; // UTC-3 para Brasília
-        const selectedDateBrasilia = new Date(selectedDate.getTime() - (brasiliaOffset * 60 * 60 * 1000));
-        const selectedDateStr = selectedDateBrasilia.toISOString().slice(0, 10); // YYYY-MM-DD
+        // Simplificar a lógica de data - usar diretamente a data selecionada
+        const selectedDateStr = format(selectedDate, "yyyy-MM-dd");
         
         console.log("📅 Buscando contratos para:", {
           displayDate: format(selectedDate, "dd/MM/yyyy"),
           queryDate: selectedDateStr,
-          brasiliaDate: selectedDateBrasilia.toISOString(),
           userId: currentUser.id,
           schema: tenantSchema
         });
 
-        // Buscar contratos com condição mais ampla para garantir que encontremos os dados
+        // Query SQL simplificada e corrigida
+        const sql = `
+          SELECT 
+            id,
+            name,
+            email,
+            phone,
+            value,
+            created_at,
+            updated_at,
+            closed_by_user_id,
+            status
+          FROM ${tenantSchema}.leads 
+          WHERE status = 'Contrato Fechado' 
+            AND closed_by_user_id = '${currentUser.id}'
+            AND (
+              DATE(updated_at) = DATE('${selectedDateStr}')
+              OR DATE(created_at) = DATE('${selectedDateStr}')
+            )
+          ORDER BY updated_at DESC
+        `;
+
+        console.log("🔧 SQL Query:", sql);
+
         const { data, error } = await supabase.rpc('exec_sql' as any, {
-          sql: `
-            SELECT 
-              id,
-              name,
-              email,
-              phone,
-              value,
-              created_at,
-              updated_at,
-              closed_by_user_id,
-              status
-            FROM ${tenantSchema}.leads 
-            WHERE status = 'Contrato Fechado' 
-              AND closed_by_user_id = '${currentUser.id}'
-              AND (
-                DATE(updated_at AT TIME ZONE 'America/Sao_Paulo') = DATE('${selectedDateStr}')
-                OR DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = DATE('${selectedDateStr}')
-                OR DATE(updated_at) = DATE('${selectedDateStr}')
-                OR DATE(created_at) = DATE('${selectedDateStr}')
-              )
-            ORDER BY updated_at DESC
-          `
+          sql: sql
         });
 
         if (error) {
@@ -127,31 +127,54 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
         const leadsData = Array.isArray(data) ? data : [];
         console.log(`📋 Total de leads encontrados: ${leadsData.length}`);
 
-        // Se não encontrou nenhum lead, vamos fazer uma busca mais geral para debug
+        // Se não encontrou nenhum lead, fazer uma busca de debug mais ampla
         if (leadsData.length === 0) {
           console.log("🔍 Nenhum lead encontrado, fazendo busca geral para debug...");
           
-          const { data: debugData, error: debugError } = await supabase.rpc('exec_sql' as any, {
-            sql: `
-              SELECT 
-                id,
-                name,
-                status,
-                closed_by_user_id,
-                created_at,
-                updated_at,
-                DATE(updated_at AT TIME ZONE 'America/Sao_Paulo') as updated_date_br,
-                DATE(created_at AT TIME ZONE 'America/Sao_Paulo') as created_date_br
-              FROM ${tenantSchema}.leads 
-              WHERE status = 'Contrato Fechado' 
-                AND closed_by_user_id = '${currentUser.id}'
-              ORDER BY updated_at DESC
-              LIMIT 10
-            `
+          const debugSql = `
+            SELECT 
+              id,
+              name,
+              status,
+              closed_by_user_id,
+              created_at,
+              updated_at,
+              DATE(updated_at) as updated_date,
+              DATE(created_at) as created_date
+            FROM ${tenantSchema}.leads 
+            WHERE status = 'Contrato Fechado' 
+              AND closed_by_user_id = '${currentUser.id}'
+            ORDER BY updated_at DESC
+            LIMIT 10
+          `;
+
+          const { data: debugData } = await supabase.rpc('exec_sql' as any, {
+            sql: debugSql
           });
 
           console.log("🐛 Debug - Todos os contratos fechados pelo usuário:", debugData);
           console.log("🐛 Debug - Data procurada:", selectedDateStr);
+          
+          // Log específico para o lead "testefechamento"
+          const testLeadSql = `
+            SELECT 
+              id,
+              name,
+              status,
+              closed_by_user_id,
+              created_at,
+              updated_at,
+              DATE(updated_at) as updated_date,
+              DATE(created_at) as created_date
+            FROM ${tenantSchema}.leads 
+            WHERE name ILIKE '%testefechamento%'
+          `;
+
+          const { data: testLeadData } = await supabase.rpc('exec_sql' as any, {
+            sql: testLeadSql
+          });
+
+          console.log("🔍 Debug - Lead testefechamento:", testLeadData);
         }
 
         const transformedContracts: Contract[] = leadsData.map((lead: any) => ({
@@ -161,8 +184,7 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
           value: lead.value || 0,
           time: new Date(lead.updated_at).toLocaleTimeString('pt-BR', { 
             hour: '2-digit', 
-            minute: '2-digit',
-            timeZone: 'America/Sao_Paulo'
+            minute: '2-digit'
           }),
           email: lead.email,
           phone: lead.phone
@@ -224,6 +246,9 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
           <p>Nenhum contrato foi fechado por você nesta data</p>
           <p className="text-sm text-gray-400 mt-2">
             Data consultada: {format(selectedDate, "dd/MM/yyyy")}
+          </p>
+          <p className="text-xs text-gray-400 mt-1">
+            Usuário: {currentUser.name} ({currentUser.id})
           </p>
         </div>
       ) : (
