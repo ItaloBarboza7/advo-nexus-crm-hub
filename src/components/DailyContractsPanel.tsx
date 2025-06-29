@@ -1,4 +1,3 @@
-
 import { Card } from "@/components/ui/card";
 import { Calendar, User, FileText } from "lucide-react";
 import { format } from "date-fns";
@@ -107,7 +106,7 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
           schema: tenantSchema
         });
 
-        // Query SQL com filtro de timezone correto
+        // Query SQL sem parâmetros - interpolação direta
         const sql = `
           SELECT 
             id,
@@ -121,21 +120,18 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
             status
           FROM ${tenantSchema}.leads 
           WHERE status = 'Contrato Fechado' 
-            AND closed_by_user_id = $1
+            AND closed_by_user_id = '${currentUser.id}'
             AND (
-              updated_at >= $2::timestamptz AND updated_at <= $3::timestamptz
-              OR created_at >= $2::timestamptz AND created_at <= $3::timestamptz
+              updated_at >= '${startOfDayUTCStr}'::timestamptz AND updated_at <= '${endOfDayUTCStr}'::timestamptz
+              OR created_at >= '${startOfDayUTCStr}'::timestamptz AND created_at <= '${endOfDayUTCStr}'::timestamptz
             )
           ORDER BY updated_at DESC
         `;
 
         console.log("🔧 SQL Query:", sql);
-        console.log("🔧 Parâmetros:", [currentUser.id, startOfDayUTCStr, endOfDayUTCStr]);
 
         const { data, error } = await supabase.rpc('exec_sql' as any, {
-          sql: sql.replace('$1', `'${currentUser.id}'`)
-                  .replace('$2', `'${startOfDayUTCStr}'`)
-                  .replace('$3', `'${endOfDayUTCStr}'`)
+          sql: sql
         });
 
         if (error) {
