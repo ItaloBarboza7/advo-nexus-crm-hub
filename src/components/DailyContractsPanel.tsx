@@ -1,3 +1,4 @@
+
 import { Card } from "@/components/ui/card";
 import { Calendar, User, FileText } from "lucide-react";
 import { format } from "date-fns";
@@ -25,7 +26,7 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<{ id: string; name: string } | null>(null);
-  const { tenantSchema } = useTenantSchema();
+  const { tenantSchema, ensureTenantSchema } = useTenantSchema();
 
   // Buscar usuário atual apenas uma vez
   useEffect(() => {
@@ -34,9 +35,12 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
         const { data: { user }, error: userError } = await supabase.auth.getUser();
         
         if (userError || !user) {
-          console.error("❌ Erro ao buscar usuário:", userError);
+          console.error("❌ DailyContractsPanel - Erro ao buscar usuário:", userError);
+          setError("Erro de autenticação");
           return;
         }
+
+        console.log("🔍 DailyContractsPanel - Usuário autenticado:", user.id);
 
         const { data: profile } = await supabase
           .from('user_profiles')
@@ -49,10 +53,10 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
           name: profile?.name || user.email || 'Usuário'
         };
         
-        console.log("✅ Usuário carregado:", userData);
+        console.log("✅ DailyContractsPanel - Usuário carregado:", userData);
         setCurrentUser(userData);
       } catch (error) {
-        console.error("❌ Erro inesperado ao buscar usuário:", error);
+        console.error("❌ DailyContractsPanel - Erro inesperado ao buscar usuário:", error);
         setError("Erro ao carregar dados do usuário");
       }
     };
@@ -64,8 +68,8 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
   useEffect(() => {
     const fetchContracts = async () => {
       // Verificar se temos todas as dependências necessárias
-      if (!selectedDate || !currentUser || !tenantSchema) {
-        console.log("🚫 Dependências não atendidas:", {
+      if (!selectedDate || !currentUser) {
+        console.log("🚫 DailyContractsPanel - Dependências não atendidas:", {
           selectedDate: !!selectedDate,
           currentUser: !!currentUser,
           tenantSchema: !!tenantSchema
@@ -79,34 +83,51 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
         setIsLoading(true);
         setError(null);
         
-        // Converter a data selecionada para o timezone brasileiro e criar os limites do dia
+        console.log("📅 DailyContractsPanel - Iniciando busca de contratos para:", {
+          selectedDate: selectedDate.toISOString(),
+          displayDate: format(selectedDate, "dd/MM/yyyy"),
+          userId: currentUser.id,
+          userName: currentUser.name
+        });
+
+        // Garantir que o esquema do tenant existe
+        let schema = tenantSchema;
+        if (!schema) {
+          console.log("🏗️ DailyContractsPanel - Esquema não encontrado, garantindo criação...");
+          schema = await ensureTenantSchema();
+          if (!schema) {
+            throw new Error("Não foi possível obter ou criar o esquema do tenant");
+          }
+        }
+
+        console.log("✅ DailyContractsPanel - Esquema do tenant confirmado:", schema);
+        
+        // Criar filtros de data mais robustos
+        // Usar o dia selecionado no timezone local (brasileiro)
         const selectedYear = selectedDate.getFullYear();
         const selectedMonth = selectedDate.getMonth();
         const selectedDay = selectedDate.getDate();
         
-        // Início do dia no timezone brasileiro (00:00:00 -03:00)
-        const startOfDayBrazil = new Date(selectedYear, selectedMonth, selectedDay, 0, 0, 0);
-        const startOfDayUTC = new Date(startOfDayBrazil.getTime() + (3 * 60 * 60 * 1000)); // +3 horas para UTC
+        // Criar datas no timezone local (00:00:00 e 23:59:59 no Brasil)
+        const startOfDay = new Date(selectedYear, selectedMonth, selectedDay, 0, 0, 0, 0);
+        const endOfDay = new Date(selectedYear, selectedMonth, selectedDay, 23, 59, 59, 999);
         
-        // Fim do dia no timezone brasileiro (23:59:59 -03:00)  
-        const endOfDayBrazil = new Date(selectedYear, selectedMonth, selectedDay, 23, 59, 59, 999);
-        const endOfDayUTC = new Date(endOfDayBrazil.getTime() + (3 * 60 * 60 * 1000)); // +3 horas para UTC
+        // Converter para UTC (adicionar 3 horas para compensar o fuso horário brasileiro)
+        const startOfDayUTC = new Date(startOfDay.getTime() + (3 * 60 * 60 * 1000));
+        const endOfDayUTC = new Date(endOfDay.getTime() + (3 * 60 * 60 * 1000));
         
         const startOfDayUTCStr = startOfDayUTC.toISOString();
         const endOfDayUTCStr = endOfDayUTC.toISOString();
         
-        console.log("📅 Buscando contratos para:", {
-          displayDate: format(selectedDate, "dd/MM/yyyy"),
+        console.log("🔍 DailyContractsPanel - Filtros de data:", {
           selectedDateLocal: selectedDate.toISOString(),
-          startOfDayBrazil: startOfDayBrazil.toISOString(),
-          endOfDayBrazil: endOfDayBrazil.toISOString(),
+          startOfDayBrasil: startOfDay.toISOString(),
+          endOfDayBrasil: endOfDay.toISOString(),
           startOfDayUTC: startOfDayUTCStr,
-          endOfDayUTC: endOfDayUTCStr,
-          userId: currentUser.id,
-          schema: tenantSchema
+          endOfDayUTC: endOfDayUTCStr
         });
 
-        // Query SQL sem parâmetros - interpolação direta
+        // Query SQL simplificada com debug melhorado
         const sql = `
           SELECT 
             id,
@@ -118,35 +139,38 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
             updated_at,
             closed_by_user_id,
             status
-          FROM ${tenantSchema}.leads 
+          FROM ${schema}.leads 
           WHERE status = 'Contrato Fechado' 
             AND closed_by_user_id = '${currentUser.id}'
             AND (
-              updated_at >= '${startOfDayUTCStr}'::timestamptz AND updated_at <= '${endOfDayUTCStr}'::timestamptz
-              OR created_at >= '${startOfDayUTCStr}'::timestamptz AND created_at <= '${endOfDayUTCStr}'::timestamptz
+              (updated_at >= '${startOfDayUTCStr}'::timestamptz AND updated_at <= '${endOfDayUTCStr}'::timestamptz)
+              OR 
+              (created_at >= '${startOfDayUTCStr}'::timestamptz AND created_at <= '${endOfDayUTCStr}'::timestamptz)
             )
-          ORDER BY updated_at DESC
+          ORDER BY COALESCE(updated_at, created_at) DESC
         `;
 
-        console.log("🔧 SQL Query:", sql);
+        console.log("🔧 DailyContractsPanel - SQL Query:", sql);
 
         const { data, error } = await supabase.rpc('exec_sql' as any, {
           sql: sql
         });
 
         if (error) {
+          console.error("❌ DailyContractsPanel - Erro na consulta SQL:", error);
           throw new Error(`Erro na consulta: ${error.message}`);
         }
 
-        console.log("📊 Dados retornados pela consulta SQL:", data);
+        console.log("📊 DailyContractsPanel - Dados retornados:", data);
 
         const leadsData = Array.isArray(data) ? data : [];
-        console.log(`📋 Total de leads encontrados: ${leadsData.length}`);
+        console.log(`📋 DailyContractsPanel - Total de leads encontrados: ${leadsData.length}`);
 
-        // Se não encontrou nenhum lead, fazer uma busca de debug mais ampla
+        // Debug adicional se não encontrou nenhum lead
         if (leadsData.length === 0) {
-          console.log("🔍 Nenhum lead encontrado, fazendo busca geral para debug...");
+          console.log("🔍 DailyContractsPanel - Fazendo busca de debug...");
           
+          // Busca todos os contratos fechados pelo usuário para debug
           const debugSql = `
             SELECT 
               id,
@@ -155,12 +179,12 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
               closed_by_user_id,
               created_at,
               updated_at,
-              created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo' as created_at_brazil,
-              updated_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo' as updated_at_brazil
-            FROM ${tenantSchema}.leads 
+              (created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') as created_at_brazil,
+              (updated_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') as updated_at_brazil
+            FROM ${schema}.leads 
             WHERE status = 'Contrato Fechado' 
               AND closed_by_user_id = '${currentUser.id}'
-            ORDER BY updated_at DESC
+            ORDER BY COALESCE(updated_at, created_at) DESC
             LIMIT 10
           `;
 
@@ -168,15 +192,32 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
             sql: debugSql
           });
 
-          console.log("🐛 Debug - Todos os contratos fechados pelo usuário:", debugData);
-          console.log("🐛 Debug - Período procurado (Brasil):", {
-            inicio: startOfDayBrazil.toLocaleString('pt-BR'),
-            fim: endOfDayBrazil.toLocaleString('pt-BR')
+          console.log("🐛 DailyContractsPanel - Debug: Todos os contratos fechados pelo usuário:", debugData);
+          
+          // Também verificar se existem contratos fechados por qualquer usuário no dia
+          const allContractsSql = `
+            SELECT 
+              id,
+              name,
+              closed_by_user_id,
+              status,
+              (created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') as created_at_brazil,
+              (updated_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') as updated_at_brazil
+            FROM ${schema}.leads 
+            WHERE status = 'Contrato Fechado'
+              AND (
+                (updated_at >= '${startOfDayUTCStr}'::timestamptz AND updated_at <= '${endOfDayUTCStr}'::timestamptz)
+                OR 
+                (created_at >= '${startOfDayUTCStr}'::timestamptz AND created_at <= '${endOfDayUTCStr}'::timestamptz)
+              )
+            ORDER BY COALESCE(updated_at, created_at) DESC
+          `;
+
+          const { data: allContractsData } = await supabase.rpc('exec_sql' as any, {
+            sql: allContractsSql
           });
-          console.log("🐛 Debug - Período procurado (UTC):", {
-            inicio: startOfDayUTCStr,
-            fim: endOfDayUTCStr
-          });
+
+          console.log("🐛 DailyContractsPanel - Debug: Todos os contratos fechados na data:", allContractsData);
         }
 
         const transformedContracts: Contract[] = leadsData.map((lead: any) => ({
@@ -184,7 +225,7 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
           clientName: lead.name,
           closedBy: currentUser.name,
           value: lead.value || 0,
-          time: new Date(lead.updated_at).toLocaleTimeString('pt-BR', { 
+          time: new Date(lead.updated_at || lead.created_at).toLocaleTimeString('pt-BR', { 
             hour: '2-digit', 
             minute: '2-digit',
             timeZone: 'America/Sao_Paulo'
@@ -193,10 +234,10 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
           phone: lead.phone
         }));
 
-        console.log(`✅ ${transformedContracts.length} contratos processados`);
+        console.log(`✅ DailyContractsPanel - ${transformedContracts.length} contratos processados`);
         setContracts(transformedContracts);
       } catch (error: any) {
-        console.error('❌ Erro ao buscar contratos:', error);
+        console.error('❌ DailyContractsPanel - Erro ao buscar contratos:', error);
         setError(error.message || "Erro ao carregar contratos");
         setContracts([]);
       } finally {
@@ -205,7 +246,7 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
     };
 
     fetchContracts();
-  }, [selectedDate, currentUser, tenantSchema]);
+  }, [selectedDate, currentUser, tenantSchema, ensureTenantSchema]);
 
   if (!selectedDate) return null;
 
