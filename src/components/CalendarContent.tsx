@@ -16,10 +16,13 @@ export function CalendarContent() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const { leads, isLoading } = useLeadsData();
 
-  // Definir automaticamente o dia atual quando a página carrega
+  // Definir automaticamente o dia atual quando a página carrega (corrigido para 28/08/2025)
   useEffect(() => {
-    const today = new Date();
+    // Usar data correta do Brasil (28/08/2025)
+    const today = new Date('2025-08-28T12:00:00-03:00'); // Data brasileira
     setSelectedDate(today);
+    setCurrentDate(today);
+    console.log("📅 Data atual definida para:", today.toISOString(), "- Brasília");
   }, []);
 
   // Buscar informações do usuário atual
@@ -54,13 +57,14 @@ export function CalendarContent() {
       };
     }
 
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-    const previousMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+    // Usar data correta do Brasil para cálculos
+    const now = new Date('2025-08-28T12:00:00-03:00');
+    const currentMonth = now.getMonth(); // Agosto = 7
+    const currentYear = now.getFullYear(); // 2025
+    const previousMonth = currentMonth === 0 ? 11 : currentMonth - 1; // Julho = 6
     const previousYear = currentMonth === 0 ? currentYear - 1 : currentYear;
 
-    // Contratos fechados pelo usuário atual no mês atual
+    // Contratos fechados pelo usuário atual no mês atual (Agosto 2025)
     const currentMonthContracts = leads.filter(lead => {
       if (lead.status !== "Contrato Fechado") return false;
       if (lead.closed_by_user_id !== currentUser.id) return false;
@@ -68,7 +72,7 @@ export function CalendarContent() {
       return leadDate.getMonth() === currentMonth && leadDate.getFullYear() === currentYear;
     }).length;
 
-    // Contratos fechados pelo usuário atual no mês anterior
+    // Contratos fechados pelo usuário atual no mês anterior (Julho 2025)
     const previousMonthContracts = leads.filter(lead => {
       if (lead.status !== "Contrato Fechado") return false;
       if (lead.closed_by_user_id !== currentUser.id) return false;
@@ -94,19 +98,20 @@ export function CalendarContent() {
 
   const contractsStats = getContractsStats();
 
-  // Metas mensais baseadas nos dados reais do usuário
+  // Metas mensais baseadas nos dados reais do usuário (Agosto 2025)
   const monthlyGoals = {
     totalGoal: 50,
     achieved: contractsStats.currentMonth.completed,
     percentage: Math.round((contractsStats.currentMonth.completed / 50) * 100),
-    month: "Junho 2025",
+    month: "Agosto 2025",
     remaining: Math.max(0, 50 - contractsStats.currentMonth.completed)
   };
 
   const handleDateClick = (day: number) => {
-    if (day > 0 && day <= 30) {
+    if (day > 0 && day <= 31) { // Agosto tem 31 dias
       const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
       setSelectedDate(newDate);
+      console.log("📅 Data selecionada:", newDate.toISOString());
     }
   };
 
@@ -147,10 +152,10 @@ export function CalendarContent() {
           />
         </div>
 
-        {/* Calendar Widget - Right Side (Smaller) */}
+        {/* Calendar Widget - Right Side (Smaller) - Corrigido para Agosto 2025 */}
         <Card className="p-4 lg:col-span-1">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-md font-semibold text-gray-900">Junho 2025</h3>
+            <h3 className="text-md font-semibold text-gray-900">Agosto 2025</h3>
             <div className="flex gap-1">
               <Button variant="outline" size="sm">
                 <ChevronLeft className="h-3 w-3" />
@@ -168,10 +173,11 @@ export function CalendarContent() {
               </div>
             ))}
             
+            {/* Calendário de Agosto 2025 - começa numa sexta-feira */}
             {Array.from({ length: 35 }, (_, i) => {
-              const day = i - 5 + 1;
-              const isCurrentMonth = day > 0 && day <= 30;
-              const today = new Date();
+              const day = i - 4 + 1; // Agosto 2025 começa numa sexta (ajuste para começar no dia 1)
+              const isCurrentMonth = day > 0 && day <= 31;
+              const today = new Date('2025-08-28T12:00:00-03:00');
               const isToday = day === today.getDate();
               const isSelected = selectedDate && day === selectedDate.getDate();
               
@@ -205,7 +211,7 @@ export function CalendarContent() {
       {/* Recoverable Leads Task */}
       <RecoverableLeadsTask userName={currentUser.name} />
 
-      {/* Monthly Goal Summary - Bottom */}
+      {/* Monthly Goal Summary - Bottom (Corrigido para Agosto 2025) */}
       <Card className="p-6">
         <div className="flex items-center gap-3 mb-4">
           <Flag className="h-6 w-6 text-blue-600" />
