@@ -80,17 +80,34 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
         setIsLoading(true);
         setError(null);
         
-        // Simplificar a lógica de data - usar diretamente a data selecionada
-        const selectedDateStr = format(selectedDate, "yyyy-MM-dd");
+        // Converter a data selecionada para o timezone brasileiro e criar os limites do dia
+        const selectedYear = selectedDate.getFullYear();
+        const selectedMonth = selectedDate.getMonth();
+        const selectedDay = selectedDate.getDate();
+        
+        // Início do dia no timezone brasileiro (00:00:00 -03:00)
+        const startOfDayBrazil = new Date(selectedYear, selectedMonth, selectedDay, 0, 0, 0);
+        const startOfDayUTC = new Date(startOfDayBrazil.getTime() + (3 * 60 * 60 * 1000)); // +3 horas para UTC
+        
+        // Fim do dia no timezone brasileiro (23:59:59 -03:00)  
+        const endOfDayBrazil = new Date(selectedYear, selectedMonth, selectedDay, 23, 59, 59, 999);
+        const endOfDayUTC = new Date(endOfDayBrazil.getTime() + (3 * 60 * 60 * 1000)); // +3 horas para UTC
+        
+        const startOfDayUTCStr = startOfDayUTC.toISOString();
+        const endOfDayUTCStr = endOfDayUTC.toISOString();
         
         console.log("📅 Buscando contratos para:", {
           displayDate: format(selectedDate, "dd/MM/yyyy"),
-          queryDate: selectedDateStr,
+          selectedDateLocal: selectedDate.toISOString(),
+          startOfDayBrazil: startOfDayBrazil.toISOString(),
+          endOfDayBrazil: endOfDayBrazil.toISOString(),
+          startOfDayUTC: startOfDayUTCStr,
+          endOfDayUTC: endOfDayUTCStr,
           userId: currentUser.id,
           schema: tenantSchema
         });
 
-        // Query SQL simplificada e corrigida
+        // Query SQL com filtro de timezone correto
         const sql = `
           SELECT 
             id,
@@ -104,18 +121,21 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
             status
           FROM ${tenantSchema}.leads 
           WHERE status = 'Contrato Fechado' 
-            AND closed_by_user_id = '${currentUser.id}'
+            AND closed_by_user_id = $1
             AND (
-              DATE(updated_at) = DATE('${selectedDateStr}')
-              OR DATE(created_at) = DATE('${selectedDateStr}')
+              updated_at >= $2::timestamptz AND updated_at <= $3::timestamptz
+              OR created_at >= $2::timestamptz AND created_at <= $3::timestamptz
             )
           ORDER BY updated_at DESC
         `;
 
         console.log("🔧 SQL Query:", sql);
+        console.log("🔧 Parâmetros:", [currentUser.id, startOfDayUTCStr, endOfDayUTCStr]);
 
         const { data, error } = await supabase.rpc('exec_sql' as any, {
-          sql: sql
+          sql: sql.replace('$1', `'${currentUser.id}'`)
+                  .replace('$2', `'${startOfDayUTCStr}'`)
+                  .replace('$3', `'${endOfDayUTCStr}'`)
         });
 
         if (error) {
@@ -139,8 +159,8 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
               closed_by_user_id,
               created_at,
               updated_at,
-              DATE(updated_at) as updated_date,
-              DATE(created_at) as created_date
+              created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo' as created_at_brazil,
+              updated_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo' as updated_at_brazil
             FROM ${tenantSchema}.leads 
             WHERE status = 'Contrato Fechado' 
               AND closed_by_user_id = '${currentUser.id}'
@@ -153,28 +173,14 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
           });
 
           console.log("🐛 Debug - Todos os contratos fechados pelo usuário:", debugData);
-          console.log("🐛 Debug - Data procurada:", selectedDateStr);
-          
-          // Log específico para o lead "testefechamento"
-          const testLeadSql = `
-            SELECT 
-              id,
-              name,
-              status,
-              closed_by_user_id,
-              created_at,
-              updated_at,
-              DATE(updated_at) as updated_date,
-              DATE(created_at) as created_date
-            FROM ${tenantSchema}.leads 
-            WHERE name ILIKE '%testefechamento%'
-          `;
-
-          const { data: testLeadData } = await supabase.rpc('exec_sql' as any, {
-            sql: testLeadSql
+          console.log("🐛 Debug - Período procurado (Brasil):", {
+            inicio: startOfDayBrazil.toLocaleString('pt-BR'),
+            fim: endOfDayBrazil.toLocaleString('pt-BR')
           });
-
-          console.log("🔍 Debug - Lead testefechamento:", testLeadData);
+          console.log("🐛 Debug - Período procurado (UTC):", {
+            inicio: startOfDayUTCStr,
+            fim: endOfDayUTCStr
+          });
         }
 
         const transformedContracts: Contract[] = leadsData.map((lead: any) => ({
@@ -184,7 +190,8 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
           value: lead.value || 0,
           time: new Date(lead.updated_at).toLocaleTimeString('pt-BR', { 
             hour: '2-digit', 
-            minute: '2-digit'
+            minute: '2-digit',
+            timeZone: 'America/Sao_Paulo'
           }),
           email: lead.email,
           phone: lead.phone
