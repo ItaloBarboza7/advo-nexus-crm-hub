@@ -51,6 +51,7 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
           name: profile?.name || user.email || 'Usuário'
         };
         
+        console.log("👤 DailyContractsPanel - Usuário atual:", userData);
         setCurrentUser(userData);
       } catch (error) {
         console.error("❌ DailyContractsPanel - Erro inesperado ao buscar usuário:", error);
@@ -86,22 +87,12 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
           schema: tenantSchema
         });
 
-        // Criar filtros de data para o dia selecionado no timezone brasileiro
-        const startOfDay = new Date(selectedDate);
-        startOfDay.setHours(0, 0, 0, 0);
+        // Formatar a data selecionada para comparação (YYYY-MM-DD)
+        const dateString = format(selectedDate, "yyyy-MM-dd");
         
-        const endOfDay = new Date(selectedDate);
-        endOfDay.setHours(23, 59, 59, 999);
-        
-        const startOfDayISO = startOfDay.toISOString();
-        const endOfDayISO = endOfDay.toISOString();
-        
-        console.log("🔍 DailyContractsPanel - Filtros de data:", {
-          startOfDay: startOfDayISO,
-          endOfDay: endOfDayISO
-        });
+        console.log("🔍 DailyContractsPanel - Data formatada para consulta:", dateString);
 
-        // Query SQL simplificada
+        // Query SQL simplificada - buscar contratos fechados pelo usuário na data selecionada
         const sql = `
           SELECT 
             id,
@@ -117,14 +108,14 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
           WHERE status = 'Contrato Fechado' 
             AND closed_by_user_id = '${currentUser.id}'
             AND (
-              DATE(updated_at AT TIME ZONE 'America/Sao_Paulo') = DATE('${selectedDate.toISOString()}' AT TIME ZONE 'America/Sao_Paulo')
+              DATE(updated_at) = '${dateString}'
               OR 
-              DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = DATE('${selectedDate.toISOString()}' AT TIME ZONE 'America/Sao_Paulo')
+              DATE(created_at) = '${dateString}'
             )
           ORDER BY COALESCE(updated_at, created_at) DESC
         `;
 
-        console.log("🔧 DailyContractsPanel - Executando query");
+        console.log("🔧 DailyContractsPanel - Executando query:", sql);
 
         const { data, error } = await supabase.rpc('exec_sql' as any, {
           sql: sql
@@ -136,7 +127,21 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
         }
 
         const leadsData = Array.isArray(data) ? data : [];
-        console.log(`📊 DailyContractsPanel - ${leadsData.length} contratos encontrados`);
+        console.log(`📊 DailyContractsPanel - ${leadsData.length} contratos encontrados:`, leadsData);
+
+        // Debug: mostrar dados brutos dos leads encontrados
+        leadsData.forEach((lead: any, index: number) => {
+          console.log(`📋 Lead ${index + 1}:`, {
+            id: lead.id,
+            name: lead.name,
+            status: lead.status,
+            closed_by_user_id: lead.closed_by_user_id,
+            created_at: lead.created_at,
+            updated_at: lead.updated_at,
+            created_date: lead.created_at ? format(new Date(lead.created_at), "yyyy-MM-dd") : null,
+            updated_date: lead.updated_at ? format(new Date(lead.updated_at), "yyyy-MM-dd") : null
+          });
+        });
 
         const transformedContracts: Contract[] = leadsData.map((lead: any) => ({
           id: lead.id,
@@ -145,13 +150,13 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
           value: lead.value || 0,
           time: new Date(lead.updated_at || lead.created_at).toLocaleTimeString('pt-BR', { 
             hour: '2-digit', 
-            minute: '2-digit',
-            timeZone: 'America/Sao_Paulo'
+            minute: '2-digit'
           }),
           email: lead.email,
           phone: lead.phone
         }));
 
+        console.log("✅ DailyContractsPanel - Contratos transformados:", transformedContracts);
         setContracts(transformedContracts);
       } catch (error: any) {
         console.error('❌ DailyContractsPanel - Erro ao buscar contratos:', error);
@@ -163,7 +168,7 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
     };
 
     fetchContracts();
-  }, [selectedDate, currentUser?.id, tenantSchema]); // Dependências simplificadas
+  }, [selectedDate, currentUser?.id, tenantSchema]);
 
   if (!selectedDate) return null;
 
@@ -209,7 +214,7 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
             Data consultada: {format(selectedDate, "dd/MM/yyyy")}
           </p>
           <p className="text-xs text-gray-400 mt-1">
-            Usuário: {currentUser.name}
+            Usuário: {currentUser.name} (ID: {currentUser.id})
           </p>
         </div>
       ) : (
