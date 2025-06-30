@@ -92,7 +92,7 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
         
         console.log("🔍 DailyContractsPanel - Data formatada para consulta:", dateString);
 
-        // Query SQL simplificada - buscar contratos fechados pelo usuário na data selecionada
+        // Query SQL simplificada - apenas buscar contratos fechados pelo usuário
         const sql = `
           SELECT 
             id,
@@ -107,12 +107,8 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
           FROM ${tenantSchema}.leads 
           WHERE status = 'Contrato Fechado' 
             AND closed_by_user_id = '${currentUser.id}'
-            AND (
-              DATE(updated_at) = '${dateString}'
-              OR 
-              DATE(created_at) = '${dateString}'
-            )
-          ORDER BY COALESCE(updated_at, created_at) DESC
+            AND DATE(updated_at) = '${dateString}'
+          ORDER BY updated_at DESC
         `;
 
         console.log("🔧 DailyContractsPanel - Executando query:", sql);
@@ -138,8 +134,8 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
             closed_by_user_id: lead.closed_by_user_id,
             created_at: lead.created_at,
             updated_at: lead.updated_at,
-            created_date: lead.created_at ? format(new Date(lead.created_at), "yyyy-MM-dd") : null,
-            updated_date: lead.updated_at ? format(new Date(lead.updated_at), "yyyy-MM-dd") : null
+            updated_date: lead.updated_at ? format(new Date(lead.updated_at), "yyyy-MM-dd") : null,
+            value: lead.value
           });
         });
 
