@@ -488,6 +488,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      update_tenant_closed_contracts: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "member"
