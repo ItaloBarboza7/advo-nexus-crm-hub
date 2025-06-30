@@ -92,8 +92,102 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
         
         console.log("🔍 DailyContractsPanel - Data formatada para consulta:", dateString);
 
-        // Query SQL simplificada - apenas buscar contratos fechados pelo usuário
-        const sql = `
+        // STEP 1: Primeiro, vamos buscar TODOS os leads com status "Contrato Fechado" SEM filtro de data
+        console.log("\n🔍 STEP 1: Buscando TODOS os leads com status 'Contrato Fechado'");
+        const allClosedLeadsSQL = `
+          SELECT 
+            id,
+            name,
+            email,
+            phone,
+            value,
+            created_at,
+            updated_at,
+            closed_by_user_id,
+            status
+          FROM ${tenantSchema}.leads 
+          WHERE status = 'Contrato Fechado'
+          ORDER BY updated_at DESC
+        `;
+
+        console.log("🔧 SQL para buscar todos os leads fechados:", allClosedLeadsSQL);
+
+        const { data: allClosedLeads, error: allClosedError } = await supabase.rpc('exec_sql' as any, {
+          sql: allClosedLeadsSQL
+        });
+
+        if (allClosedError) {
+          console.error("❌ Erro ao buscar todos os leads fechados:", allClosedError);
+        } else {
+          const allClosedLeadsData = Array.isArray(allClosedLeads) ? allClosedLeads : [];
+          console.log(`📊 TOTAL de leads com status 'Contrato Fechado': ${allClosedLeadsData.length}`);
+          
+          allClosedLeadsData.forEach((lead: any, index: number) => {
+            console.log(`📋 Lead Fechado ${index + 1}:`, {
+              id: lead.id,
+              name: lead.name,
+              status: lead.status,
+              closed_by_user_id: lead.closed_by_user_id,
+              created_at: lead.created_at,
+              updated_at: lead.updated_at,
+              created_date: lead.created_at ? format(new Date(lead.created_at), "yyyy-MM-dd") : null,
+              updated_date: lead.updated_at ? format(new Date(lead.updated_at), "yyyy-MM-dd") : null,
+              value: lead.value,
+              email: lead.email,
+              phone: lead.phone
+            });
+          });
+        }
+
+        // STEP 2: Buscar leads fechados pelo usuário atual (sem filtro de data)
+        console.log("\n🔍 STEP 2: Buscando leads fechados pelo usuário atual (sem filtro de data)");
+        const userClosedLeadsSQL = `
+          SELECT 
+            id,
+            name,
+            email,
+            phone,
+            value,
+            created_at,
+            updated_at,
+            closed_by_user_id,
+            status
+          FROM ${tenantSchema}.leads 
+          WHERE status = 'Contrato Fechado' 
+            AND closed_by_user_id = '${currentUser.id}'
+          ORDER BY updated_at DESC
+        `;
+
+        console.log("🔧 SQL para buscar leads fechados pelo usuário:", userClosedLeadsSQL);
+
+        const { data: userClosedLeads, error: userClosedError } = await supabase.rpc('exec_sql' as any, {
+          sql: userClosedLeadsSQL
+        });
+
+        if (userClosedError) {
+          console.error("❌ Erro ao buscar leads fechados pelo usuário:", userClosedError);
+        } else {
+          const userClosedLeadsData = Array.isArray(userClosedLeads) ? userClosedLeads : [];
+          console.log(`📊 TOTAL de leads fechados pelo usuário ${currentUser.name}: ${userClosedLeadsData.length}`);
+          
+          userClosedLeadsData.forEach((lead: any, index: number) => {
+            console.log(`📋 Lead Fechado pelo Usuário ${index + 1}:`, {
+              id: lead.id,
+              name: lead.name,
+              status: lead.status,
+              closed_by_user_id: lead.closed_by_user_id,
+              created_at: lead.created_at,
+              updated_at: lead.updated_at,
+              created_date: lead.created_at ? format(new Date(lead.created_at), "yyyy-MM-dd") : null,
+              updated_date: lead.updated_at ? format(new Date(lead.updated_at), "yyyy-MM-dd") : null,
+              value: lead.value
+            });
+          });
+        }
+
+        // STEP 3: Buscar leads fechados pelo usuário atual NA DATA SELECIONADA
+        console.log(`\n🔍 STEP 3: Buscando leads fechados pelo usuário atual na data ${dateString}`);
+        const finalSQL = `
           SELECT 
             id,
             name,
@@ -111,23 +205,23 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
           ORDER BY updated_at DESC
         `;
 
-        console.log("🔧 DailyContractsPanel - Executando query:", sql);
+        console.log("🔧 SQL FINAL para buscar leads na data específica:", finalSQL);
 
         const { data, error } = await supabase.rpc('exec_sql' as any, {
-          sql: sql
+          sql: finalSQL
         });
 
         if (error) {
-          console.error("❌ DailyContractsPanel - Erro na consulta SQL:", error);
+          console.error("❌ DailyContractsPanel - Erro na consulta SQL final:", error);
           throw new Error(`Erro na consulta: ${error.message}`);
         }
 
         const leadsData = Array.isArray(data) ? data : [];
-        console.log(`📊 DailyContractsPanel - ${leadsData.length} contratos encontrados:`, leadsData);
+        console.log(`📊 DailyContractsPanel - ${leadsData.length} contratos encontrados na data ${dateString}:`);
 
-        // Debug: mostrar dados brutos dos leads encontrados
+        // Debug: mostrar dados brutos dos leads encontrados na data específica
         leadsData.forEach((lead: any, index: number) => {
-          console.log(`📋 Lead ${index + 1}:`, {
+          console.log(`📋 Lead Encontrado na Data ${index + 1}:`, {
             id: lead.id,
             name: lead.name,
             status: lead.status,
@@ -138,6 +232,47 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
             value: lead.value
           });
         });
+
+        // STEP 4: Verificar se existe algum lead específico que estamos procurando
+        console.log("\n🔍 STEP 4: Verificando se existe o lead 'fechamento3'");
+        const fechamento3SQL = `
+          SELECT 
+            id,
+            name,
+            email,
+            phone,
+            value,
+            created_at,
+            updated_at,
+            closed_by_user_id,
+            status
+          FROM ${tenantSchema}.leads 
+          WHERE name ILIKE '%fechamento3%'
+        `;
+
+        const { data: fechamento3Data, error: fechamento3Error } = await supabase.rpc('exec_sql' as any, {
+          sql: fechamento3SQL
+        });
+
+        if (!fechamento3Error && Array.isArray(fechamento3Data)) {
+          console.log(`📊 Leads com nome 'fechamento3': ${fechamento3Data.length}`);
+          fechamento3Data.forEach((lead: any, index: number) => {
+            console.log(`📋 Lead Fechamento3 ${index + 1}:`, {
+              id: lead.id,
+              name: lead.name,
+              status: lead.status,
+              closed_by_user_id: lead.closed_by_user_id,
+              created_at: lead.created_at,
+              updated_at: lead.updated_at,
+              created_date: lead.created_at ? format(new Date(lead.created_at), "yyyy-MM-dd") : null,
+              updated_date: lead.updated_at ? format(new Date(lead.updated_at), "yyyy-MM-dd") : null,
+              value: lead.value,
+              email: lead.email,
+              phone: lead.phone,
+              user_comparison: `Atual: ${currentUser.id} | Lead: ${lead.closed_by_user_id} | Match: ${lead.closed_by_user_id === currentUser.id}`
+            });
+          });
+        }
 
         const transformedContracts: Contract[] = leadsData.map((lead: any) => ({
           id: lead.id,
@@ -211,6 +346,9 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
           </p>
           <p className="text-xs text-gray-400 mt-1">
             Usuário: {currentUser.name} (ID: {currentUser.id})
+          </p>
+          <p className="text-xs text-red-500 mt-2">
+            ⚠️ Verifique o console do navegador para logs detalhados de debug
           </p>
         </div>
       ) : (
