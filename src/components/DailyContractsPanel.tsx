@@ -142,7 +142,8 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
         console.log("🕐 Range de busca:", {
           inicio: startOfDay.toISOString(),
           fim: endOfDay.toISOString(),
-          dataEscolhida: dateString
+          dataEscolhida: dateString,
+          selectedDate: selectedDate.toISOString()
         });
 
         const { data, error } = await supabase.rpc('exec_sql' as any, {
