@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenantSchema } from '@/hooks/useTenantSchema';
 import { BrazilTimezone } from '@/lib/timezone';
@@ -20,15 +21,19 @@ export function useContractsData() {
   const [currentUser, setCurrentUser] = useState<{ id: string; name: string } | null>(null);
   const { tenantSchema } = useTenantSchema();
 
-  // Buscar usuário atual
+  // Buscar usuário atual apenas uma vez
   useEffect(() => {
+    let isMounted = true;
+    
     const getCurrentUser = async () => {
       try {
         const { data: { user }, error: userError } = await supabase.auth.getUser();
         
         if (userError || !user) {
           console.error("❌ Erro ao buscar usuário:", userError);
-          setError("Erro de autenticação");
+          if (isMounted) {
+            setError("Erro de autenticação");
+          }
           return;
         }
 
@@ -43,17 +48,25 @@ export function useContractsData() {
           name: profile?.name || user.email || 'Usuário'
         };
         
-        setCurrentUser(userData);
+        if (isMounted) {
+          setCurrentUser(userData);
+        }
       } catch (error) {
         console.error("❌ Erro inesperado ao buscar usuário:", error);
-        setError("Erro ao carregar dados do usuário");
+        if (isMounted) {
+          setError("Erro ao carregar dados do usuário");
+        }
       }
     };
 
     getCurrentUser();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const fetchContractsForDate = async (selectedDate: Date) => {
+  const fetchContractsForDate = useCallback(async (selectedDate: Date) => {
     if (!selectedDate || !currentUser || !tenantSchema) {
       console.log("🚫 Dependências faltando para buscar contratos");
       setContracts([]);
@@ -120,7 +133,7 @@ export function useContractsData() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentUser, tenantSchema]);
 
   return {
     contracts,

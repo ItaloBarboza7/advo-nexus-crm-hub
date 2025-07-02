@@ -54,6 +54,13 @@ export function CalendarContent() {
     getCurrentUser();
   }, []);
 
+  // Buscar contratos quando uma data é selecionada e os dados necessários estão disponíveis
+  useEffect(() => {
+    if (selectedDate && contractsUser && fetchContractsForDate) {
+      fetchContractsForDate(selectedDate);
+    }
+  }, [selectedDate, contractsUser]); // Removeu fetchContractsForDate das dependências para evitar loop
+
   // Calcular estatísticas reais baseadas nos leads fechados pelo usuário atual
   const getContractsStats = () => {
     if (!leads || leads.length === 0 || !currentUser) {
@@ -131,19 +138,11 @@ export function CalendarContent() {
   const handleDateSelect = (date: Date) => {
     setSelectedDate(date);
     BrazilTimezone.debugLog("📅 Data selecionada pelo usuário", date);
-    fetchContractsForDate(date);
   };
 
   const handleCloseActivityPanel = () => {
     setSelectedDate(null);
   };
-
-  // Buscar contratos quando uma data é selecionada
-  useEffect(() => {
-    if (selectedDate && contractsUser) {
-      fetchContractsForDate(selectedDate);
-    }
-  }, [selectedDate, contractsUser, fetchContractsForDate]);
 
   if (isLoading || !currentUser) {
     return (
