@@ -16,7 +16,7 @@ export function useLeadStatusHistory() {
   const [isLoading, setIsLoading] = useState(false);
   const { tenantSchema, ensureTenantSchema } = useTenantSchema();
 
-  const fetchStatusHistory = async () => {
+  const fetchStatusHistory = async (leadId?: string) => {
     try {
       setIsLoading(true);
       console.log("📊 useLeadStatusHistory - Carregando histórico do esquema do tenant...");
@@ -27,8 +27,16 @@ export function useLeadStatusHistory() {
         return;
       }
 
+      let sql = `SELECT * FROM ${schema}.lead_status_history`;
+      if (leadId) {
+        sql += ` WHERE lead_id = '${leadId}'`;
+      }
+      sql += ` ORDER BY changed_at DESC`;
+
+      console.log('🔍 Executando SQL do histórico:', sql);
+
       const { data, error } = await supabase.rpc('exec_sql' as any, {
-        sql: `SELECT * FROM ${schema}.lead_status_history ORDER BY changed_at DESC`
+        sql: sql
       });
 
       if (error) {
@@ -38,6 +46,7 @@ export function useLeadStatusHistory() {
 
       const historyData = Array.isArray(data) ? data : [];
       console.log(`✅ useLeadStatusHistory - ${historyData.length} registros de histórico carregados do esquema ${schema}`);
+      console.log('📋 Dados do histórico:', historyData);
       setStatusHistory(historyData);
     } catch (error) {
       console.error('❌ Erro inesperado ao buscar histórico:', error);

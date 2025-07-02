@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
 import { LeadStatusHistory } from "@/types/leadStatusHistory";
 import { useFilterOptions } from "@/hooks/useFilterOptions";
+import { useTenantSchema } from "@/hooks/useTenantSchema";
 
 interface LeadDetailsDialogProps {
   lead: Lead | null;
@@ -51,6 +52,7 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
   const [customActionTypes, setCustomActionTypes] = useState<string[]>([]);
   const { toast } = useToast();
   const { actionGroupOptions, getActionTypeOptions } = useFilterOptions();
+  const { tenantSchema, ensureTenantSchema } = useTenantSchema();
 
   // Extract valid action group names from the options
   const validActionGroupNames = useMemo(() => {
@@ -59,28 +61,40 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
 
   const fetchStatusHistory = async (leadId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('lead_status_history')
-        .select('*')
-        .eq('lead_id', leadId)
-        .order('changed_at', { ascending: false });
-
-      if (error) {
-        console.error('Erro ao buscar histórico de status:', error);
+      console.log("📊 LeadDetailsDialog - Buscando histórico do lead:", leadId);
+      
+      const schema = tenantSchema || await ensureTenantSchema();
+      if (!schema) {
+        console.error('❌ Não foi possível obter o esquema do tenant');
         return;
       }
 
-      setStatusHistory(data || []);
+      const sql = `SELECT * FROM ${schema}.lead_status_history WHERE lead_id = '${leadId}' ORDER BY changed_at DESC`;
+      console.log('🔍 SQL do histórico:', sql);
+
+      const { data, error } = await supabase.rpc('exec_sql' as any, {
+        sql: sql
+      });
+
+      if (error) {
+        console.error('❌ Erro ao buscar histórico de status:', error);
+        return;
+      }
+
+      const historyData = Array.isArray(data) ? data : [];
+      console.log(`✅ LeadDetailsDialog - ${historyData.length} registros de histórico encontrados:`, historyData);
+      setStatusHistory(historyData);
     } catch (error) {
-      console.error('Erro inesperado ao buscar histórico:', error);
+      console.error('❌ Erro inesperado ao buscar histórico:', error);
     }
   };
 
   useEffect(() => {
-    if (lead && open) {
+    if (lead && open && tenantSchema) {
+      console.log("🔄 LeadDetailsDialog - Modal aberto, buscando histórico...");
       fetchStatusHistory(lead.id);
     }
-  }, [lead, open]);
+  }, [lead, open, tenantSchema]);
 
   if (!lead) return null;
 
@@ -118,19 +132,29 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
 
   const updateLeadField = async (field: string, value: string, actionType?: string) => {
     try {
-      const updateData: any = { [field]: value };
-      
-      if (field === 'action_group') {
-        updateData.action_type = actionType || null;
+      const schema = tenantSchema || await ensureTenantSchema();
+      if (!schema) {
+        console.error('❌ Não foi possível obter o esquema do tenant');
+        return false;
       }
 
-      const { error } = await supabase
-        .from('leads')
-        .update(updateData)
-        .eq('id', lead!.id);
+      let setClause = `${field} = '${value.replace(/'/g, "''")}'`;
+      
+      if (field === 'action_group') {
+        setClause += `, action_type = ${actionType ? `'${actionType.replace(/'/g, "''")}'` : 'NULL'}`;
+      }
+      
+      setClause += `, updated_at = now()`;
+
+      const sql = `UPDATE ${schema}.leads SET ${setClause} WHERE id = '${lead!.id}'`;
+      console.log('🔧 Atualizando lead:', sql);
+
+      const { error } = await supabase.rpc('exec_sql' as any, {
+        sql: sql
+      });
 
       if (error) {
-        console.error('Erro ao atualizar campo:', error);
+        console.error('❌ Erro ao atualizar campo:', error);
         toast({
           title: "Erro",
           description: "Não foi possível atualizar o campo.",
@@ -144,10 +168,16 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
         description: "Campo atualizado com sucesso.",
       });
       
-      Object.assign(lead!, updateData);
+      // Atualizar o objeto lead localmente
+      if (field === 'action_group') {
+        Object.assign(lead!, { [field]: value, action_type: actionType || null });
+      } else {
+        Object.assign(lead!, { [field]: value });
+      }
+      
       return true;
     } catch (error) {
-      console.error('Erro inesperado:', error);
+      console.error('❌ Erro inesperado:', error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado.",
@@ -639,7 +669,7 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
             <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg">
               <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
                 <Clock className="h-4 w-4" />
-                Histórico de Status
+                Histórico de Status ({completeHistory.length} registros)
               </h3>
               <div className="space-y-3">
                 {completeHistory.map((history) => (
