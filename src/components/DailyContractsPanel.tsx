@@ -91,65 +91,47 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
           schema: tenantSchema
         });
 
-        // DIAGNÓSTICO: Vamos primeiro verificar o que temos na base
+        // DIAGNÓSTICO: Verificar dados na nova tabela de rastreamento
         const diagnosticSql = `
           SELECT 
-            COUNT(*) as total_fechados,
-            COUNT(CASE WHEN closed_by_user_id IS NULL THEN 1 END) as sem_usuario,
-            COUNT(CASE WHEN closed_by_user_id = '${currentUser.id}' THEN 1 END) as meus_contratos,
-            MIN(DATE(updated_at AT TIME ZONE 'America/Sao_Paulo')) as primeira_data,
-            MAX(DATE(updated_at AT TIME ZONE 'America/Sao_Paulo')) as ultima_data
-          FROM ${tenantSchema}.leads 
-          WHERE status = 'Contrato Fechado'
+            COUNT(*) as total_fechamentos,
+            COUNT(CASE WHEN closed_by_user_id = '${currentUser.id}' THEN 1 END) as meus_fechamentos,
+            MIN(DATE(closed_at AT TIME ZONE 'America/Sao_Paulo')) as primeira_data,
+            MAX(DATE(closed_at AT TIME ZONE 'America/Sao_Paulo')) as ultima_data
+          FROM public.contract_closures 
+          WHERE tenant_id = '${currentUser.id}'
         `;
 
-        console.log("🔍 DIAGNÓSTICO - Executando:", diagnosticSql);
+        console.log("🔍 DIAGNÓSTICO - Rastreamento de contratos:", diagnosticSql);
         
         try {
-          const { data: diagData } = await supabase.rpc('exec_sql' as any, {
+          const { data: diagData, error: diagError } = await supabase.rpc('exec_sql' as any, {
             sql: diagnosticSql
           });
           
-          const diagnostics = Array.isArray(diagData) ? diagData[0] : diagData;
-          console.log("📊 DIAGNÓSTICO - Resultado:", diagnostics);
+          if (diagError) {
+            console.error("❌ Erro no diagnóstico:", diagError);
+          } else {
+            console.log("📊 DIAGNÓSTICO - Resultado rastreamento:", diagData);
+          }
         } catch (diagError) {
-          console.error("❌ Erro no diagnóstico:", diagError);
+          console.error("❌ Erro inesperado no diagnóstico:", diagError);
         }
 
-        // CORREÇÃO 1: Atualizar leads sem closed_by_user_id
-        const updateSql = `
-          UPDATE ${tenantSchema}.leads 
-          SET closed_by_user_id = '${currentUser.id}'
-          WHERE status = 'Contrato Fechado' 
-            AND closed_by_user_id IS NULL
-        `;
-
-        console.log("🔧 CORREÇÃO - Atualizando leads sem usuário:", updateSql);
-        
-        try {
-          const { data: updateData } = await supabase.rpc('exec_sql' as any, {
-            sql: updateSql
-          });
-          console.log("✅ CORREÇÃO - Resultado:", updateData);
-        } catch (updateError) {
-          console.error("❌ Erro na correção:", updateError);
-        }
-
-        // Consulta principal com fallback para created_at
+        // Consulta otimizada usando a tabela de rastreamento de contratos
         const sql = `
           SELECT 
-            id, name, email, phone, value, updated_at, created_at, closed_by_user_id, status
-          FROM ${tenantSchema}.leads 
-          WHERE status = 'Contrato Fechado' 
-            AND closed_by_user_id = '${currentUser.id}'
-            AND (
-              DATE(updated_at AT TIME ZONE 'America/Sao_Paulo') = '${dateString}'
-              OR DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = '${dateString}'
-            )
-          ORDER BY updated_at DESC
+            l.id, l.name, l.email, l.phone, l.value, 
+            cc.closed_at as updated_at, cc.closed_by_user_id, l.status
+          FROM public.contract_closures cc
+          JOIN ${tenantSchema}.leads l ON l.id = cc.lead_id
+          WHERE cc.tenant_id = '${currentUser.id}'
+            AND cc.closed_by_user_id = '${currentUser.id}'
+            AND DATE(cc.closed_at AT TIME ZONE 'America/Sao_Paulo') = '${dateString}'
+          ORDER BY cc.closed_at DESC
         `;
 
-        console.log("🔧 SQL PRINCIPAL:", sql);
+        console.log("🔧 SQL PRINCIPAL (usando rastreamento):", sql);
 
         const { data, error } = await supabase.rpc('exec_sql' as any, {
           sql: sql

@@ -107,6 +107,33 @@ export type Database = {
         }
         Relationships: []
       }
+      contract_closures: {
+        Row: {
+          closed_at: string
+          closed_by_user_id: string
+          created_at: string
+          id: string
+          lead_id: string
+          tenant_id: string
+        }
+        Insert: {
+          closed_at?: string
+          closed_by_user_id: string
+          created_at?: string
+          id?: string
+          lead_id: string
+          tenant_id: string
+        }
+        Update: {
+          closed_at?: string
+          closed_by_user_id?: string
+          created_at?: string
+          id?: string
+          lead_id?: string
+          tenant_id?: string
+        }
+        Relationships: []
+      }
       hidden_default_items: {
         Row: {
           created_at: string
@@ -414,6 +441,10 @@ export type Database = {
         Returns: undefined
       }
       add_column_delete_trigger_to_tenant: {
+        Args: { schema_name: string }
+        Returns: undefined
+      }
+      add_contract_tracking_to_tenant: {
         Args: { schema_name: string }
         Returns: undefined
       }
