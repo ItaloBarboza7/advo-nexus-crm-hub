@@ -106,7 +106,7 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
         console.log("🔧 SQL Simplificado:", sql);
         console.log("📅 Data de busca:", dateString);
 
-        const { data, error } = await supabase.rpc('exec_sql' as any, {
+        const { data, error } = await supabase.rpc('exec_sql', {
           sql: sql
         });
 
