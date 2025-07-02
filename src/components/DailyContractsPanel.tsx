@@ -82,69 +82,29 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
         setIsLoading(true);
         setError(null);
         
-        // Formatar data para consulta no timezone brasileiro
-        const dateString = BrazilTimezone.formatDateForQuery(selectedDate);
-        
         console.log("📅 DailyContractsPanel - Buscando contratos para:", {
-          data: dateString,
+          data: BrazilTimezone.formatDateForDisplay(selectedDate),
           usuario: currentUser.name,
           schema: tenantSchema
         });
 
-        // DIAGNÓSTICO: Verificar dados na nova tabela de rastreamento
-        const diagnosticSql = `
-          SELECT 
-            COUNT(*) as total_fechamentos,
-            COUNT(CASE WHEN closed_by_user_id = '${currentUser.id}' THEN 1 END) as meus_fechamentos,
-            MIN(DATE(closed_at AT TIME ZONE 'America/Sao_Paulo')) as primeira_data,
-            MAX(DATE(closed_at AT TIME ZONE 'America/Sao_Paulo')) as ultima_data
-          FROM public.contract_closures 
-          WHERE tenant_id = '${currentUser.id}'
-        `;
-
-        console.log("🔍 DIAGNÓSTICO - Rastreamento de contratos:", diagnosticSql);
-        
-        try {
-          const { data: diagData, error: diagError } = await supabase.rpc('exec_sql' as any, {
-            sql: diagnosticSql
-          });
-          
-          if (diagError) {
-            console.error("❌ Erro no diagnóstico:", diagError);
-          } else {
-            console.log("📊 DIAGNÓSTICO - Resultado rastreamento:", diagData);
-          }
-        } catch (diagError) {
-          console.error("❌ Erro inesperado no diagnóstico:", diagError);
-        }
-
-        // Consulta otimizada usando a tabela de rastreamento de contratos
-        // CORREÇÃO: Usar ranges de data para evitar problemas de timezone
-        const startOfDay = new Date(selectedDate);
-        startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date(selectedDate);
-        endOfDay.setHours(23, 59, 59, 999);
+        // Simplificar a consulta SQL usando DATE() para comparar apenas a data
+        const dateString = BrazilTimezone.formatDateForQuery(selectedDate);
         
         const sql = `
           SELECT 
             l.id, l.name, l.email, l.phone, l.value, 
-            cc.closed_at as updated_at, cc.closed_by_user_id, l.status
+            cc.closed_at, cc.closed_by_user_id, l.status
           FROM public.contract_closures cc
           JOIN ${tenantSchema}.leads l ON l.id = cc.lead_id
           WHERE cc.tenant_id = '${currentUser.id}'
             AND cc.closed_by_user_id = '${currentUser.id}'
-            AND cc.closed_at >= '${startOfDay.toISOString()}'::timestamptz - interval '1 day'
-            AND cc.closed_at < '${endOfDay.toISOString()}'::timestamptz + interval '1 day'
+            AND DATE(cc.closed_at AT TIME ZONE 'America/Sao_Paulo') = '${dateString}'
           ORDER BY cc.closed_at DESC
         `;
 
-        console.log("🔧 SQL PRINCIPAL (corrigido para timezone):", sql);
-        console.log("🕐 Range de busca:", {
-          inicio: startOfDay.toISOString(),
-          fim: endOfDay.toISOString(),
-          dataEscolhida: dateString,
-          selectedDate: selectedDate.toISOString()
-        });
+        console.log("🔧 SQL Simplificado:", sql);
+        console.log("📅 Data de busca:", dateString);
 
         const { data, error } = await supabase.rpc('exec_sql' as any, {
           sql: sql
@@ -155,27 +115,22 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
           throw new Error(`Erro na consulta: ${error.message}`);
         }
 
-        console.log("🔍 Resposta bruta da consulta:", {
-          data,
-          dataType: typeof data,
-          isArray: Array.isArray(data),
-          length: Array.isArray(data) ? data.length : 'N/A'
-        });
+        console.log("🔍 Resposta bruta da consulta:", data);
 
-        // A função exec_sql retorna um array JSON diretamente para SELECT queries
+        // Processar dados de forma mais simples - data já deve ser um array
         let contractsData = [];
         if (Array.isArray(data)) {
           contractsData = data;
-        } else if (data && typeof data === 'object') {
-          // Se data é um objeto, pode ter os dados em alguma propriedade
-          if (data.data && Array.isArray(data.data)) {
-            contractsData = data.data;
-          } else if (data.result && Array.isArray(data.result)) {
-            contractsData = data.result;
-          } else {
-            // Se não encontrou array em propriedades conhecidas, tenta converter o objeto
-            contractsData = Object.values(data).find(value => Array.isArray(value)) || [];
+        } else if (data && typeof data === 'string') {
+          try {
+            contractsData = JSON.parse(data);
+          } catch (parseError) {
+            console.error("❌ Erro ao fazer parse dos dados:", parseError);
+            contractsData = [];
           }
+        } else {
+          console.warn("⚠️ Formato de dados inesperado:", typeof data, data);
+          contractsData = [];
         }
         
         console.log("📊 Dados processados:", {
@@ -183,25 +138,33 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
           length: contractsData.length,
           firstItem: contractsData[0] || null
         });
-        console.log(`📊 Contratos encontrados: ${contractsData.length}`);
 
-        const transformedContracts: Contract[] = contractsData.map((lead: any) => {
-          const leadDate = new Date(lead.updated_at);
-          const localTime = BrazilTimezone.toLocal(leadDate);
-          
-          return {
-            id: lead.id,
-            clientName: lead.name,
-            closedBy: currentUser.name,
-            value: lead.value || 0,
-            time: localTime.toLocaleTimeString('pt-BR', { 
-              hour: '2-digit', 
-              minute: '2-digit'
-            }),
-            email: lead.email,
-            phone: lead.phone
-          };
-        });
+        // Validar e transformar os dados
+        const transformedContracts: Contract[] = contractsData
+          .filter((item: any) => item && typeof item === 'object')
+          .map((lead: any) => {
+            try {
+              const leadDate = new Date(lead.closed_at);
+              const localTime = BrazilTimezone.toLocal(leadDate);
+              
+              return {
+                id: lead.id || 'unknown',
+                clientName: lead.name || 'Nome não informado',
+                closedBy: currentUser.name,
+                value: Number(lead.value) || 0,
+                time: localTime.toLocaleTimeString('pt-BR', { 
+                  hour: '2-digit', 
+                  minute: '2-digit'
+                }),
+                email: lead.email || undefined,
+                phone: lead.phone || undefined
+              };
+            } catch (transformError) {
+              console.error("❌ Erro ao transformar lead:", transformError, lead);
+              return null;
+            }
+          })
+          .filter((contract: Contract | null): contract is Contract => contract !== null);
 
         console.log("✅ Contratos transformados:", transformedContracts);
         setContracts(transformedContracts);
