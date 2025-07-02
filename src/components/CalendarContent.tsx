@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ChevronLeft, ChevronRight, Flag } from "lucide-react";
+import { format } from "date-fns";
 import { UserComparisonCard } from "@/components/UserComparisonCard";
 import { DailyContractsPanel } from "@/components/DailyContractsPanel";
 import { RecoverableLeadsTask } from "@/components/RecoverableLeadsTask";
@@ -18,13 +19,16 @@ export function CalendarContent() {
 
   // Definir automaticamente o dia atual quando a página carrega (usando timezone brasileiro)
   useEffect(() => {
-    // Usar data atual no timezone brasileiro
+    // Criar data para hoje no timezone brasileiro
     const now = new Date();
-    const brazilTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
-    setSelectedDate(brazilTime);
-    setCurrentDate(brazilTime);
-    console.log("📅 Data atual definida para:", brazilTime.toISOString(), "- Data do Brasil");
-    console.log("📅 Data UTC original:", now.toISOString(), "- Data UTC");
+    const today = new Date(now.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+    
+    console.log("📅 Data UTC original:", now.toISOString());
+    console.log("📅 Data no timezone brasileiro:", today.toISOString());
+    console.log("📅 Data formatada brasileiro:", format(today, "dd/MM/yyyy"));
+    
+    setSelectedDate(today);
+    setCurrentDate(today);
   }, []);
 
   // Buscar informações do usuário atual
@@ -128,7 +132,9 @@ export function CalendarContent() {
     if (day > 0 && day <= daysInMonth) {
       const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
       setSelectedDate(newDate);
-      console.log("📅 Data selecionada:", newDate.toISOString());
+      console.log("📅 Data selecionada pelo usuário:", newDate.toISOString());
+      console.log("📅 Data formatada:", format(newDate, "dd/MM/yyyy"));
+      console.log("📅 Data para query:", format(newDate, "yyyy-MM-dd"));
     }
   };
 

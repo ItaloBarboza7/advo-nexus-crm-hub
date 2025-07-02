@@ -83,6 +83,7 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
         
         console.log("📅 DailyContractsPanel - Buscando contratos para:", {
           selectedDate: format(selectedDate, "dd/MM/yyyy"),
+          selectedDateISO: selectedDate.toISOString(),
           userId: currentUser.id,
           schema: tenantSchema
         });
