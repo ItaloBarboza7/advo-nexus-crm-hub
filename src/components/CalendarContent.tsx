@@ -10,6 +10,7 @@ import { DailyContractsPanel } from "@/components/DailyContractsPanel";
 import { RecoverableLeadsTask } from "@/components/RecoverableLeadsTask";
 import { useLeadsData } from "@/hooks/useLeadsData";
 import { supabase } from "@/integrations/supabase/client";
+import { BrazilTimezone } from "@/lib/timezone";
 
 export function CalendarContent() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -19,13 +20,8 @@ export function CalendarContent() {
 
   // Definir automaticamente o dia atual quando a página carrega (usando timezone brasileiro)
   useEffect(() => {
-    // Criar data para hoje no timezone brasileiro
-    const now = new Date();
-    const today = new Date(now.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
-    
-    console.log("📅 Data UTC original:", now.toISOString());
-    console.log("📅 Data no timezone brasileiro:", today.toISOString());
-    console.log("📅 Data formatada brasileiro:", format(today, "dd/MM/yyyy"));
+    const today = BrazilTimezone.now();
+    BrazilTimezone.debugLog("📅 CalendarContent - Data atual definida", today);
     
     setSelectedDate(today);
     setCurrentDate(today);
@@ -63,8 +59,8 @@ export function CalendarContent() {
       };
     }
 
-    // Usar data atual real para cálculos
-    const now = new Date();
+    // Usar data atual no timezone brasileiro
+    const now = BrazilTimezone.now();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
     const previousMonth = currentMonth === 0 ? 11 : currentMonth - 1;
@@ -75,11 +71,11 @@ export function CalendarContent() {
       if (lead.status !== "Contrato Fechado") return false;
       if (lead.closed_by_user_id !== currentUser.id) return false;
       
-      // Converter a data UTC para timezone brasileiro para comparação
+      // Converter a data UTC para timezone brasileiro
       const leadDate = new Date(lead.updated_at || lead.created_at);
-      const leadDateBrazil = new Date(leadDate.getTime() - (3 * 60 * 60 * 1000)); // -3 horas para timezone brasileiro
+      const leadDateLocal = BrazilTimezone.toLocal(leadDate);
       
-      return leadDateBrazil.getMonth() === currentMonth && leadDateBrazil.getFullYear() === currentYear;
+      return leadDateLocal.getMonth() === currentMonth && leadDateLocal.getFullYear() === currentYear;
     }).length;
 
     // Contratos fechados pelo usuário atual no mês anterior
@@ -87,11 +83,11 @@ export function CalendarContent() {
       if (lead.status !== "Contrato Fechado") return false;
       if (lead.closed_by_user_id !== currentUser.id) return false;
       
-      // Converter a data UTC para timezone brasileiro para comparação
+      // Converter a data UTC para timezone brasileiro
       const leadDate = new Date(lead.updated_at || lead.created_at);
-      const leadDateBrazil = new Date(leadDate.getTime() - (3 * 60 * 60 * 1000)); // -3 horas para timezone brasileiro
+      const leadDateLocal = BrazilTimezone.toLocal(leadDate);
       
-      return leadDateBrazil.getMonth() === previousMonth && leadDateBrazil.getFullYear() === previousYear;
+      return leadDateLocal.getMonth() === previousMonth && leadDateLocal.getFullYear() === previousYear;
     }).length;
 
     // Calcular pontos (assumindo 75 pontos por contrato fechado)
@@ -113,7 +109,7 @@ export function CalendarContent() {
   const contractsStats = getContractsStats();
 
   // Metas mensais baseadas nos dados reais do usuário
-  const now = new Date();
+  const now = BrazilTimezone.now();
   const monthNames = [
     "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
@@ -132,9 +128,7 @@ export function CalendarContent() {
     if (day > 0 && day <= daysInMonth) {
       const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
       setSelectedDate(newDate);
-      console.log("📅 Data selecionada pelo usuário:", newDate.toISOString());
-      console.log("📅 Data formatada:", format(newDate, "dd/MM/yyyy"));
-      console.log("📅 Data para query:", format(newDate, "yyyy-MM-dd"));
+      BrazilTimezone.debugLog("📅 Data selecionada pelo usuário", newDate);
     }
   };
 
@@ -225,7 +219,7 @@ export function CalendarContent() {
               
               // Dias do mês
               for (let day = 1; day <= daysInMonth; day++) {
-                const today = new Date();
+                const today = BrazilTimezone.now();
                 const isToday = day === today.getDate() && 
                                currentDate.getMonth() === today.getMonth() && 
                                currentDate.getFullYear() === today.getFullYear();
