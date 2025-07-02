@@ -16,13 +16,15 @@ export function CalendarContent() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const { leads, isLoading } = useLeadsData();
 
-  // Definir automaticamente o dia atual quando a página carrega (usando data atual real)
+  // Definir automaticamente o dia atual quando a página carrega (usando timezone brasileiro)
   useEffect(() => {
-    // Usar data atual real do sistema
-    const today = new Date();
-    setSelectedDate(today);
-    setCurrentDate(today);
-    console.log("📅 Data atual definida para:", today.toISOString(), "- Data do sistema");
+    // Usar data atual no timezone brasileiro
+    const now = new Date();
+    const brazilTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+    setSelectedDate(brazilTime);
+    setCurrentDate(brazilTime);
+    console.log("📅 Data atual definida para:", brazilTime.toISOString(), "- Data do Brasil");
+    console.log("📅 Data UTC original:", now.toISOString(), "- Data UTC");
   }, []);
 
   // Buscar informações do usuário atual
