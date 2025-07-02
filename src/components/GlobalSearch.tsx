@@ -1,18 +1,9 @@
-
 import { useState, useEffect, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Search, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenantSchema } from "@/hooks/useTenantSchema";
 import { Lead } from "@/types/lead";
-
-interface Lead {
-  id: string;
-  name: string;
-  email?: string;
-  phone: string;
-  status: string;
-}
 
 interface GlobalSearchProps {
   onLeadSelect?: (lead: Lead) => void;
@@ -21,7 +12,7 @@ interface GlobalSearchProps {
 export function GlobalSearch({ onLeadSelect }: GlobalSearchProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [leads, setLeads] = useState<Lead[]>([]);
+  const [leads, setLeads] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { tenantSchema } = useTenantSchema();
 
@@ -70,7 +61,7 @@ export function GlobalSearch({ onLeadSelect }: GlobalSearchProps) {
     ).slice(0, 10);
   }, [leads, searchTerm]);
 
-  const handleLeadClick = (lead: Lead) => {
+  const handleLeadClick = (lead: any) => {
     setIsOpen(false);
     setSearchTerm("");
     
