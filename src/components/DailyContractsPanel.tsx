@@ -119,6 +119,12 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
         }
 
         // Consulta otimizada usando a tabela de rastreamento de contratos
+        // CORREÇÃO: Usar ranges de data para evitar problemas de timezone
+        const startOfDay = new Date(selectedDate);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(selectedDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        
         const sql = `
           SELECT 
             l.id, l.name, l.email, l.phone, l.value, 
@@ -127,11 +133,17 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
           JOIN ${tenantSchema}.leads l ON l.id = cc.lead_id
           WHERE cc.tenant_id = '${currentUser.id}'
             AND cc.closed_by_user_id = '${currentUser.id}'
-            AND DATE(cc.closed_at AT TIME ZONE 'America/Sao_Paulo') = '${dateString}'
+            AND cc.closed_at >= '${startOfDay.toISOString()}'::timestamptz - interval '1 day'
+            AND cc.closed_at < '${endOfDay.toISOString()}'::timestamptz + interval '1 day'
           ORDER BY cc.closed_at DESC
         `;
 
-        console.log("🔧 SQL PRINCIPAL (usando rastreamento):", sql);
+        console.log("🔧 SQL PRINCIPAL (corrigido para timezone):", sql);
+        console.log("🕐 Range de busca:", {
+          inicio: startOfDay.toISOString(),
+          fim: endOfDay.toISOString(),
+          dataEscolhida: dateString
+        });
 
         const { data, error } = await supabase.rpc('exec_sql' as any, {
           sql: sql
