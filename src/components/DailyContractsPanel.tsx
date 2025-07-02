@@ -68,7 +68,7 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
     const fetchContracts = async () => {
       // Verificar se temos todas as dependências necessárias
       if (!selectedDate || !currentUser || !tenantSchema) {
-        console.log("🚫 DailyContractsPanel - Aguardando dependências:", {
+        console.log("🚫 DailyContractsPanel - Dependências faltando:", {
           selectedDate: !!selectedDate,
           currentUser: !!currentUser,
           tenantSchema: !!tenantSchema
@@ -82,176 +82,42 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
         setIsLoading(true);
         setError(null);
         
-        // LOG DETALHADO DA DATA SELECIONADA
-        console.log("🔍 === INVESTIGAÇÃO DETALHADA ===");
-        console.log("📅 Data selecionada RAW:", selectedDate);
-        console.log("📅 Data selecionada ISO:", selectedDate.toISOString());
-        console.log("📅 Data selecionada local string:", selectedDate.toString());
+        // Formatar data para consulta no timezone brasileiro
+        const dateString = BrazilTimezone.formatDateForQuery(selectedDate);
         
-        // Testar diferentes abordagens de data
-        const selectedDateUTC = new Date(selectedDate.getTime());
-        const selectedDateBrazil = BrazilTimezone.toLocal(selectedDate);
-        
-        console.log("🕐 Data UTC:", selectedDateUTC.toISOString());
-        console.log("🇧🇷 Data Brasil:", selectedDateBrazil.toISOString());
-        
-        // Formatar data para consulta (YYYY-MM-DD)
-        const dateStringUTC = format(selectedDateUTC, "yyyy-MM-dd");
-        const dateStringBrazil = BrazilTimezone.formatDateForQuery(selectedDate);
-        
-        console.log("📝 Data string UTC:", dateStringUTC);
-        console.log("📝 Data string Brasil:", dateStringBrazil);
-        
-        console.log("👤 Usuário:", currentUser.name, "ID:", currentUser.id);
-        console.log("🏢 Schema:", tenantSchema);
+        console.log("📅 DailyContractsPanel - Buscando contratos para:", {
+          data: dateString,
+          usuario: currentUser.name,
+          schema: tenantSchema
+        });
 
-        // PRIMEIRA CONSULTA: Verificar TODOS os leads do usuário com status "Contrato Fechado"
-        const allContractsSQL = `
+        // Consulta simplificada usando timezone brasileiro
+        const sql = `
           SELECT 
-            id,
-            name,
-            email,
-            phone,
-            value,
-            created_at,
-            updated_at,
-            closed_by_user_id,
-            status
+            id, name, email, phone, value, updated_at, closed_by_user_id, status
           FROM ${tenantSchema}.leads 
           WHERE status = 'Contrato Fechado' 
             AND closed_by_user_id = '${currentUser.id}'
+            AND DATE(updated_at AT TIME ZONE 'America/Sao_Paulo') = '${dateString}'
           ORDER BY updated_at DESC
         `;
 
-        console.log("🔧 SQL - Todos os contratos fechados:", allContractsSQL);
+        console.log("🔧 SQL:", sql);
 
-        const { data: allContracts, error: allError } = await supabase.rpc('exec_sql' as any, {
-          sql: allContractsSQL
+        const { data, error } = await supabase.rpc('exec_sql' as any, {
+          sql: sql
         });
 
-        if (allError) {
-          console.error("❌ Erro na consulta de todos os contratos:", allError);
-          throw new Error(`Erro na consulta: ${allError.message}`);
+        if (error) {
+          console.error("❌ Erro na consulta:", error);
+          throw new Error(`Erro na consulta: ${error.message}`);
         }
 
-        const allContractsData = Array.isArray(allContracts) ? allContracts : [];
-        console.log(`📊 TOTAL de contratos fechados pelo usuário: ${allContractsData.length}`);
+        const contractsData = Array.isArray(data) ? data : [];
+        console.log(`📊 Contratos encontrados: ${contractsData.length}`);
 
-        // Analisar cada contrato detalhadamente
-        allContractsData.forEach((contract: any, index: number) => {
-          const contractDate = new Date(contract.updated_at || contract.created_at);
-          const contractDateBrazil = BrazilTimezone.toLocal(contractDate);
-          const contractDateString = BrazilTimezone.formatDateForQuery(contractDate);
-          
-          console.log(`📋 Contrato ${index + 1}:`);
-          console.log(`  - Nome: ${contract.name}`);
-          console.log(`  - ID: ${contract.id}`);
-          console.log(`  - Status: ${contract.status}`);
-          console.log(`  - Updated UTC: ${contractDate.toISOString()}`);
-          console.log(`  - Updated Brasil: ${contractDateBrazil.toISOString()}`);
-          console.log(`  - Data string: ${contractDateString}`);
-          console.log(`  - Comparação com data selecionada (${dateStringBrazil}): ${contractDateString === dateStringBrazil ? '✅ MATCH' : '❌ NO MATCH'}`);
-          console.log(`  - Closed by: ${contract.closed_by_user_id}`);
-          console.log(`  - Value: ${contract.value}`);
-          console.log("  ---");
-        });
-
-        // SEGUNDA CONSULTA: Usar múltiplas abordagens para tentar encontrar os contratos
-        const queries = [
-          // Abordagem 1: Comparação direta com timezone conversion
-          `
-            SELECT 
-              id, name, email, phone, value, created_at, updated_at, closed_by_user_id, status
-            FROM ${tenantSchema}.leads 
-            WHERE status = 'Contrato Fechado' 
-              AND closed_by_user_id = '${currentUser.id}'
-              AND DATE(updated_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') = '${dateStringBrazil}'
-            ORDER BY updated_at DESC
-          `,
-          // Abordagem 2: Comparação UTC direta
-          `
-            SELECT 
-              id, name, email, phone, value, created_at, updated_at, closed_by_user_id, status
-            FROM ${tenantSchema}.leads 
-            WHERE status = 'Contrato Fechado' 
-              AND closed_by_user_id = '${currentUser.id}'
-              AND DATE(updated_at) = '${dateStringUTC}'
-            ORDER BY updated_at DESC
-          `,
-          // Abordagem 3: Range de 24 horas
-          `
-            SELECT 
-              id, name, email, phone, value, created_at, updated_at, closed_by_user_id, status
-            FROM ${tenantSchema}.leads 
-            WHERE status = 'Contrato Fechado' 
-              AND closed_by_user_id = '${currentUser.id}'
-              AND updated_at >= '${selectedDate.toISOString().split('T')[0]} 00:00:00'::timestamp
-              AND updated_at < ('${selectedDate.toISOString().split('T')[0]} 00:00:00'::timestamp + interval '1 day')
-            ORDER BY updated_at DESC
-          `
-        ];
-
-        let foundContracts: any[] = [];
-        
-        for (let i = 0; i < queries.length; i++) {
-          console.log(`🔧 Testando abordagem ${i + 1}:`, queries[i]);
-          
-          const { data, error } = await supabase.rpc('exec_sql' as any, {
-            sql: queries[i]
-          });
-
-          if (error) {
-            console.error(`❌ Erro na abordagem ${i + 1}:`, error);
-            continue;
-          }
-
-          const contracts = Array.isArray(data) ? data : [];
-          console.log(`📊 Abordagem ${i + 1} encontrou: ${contracts.length} contratos`);
-          
-          if (contracts.length > 0) {
-            foundContracts = contracts;
-            console.log(`✅ Usando resultados da abordagem ${i + 1}`);
-            break;
-          }
-        }
-
-        // Se nenhuma abordagem funcionou, usar a abordagem mais flexível
-        if (foundContracts.length === 0) {
-          console.log("🔍 Tentando abordagem mais flexível com range de datas...");
-          
-          // Criar range de 48 horas para capturar possíveis problemas de timezone
-          const startDate = new Date(selectedDate);
-          startDate.setDate(startDate.getDate() - 1);
-          const endDate = new Date(selectedDate);
-          endDate.setDate(endDate.getDate() + 1);
-          
-          const flexibleQuery = `
-            SELECT 
-              id, name, email, phone, value, created_at, updated_at, closed_by_user_id, status
-            FROM ${tenantSchema}.leads 
-            WHERE status = 'Contrato Fechado' 
-              AND closed_by_user_id = '${currentUser.id}'
-              AND updated_at >= '${startDate.toISOString()}'
-              AND updated_at <= '${endDate.toISOString()}'
-            ORDER BY updated_at DESC
-          `;
-          
-          console.log("🔧 SQL flexível:", flexibleQuery);
-          
-          const { data, error } = await supabase.rpc('exec_sql' as any, {
-            sql: flexibleQuery
-          });
-          
-          if (!error && Array.isArray(data)) {
-            foundContracts = data;
-            console.log(`📊 Abordagem flexível encontrou: ${foundContracts.length} contratos`);
-          }
-        }
-
-        console.log(`📊 RESULTADO FINAL: ${foundContracts.length} contratos encontrados`);
-
-        const transformedContracts: Contract[] = foundContracts.map((lead: any) => {
-          const leadDate = new Date(lead.updated_at || lead.created_at);
+        const transformedContracts: Contract[] = contractsData.map((lead: any) => {
+          const leadDate = new Date(lead.updated_at);
           const localTime = BrazilTimezone.toLocal(leadDate);
           
           return {
@@ -327,10 +193,7 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
             Data consultada: {BrazilTimezone.formatDateForDisplay(selectedDate)}
           </p>
           <p className="text-xs text-gray-400 mt-1">
-            Usuário: {currentUser.name} (ID: {currentUser.id})
-          </p>
-          <p className="text-xs text-red-400 mt-2">
-            📍 Verifique o console para logs detalhados da investigação
+            Usuário: {currentUser.name}
           </p>
         </div>
       ) : (
