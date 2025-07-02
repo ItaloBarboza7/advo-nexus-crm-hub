@@ -197,8 +197,8 @@ export function CalendarContent() {
           </div>
           
           <div className="grid grid-cols-7 gap-1 text-center text-xs">
-            {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map(day => (
-              <div key={day} className="p-1 font-medium text-gray-500">
+            {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((day, index) => (
+              <div key={`header-${index}`} className="p-1 font-medium text-gray-500">
                 {day}
               </div>
             ))}
@@ -214,7 +214,9 @@ export function CalendarContent() {
               
               // Dias vazios no início
               for (let i = 0; i < startingDayOfWeek; i++) {
-                calendarDays.push(<div key={`empty-${i}`} className="p-1"></div>);
+                calendarDays.push(
+                  <div key={`empty-start-${i}`} className="p-1"></div>
+                );
               }
               
               // Dias do mês
@@ -230,7 +232,7 @@ export function CalendarContent() {
                 
                 calendarDays.push(
                   <div
-                    key={day}
+                    key={`day-${currentDate.getFullYear()}-${currentDate.getMonth()}-${day}`}
                     onClick={() => handleDateClick(day)}
                     className={`p-1 text-xs cursor-pointer hover:bg-gray-100 rounded transition-colors ${
                       isSelected ? 'bg-blue-600 text-white' :

@@ -117,17 +117,10 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
 
         console.log("🔍 Resposta bruta da consulta:", data);
 
-        // Processar dados de forma mais simples - data já deve ser um array
+        // Processar dados - agora data deve ser um array direto
         let contractsData = [];
         if (Array.isArray(data)) {
           contractsData = data;
-        } else if (data && typeof data === 'string') {
-          try {
-            contractsData = JSON.parse(data);
-          } catch (parseError) {
-            console.error("❌ Erro ao fazer parse dos dados:", parseError);
-            contractsData = [];
-          }
         } else {
           console.warn("⚠️ Formato de dados inesperado:", typeof data, data);
           contractsData = [];
