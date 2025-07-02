@@ -1,22 +1,28 @@
 
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ChevronLeft, ChevronRight, Flag } from "lucide-react";
-import { format } from "date-fns";
+import { Flag } from "lucide-react";
 import { UserComparisonCard } from "@/components/UserComparisonCard";
-import { DailyContractsPanel } from "@/components/DailyContractsPanel";
+import { ActivityPanel } from "@/components/ActivityPanel";
+import { IntegratedCalendar } from "@/components/IntegratedCalendar";
 import { RecoverableLeadsTask } from "@/components/RecoverableLeadsTask";
 import { useLeadsData } from "@/hooks/useLeadsData";
+import { useContractsData } from "@/hooks/useContractsData";
 import { supabase } from "@/integrations/supabase/client";
 import { BrazilTimezone } from "@/lib/timezone";
 
 export function CalendarContent() {
-  const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const { leads, isLoading } = useLeadsData();
+  const { 
+    contracts, 
+    isLoading: contractsLoading, 
+    error: contractsError, 
+    currentUser: contractsUser, 
+    fetchContractsForDate 
+  } = useContractsData();
 
   // Definir automaticamente o dia atual quando a página carrega (usando timezone brasileiro)
   useEffect(() => {
@@ -24,7 +30,6 @@ export function CalendarContent() {
     BrazilTimezone.debugLog("📅 CalendarContent - Data atual definida", today);
     
     setSelectedDate(today);
-    setCurrentDate(today);
   }, []);
 
   // Buscar informações do usuário atual
@@ -123,29 +128,22 @@ export function CalendarContent() {
     remaining: Math.max(0, 50 - contractsStats.currentMonth.completed)
   };
 
-  const handleDateClick = (day: number) => {
-    const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
-    if (day > 0 && day <= daysInMonth) {
-      const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-      setSelectedDate(newDate);
-      BrazilTimezone.debugLog("📅 Data selecionada pelo usuário", newDate);
-    }
+  const handleDateSelect = (date: Date) => {
+    setSelectedDate(date);
+    BrazilTimezone.debugLog("📅 Data selecionada pelo usuário", date);
+    fetchContractsForDate(date);
   };
 
-  const handleCloseDailyPanel = () => {
+  const handleCloseActivityPanel = () => {
     setSelectedDate(null);
   };
 
-  // Função para navegar entre meses
-  const navigateMonth = (direction: 'prev' | 'next') => {
-    const newDate = new Date(currentDate);
-    if (direction === 'prev') {
-      newDate.setMonth(currentDate.getMonth() - 1);
-    } else {
-      newDate.setMonth(currentDate.getMonth() + 1);
+  // Buscar contratos quando uma data é selecionada
+  useEffect(() => {
+    if (selectedDate && contractsUser) {
+      fetchContractsForDate(selectedDate);
     }
-    setCurrentDate(newDate);
-  };
+  }, [selectedDate, contractsUser, fetchContractsForDate]);
 
   if (isLoading || !currentUser) {
     return (
@@ -180,82 +178,24 @@ export function CalendarContent() {
           />
         </div>
 
-        {/* Calendar Widget - Right Side (Smaller) */}
-        <Card className="p-4 lg:col-span-1">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-md font-semibold text-gray-900">
-              {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-            </h3>
-            <div className="flex gap-1">
-              <Button variant="outline" size="sm" onClick={() => navigateMonth('prev')}>
-                <ChevronLeft className="h-3 w-3" />
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => navigateMonth('next')}>
-                <ChevronRight className="h-3 w-3" />
-              </Button>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-7 gap-1 text-center text-xs">
-            {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((day, index) => (
-              <div key={`header-${index}`} className="p-1 font-medium text-gray-500">
-                {day}
-              </div>
-            ))}
-            
-            {/* Calendário dinâmico */}
-            {(() => {
-              const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-              const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-              const daysInMonth = lastDay.getDate();
-              const startingDayOfWeek = firstDay.getDay();
-              
-              const calendarDays = [];
-              
-              // Dias vazios no início
-              for (let i = 0; i < startingDayOfWeek; i++) {
-                calendarDays.push(
-                  <div key={`empty-start-${i}`} className="p-1"></div>
-                );
-              }
-              
-              // Dias do mês
-              for (let day = 1; day <= daysInMonth; day++) {
-                const today = BrazilTimezone.now();
-                const isToday = day === today.getDate() && 
-                               currentDate.getMonth() === today.getMonth() && 
-                               currentDate.getFullYear() === today.getFullYear();
-                const isSelected = selectedDate && 
-                                 day === selectedDate.getDate() && 
-                                 currentDate.getMonth() === selectedDate.getMonth() && 
-                                 currentDate.getFullYear() === selectedDate.getFullYear();
-                
-                calendarDays.push(
-                  <div
-                    key={`day-${currentDate.getFullYear()}-${currentDate.getMonth()}-${day}`}
-                    onClick={() => handleDateClick(day)}
-                    className={`p-1 text-xs cursor-pointer hover:bg-gray-100 rounded transition-colors ${
-                      isSelected ? 'bg-blue-600 text-white' :
-                      isToday ? 'bg-gray-200 text-gray-900' :
-                      'text-gray-700'
-                    }`}
-                  >
-                    {day}
-                  </div>
-                );
-              }
-              
-              return calendarDays;
-            })()}
-          </div>
-        </Card>
+        {/* Calendar Widget - Right Side */}
+        <div className="lg:col-span-1">
+          <IntegratedCalendar 
+            selectedDate={selectedDate}
+            onDateSelect={handleDateSelect}
+          />
+        </div>
       </div>
 
-      {/* Daily Contracts Panel */}
+      {/* Activity Panel */}
       {selectedDate && (
-        <DailyContractsPanel 
-          selectedDate={selectedDate} 
-          onClose={handleCloseDailyPanel}
+        <ActivityPanel 
+          selectedDate={selectedDate}
+          contracts={contracts}
+          isLoading={contractsLoading}
+          error={contractsError}
+          currentUser={contractsUser}
+          onClose={handleCloseActivityPanel}
         />
       )}
 
