@@ -91,18 +91,65 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
           schema: tenantSchema
         });
 
-        // Consulta simplificada usando timezone brasileiro
+        // DIAGNÓSTICO: Vamos primeiro verificar o que temos na base
+        const diagnosticSql = `
+          SELECT 
+            COUNT(*) as total_fechados,
+            COUNT(CASE WHEN closed_by_user_id IS NULL THEN 1 END) as sem_usuario,
+            COUNT(CASE WHEN closed_by_user_id = '${currentUser.id}' THEN 1 END) as meus_contratos,
+            MIN(DATE(updated_at AT TIME ZONE 'America/Sao_Paulo')) as primeira_data,
+            MAX(DATE(updated_at AT TIME ZONE 'America/Sao_Paulo')) as ultima_data
+          FROM ${tenantSchema}.leads 
+          WHERE status = 'Contrato Fechado'
+        `;
+
+        console.log("🔍 DIAGNÓSTICO - Executando:", diagnosticSql);
+        
+        try {
+          const { data: diagData } = await supabase.rpc('exec_sql' as any, {
+            sql: diagnosticSql
+          });
+          
+          const diagnostics = Array.isArray(diagData) ? diagData[0] : diagData;
+          console.log("📊 DIAGNÓSTICO - Resultado:", diagnostics);
+        } catch (diagError) {
+          console.error("❌ Erro no diagnóstico:", diagError);
+        }
+
+        // CORREÇÃO 1: Atualizar leads sem closed_by_user_id
+        const updateSql = `
+          UPDATE ${tenantSchema}.leads 
+          SET closed_by_user_id = '${currentUser.id}'
+          WHERE status = 'Contrato Fechado' 
+            AND closed_by_user_id IS NULL
+        `;
+
+        console.log("🔧 CORREÇÃO - Atualizando leads sem usuário:", updateSql);
+        
+        try {
+          const { data: updateData } = await supabase.rpc('exec_sql' as any, {
+            sql: updateSql
+          });
+          console.log("✅ CORREÇÃO - Resultado:", updateData);
+        } catch (updateError) {
+          console.error("❌ Erro na correção:", updateError);
+        }
+
+        // Consulta principal com fallback para created_at
         const sql = `
           SELECT 
-            id, name, email, phone, value, updated_at, closed_by_user_id, status
+            id, name, email, phone, value, updated_at, created_at, closed_by_user_id, status
           FROM ${tenantSchema}.leads 
           WHERE status = 'Contrato Fechado' 
             AND closed_by_user_id = '${currentUser.id}'
-            AND DATE(updated_at AT TIME ZONE 'America/Sao_Paulo') = '${dateString}'
+            AND (
+              DATE(updated_at AT TIME ZONE 'America/Sao_Paulo') = '${dateString}'
+              OR DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = '${dateString}'
+            )
           ORDER BY updated_at DESC
         `;
 
-        console.log("🔧 SQL:", sql);
+        console.log("🔧 SQL PRINCIPAL:", sql);
 
         const { data, error } = await supabase.rpc('exec_sql' as any, {
           sql: sql
