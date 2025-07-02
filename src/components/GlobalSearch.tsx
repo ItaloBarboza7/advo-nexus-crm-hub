@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Search, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenantSchema } from "@/hooks/useTenantSchema";
+import { Lead } from "@/types/lead";
 
 interface Lead {
   id: string;
@@ -13,7 +14,11 @@ interface Lead {
   status: string;
 }
 
-export function GlobalSearch() {
+interface GlobalSearchProps {
+  onLeadSelect?: (lead: Lead) => void;
+}
+
+export function GlobalSearch({ onLeadSelect }: GlobalSearchProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -65,6 +70,38 @@ export function GlobalSearch() {
     ).slice(0, 10);
   }, [leads, searchTerm]);
 
+  const handleLeadClick = (lead: Lead) => {
+    setIsOpen(false);
+    setSearchTerm("");
+    
+    // Convert the lead data to match the Lead type from types/lead.ts
+    const fullLead: Lead = {
+      id: lead.id,
+      name: lead.name,
+      email: lead.email || null,
+      phone: lead.phone,
+      company: '',
+      source: null,
+      status: lead.status,
+      interest: '',
+      value: null,
+      lastContact: '',
+      avatar: '',
+      description: null,
+      state: null,
+      action_group: null,
+      action_type: null,
+      loss_reason: null,
+      closed_by_user_id: null,
+      created_at: '',
+      updated_at: ''
+    };
+
+    if (onLeadSelect) {
+      onLeadSelect(fullLead);
+    }
+  };
+
   if (!isOpen) {
     return (
       <button
@@ -111,10 +148,7 @@ export function GlobalSearch() {
                 <div
                   key={lead.id}
                   className="flex flex-col gap-1 p-3 hover:bg-gray-50 rounded cursor-pointer"
-                  onClick={() => {
-                    setIsOpen(false);
-                    setSearchTerm("");
-                  }}
+                  onClick={() => handleLeadClick(lead)}
                 >
                   <div className="font-medium text-sm">{lead.name}</div>
                   <div className="text-xs text-gray-500 flex items-center gap-2">
