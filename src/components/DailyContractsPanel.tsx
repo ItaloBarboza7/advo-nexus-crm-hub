@@ -120,7 +120,27 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
           length: Array.isArray(data) ? data.length : 'N/A'
         });
 
-        const contractsData = Array.isArray(data) ? data : [];
+        // A função exec_sql retorna um array JSON diretamente para SELECT queries
+        let contractsData = [];
+        if (Array.isArray(data)) {
+          contractsData = data;
+        } else if (data && typeof data === 'object') {
+          // Se data é um objeto, pode ter os dados em alguma propriedade
+          if (data.data && Array.isArray(data.data)) {
+            contractsData = data.data;
+          } else if (data.result && Array.isArray(data.result)) {
+            contractsData = data.result;
+          } else {
+            // Se não encontrou array em propriedades conhecidas, tenta converter o objeto
+            contractsData = Object.values(data).find(value => Array.isArray(value)) || [];
+          }
+        }
+        
+        console.log("📊 Dados processados:", {
+          contractsData,
+          length: contractsData.length,
+          firstItem: contractsData[0] || null
+        });
         console.log(`📊 Contratos encontrados: ${contractsData.length}`);
 
         const transformedContracts: Contract[] = contractsData.map((lead: any) => {
