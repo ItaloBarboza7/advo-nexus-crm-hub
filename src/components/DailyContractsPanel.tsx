@@ -88,9 +88,12 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
         });
 
         // Formatar a data selecionada para comparação (YYYY-MM-DD)
-        const dateString = format(selectedDate, "yyyy-MM-dd");
+        // Ajustar para timezone brasileiro (UTC-3)
+        const selectedDateBrazil = new Date(selectedDate.getTime() - (3 * 60 * 60 * 1000));
+        const dateString = format(selectedDateBrazil, "yyyy-MM-dd");
         
-        console.log("🔍 DailyContractsPanel - Data formatada para consulta:", dateString);
+        console.log("🔍 DailyContractsPanel - Data selecionada original:", format(selectedDate, "yyyy-MM-dd"));
+        console.log("🔍 DailyContractsPanel - Data ajustada para timezone brasileiro:", dateString);
 
         // STEP 1: Primeiro, vamos buscar TODOS os leads com status "Contrato Fechado" SEM filtro de data
         console.log("\n🔍 STEP 1: Buscando TODOS os leads com status 'Contrato Fechado'");
@@ -201,7 +204,7 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
           FROM ${tenantSchema}.leads 
           WHERE status = 'Contrato Fechado' 
             AND closed_by_user_id = '${currentUser.id}'
-            AND DATE(updated_at) = '${dateString}'
+            AND DATE(updated_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') = '${dateString}'
           ORDER BY updated_at DESC
         `;
 
