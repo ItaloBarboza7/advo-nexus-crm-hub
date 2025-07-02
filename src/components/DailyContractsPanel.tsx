@@ -113,6 +113,13 @@ export function DailyContractsPanel({ selectedDate, onClose }: DailyContractsPan
           throw new Error(`Erro na consulta: ${error.message}`);
         }
 
+        console.log("🔍 Resposta bruta da consulta:", {
+          data,
+          dataType: typeof data,
+          isArray: Array.isArray(data),
+          length: Array.isArray(data) ? data.length : 'N/A'
+        });
+
         const contractsData = Array.isArray(data) ? data : [];
         console.log(`📊 Contratos encontrados: ${contractsData.length}`);
 
