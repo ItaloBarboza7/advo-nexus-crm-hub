@@ -8,6 +8,7 @@ import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Legend, BarChart, B
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDashboardSettings } from "@/hooks/useDashboardSettings";
 import { useLeadsData } from "@/hooks/useLeadsData";
+import { useLeadStatusHistory } from "@/hooks/useLeadStatusHistory";
 import { getDay, getMonth, format } from "date-fns";
 
 export function DashboardContent() {
@@ -18,6 +19,7 @@ export function DashboardContent() {
   
   const { components } = useDashboardSettings();
   const { leads, isLoading } = useLeadsData();
+  const { statusHistory, hasLeadPassedThroughStatus } = useLeadStatusHistory();
 
   // Função para verificar se um componente deve ser exibido
   const isComponentVisible = (componentId: string) => {
@@ -91,7 +93,7 @@ export function DashboardContent() {
     },
   ];
 
-  // CORREÇÃO: Calcular taxa de conversão corretamente (máximo 100%)
+  // CORREÇÃO: Taxa de conversão geral corrigida
   const conversionData = [
     {
       totalLeads: totalLeads,
@@ -99,15 +101,29 @@ export function DashboardContent() {
       sales: closedDeals,
       opportunityRate: totalLeads > 0 ? `${((proposalsAndMeetings / totalLeads) * 100).toFixed(1)}%` : "0%",
       salesRate: totalLeads > 0 ? `${((closedDeals / totalLeads) * 100).toFixed(1)}%` : "0%",
-      // CORREÇÃO: Taxa geral deve ser vendas/oportunidades, não vendas/leads
       overallConversion: proposalsAndMeetings > 0 ? `${Math.min(((closedDeals / proposalsAndMeetings) * 100), 100).toFixed(1)}%` : "0%",
     },
   ];
 
-  // CORREÇÃO: Gerar dados reais de conversão por período baseados nos leads
+  // CORREÇÃO PRINCIPAL: Função para verificar se um lead é oportunidade
+  const isOpportunityLead = (lead: any): boolean => {
+    // Lead é oportunidade se:
+    // 1. Está atualmente em Proposta/Reunião OU
+    // 2. Passou por Proposta/Reunião (incluindo os que fecharam contrato)
+    const currentlyInOpportunity = lead.status === "Proposta" || lead.status === "Reunião";
+    const passedThroughOpportunity = hasLeadPassedThroughStatus(lead.id, ["Proposta", "Reunião"]);
+    
+    return currentlyInOpportunity || passedThroughOpportunity;
+  };
+
+  // CORREÇÃO: Gerar dados REAIS de conversão baseados nos leads e histórico
   const getRealConversionData = useMemo(() => {
+    console.log("📊 Calculando dados de conversão...");
+    console.log("📋 Total de leads:", leads?.length || 0);
+    console.log("📊 Status history length:", statusHistory?.length || 0);
+    
     if (!leads || leads.length === 0) {
-      // Dados de fallback se não houver leads
+      console.log("⚠️ Nenhum lead disponível, retornando dados zerados");
       const weeklyData = [
         { day: "Segunda", sales: 0, conversion: 0 },
         { day: "Terça", sales: 0, conversion: 0 },
@@ -136,46 +152,48 @@ export function DashboardContent() {
       return { weekly: weeklyData, monthly: monthlyData };
     }
 
-    // Dados reais de conversão semanal
+    // NOVA LÓGICA: Usar created_at para agrupamento, mas considerar status atual e histórico
     const weekDays = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
     const weeklyData = weekDays.map((day, index) => {
+      // Leads criados neste dia da semana
       const dayLeads = leads.filter(lead => lead.created_at && getDay(new Date(lead.created_at)) === index);
-      const daySales = dayLeads.filter(lead => lead.status === "Contrato Fechado").length;
-      const dayOpportunities = dayLeads.filter(lead => 
-        lead.status === "Proposta" || lead.status === "Reunião"
-      ).length;
       
-      // CORREÇÃO: Limitar conversão a 100% máximo
-      const conversion = dayOpportunities > 0 ? Math.min((daySales / dayOpportunities) * 100, 100) : 0;
+      // Oportunidades: leads que são ou foram oportunidades
+      const dayOpportunities = dayLeads.filter(lead => isOpportunityLead(lead));
+      
+      // Vendas: leads que estão com status "Contrato Fechado"
+      const daySales = dayLeads.filter(lead => lead.status === "Contrato Fechado");
+      
+      // Taxa de conversão: vendas / oportunidades
+      const conversion = dayOpportunities.length > 0 ? Math.min((daySales.length / dayOpportunities.length) * 100, 100) : 0;
+      
+      console.log(`📊 ${day}: ${dayLeads.length} leads, ${dayOpportunities.length} oportunidades, ${daySales.length} vendas, ${conversion.toFixed(1)}% conversão`);
       
       return {
         day,
-        sales: daySales,
+        sales: daySales.length,
         conversion: parseFloat(conversion.toFixed(1))
       };
     });
 
-    // Dados reais de conversão mensal
+    // Dados mensais com a mesma lógica
     const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
     const monthlyData = months.map((month, index) => {
       const monthLeads = leads.filter(lead => lead.created_at && getMonth(new Date(lead.created_at)) === index);
-      const monthSales = monthLeads.filter(lead => lead.status === "Contrato Fechado").length;
-      const monthOpportunities = monthLeads.filter(lead => 
-        lead.status === "Proposta" || lead.status === "Reunião"
-      ).length;
-      
-      // CORREÇÃO: Limitar conversão a 100% máximo
-      const conversion = monthOpportunities > 0 ? Math.min((monthSales / monthOpportunities) * 100, 100) : 0;
+      const monthOpportunities = monthLeads.filter(lead => isOpportunityLead(lead));
+      const monthSales = monthLeads.filter(lead => lead.status === "Contrato Fechado");
+      const conversion = monthOpportunities.length > 0 ? Math.min((monthSales.length / monthOpportunities.length) * 100, 100) : 0;
       
       return {
         month,
-        sales: monthSales,
+        sales: monthSales.length,
         conversion: parseFloat(conversion.toFixed(1))
       };
     });
 
+    console.log("✅ Dados de conversão calculados:", { weeklyData, monthlyData });
     return { weekly: weeklyData, monthly: monthlyData };
-  }, [leads]);
+  }, [leads, statusHistory, hasLeadPassedThroughStatus]);
 
   // CORREÇÃO: Gerar dados reais de leads por período
   const getRealLeadsData = useMemo(() => {
@@ -391,7 +409,6 @@ export function DashboardContent() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
-          {/* CORREÇÃO: Remover o texto descritivo */}
         </div>
         <DateFilter date={dateRange} setDate={setDateRange} />
       </div>
