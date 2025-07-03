@@ -20,18 +20,14 @@ export function useTeamResults() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
-  const { tenantSchema, ensureTenantSchema } = useTenantSchema();
+  const { tenantSchema } = useTenantSchema();
 
   const fetchTeamResults = useCallback(async () => {
+    if (!tenantSchema) return;
+    
     try {
       setIsLoading(true);
       console.log("🔍 useTeamResults - Buscando dados da equipe...");
-
-      const schema = tenantSchema || await ensureTenantSchema();
-      if (!schema) {
-        console.error('❌ Não foi possível obter o esquema do tenant');
-        return;
-      }
 
       // Buscar todos os membros da equipe (admin + membros)
       const { data: profiles, error: profilesError } = await supabase
@@ -60,7 +56,7 @@ export function useTeamResults() {
 
       // Buscar leads do esquema do tenant
       const { data: leads, error: leadsError } = await supabase.rpc('exec_sql' as any, {
-        sql: `SELECT * FROM ${schema}.leads`
+        sql: `SELECT * FROM ${tenantSchema}.leads`
       });
 
       if (leadsError) {
@@ -95,8 +91,6 @@ export function useTeamResults() {
         if (!belongsToTenant) continue;
 
         // Calcular estatísticas para este usuário
-        // Para simplificar, vamos distribuir os leads entre os membros da equipe
-        // Em uma implementação real, os leads teriam um campo user_id para rastrear o responsável
         const totalMembers = profiles?.filter(p => {
           const memberRole = roleMap.get(p.user_id);
           const isAdminMember = memberRole === 'admin' && p.user_id === tenantId;
@@ -169,13 +163,13 @@ export function useTeamResults() {
     } finally {
       setIsLoading(false);
     }
-  }, [tenantSchema, ensureTenantSchema, toast]);
+  }, [tenantSchema, toast]);
 
   useEffect(() => {
     if (tenantSchema) {
       fetchTeamResults();
     }
-  }, [tenantSchema, fetchTeamResults]);
+  }, [tenantSchema]); // Removido fetchTeamResults das dependências
 
   // Calcular estatísticas de comparação
   const teamStats = useMemo(() => {
