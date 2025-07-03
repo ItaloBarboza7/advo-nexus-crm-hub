@@ -83,54 +83,37 @@ export function useTeamResults() {
         const role = roleMap.get(userId);
         const isAdmin = role === 'admin';
         
-        // Incluir admin e membros do tenant atual
-        const belongsToTenant = isAdmin ? 
-          userId === tenantId : // Admin principal
-          profile.parent_user_id === tenantId; // Membro do admin
+        // Incluir admin principal e membros do tenant atual
+        let belongsToTenant = false;
+        
+        if (isAdmin && userId === tenantId) {
+          // Admin principal
+          belongsToTenant = true;
+        } else if (!isAdmin && profile.parent_user_id === tenantId) {
+          // Membro do admin
+          belongsToTenant = true;
+        }
 
         if (!belongsToTenant) continue;
 
-        // Calcular estatísticas para este usuário
-        const totalMembers = profiles?.filter(p => {
-          const memberRole = roleMap.get(p.user_id);
-          const isAdminMember = memberRole === 'admin' && p.user_id === tenantId;
-          const isMember = memberRole === 'member' || memberRole === undefined;
-          const belongsToCurrentTenant = isAdminMember ? true : p.parent_user_id === tenantId;
-          return belongsToCurrentTenant;
-        }).length || 1;
-
-        const memberIndex = teamMembersData.length;
-        
-        // Distribuir leads de forma realística entre os membros
-        const baseLeads = Math.floor(leadsData.length / totalMembers);
-        const extraLeads = memberIndex < (leadsData.length % totalMembers) ? 1 : 0;
-        const memberLeads = baseLeads + extraLeads;
-
-        // Simular distribuição baseada no desempenho
-        const performanceMultiplier = isAdmin ? 1.2 : (0.8 + Math.random() * 0.4);
-        const adjustedLeads = Math.max(1, Math.round(memberLeads * performanceMultiplier));
-
-        // Calcular propostas e vendas baseadas nos leads reais
-        const proposalsCount = leadsData.filter(lead => 
+        // Calcular estatísticas reais para este usuário específico
+        const userLeads = leadsData.filter(lead => lead.user_id === userId);
+        const userProposals = userLeads.filter(lead => 
           ['Proposta', 'Reunião'].includes(lead.status)
-        ).length;
-        
-        const salesCount = leadsData.filter(lead => 
+        );
+        const userSales = userLeads.filter(lead => 
           lead.status === 'Contrato Fechado'
-        ).length;
-
-        // Distribuir proporcionalmente
-        const memberProposals = Math.round((proposalsCount / totalMembers) * performanceMultiplier);
-        const memberSales = Math.round((salesCount / totalMembers) * performanceMultiplier);
+        );
 
         // Calcular taxa de conversão
-        const conversionRate = memberProposals > 0 ? (memberSales / memberProposals) * 100 : 0;
+        const conversionRate = userProposals.length > 0 ? 
+          (userSales.length / userProposals.length) * 100 : 0;
         
-        // Calcular score baseado em performance
+        // Calcular score baseado em performance real
         const score = Math.min(100, Math.round(
-          (memberSales * 40) + 
-          (memberProposals * 20) + 
-          (adjustedLeads * 10) + 
+          (userSales.length * 40) + 
+          (userProposals.length * 20) + 
+          (userLeads.length * 10) + 
           (conversionRate * 0.3)
         ));
 
@@ -139,9 +122,9 @@ export function useTeamResults() {
           name: profile.name || 'Usuário',
           email: profile.email || '',
           isAdmin,
-          leads: adjustedLeads,
-          proposals: memberProposals,
-          sales: memberSales,
+          leads: userLeads.length,
+          proposals: userProposals.length,
+          sales: userSales.length,
           score,
           conversion_rate: Math.round(conversionRate * 10) / 10
         });
@@ -150,7 +133,7 @@ export function useTeamResults() {
       // Ordenar por score (melhor performance primeiro)
       teamMembersData.sort((a, b) => b.score - a.score);
 
-      console.log(`✅ useTeamResults - ${teamMembersData.length} membros da equipe processados`);
+      console.log(`✅ useTeamResults - ${teamMembersData.length} membros da equipe processados (incluindo admin)`);
       setTeamMembers(teamMembersData);
 
     } catch (error: any) {
@@ -169,7 +152,7 @@ export function useTeamResults() {
     if (tenantSchema) {
       fetchTeamResults();
     }
-  }, [tenantSchema]); // Removido fetchTeamResults das dependências
+  }, [tenantSchema]);
 
   // Calcular estatísticas de comparação
   const teamStats = useMemo(() => {

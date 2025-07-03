@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -9,6 +8,7 @@ import { IntegratedCalendar } from "@/components/IntegratedCalendar";
 import { RecoverableLeadsTask } from "@/components/RecoverableLeadsTask";
 import { useLeadsData } from "@/hooks/useLeadsData";
 import { useContractsData } from "@/hooks/useContractsData";
+import { useLeadsForDate } from "@/hooks/useLeadsForDate";
 import { supabase } from "@/integrations/supabase/client";
 import { BrazilTimezone } from "@/lib/timezone";
 
@@ -23,6 +23,13 @@ export function CalendarContent() {
     currentUser: contractsUser, 
     fetchContractsForDate 
   } = useContractsData();
+  const {
+    leads: leadsForDate,
+    isLoading: leadsLoading,
+    error: leadsError,
+    currentUser: leadsCurrentUser,
+    fetchLeadsForDate
+  } = useLeadsForDate();
 
   // Definir automaticamente o dia atual quando a página carrega (usando timezone brasileiro)
   useEffect(() => {
@@ -54,12 +61,15 @@ export function CalendarContent() {
     getCurrentUser();
   }, []);
 
-  // Buscar contratos quando uma data é selecionada e os dados necessários estão disponíveis
+  // Buscar contratos e leads quando uma data é selecionada
   useEffect(() => {
     if (selectedDate && contractsUser && fetchContractsForDate) {
       fetchContractsForDate(selectedDate);
     }
-  }, [selectedDate, contractsUser]); // Removeu fetchContractsForDate das dependências para evitar loop
+    if (selectedDate && leadsCurrentUser && fetchLeadsForDate) {
+      fetchLeadsForDate(selectedDate);
+    }
+  }, [selectedDate, contractsUser, leadsCurrentUser]);
 
   // Calcular estatísticas reais baseadas nos leads fechados pelo usuário atual
   const getContractsStats = () => {
@@ -191,9 +201,10 @@ export function CalendarContent() {
         <ActivityPanel 
           selectedDate={selectedDate}
           contracts={contracts}
-          isLoading={contractsLoading}
-          error={contractsError}
-          currentUser={contractsUser}
+          leads={leadsForDate}
+          isLoading={contractsLoading || leadsLoading}
+          error={contractsError || leadsError}
+          currentUser={contractsUser || leadsCurrentUser}
           onClose={handleCloseActivityPanel}
         />
       )}
