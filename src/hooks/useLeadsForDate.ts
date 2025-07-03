@@ -91,10 +91,6 @@ export function useLeadsForDate() {
         ORDER BY created_at DESC
       `;
 
-      console.log("📝 SQL Query useLeadsForDate:", sql);
-      console.log("🔑 Current User ID:", currentUser.id);
-      console.log("🏢 Tenant Schema:", tenantSchema);
-
       const { data, error } = await supabase.rpc('exec_sql', {
         sql: sql
       });
