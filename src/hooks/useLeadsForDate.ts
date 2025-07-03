@@ -82,12 +82,12 @@ export function useLeadsForDate() {
 
       const dateString = BrazilTimezone.formatDateForQuery(selectedDate);
       
+      // Corrigir a query para não usar user_id que não existe no esquema do tenant
       const sql = `
         SELECT 
           id, name, phone, email, source, status, created_at, value
         FROM ${tenantSchema}.leads
-        WHERE user_id = '${currentUser.id}'
-          AND DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = '${dateString}'
+        WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = '${dateString}'
         ORDER BY created_at DESC
       `;
 

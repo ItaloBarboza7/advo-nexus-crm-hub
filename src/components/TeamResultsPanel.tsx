@@ -2,6 +2,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Users } from "lucide-react";
 import { useTeamResults } from "@/hooks/useTeamResults";
 
@@ -59,7 +60,7 @@ export function TeamResultsPanel() {
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Users className="h-4 w-4 text-blue-600" />
-            Resultado do Time
+            Resultado do Time ({teamMembers.length} membros)
           </CardTitle>
           <Button onClick={refreshData} variant="outline" size="sm">
             Atualizar
@@ -67,38 +68,49 @@ export function TeamResultsPanel() {
         </div>
       </CardHeader>
       <CardContent className="pb-4">
-        {/* Lista de Membros da Equipe */}
-        <div className="space-y-4">
-          {teamMembers.map((member, index) => (
-            <div 
-              key={member.id} 
-              className="border-l-4 border-blue-500 pl-4 py-2"
-            >
-              <div className="mb-2">
-                <h4 className="text-sm font-medium text-gray-900">{member.name}</h4>
+        {/* Adicionar ScrollArea para permitir rolagem quando há muitos membros */}
+        <ScrollArea className="h-[400px] w-full">
+          <div className="space-y-4 pr-4">
+            {teamMembers.map((member, index) => (
+              <div 
+                key={member.id} 
+                className={`border-l-4 ${
+                  member.isAdmin ? 'border-purple-500 bg-purple-50' : 'border-blue-500'
+                } pl-4 py-2`}
+              >
+                <div className="mb-2">
+                  <h4 className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                    {member.name}
+                    {member.isAdmin && (
+                      <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full">
+                        Admin
+                      </span>
+                    )}
+                  </h4>
+                </div>
+                
+                <div className="grid grid-cols-4 gap-4">
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-blue-600">{member.leads}</div>
+                    <p className="text-xs text-gray-600">Leads</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-orange-600">{member.proposals}</div>
+                    <p className="text-xs text-gray-600">Propostas</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-green-600">{member.sales}</div>
+                    <p className="text-xs text-gray-600">Vendas</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-purple-600">{member.score}</div>
+                    <p className="text-xs text-gray-600">Pontuação</p>
+                  </div>
+                </div>
               </div>
-              
-              <div className="grid grid-cols-4 gap-4">
-                <div className="text-center">
-                  <div className="text-xl font-bold text-blue-600">{member.leads}</div>
-                  <p className="text-xs text-gray-600">Leads</p>
-                </div>
-                <div className="text-center">
-                  <div className="text-xl font-bold text-orange-600">{member.proposals}</div>
-                  <p className="text-xs text-gray-600">Propostas</p>
-                </div>
-                <div className="text-center">
-                  <div className="text-xl font-bold text-green-600">{member.sales}</div>
-                  <p className="text-xs text-gray-600">Vendas</p>
-                </div>
-                <div className="text-center">
-                  <div className="text-xl font-bold text-purple-600">{member.score}</div>
-                  <p className="text-xs text-gray-600">Pontuação</p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </ScrollArea>
       </CardContent>
     </Card>
   );
