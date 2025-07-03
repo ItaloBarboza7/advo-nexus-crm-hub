@@ -93,6 +93,10 @@ export function useContractsData() {
         ORDER BY cc.closed_at DESC
       `;
 
+      console.log("📝 SQL Query useContractsData:", sql);
+      console.log("🔑 Current User ID:", currentUser.id);
+      console.log("🏢 Tenant Schema:", tenantSchema);
+
       const { data, error } = await supabase.rpc('exec_sql', {
         sql: sql
       });

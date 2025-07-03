@@ -68,8 +68,8 @@ export function TeamResultsPanel() {
         </div>
       </CardHeader>
       <CardContent className="pb-4">
-        {/* Adicionar ScrollArea para permitir rolagem quando há muitos membros */}
-        <ScrollArea className="h-[400px] w-full">
+        {/* ScrollArea ajustado para mostrar apenas 3 membros */}
+        <ScrollArea className="h-[240px] w-full">
           <div className="space-y-4 pr-4">
             {teamMembers.map((member, index) => (
               <div 
