@@ -10,6 +10,7 @@ import { useDashboardSettings } from "@/hooks/useDashboardSettings";
 import { useLeadsData } from "@/hooks/useLeadsData";
 import { useLeadStatusHistory } from "@/hooks/useLeadStatusHistory";
 import { getDay, getMonth, format } from "date-fns";
+import { TeamResultsPanel } from "@/components/TeamResultsPanel";
 
 export function DashboardContent() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
@@ -634,43 +635,9 @@ export function DashboardContent() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Team Results */}
         {isComponentVisible('team-results') && (
-          <Card className="p-6 lg:col-span-2">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Resultado do Time</h3>
-              <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
-                Ver detalhes
-              </button>
-            </div>
-            <div className="space-y-4">
-              {teamResults.map((member) => (
-                <div key={member.id} className="border-l-4 border-blue-500 pl-4 py-3 bg-gray-50 rounded-r-lg">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <h4 className="font-medium text-gray-900 mb-2">{member.name}</h4>
-                      <div className="grid grid-cols-4 gap-4 text-sm text-gray-600">
-                        <div className="text-center">
-                          <span className="block font-medium text-blue-600 text-lg">{member.leads}</span>
-                          <p className="text-xs">Leads</p>
-                        </div>
-                        <div className="text-center">
-                          <span className="block font-medium text-orange-600 text-lg">{member.proposals}</span>
-                          <p className="text-xs">Propostas</p>
-                        </div>
-                        <div className="text-center">
-                          <span className="block font-medium text-green-600 text-lg">{member.sales}</span>
-                          <p className="text-xs">Vendas</p>
-                        </div>
-                        <div className="text-center">
-                          <span className="block font-medium text-purple-600 text-lg">{member.score}</span>
-                          <p className="text-xs">Pontuação</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
+          <div className="lg:col-span-2">
+            <TeamResultsPanel />
+          </div>
         )}
 
         {/* Action Chart */}
