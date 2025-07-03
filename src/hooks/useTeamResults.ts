@@ -86,14 +86,20 @@ export function useTeamResults() {
         // Incluir admin principal e membros do tenant atual
         let belongsToTenant = false;
         
+        // Debug: log para verificar cada perfil
+        console.log(`🔍 Verificando perfil: ${profile.name} (${userId}) - Role: ${role} - IsAdmin: ${isAdmin} - TenantId: ${tenantId}`);
+        
         if (isAdmin && userId === tenantId) {
           // Admin principal
+          console.log(`✅ Admin principal encontrado: ${profile.name}`);
           belongsToTenant = true;
         } else if (!isAdmin && profile.parent_user_id === tenantId) {
           // Membro do admin
+          console.log(`✅ Membro encontrado: ${profile.name} - Parent: ${profile.parent_user_id}`);
           belongsToTenant = true;
         }
 
+        console.log(`📋 ${profile.name} pertence ao tenant? ${belongsToTenant}`);
         if (!belongsToTenant) continue;
 
         // Calcular estatísticas reais para este usuário específico
