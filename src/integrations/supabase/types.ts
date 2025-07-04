@@ -448,6 +448,14 @@ export type Database = {
         Args: { schema_name: string }
         Returns: undefined
       }
+      add_rls_policies_to_tenant: {
+        Args: { schema_name: string }
+        Returns: undefined
+      }
+      can_access_tenant_data: {
+        Args: { tenant_schema_name: string; user_id_to_check?: string }
+        Returns: boolean
+      }
       ensure_tenant_schema: {
         Args: Record<PropertyKey, never>
         Returns: string
