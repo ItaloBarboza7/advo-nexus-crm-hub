@@ -92,6 +92,26 @@ export function useTeamResults() {
       const leadsData = Array.isArray(leads) ? leads : [];
       console.log(`📊 useTeamResults - ${leadsData.length} leads encontrados`);
 
+      // Buscar histórico de status para identificar leads que passaram por Proposta/Reunião
+      const { data: statusHistory, error: historyError } = await supabase.rpc('exec_sql' as any, {
+        sql: `SELECT * FROM ${tenantSchema}.lead_status_history ORDER BY changed_at DESC`
+      });
+
+      if (historyError) {
+        console.error('❌ Erro ao buscar histórico de status:', historyError);
+        throw historyError;
+      }
+
+      const historyData = Array.isArray(statusHistory) ? statusHistory : [];
+      console.log(`📈 useTeamResults - ${historyData.length} registros de histórico encontrados`);
+
+      // Criar função para verificar se um lead passou por determinados status
+      const hasLeadPassedThroughStatus = (leadId: string, statuses: string[]): boolean => {
+        return historyData.some(history => 
+          history.lead_id === leadId && statuses.includes(history.new_status)
+        );
+      };
+
       // Processar dados da equipe
       const teamMembersData: TeamMember[] = [];
       const roleMap = new Map(roles?.map(r => [r.user_id, r.role]) || []);
@@ -104,9 +124,18 @@ export function useTeamResults() {
         
         // Calcular estatísticas reais para este usuário específico
         const userLeads = leadsData.filter(lead => lead.user_id === userId);
-        const userProposals = userLeads.filter(lead => 
-          ['Proposta', 'Reunião'].includes(lead.status)
-        );
+        
+        // CORREÇÃO: Contar propostas considerando leads que passaram por Proposta/Reunião
+        // não apenas os que estão atualmente nesses status
+        const userProposals = userLeads.filter(lead => {
+          // Se está atualmente em Proposta ou Reunião, conta
+          if (['Proposta', 'Reunião'].includes(lead.status)) {
+            return true;
+          }
+          // Se passou por Proposta ou Reunião no histórico, também conta
+          return hasLeadPassedThroughStatus(lead.id, ['Proposta', 'Reunião']);
+        });
+        
         const userSales = userLeads.filter(lead => 
           lead.status === 'Contrato Fechado'
         );
@@ -135,7 +164,7 @@ export function useTeamResults() {
           conversion_rate: Math.round(conversionRate * 10) / 10
         });
 
-        console.log(`👤 useTeamResults - Processado: ${profile.name} (${isAdmin ? 'Admin' : 'Membro'}) - ${userLeads.length} leads, ${userSales.length} vendas`);
+        console.log(`👤 useTeamResults - Processado: ${profile.name} (${isAdmin ? 'Admin' : 'Membro'}) - ${userLeads.length} leads, ${userProposals.length} propostas (incluindo histórico), ${userSales.length} vendas`);
       }
 
       // Ordenar por score (melhor performance primeiro)
