@@ -48,6 +48,8 @@ export function useContractsData() {
           name: profile?.name || user.email || 'Usuário'
         };
         
+        console.log("✅ Usuário atual carregado para contratos:", userData);
+        
         if (isMounted) {
           setCurrentUser(userData);
         }
@@ -68,7 +70,11 @@ export function useContractsData() {
 
   const fetchContractsForDate = useCallback(async (selectedDate: Date) => {
     if (!selectedDate || !currentUser || !tenantSchema) {
-      console.log("🚫 Dependências faltando para buscar contratos");
+      console.log("🚫 Dependências faltando para buscar contratos:", {
+        selectedDate: !!selectedDate,
+        currentUser: !!currentUser,
+        tenantSchema: !!tenantSchema
+      });
       setContracts([]);
       return;
     }
@@ -78,10 +84,11 @@ export function useContractsData() {
       setError(null);
       
       console.log("📅 Buscando contratos fechados em:", BrazilTimezone.formatDateForDisplay(selectedDate));
+      console.log("👤 Para usuário:", currentUser.name, "(ID:", currentUser.id, ")");
 
       const dateString = BrazilTimezone.formatDateForQuery(selectedDate);
+      console.log("📅 Data formatada para query:", dateString);
       
-      // CORREÇÃO: Query mais simples focando em contratos fechados pelo usuário na data específica
       const sql = `
         SELECT 
           id, name, email, phone, value, status, updated_at, closed_by_user_id
@@ -103,13 +110,15 @@ export function useContractsData() {
         throw new Error(`Erro na consulta: ${error.message}`);
       }
 
-      console.log("🔍 Dados de contratos recebidos:", data);
+      console.log("🔍 Dados brutos de contratos recebidos:", data);
+      console.log("🔍 Tipo dos dados:", typeof data);
+      console.log("🔍 É array?", Array.isArray(data));
 
-      // CORREÇÃO: Processamento mais robusto dos dados
       let contractsData = [];
       
       if (Array.isArray(data)) {
         contractsData = data;
+        console.log("✅ Dados são um array com", data.length, "itens");
       } else {
         console.log("⚠️ Dados não são um array:", typeof data, data);
         contractsData = [];
@@ -124,6 +133,7 @@ export function useContractsData() {
           return true;
         })
         .map((lead: any) => {
+          console.log("🔄 Processando contrato:", lead);
           const leadDate = new Date(lead.updated_at);
           
           return {
@@ -137,7 +147,7 @@ export function useContractsData() {
           };
         });
 
-      console.log(`✅ Contratos processados para ${currentUser.name}:`, transformedContracts);
+      console.log(`✅ ${transformedContracts.length} contratos processados para ${currentUser.name}:`, transformedContracts);
       setContracts(transformedContracts);
       
     } catch (error: any) {

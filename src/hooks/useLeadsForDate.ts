@@ -50,6 +50,8 @@ export function useLeadsForDate() {
           name: profile?.name || user.email || 'Usuário'
         };
         
+        console.log("✅ Usuário atual carregado:", userData);
+        
         if (isMounted) {
           setCurrentUser(userData);
         }
@@ -70,7 +72,11 @@ export function useLeadsForDate() {
 
   const fetchLeadsForDate = useCallback(async (selectedDate: Date) => {
     if (!selectedDate || !currentUser || !tenantSchema) {
-      console.log("🚫 Dependências faltando para buscar leads");
+      console.log("🚫 Dependências faltando para buscar leads:", {
+        selectedDate: !!selectedDate,
+        currentUser: !!currentUser,
+        tenantSchema: !!tenantSchema
+      });
       setLeads([]);
       return;
     }
@@ -80,10 +86,11 @@ export function useLeadsForDate() {
       setError(null);
       
       console.log("📅 Buscando leads cadastrados em:", BrazilTimezone.formatDateForDisplay(selectedDate));
+      console.log("👤 Para usuário:", currentUser.name, "(ID:", currentUser.id, ")");
 
       const dateString = BrazilTimezone.formatDateForQuery(selectedDate);
+      console.log("📅 Data formatada para query:", dateString);
       
-      // CORREÇÃO: Query mais simples e direta
       const sql = `
         SELECT 
           id, name, phone, email, source, status, created_at, value, user_id
@@ -93,7 +100,7 @@ export function useLeadsForDate() {
         ORDER BY created_at DESC
       `;
 
-      console.log("🔍 Executando SQL:", sql);
+      console.log("🔍 Executando SQL para leads:", sql);
 
       const { data, error } = await supabase.rpc('exec_sql', {
         sql: sql
@@ -104,13 +111,15 @@ export function useLeadsForDate() {
         throw new Error(`Erro na consulta: ${error.message}`);
       }
 
-      console.log("🔍 Dados de leads recebidos:", data);
+      console.log("🔍 Dados brutos de leads recebidos:", data);
+      console.log("🔍 Tipo dos dados:", typeof data);
+      console.log("🔍 É array?", Array.isArray(data));
 
-      // CORREÇÃO: Processamento mais robusto dos dados
       let leadsData = [];
       
       if (Array.isArray(data)) {
         leadsData = data;
+        console.log("✅ Dados são um array com", data.length, "itens");
       } else {
         console.log("⚠️ Dados não são um array:", typeof data, data);
         leadsData = [];
@@ -125,6 +134,7 @@ export function useLeadsForDate() {
           return true;
         })
         .map((lead: any) => {
+          console.log("🔄 Processando lead:", lead);
           const leadDate = new Date(lead.created_at);
           
           return {
@@ -140,7 +150,7 @@ export function useLeadsForDate() {
           };
         });
 
-      console.log(`✅ Leads processados para ${currentUser.name}:`, transformedLeads);
+      console.log(`✅ ${transformedLeads.length} leads processados para ${currentUser.name}:`, transformedLeads);
       setLeads(transformedLeads);
       
     } catch (error: any) {

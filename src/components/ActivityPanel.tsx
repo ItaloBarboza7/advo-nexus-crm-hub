@@ -4,6 +4,7 @@ import { Calendar, User, FileText, X, UserPlus } from "lucide-react";
 import { BrazilTimezone } from "@/lib/timezone";
 import { ContractData } from "@/hooks/useContractsData";
 import { LeadForDate } from "@/hooks/useLeadsForDate";
+import { useEffect } from "react";
 
 interface ActivityPanelProps {
   selectedDate: Date;
@@ -25,6 +26,20 @@ export function ActivityPanel({
   onClose 
 }: ActivityPanelProps) {
   const totalValue = contracts.reduce((sum, contract) => sum + contract.value, 0);
+
+  // Debug logging
+  useEffect(() => {
+    console.log("🎯 ActivityPanel recebeu dados:", {
+      selectedDate: BrazilTimezone.formatDateForDisplay(selectedDate),
+      contractsCount: contracts.length,
+      leadsCount: leads.length,
+      isLoading,
+      error,
+      currentUser: currentUser?.name,
+      contracts,
+      leads
+    });
+  }, [selectedDate, contracts, leads, isLoading, error, currentUser]);
 
   return (
     <Card className="p-6 bg-background border-border mb-6">
@@ -68,6 +83,13 @@ export function ActivityPanel({
           <p className="text-xs text-muted-foreground/70 mt-1">
             Usuário: {currentUser.name}
           </p>
+          <div className="mt-4 p-3 bg-muted/50 rounded-lg text-xs">
+            <p><strong>Debug Info:</strong></p>
+            <p>Contratos: {contracts.length}</p>
+            <p>Leads: {leads.length}</p>
+            <p>Loading: {isLoading.toString()}</p>
+            <p>Error: {error || 'none'}</p>
+          </div>
         </div>
       ) : (
         <>
