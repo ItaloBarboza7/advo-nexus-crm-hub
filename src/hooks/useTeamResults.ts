@@ -29,7 +29,27 @@ export function useTeamResults() {
       setIsLoading(true);
       console.log("🔍 useTeamResults - Buscando dados da equipe...");
 
-      // Buscar todos os membros da equipe (admin + membros)
+      // Obter dados do usuário atual para determinar o tenant
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Buscar o perfil do usuário atual para determinar se é admin ou membro
+      const { data: currentProfile, error: currentProfileError } = await supabase
+        .from('user_profiles')
+        .select('parent_user_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (currentProfileError) {
+        console.error('❌ Erro ao buscar perfil atual:', currentProfileError);
+        throw currentProfileError;
+      }
+
+      // Determinar o tenant_id (admin principal)
+      const tenantId = currentProfile?.parent_user_id || user.id;
+      console.log(`📋 useTeamResults - Tenant ID determinado: ${tenantId}`);
+
+      // Buscar todos os membros da equipe (admin + membros do tenant)
       const { data: profiles, error: profilesError } = await supabase
         .from('user_profiles')
         .select(`
@@ -37,17 +57,22 @@ export function useTeamResults() {
           name,
           email,
           parent_user_id
-        `);
+        `)
+        .or(`user_id.eq.${tenantId},parent_user_id.eq.${tenantId}`);
 
       if (profilesError) {
         console.error('❌ Erro ao buscar perfis:', profilesError);
         throw profilesError;
       }
 
+      console.log(`👥 useTeamResults - ${profiles?.length || 0} perfis encontrados`);
+
       // Buscar roles dos usuários
+      const userIds = profiles?.map(p => p.user_id) || [];
       const { data: roles, error: rolesError } = await supabase
         .from('user_roles')
-        .select('user_id, role');
+        .select('user_id, role')
+        .in('user_id', userIds);
 
       if (rolesError) {
         console.error('❌ Erro ao buscar roles:', rolesError);
@@ -71,31 +96,12 @@ export function useTeamResults() {
       const teamMembersData: TeamMember[] = [];
       const roleMap = new Map(roles?.map(r => [r.user_id, r.role]) || []);
 
-      // Obter tenant ID atual
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const tenantId = user.id;
-
       // Processar cada perfil
       for (const profile of profiles || []) {
         const userId = profile.user_id;
         const role = roleMap.get(userId);
         const isAdmin = role === 'admin';
         
-        // Incluir admin principal e membros do tenant atual
-        let belongsToTenant = false;
-        
-        if (isAdmin && userId === tenantId) {
-          // Admin principal
-          belongsToTenant = true;
-        } else if (!isAdmin && profile.parent_user_id === tenantId) {
-          // Membro do admin
-          belongsToTenant = true;
-        }
-
-        if (!belongsToTenant) continue;
-
         // Calcular estatísticas reais para este usuário específico
         const userLeads = leadsData.filter(lead => lead.user_id === userId);
         const userProposals = userLeads.filter(lead => 
@@ -128,12 +134,14 @@ export function useTeamResults() {
           score,
           conversion_rate: Math.round(conversionRate * 10) / 10
         });
+
+        console.log(`👤 useTeamResults - Processado: ${profile.name} (${isAdmin ? 'Admin' : 'Membro'}) - ${userLeads.length} leads, ${userSales.length} vendas`);
       }
 
       // Ordenar por score (melhor performance primeiro)
       teamMembersData.sort((a, b) => b.score - a.score);
 
-      console.log(`✅ useTeamResults - ${teamMembersData.length} membros da equipe processados (incluindo admin)`);
+      console.log(`✅ useTeamResults - ${teamMembersData.length} membros da equipe processados`);
       setTeamMembers(teamMembersData);
 
     } catch (error: any) {
