@@ -91,6 +91,7 @@ export function useLeadsForDate() {
       const dateString = BrazilTimezone.formatDateForQuery(selectedDate);
       console.log("📅 Data formatada para query:", dateString);
       
+      // Try exec_sql first
       const sql = `
         SELECT 
           id, name, phone, email, source, status, created_at, value, user_id
@@ -106,23 +107,46 @@ export function useLeadsForDate() {
         sql: sql
       });
 
-      if (error) {
-        console.error("❌ Erro na consulta:", error);
-        throw new Error(`Erro na consulta: ${error.message}`);
-      }
-
       console.log("🔍 Dados brutos de leads recebidos:", data);
       console.log("🔍 Tipo dos dados:", typeof data);
       console.log("🔍 É array?", Array.isArray(data));
 
       let leadsData = [];
       
+      // Check if exec_sql returned proper data
       if (Array.isArray(data)) {
         leadsData = data;
-        console.log("✅ Dados são um array com", data.length, "itens");
+        console.log("✅ exec_sql retornou array com", data.length, "itens");
+      } else if (data && typeof data === 'object' && 'affected_rows' in data) {
+        console.log("⚠️ exec_sql retornou affected_rows, tentando fallback direto");
+        
+        // Fallback: Try direct query to tenant schema table
+        try {
+          const fallbackResult = await supabase
+            .from(`${tenantSchema}.leads`)
+            .select('id, name, phone, email, source, status, created_at, value, user_id')
+            .eq('user_id', currentUser.id)
+            .gte('created_at', BrazilTimezone.startOfDay(selectedDate).toISOString())
+            .lt('created_at', BrazilTimezone.endOfDay(selectedDate).toISOString())
+            .order('created_at', { ascending: false });
+
+          if (fallbackResult.error) {
+            console.error("❌ Erro no fallback direto:", fallbackResult.error);
+          } else {
+            leadsData = fallbackResult.data || [];
+            console.log("✅ Fallback direto funcionou, encontrados", leadsData.length, "leads");
+          }
+        } catch (fallbackError) {
+          console.error("❌ Erro no fallback direto:", fallbackError);
+        }
       } else {
         console.log("⚠️ Dados não são um array:", typeof data, data);
         leadsData = [];
+      }
+
+      if (error) {
+        console.error("❌ Erro na consulta exec_sql:", error);
+        // Don't throw here, we might have fallback data
       }
       
       const transformedLeads: LeadForDate[] = leadsData

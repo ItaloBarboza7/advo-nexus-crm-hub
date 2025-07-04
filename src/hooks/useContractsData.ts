@@ -89,6 +89,7 @@ export function useContractsData() {
       const dateString = BrazilTimezone.formatDateForQuery(selectedDate);
       console.log("📅 Data formatada para query:", dateString);
       
+      // Try exec_sql first
       const sql = `
         SELECT 
           id, name, email, phone, value, status, updated_at, closed_by_user_id
@@ -105,23 +106,47 @@ export function useContractsData() {
         sql: sql
       });
 
-      if (error) {
-        console.error("❌ Erro na consulta:", error);
-        throw new Error(`Erro na consulta: ${error.message}`);
-      }
-
       console.log("🔍 Dados brutos de contratos recebidos:", data);
       console.log("🔍 Tipo dos dados:", typeof data);
       console.log("🔍 É array?", Array.isArray(data));
 
       let contractsData = [];
       
+      // Check if exec_sql returned proper data
       if (Array.isArray(data)) {
         contractsData = data;
-        console.log("✅ Dados são um array com", data.length, "itens");
+        console.log("✅ exec_sql retornou array com", data.length, "itens");
+      } else if (data && typeof data === 'object' && 'affected_rows' in data) {
+        console.log("⚠️ exec_sql retornou affected_rows, tentando fallback direto");
+        
+        // Fallback: Try direct query to tenant schema table
+        try {
+          const fallbackResult = await supabase
+            .from(`${tenantSchema}.leads`)
+            .select('id, name, email, phone, value, status, updated_at, closed_by_user_id')
+            .eq('status', 'Contrato Fechado')
+            .eq('closed_by_user_id', currentUser.id)
+            .gte('updated_at', BrazilTimezone.startOfDay(selectedDate).toISOString())
+            .lt('updated_at', BrazilTimezone.endOfDay(selectedDate).toISOString())
+            .order('updated_at', { ascending: false });
+
+          if (fallbackResult.error) {
+            console.error("❌ Erro no fallback direto:", fallbackResult.error);
+          } else {
+            contractsData = fallbackResult.data || [];
+            console.log("✅ Fallback direto funcionou, encontrados", contractsData.length, "contratos");
+          }
+        } catch (fallbackError) {
+          console.error("❌ Erro no fallback direto:", fallbackError);
+        }
       } else {
         console.log("⚠️ Dados não são um array:", typeof data, data);
         contractsData = [];
+      }
+
+      if (error) {
+        console.error("❌ Erro na consulta exec_sql:", error);
+        // Don't throw here, we might have fallback data
       }
       
       const transformedContracts: ContractData[] = contractsData

@@ -27,7 +27,7 @@ export function ActivityPanel({
 }: ActivityPanelProps) {
   const totalValue = contracts.reduce((sum, contract) => sum + contract.value, 0);
 
-  // Debug logging
+  // Enhanced debug logging
   useEffect(() => {
     console.log("🎯 ActivityPanel recebeu dados:", {
       selectedDate: BrazilTimezone.formatDateForDisplay(selectedDate),
@@ -36,10 +36,11 @@ export function ActivityPanel({
       isLoading,
       error,
       currentUser: currentUser?.name,
-      contracts,
-      leads
+      contractsData: contracts,
+      leadsData: leads,
+      totalValue
     });
-  }, [selectedDate, contracts, leads, isLoading, error, currentUser]);
+  }, [selectedDate, contracts, leads, isLoading, error, currentUser, totalValue]);
 
   return (
     <Card className="p-6 bg-background border-border mb-6">
@@ -62,6 +63,12 @@ export function ActivityPanel({
         <div className="text-center py-8">
           <div className="text-destructive mb-2">❌ Erro</div>
           <p className="text-muted-foreground">{error}</p>
+          <div className="mt-4 p-3 bg-muted/50 rounded-lg text-xs">
+            <p><strong>Debug Info:</strong></p>
+            <p>Data: {BrazilTimezone.formatDateForDisplay(selectedDate)}</p>
+            <p>Usuário: {currentUser?.name || 'N/A'}</p>
+            <p>Loading: {isLoading.toString()}</p>
+          </div>
         </div>
       ) : isLoading ? (
         <div className="text-center py-8">
@@ -89,6 +96,7 @@ export function ActivityPanel({
             <p>Leads: {leads.length}</p>
             <p>Loading: {isLoading.toString()}</p>
             <p>Error: {error || 'none'}</p>
+            <p>User ID: {currentUser.id}</p>
           </div>
         </div>
       ) : (
