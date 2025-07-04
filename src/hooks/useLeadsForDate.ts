@@ -13,6 +13,7 @@ export interface LeadForDate {
   status: string;
   createdAt: Date;
   value?: number;
+  user_id?: string;
 }
 
 export function useLeadsForDate() {
@@ -82,10 +83,10 @@ export function useLeadsForDate() {
 
       const dateString = BrazilTimezone.formatDateForQuery(selectedDate);
       
-      // Corrigir a query para não usar user_id que não existe no esquema do tenant
+      // CORREÇÃO: Incluir user_id na query
       const sql = `
         SELECT 
-          id, name, phone, email, source, status, created_at, value
+          id, name, phone, email, source, status, created_at, value, user_id
         FROM ${tenantSchema}.leads
         WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = '${dateString}'
         ORDER BY created_at DESC
@@ -106,7 +107,18 @@ export function useLeadsForDate() {
       const leadsData = Array.isArray(data) ? data : [];
       
       const transformedLeads: LeadForDate[] = leadsData
-        .filter((item: any) => item && typeof item === 'object')
+        .filter((item: any) => {
+          if (!item || typeof item !== 'object') {
+            console.log("🚫 Item inválido ignorado:", item);
+            return false;
+          }
+          
+          // CORREÇÃO: Filtrar apenas leads criados pelo usuário atual
+          const isUserLead = item.user_id === currentUser.id;
+          console.log(`🔍 Lead ${item.name} - user_id: ${item.user_id}, current_user: ${currentUser.id}, match: ${isUserLead}`);
+          
+          return isUserLead;
+        })
         .map((lead: any) => {
           const leadDate = new Date(lead.created_at);
           
@@ -118,11 +130,12 @@ export function useLeadsForDate() {
             source: lead.source || undefined,
             status: lead.status || 'Novo',
             createdAt: leadDate,
-            value: Number(lead.value) || undefined
+            value: Number(lead.value) || undefined,
+            user_id: lead.user_id
           };
         });
 
-      console.log("✅ Leads processados:", transformedLeads);
+      console.log(`✅ Leads processados (filtrados pelo usuário ${currentUser.name}):`, transformedLeads);
       setLeads(transformedLeads);
       
     } catch (error: any) {
