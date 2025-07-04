@@ -144,13 +144,8 @@ export function useTeamResults() {
         const conversionRate = userProposals.length > 0 ? 
           (userSales.length / userProposals.length) * 100 : 0;
         
-        // Calcular score baseado em performance real
-        const score = Math.min(100, Math.round(
-          (userSales.length * 40) + 
-          (userProposals.length * 20) + 
-          (userLeads.length * 10) + 
-          (conversionRate * 0.3)
-        ));
+        // NOVO SISTEMA DE PONTUAÇÃO: Leads = 5pts, Propostas = 10pts, Vendas = 100pts
+        const score = (userLeads.length * 5) + (userProposals.length * 10) + (userSales.length * 100);
 
         teamMembersData.push({
           id: userId,
@@ -164,7 +159,7 @@ export function useTeamResults() {
           conversion_rate: Math.round(conversionRate * 10) / 10
         });
 
-        console.log(`👤 useTeamResults - Processado: ${profile.name} (${isAdmin ? 'Admin' : 'Membro'}) - ${userLeads.length} leads, ${userProposals.length} propostas (incluindo histórico), ${userSales.length} vendas`);
+        console.log(`👤 useTeamResults - Processado: ${profile.name} (${isAdmin ? 'Admin' : 'Membro'}) - ${userLeads.length} leads, ${userProposals.length} propostas (incluindo histórico), ${userSales.length} vendas - Score: ${score}`);
       }
 
       // Ordenar por score (melhor performance primeiro)

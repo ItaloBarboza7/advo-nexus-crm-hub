@@ -6,6 +6,30 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Users } from "lucide-react";
 import { useTeamResults } from "@/hooks/useTeamResults";
 
+const getPositionBadge = (index: number) => {
+  const position = index + 1;
+  if (position === 1) {
+    return (
+      <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full font-medium">
+        1º
+      </span>
+    );
+  } else if (position === 2) {
+    return (
+      <span className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded-full font-medium">
+        2º
+      </span>
+    );
+  } else if (position === 3) {
+    return (
+      <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full font-medium">
+        3º
+      </span>
+    );
+  }
+  return null;
+};
+
 export function TeamResultsPanel() {
   const { teamMembers, isLoading, refreshData } = useTeamResults();
 
@@ -86,6 +110,7 @@ export function TeamResultsPanel() {
                         Admin
                       </span>
                     )}
+                    {getPositionBadge(index)}
                   </h4>
                 </div>
                 
