@@ -110,15 +110,6 @@ export function Dashboard() {
                     selected={selectedDate}
                     onSelect={handleDateSelect}
                     className="rounded-md border"
-                    locale={{
-                      localize: {
-                        day: (n) => ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][n],
-                        month: (n) => [
-                          'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-                          'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-                        ][n]
-                      }
-                    }}
                   />
                 </Card>
               </div>

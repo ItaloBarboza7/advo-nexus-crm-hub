@@ -3,6 +3,13 @@ export class BrazilTimezone {
   private static readonly TIMEZONE = 'America/Sao_Paulo';
 
   /**
+   * Debug logging utility
+   */
+  static debugLog(message: string, data?: any): void {
+    console.log(`🕒 BrazilTimezone - ${message}`, data ? data : '');
+  }
+
+  /**
    * Converts a UTC date to Brazil timezone
    */
   static toLocal(date: Date | string): Date {
