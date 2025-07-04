@@ -83,14 +83,17 @@ export function useLeadsForDate() {
 
       const dateString = BrazilTimezone.formatDateForQuery(selectedDate);
       
-      // CORREÇÃO: Incluir user_id na query
+      // CORREÇÃO: Query mais simples e direta
       const sql = `
         SELECT 
           id, name, phone, email, source, status, created_at, value, user_id
         FROM ${tenantSchema}.leads
         WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = '${dateString}'
+          AND user_id = '${currentUser.id}'
         ORDER BY created_at DESC
       `;
+
+      console.log("🔍 Executando SQL:", sql);
 
       const { data, error } = await supabase.rpc('exec_sql', {
         sql: sql
@@ -103,8 +106,15 @@ export function useLeadsForDate() {
 
       console.log("🔍 Dados de leads recebidos:", data);
 
-      // Processar e transformar os dados
-      const leadsData = Array.isArray(data) ? data : [];
+      // CORREÇÃO: Processamento mais robusto dos dados
+      let leadsData = [];
+      
+      if (Array.isArray(data)) {
+        leadsData = data;
+      } else {
+        console.log("⚠️ Dados não são um array:", typeof data, data);
+        leadsData = [];
+      }
       
       const transformedLeads: LeadForDate[] = leadsData
         .filter((item: any) => {
@@ -112,12 +122,7 @@ export function useLeadsForDate() {
             console.log("🚫 Item inválido ignorado:", item);
             return false;
           }
-          
-          // CORREÇÃO: Filtrar apenas leads criados pelo usuário atual
-          const isUserLead = item.user_id === currentUser.id;
-          console.log(`🔍 Lead ${item.name} - user_id: ${item.user_id}, current_user: ${currentUser.id}, match: ${isUserLead}`);
-          
-          return isUserLead;
+          return true;
         })
         .map((lead: any) => {
           const leadDate = new Date(lead.created_at);
@@ -130,12 +135,12 @@ export function useLeadsForDate() {
             source: lead.source || undefined,
             status: lead.status || 'Novo',
             createdAt: leadDate,
-            value: Number(lead.value) || undefined,
+            value: lead.value ? Number(lead.value) : undefined,
             user_id: lead.user_id
           };
         });
 
-      console.log(`✅ Leads processados (filtrados pelo usuário ${currentUser.name}):`, transformedLeads);
+      console.log(`✅ Leads processados para ${currentUser.name}:`, transformedLeads);
       setLeads(transformedLeads);
       
     } catch (error: any) {

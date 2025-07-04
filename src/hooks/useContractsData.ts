@@ -77,21 +77,22 @@ export function useContractsData() {
       setIsLoading(true);
       setError(null);
       
-      console.log("📅 Buscando contratos para:", BrazilTimezone.formatDateForDisplay(selectedDate));
+      console.log("📅 Buscando contratos fechados em:", BrazilTimezone.formatDateForDisplay(selectedDate));
 
       const dateString = BrazilTimezone.formatDateForQuery(selectedDate);
       
-      // CORREÇÃO: Buscar contratos diretamente do esquema do tenant usando closed_by_user_id
+      // CORREÇÃO: Query mais simples focando em contratos fechados pelo usuário na data específica
       const sql = `
         SELECT 
-          id, name, email, phone, value, status, 
-          updated_at, closed_by_user_id
+          id, name, email, phone, value, status, updated_at, closed_by_user_id
         FROM ${tenantSchema}.leads
         WHERE status = 'Contrato Fechado'
           AND closed_by_user_id = '${currentUser.id}'
           AND DATE(updated_at AT TIME ZONE 'America/Sao_Paulo') = '${dateString}'
         ORDER BY updated_at DESC
       `;
+
+      console.log("🔍 Executando SQL para contratos:", sql);
 
       const { data, error } = await supabase.rpc('exec_sql', {
         sql: sql
@@ -104,8 +105,15 @@ export function useContractsData() {
 
       console.log("🔍 Dados de contratos recebidos:", data);
 
-      // Processar e transformar os dados
-      const contractsData = Array.isArray(data) ? data : [];
+      // CORREÇÃO: Processamento mais robusto dos dados
+      let contractsData = [];
+      
+      if (Array.isArray(data)) {
+        contractsData = data;
+      } else {
+        console.log("⚠️ Dados não são um array:", typeof data, data);
+        contractsData = [];
+      }
       
       const transformedContracts: ContractData[] = contractsData
         .filter((item: any) => {
@@ -113,11 +121,7 @@ export function useContractsData() {
             console.log("🚫 Contrato inválido ignorado:", item);
             return false;
           }
-          
-          const isUserContract = item.closed_by_user_id === currentUser.id;
-          console.log(`🔍 Contrato ${item.name} - closed_by: ${item.closed_by_user_id}, current_user: ${currentUser.id}, match: ${isUserContract}`);
-          
-          return isUserContract;
+          return true;
         })
         .map((lead: any) => {
           const leadDate = new Date(lead.updated_at);
@@ -126,14 +130,14 @@ export function useContractsData() {
             id: lead.id || 'unknown',
             clientName: lead.name || 'Nome não informado',
             closedBy: currentUser.name,
-            value: Number(lead.value) || 0,
+            value: lead.value ? Number(lead.value) : 0,
             closedAt: leadDate,
             email: lead.email || undefined,
             phone: lead.phone || undefined
           };
         });
 
-      console.log(`✅ Contratos processados (filtrados pelo usuário ${currentUser.name}):`, transformedContracts);
+      console.log(`✅ Contratos processados para ${currentUser.name}:`, transformedContracts);
       setContracts(transformedContracts);
       
     } catch (error: any) {
