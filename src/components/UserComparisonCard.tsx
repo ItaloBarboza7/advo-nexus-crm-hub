@@ -83,19 +83,18 @@ export function UserComparisonCard({
   const currentMonthData = generateCurrentMonthData();
   const previousMonthData = generatePreviousMonthData();
   
-  // Calcular valores do eixo Y com espaçamento maior começando em 180
+  // Calcular valores do eixo Y com espaçamento correto
   const maxDataValue = Math.max(...currentMonthData, ...previousMonthData, 100);
   
-  // Criar escala começando com 180 e depois incrementos maiores
+  // Criar escala com espaçamento correto - removendo duplicatas
   const calculateYAxisValues = (maxValue: number) => {
-    // Se o valor máximo for menor que 180, usar 180 como base mínima
-    const baseMax = Math.max(maxValue * 1.2, 360); // Garantir pelo menos 360 para ter espaço
+    const baseMax = Math.max(maxValue * 1.2, 540); // Garantir espaço suficiente
     
     return [
       Math.round(baseMax),
       Math.round(baseMax * 0.75),
       Math.round(baseMax * 0.5),
-      180, // Começar com 180 após o 0
+      Math.round(baseMax * 0.25),
       0
     ];
   };
@@ -155,7 +154,7 @@ export function UserComparisonCard({
 
         {/* Chart Area */}
         <div className="relative h-40 bg-gray-50 rounded border border-gray-100">
-          {/* Y-axis labels com espaçamento maior começando em 180 */}
+          {/* Y-axis labels com espaçamento correto */}
           <div className="absolute left-0 top-0 h-full flex flex-col justify-between text-xs text-gray-500 pr-2 py-2">
             {yAxisValues.map((value, index) => (
               <span key={index}>{value}</span>
