@@ -32,29 +32,13 @@ export function UserComparisonCard({
     Math.round((pointsChange / previousMonth.points) * 100) : 
     (currentMonth.points > 0 ? 100 : 0);
 
-  // Gerar dados do gráfico baseados nos pontos REAIS
-  const generateCurrentMonthData = () => {
-    // Simular uma progressão ao longo de 25 dias baseada nos pontos atuais
-    const totalPoints = currentMonth.points;
-    const data = [];
-    
-    for (let day = 1; day <= 25; day++) {
-      // Progressão mais realística - crescimento gradual com alguns saltos
-      const progress = Math.min(day / 25, 1);
-      const basePoints = Math.round(totalPoints * progress);
-      
-      // Adicionar variação para tornar mais realístico
-      const variation = Math.sin(day * 0.5) * (totalPoints * 0.1);
-      const dayPoints = Math.max(0, Math.round(basePoints + variation));
-      
-      data.push(Math.min(dayPoints, totalPoints));
-    }
-    
-    return data;
-  };
+  // Obter o dia atual do mês para determinar até onde a linha verde deve ir
+  const today = new Date();
+  const currentDay = today.getDate();
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
 
+  // Gerar dados do gráfico baseados nos pontos REAIS - MÊS ANTERIOR (linha azul completa)
   const generatePreviousMonthData = () => {
-    // Simular uma progressão ao longo de 25 dias baseada nos pontos do mês anterior
     const totalPoints = previousMonth.points;
     const data = [];
     
@@ -73,9 +57,32 @@ export function UserComparisonCard({
     return data;
   };
 
+  // Gerar dados do gráfico baseados nos pontos REAIS - MÊS ATUAL (linha verde até o dia atual)
+  const generateCurrentMonthData = () => {
+    const totalPoints = currentMonth.points;
+    const data = [];
+    
+    // Calcular quantos pontos de dados devemos ter baseado no dia atual
+    const maxDaysToShow = Math.min(currentDay, 25);
+    
+    for (let day = 1; day <= maxDaysToShow; day++) {
+      // Progressão mais realística baseada no progresso atual do mês
+      const progress = Math.min(day / currentDay, 1);
+      const basePoints = Math.round(totalPoints * progress);
+      
+      // Adicionar variação para tornar mais realístico
+      const variation = Math.sin(day * 0.5) * (totalPoints * 0.1);
+      const dayPoints = Math.max(0, Math.round(basePoints + variation));
+      
+      data.push(Math.min(dayPoints, totalPoints));
+    }
+    
+    return data;
+  };
+
   const currentMonthData = generateCurrentMonthData();
   const previousMonthData = generatePreviousMonthData();
-  const maxValue = Math.max(...currentMonthData, ...previousMonthData, 100); // Mínimo de 100 para escala
+  const maxValue = Math.max(...currentMonthData, ...previousMonthData, 100);
 
   return (
     <Card className="p-6 bg-white border border-gray-200">
@@ -142,7 +149,7 @@ export function UserComparisonCard({
           <div className="ml-12 h-full relative p-2">
             {/* SVG for both lines */}
             <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-              {/* Previous month line (blue) */}
+              {/* Previous month line (blue) - linha completa */}
               <polyline
                 points={previousMonthData.map((value, index) => 
                   `${(index / (previousMonthData.length - 1)) * 100},${100 - (value / maxValue) * 100}`
@@ -153,16 +160,18 @@ export function UserComparisonCard({
                 vectorEffect="non-scaling-stroke"
               />
               
-              {/* Current month line (green) */}
-              <polyline
-                points={currentMonthData.map((value, index) => 
-                  `${(index / (currentMonthData.length - 1)) * 100},${100 - (value / maxValue) * 100}`
-                ).join(' ')}
-                fill="none"
-                stroke="#22c55e"
-                strokeWidth="0.5"
-                vectorEffect="non-scaling-stroke"
-              />
+              {/* Current month line (green) - apenas até o dia atual */}
+              {currentMonthData.length > 1 && (
+                <polyline
+                  points={currentMonthData.map((value, index) => 
+                    `${(index / 24) * 100},${100 - (value / maxValue) * 100}`
+                  ).join(' ')}
+                  fill="none"
+                  stroke="#22c55e"
+                  strokeWidth="0.5"
+                  vectorEffect="non-scaling-stroke"
+                />
+              )}
             </svg>
 
             {/* X-axis labels */}
@@ -178,7 +187,7 @@ export function UserComparisonCard({
         
         {/* Chart Values Summary */}
         <div className="mt-2 text-xs text-gray-600 flex justify-between">
-          <span>Mês atual: {currentMonth.points} pts ({currentMonth.completed} contratos)</span>
+          <span>Mês atual: {currentMonth.points} pts ({currentMonth.completed} contratos) - Dia {currentDay}</span>
           <span>Mês anterior: {previousMonth.points} pts ({previousMonth.completed} contratos)</span>
         </div>
       </div>
