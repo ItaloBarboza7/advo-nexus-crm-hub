@@ -25,7 +25,7 @@ export function GlobalSearch({ onLeadSelect }: GlobalSearchProps) {
       console.log("🔍 GlobalSearch - Buscando leads do tenant...");
       
       const { data, error } = await supabase.rpc('exec_sql' as any, {
-        sql: `SELECT id, name, email, phone, status FROM ${tenantSchema}.leads ORDER BY created_at DESC LIMIT 100`
+        sql: `SELECT id, name, email, phone, status, user_id FROM ${tenantSchema}.leads ORDER BY created_at DESC LIMIT 100`
       });
 
       if (error) {
@@ -84,6 +84,7 @@ export function GlobalSearch({ onLeadSelect }: GlobalSearchProps) {
       action_type: null,
       loss_reason: null,
       closed_by_user_id: null,
+      user_id: lead.user_id || '',
       created_at: '',
       updated_at: ''
     };
