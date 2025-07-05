@@ -70,7 +70,8 @@ export function WeeklyFollowUpTask({ userName }: WeeklyFollowUpTaskProps) {
           return;
         }
 
-        const leadsData = Array.isArray(data) ? data : [];
+        // Properly cast the Json data to Lead[]
+        const leadsData: Lead[] = Array.isArray(data) ? (data as Lead[]) : [];
         console.log(`✅ WeeklyFollowUpTask - ${leadsData.length} leads encontrados da última semana`);
         setLeads(leadsData);
       } catch (error) {
