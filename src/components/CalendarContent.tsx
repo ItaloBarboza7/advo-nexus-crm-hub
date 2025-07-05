@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -6,7 +5,7 @@ import { Flag } from "lucide-react";
 import { UserComparisonCard } from "@/components/UserComparisonCard";
 import { ActivityPanel } from "@/components/ActivityPanel";
 import { IntegratedCalendar } from "@/components/IntegratedCalendar";
-import { RecoverableLeadsTask } from "@/components/RecoverableLeadsTask";
+import { WeeklyFollowUpTask } from "@/components/WeeklyFollowUpTask";
 import { useLeadsData } from "@/hooks/useLeadsData";
 import { useContractsData } from "@/hooks/useContractsData";
 import { useLeadsForDate } from "@/hooks/useLeadsForDate";
@@ -276,8 +275,8 @@ export function CalendarContent() {
         />
       )}
 
-      {/* Recoverable Leads Task */}
-      <RecoverableLeadsTask userName={currentUser.name} />
+      {/* Weekly Follow Up Task */}
+      <WeeklyFollowUpTask userName={currentUser.name} />
 
       {/* Monthly Goal Summary - Bottom */}
       <Card className="p-6">

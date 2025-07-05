@@ -82,7 +82,11 @@ export function UserComparisonCard({
 
   const currentMonthData = generateCurrentMonthData();
   const previousMonthData = generatePreviousMonthData();
-  const maxValue = Math.max(...currentMonthData, ...previousMonthData, 100);
+  
+  // Ajustar o valor máximo para dar mais espaçamento vertical
+  // Multiplicar por 1.5 para criar mais espaço no topo do gráfico
+  const maxDataValue = Math.max(...currentMonthData, ...previousMonthData, 100);
+  const maxValue = Math.ceil(maxDataValue * 1.5);
 
   return (
     <Card className="p-6 bg-white border border-gray-200">
@@ -136,7 +140,7 @@ export function UserComparisonCard({
 
         {/* Chart Area */}
         <div className="relative h-40 bg-gray-50 rounded border border-gray-100">
-          {/* Y-axis labels */}
+          {/* Y-axis labels com melhor espaçamento */}
           <div className="absolute left-0 top-0 h-full flex flex-col justify-between text-xs text-gray-500 pr-2 py-2">
             <span>{Math.round(maxValue)}</span>
             <span>{Math.round(maxValue * 0.75)}</span>
