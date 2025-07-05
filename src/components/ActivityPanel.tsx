@@ -63,12 +63,6 @@ export function ActivityPanel({
         <div className="text-center py-8">
           <div className="text-destructive mb-2">❌ Erro</div>
           <p className="text-muted-foreground">{error}</p>
-          <div className="mt-4 p-3 bg-muted/50 rounded-lg text-xs">
-            <p><strong>Debug Info:</strong></p>
-            <p>Data: {BrazilTimezone.formatDateForDisplay(selectedDate)}</p>
-            <p>Usuário: {currentUser?.name || 'N/A'}</p>
-            <p>Loading: {isLoading.toString()}</p>
-          </div>
         </div>
       ) : isLoading ? (
         <div className="text-center py-8">
@@ -84,20 +78,6 @@ export function ActivityPanel({
         <div className="text-center py-8 text-muted-foreground">
           <FileText className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
           <p>Nenhuma atividade encontrada nesta data</p>
-          <p className="text-sm text-muted-foreground/70 mt-2">
-            Data: {BrazilTimezone.formatDateForDisplay(selectedDate)}
-          </p>
-          <p className="text-xs text-muted-foreground/70 mt-1">
-            Usuário: {currentUser.name}
-          </p>
-          <div className="mt-4 p-3 bg-muted/50 rounded-lg text-xs">
-            <p><strong>Debug Info:</strong></p>
-            <p>Contratos: {contracts.length}</p>
-            <p>Leads: {leads.length}</p>
-            <p>Loading: {isLoading.toString()}</p>
-            <p>Error: {error || 'none'}</p>
-            <p>User ID: {currentUser.id}</p>
-          </div>
         </div>
       ) : (
         <>

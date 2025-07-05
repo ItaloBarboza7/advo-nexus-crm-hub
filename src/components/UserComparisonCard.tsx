@@ -83,10 +83,24 @@ export function UserComparisonCard({
   const currentMonthData = generateCurrentMonthData();
   const previousMonthData = generatePreviousMonthData();
   
-  // Ajustar o valor máximo para dar mais espaçamento vertical
-  // Multiplicar por 1.5 para criar mais espaço no topo do gráfico
+  // Calcular valores do eixo Y com maior espaçamento
   const maxDataValue = Math.max(...currentMonthData, ...previousMonthData, 100);
-  const maxValue = Math.ceil(maxDataValue * 1.5);
+  
+  // Criar escala com números mais distantes (incrementos de ~130-150)
+  const calculateYAxisValues = (maxValue: number) => {
+    // Definir 5 pontos no eixo Y com espaçamento adequado
+    const increment = Math.ceil(maxValue / 4 / 50) * 50; // Arredondar para múltiplos de 50
+    return [
+      maxValue,
+      Math.round(maxValue * 0.75 / increment) * increment,
+      Math.round(maxValue * 0.5 / increment) * increment,
+      Math.round(maxValue * 0.25 / increment) * increment,
+      0
+    ];
+  };
+
+  const yAxisValues = calculateYAxisValues(maxDataValue * 1.2); // Multiplicar por 1.2 para dar mais espaço no topo
+  const maxValue = yAxisValues[0];
 
   return (
     <Card className="p-6 bg-white border border-gray-200">
@@ -140,13 +154,11 @@ export function UserComparisonCard({
 
         {/* Chart Area */}
         <div className="relative h-40 bg-gray-50 rounded border border-gray-100">
-          {/* Y-axis labels com melhor espaçamento */}
+          {/* Y-axis labels com espaçamento maior */}
           <div className="absolute left-0 top-0 h-full flex flex-col justify-between text-xs text-gray-500 pr-2 py-2">
-            <span>{Math.round(maxValue)}</span>
-            <span>{Math.round(maxValue * 0.75)}</span>
-            <span>{Math.round(maxValue * 0.5)}</span>
-            <span>{Math.round(maxValue * 0.25)}</span>
-            <span>0</span>
+            {yAxisValues.map((value, index) => (
+              <span key={index}>{value}</span>
+            ))}
           </div>
 
           {/* Chart content */}
