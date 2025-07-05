@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -11,11 +12,14 @@ import { useContractsData } from "@/hooks/useContractsData";
 import { useLeadsForDate } from "@/hooks/useLeadsForDate";
 import { supabase } from "@/integrations/supabase/client";
 import { BrazilTimezone } from "@/lib/timezone";
+import { useTenantSchema } from "@/hooks/useTenantSchema";
 
 export function CalendarContent() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [statusHistory, setStatusHistory] = useState<any[]>([]);
   const { leads, isLoading } = useLeadsData();
+  const { tenantSchema } = useTenantSchema();
   const { 
     contracts, 
     isLoading: contractsLoading, 
@@ -61,6 +65,32 @@ export function CalendarContent() {
     getCurrentUser();
   }, []);
 
+  // Buscar histórico de status quando o tenant schema estiver disponível
+  useEffect(() => {
+    const fetchStatusHistory = async () => {
+      if (!tenantSchema) return;
+      
+      try {
+        const { data, error } = await supabase.rpc('exec_sql', {
+          sql: `SELECT * FROM ${tenantSchema}.lead_status_history ORDER BY changed_at DESC`
+        });
+
+        if (error) {
+          console.error("❌ Erro ao buscar histórico de status:", error);
+          return;
+        }
+
+        const historyData = Array.isArray(data) ? data : [];
+        console.log(`📈 CalendarContent - ${historyData.length} registros de histórico encontrados`);
+        setStatusHistory(historyData);
+      } catch (error) {
+        console.error("❌ Erro inesperado ao buscar histórico:", error);
+      }
+    };
+
+    fetchStatusHistory();
+  }, [tenantSchema]);
+
   // Buscar contratos e leads quando uma data é selecionada
   useEffect(() => {
     if (selectedDate && contractsUser && fetchContractsForDate) {
@@ -71,7 +101,14 @@ export function CalendarContent() {
     }
   }, [selectedDate, contractsUser, leadsCurrentUser]);
 
-  // Calcular estatísticas reais baseadas nos leads fechados pelo usuário atual
+  // Função para verificar se um lead passou por determinados status (MESMA LÓGICA DO TEAM RESULTS)
+  const hasLeadPassedThroughStatus = (leadId: string, statuses: string[]): boolean => {
+    return statusHistory.some(history => 
+      history.lead_id === leadId && statuses.includes(history.new_status)
+    );
+  };
+
+  // Calcular estatísticas reais usando a MESMA LÓGICA do useTeamResults
   const getContractsStats = () => {
     if (!leads || leads.length === 0 || !currentUser) {
       return {
@@ -81,48 +118,78 @@ export function CalendarContent() {
       };
     }
 
-    // Usar data atual no timezone brasileiro
     const now = BrazilTimezone.now();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
     const previousMonth = currentMonth === 0 ? 11 : currentMonth - 1;
     const previousYear = currentMonth === 0 ? currentYear - 1 : currentYear;
 
-    // Contratos fechados pelo usuário atual no mês atual
-    const currentMonthContracts = leads.filter(lead => {
-      if (lead.status !== "Contrato Fechado") return false;
-      if (lead.closed_by_user_id !== currentUser.id) return false;
-      
-      // Converter a data UTC para timezone brasileiro
-      const leadDate = new Date(lead.updated_at || lead.created_at);
+    // Filtrar leads do usuário atual
+    const userLeads = leads.filter(lead => lead.user_id === currentUser.id);
+
+    // Calcular dados do mês atual
+    const currentMonthLeads = userLeads.filter(lead => {
+      const leadDate = new Date(lead.created_at);
       const leadDateLocal = BrazilTimezone.toLocal(leadDate);
-      
       return leadDateLocal.getMonth() === currentMonth && leadDateLocal.getFullYear() === currentYear;
-    }).length;
+    });
 
-    // Contratos fechados pelo usuário atual no mês anterior
-    const previousMonthContracts = leads.filter(lead => {
-      if (lead.status !== "Contrato Fechado") return false;
-      if (lead.closed_by_user_id !== currentUser.id) return false;
-      
-      // Converter a data UTC para timezone brasileiro
-      const leadDate = new Date(lead.updated_at || lead.created_at);
+    const currentMonthProposals = currentMonthLeads.filter(lead => {
+      if (['Proposta', 'Reunião'].includes(lead.status)) {
+        return true;
+      }
+      return hasLeadPassedThroughStatus(lead.id, ['Proposta', 'Reunião']);
+    });
+
+    const currentMonthSales = currentMonthLeads.filter(lead => 
+      lead.status === 'Contrato Fechado'
+    );
+
+    // Calcular dados do mês anterior
+    const previousMonthLeads = userLeads.filter(lead => {
+      const leadDate = new Date(lead.created_at);
       const leadDateLocal = BrazilTimezone.toLocal(leadDate);
-      
       return leadDateLocal.getMonth() === previousMonth && leadDateLocal.getFullYear() === previousYear;
-    }).length;
+    });
 
-    // Calcular pontos (assumindo 75 pontos por contrato fechado)
-    const pointsPerContract = 75;
+    const previousMonthProposals = previousMonthLeads.filter(lead => {
+      if (['Proposta', 'Reunião'].includes(lead.status)) {
+        return true;
+      }
+      return hasLeadPassedThroughStatus(lead.id, ['Proposta', 'Reunião']);
+    });
+
+    const previousMonthSales = previousMonthLeads.filter(lead => 
+      lead.status === 'Contrato Fechado'
+    );
+
+    // USAR A MESMA LÓGICA DE PONTUAÇÃO: Leads = 5pts, Propostas = 10pts, Vendas = 100pts
+    const currentMonthPoints = (currentMonthLeads.length * 5) + (currentMonthProposals.length * 10) + (currentMonthSales.length * 100);
+    const previousMonthPoints = (previousMonthLeads.length * 5) + (previousMonthProposals.length * 10) + (previousMonthSales.length * 100);
+
+    console.log(`📊 CalendarContent - Estatísticas calculadas:`, {
+      currentMonth: {
+        leads: currentMonthLeads.length,
+        proposals: currentMonthProposals.length,
+        sales: currentMonthSales.length,
+        points: currentMonthPoints
+      },
+      previousMonth: {
+        leads: previousMonthLeads.length,
+        proposals: previousMonthProposals.length,
+        sales: previousMonthSales.length,
+        points: previousMonthPoints
+      }
+    });
     
     return {
       currentMonth: {
-        completed: currentMonthContracts,
-        points: currentMonthContracts * pointsPerContract
+        completed: currentMonthSales.length,
+        points: currentMonthPoints
       },
       previousMonth: {
-        completed: previousMonthContracts,
-        points: previousMonthContracts * pointsPerContract
+        completed: previousMonthSales.length,
+        points: previousMonthPoints
       },
       goal: 1000
     };

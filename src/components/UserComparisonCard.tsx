@@ -24,43 +24,58 @@ export function UserComparisonCard({
   const completedChange = currentMonth.completed - previousMonth.completed;
   const pointsChange = currentMonth.points - previousMonth.points;
   
-  const completedPercentage = completedChange >= 0 ? 
-    Math.round((Math.abs(completedChange) / previousMonth.completed) * 100) : 
-    -Math.round((Math.abs(completedChange) / previousMonth.completed) * 100);
+  const completedPercentage = previousMonth.completed > 0 ? 
+    Math.round((completedChange / previousMonth.completed) * 100) : 
+    (currentMonth.completed > 0 ? 100 : 0);
     
-  const pointsPercentage = pointsChange >= 0 ? 
-    Math.round((Math.abs(pointsChange) / previousMonth.points) * 100) : 
-    -Math.round((Math.abs(pointsChange) / previousMonth.points) * 100);
+  const pointsPercentage = previousMonth.points > 0 ? 
+    Math.round((pointsChange / previousMonth.points) * 100) : 
+    (currentMonth.points > 0 ? 100 : 0);
 
+  // Gerar dados do gráfico baseados nos pontos REAIS
   const generateCurrentMonthData = () => {
-    // Dados do mês atual baseados nos 12 contratos fechados
-    // Progressão mais realística ao longo de 25 dias
-    const contractsPerDay = [
-      0, 0, 1, 1, 2, 2, 3, 4, 4, 5, 
-      6, 6, 7, 8, 8, 9, 9, 10, 10, 11, 
-      11, 12, 12, 12, 12
-    ];
+    // Simular uma progressão ao longo de 25 dias baseada nos pontos atuais
+    const totalPoints = currentMonth.points;
+    const data = [];
     
-    // Converter contratos em pontos (assumindo ~77 pontos por contrato em média)
-    return contractsPerDay.map(contracts => Math.round(contracts * 77));
+    for (let day = 1; day <= 25; day++) {
+      // Progressão mais realística - crescimento gradual com alguns saltos
+      const progress = Math.min(day / 25, 1);
+      const basePoints = Math.round(totalPoints * progress);
+      
+      // Adicionar variação para tornar mais realístico
+      const variation = Math.sin(day * 0.5) * (totalPoints * 0.1);
+      const dayPoints = Math.max(0, Math.round(basePoints + variation));
+      
+      data.push(Math.min(dayPoints, totalPoints));
+    }
+    
+    return data;
   };
 
   const generatePreviousMonthData = () => {
-    // Dados do mês passado baseados nos 8 contratos fechados
-    // Progressão mais linear
-    const contractsPerDay = [
-      0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 
-      5, 5, 5, 6, 6, 6, 7, 7, 7, 8, 
-      8, 8, 8, 8, 8
-    ];
+    // Simular uma progressão ao longo de 25 dias baseada nos pontos do mês anterior
+    const totalPoints = previousMonth.points;
+    const data = [];
     
-    // Converter contratos em pontos (assumindo ~97.5 pontos por contrato)
-    return contractsPerDay.map(contracts => Math.round(contracts * 97.5));
+    for (let day = 1; day <= 25; day++) {
+      // Progressão mais linear para o mês anterior
+      const progress = Math.min(day / 25, 1);
+      const basePoints = Math.round(totalPoints * progress);
+      
+      // Menos variação que o mês atual
+      const variation = Math.sin(day * 0.3) * (totalPoints * 0.05);
+      const dayPoints = Math.max(0, Math.round(basePoints + variation));
+      
+      data.push(Math.min(dayPoints, totalPoints));
+    }
+    
+    return data;
   };
 
   const currentMonthData = generateCurrentMonthData();
   const previousMonthData = generatePreviousMonthData();
-  const maxValue = Math.max(...currentMonthData, ...previousMonthData);
+  const maxValue = Math.max(...currentMonthData, ...previousMonthData, 100); // Mínimo de 100 para escala
 
   return (
     <Card className="p-6 bg-white border border-gray-200">
@@ -104,11 +119,11 @@ export function UserComparisonCard({
         <div className="flex items-center gap-6 mb-4 text-xs">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-green-500"></div>
-            <span className="text-gray-700">MÊS ATUAL (12 contratos)</span>
+            <span className="text-gray-700">MÊS ATUAL ({currentMonth.completed} contratos, {currentMonth.points} pts)</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-            <span className="text-gray-700">MÊS PASSADO (8 contratos)</span>
+            <span className="text-gray-700">MÊS PASSADO ({previousMonth.completed} contratos, {previousMonth.points} pts)</span>
           </div>
         </div>
 
