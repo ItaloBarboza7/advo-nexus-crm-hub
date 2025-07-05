@@ -83,23 +83,24 @@ export function UserComparisonCard({
   const currentMonthData = generateCurrentMonthData();
   const previousMonthData = generatePreviousMonthData();
   
-  // Calcular valores do eixo Y com maior espaçamento
+  // Calcular valores do eixo Y com espaçamento maior começando em 180
   const maxDataValue = Math.max(...currentMonthData, ...previousMonthData, 100);
   
-  // Criar escala com números mais distantes (incrementos de ~130-150)
+  // Criar escala começando com 180 e depois incrementos maiores
   const calculateYAxisValues = (maxValue: number) => {
-    // Definir 5 pontos no eixo Y com espaçamento adequado
-    const increment = Math.ceil(maxValue / 4 / 50) * 50; // Arredondar para múltiplos de 50
+    // Se o valor máximo for menor que 180, usar 180 como base mínima
+    const baseMax = Math.max(maxValue * 1.2, 360); // Garantir pelo menos 360 para ter espaço
+    
     return [
-      maxValue,
-      Math.round(maxValue * 0.75 / increment) * increment,
-      Math.round(maxValue * 0.5 / increment) * increment,
-      Math.round(maxValue * 0.25 / increment) * increment,
+      Math.round(baseMax),
+      Math.round(baseMax * 0.75),
+      Math.round(baseMax * 0.5),
+      180, // Começar com 180 após o 0
       0
     ];
   };
 
-  const yAxisValues = calculateYAxisValues(maxDataValue * 1.2); // Multiplicar por 1.2 para dar mais espaço no topo
+  const yAxisValues = calculateYAxisValues(maxDataValue);
   const maxValue = yAxisValues[0];
 
   return (
@@ -154,7 +155,7 @@ export function UserComparisonCard({
 
         {/* Chart Area */}
         <div className="relative h-40 bg-gray-50 rounded border border-gray-100">
-          {/* Y-axis labels com espaçamento maior */}
+          {/* Y-axis labels com espaçamento maior começando em 180 */}
           <div className="absolute left-0 top-0 h-full flex flex-col justify-between text-xs text-gray-500 pr-2 py-2">
             {yAxisValues.map((value, index) => (
               <span key={index}>{value}</span>
