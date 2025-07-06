@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
+
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserPlus, UserX, DollarSign, TrendingUp, BarChart3 } from "lucide-react";
 import { DateRange } from "react-day-picker";
@@ -20,10 +21,10 @@ export function DashboardContent() {
   const [conversionView, setConversionView] = useState<'weekly' | 'monthly'>('weekly');
   const [leadsView, setLeadsView] = useState<'weekly' | 'monthly'>('weekly');
   const [actionView, setActionView] = useState<'type' | 'group'>('type');
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const { components } = useDashboardSettings();
   
-  // CORREÇÃO: Usar os hooks com filtragem de data
   const { 
     leads, 
     isLoading: leadsLoading, 
@@ -49,79 +50,64 @@ export function DashboardContent() {
     return component ? component.visible : true;
   };
 
-  // CORREÇÃO: Inicializar com dados do mês atual quando o componente for montado
+  // CORREÇÃO: Função memoizada para buscar dados do mês atual
+  const fetchCurrentMonthData = useCallback(() => {
+    const now = BrazilTimezone.now();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    
+    const currentMonthRange = {
+      from: startOfMonth,
+      to: endOfMonth
+    };
+    
+    console.log("📅 DashboardContent - Carregando dados do mês atual:", {
+      from: BrazilTimezone.formatDateForDisplay(startOfMonth),
+      to: BrazilTimezone.formatDateForDisplay(endOfMonth)
+    });
+    
+    setAppliedDateRange(currentMonthRange);
+    fetchLeadsForDateRange(currentMonthRange);
+    fetchContractsForDate(startOfMonth);
+  }, [fetchLeadsForDateRange, fetchContractsForDate]);
+
+  // CORREÇÃO: Inicialização única sem dependência circular
   useEffect(() => {
-    const initializeWithCurrentMonth = () => {
-      const now = BrazilTimezone.now();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      
-      const currentMonthRange = {
-        from: startOfMonth,
-        to: endOfMonth
-      };
-      
-      console.log("📅 DashboardContent - Inicializando com mês atual:", {
-        from: BrazilTimezone.formatDateForDisplay(startOfMonth),
-        to: BrazilTimezone.formatDateForDisplay(endOfMonth)
-      });
-      
-      setAppliedDateRange(currentMonthRange);
-      fetchLeadsForDateRange(currentMonthRange);
-      fetchContractsForDate(startOfMonth);
+    if (!isInitialized && leadsUser && contractsUser) {
+      console.log("🚀 DashboardContent - Inicializando dashboard pela primeira vez");
+      fetchCurrentMonthData();
+      setIsInitialized(true);
+    }
+  }, [isInitialized, leadsUser, contractsUser, fetchCurrentMonthData]);
+
+  // CORREÇÃO: Função para aplicar filtro de data sem recursão
+  const handleDateRangeApply = useCallback((range: DateRange | undefined) => {
+    console.log("📅 DashboardContent - Aplicando filtro de período:", range);
+    
+    if (!range?.from) {
+      // Se não há filtro, buscar dados do mês atual
+      console.log("📅 DashboardContent - Sem filtro aplicado, carregando mês atual");
+      fetchCurrentMonthData();
+      return;
+    }
+
+    // Aplicar o novo filtro
+    const rangeToApply = {
+      from: range.from,
+      to: range.to || range.from
     };
 
-    // Só inicializa se não houver filtro aplicado
-    if (!appliedDateRange) {
-      initializeWithCurrentMonth();
-    }
-  }, [appliedDateRange, fetchLeadsForDateRange, fetchContractsForDate]);
+    console.log("📅 DashboardContent - Aplicando período:", {
+      from: BrazilTimezone.formatDateForDisplay(rangeToApply.from),
+      to: BrazilTimezone.formatDateForDisplay(rangeToApply.to)
+    });
 
-  // Função para aplicar filtro de data
-  const handleDateRangeApply = (range: DateRange | undefined) => {
-    console.log("📅 DashboardContent - Aplicando filtro de período:", range);
-    setAppliedDateRange(range);
-    
-    if (range?.from) {
-      // CORREÇÃO: Se apenas uma data foi selecionada, tratar como range de um dia
-      if (!range.to) {
-        const singleDayRange = {
-          from: range.from,
-          to: range.from
-        };
-        console.log("📅 DashboardContent - Buscando leads para dia único:", BrazilTimezone.formatDateForDisplay(range.from));
-        fetchLeadsForDateRange(singleDayRange);
-        fetchContractsForDate(range.from);
-      } else {
-        console.log("📅 DashboardContent - Buscando leads para período:", {
-          from: BrazilTimezone.formatDateForDisplay(range.from),
-          to: BrazilTimezone.formatDateForDisplay(range.to)
-        });
-        fetchLeadsForDateRange(range);
-        fetchContractsForDate(range.from);
-      }
-    } else {
-      // Se não há filtro, buscar dados do mês atual
-      const now = BrazilTimezone.now();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      
-      const currentMonthRange = {
-        from: startOfMonth,
-        to: endOfMonth
-      };
-      
-      console.log("📅 DashboardContent - Buscando dados do mês atual:", {
-        from: BrazilTimezone.formatDateForDisplay(startOfMonth),
-        to: BrazilTimezone.formatDateForDisplay(endOfMonth)
-      });
-      
-      fetchLeadsForDateRange(currentMonthRange);
-      fetchContractsForDate(startOfMonth);
-    }
-  };
+    setAppliedDateRange(rangeToApply);
+    fetchLeadsForDateRange(rangeToApply);
+    fetchContractsForDate(rangeToApply.from);
+  }, [fetchCurrentMonthData, fetchLeadsForDateRange, fetchContractsForDate]);
 
-  // CORREÇÃO: Calcular estatísticas reais baseadas nos leads filtrados pelos hooks
+  // CORREÇÃO: Calcular estatísticas reais baseadas nos leads filtrados
   const totalLeads = leads?.length || 0;
   const proposalsAndMeetings = leads?.filter(lead => 
     lead.status === "Proposta" || lead.status === "Reunião"
@@ -141,7 +127,9 @@ export function DashboardContent() {
     appliedDateRange: appliedDateRange ? {
       from: appliedDateRange.from ? BrazilTimezone.formatDateForDisplay(appliedDateRange.from) : 'N/A',
       to: appliedDateRange.to ? BrazilTimezone.formatDateForDisplay(appliedDateRange.to) : 'N/A'
-    } : 'Nenhum'
+    } : 'Nenhum',
+    isInitialized,
+    leadsCount: leads?.length || 0
   });
 
   const stats = [
@@ -175,33 +163,6 @@ export function DashboardContent() {
     },
   ];
 
-  const teamResults = [
-    {
-      id: 1,
-      name: "Maria Silva",
-      leads: 45,
-      proposals: 12,
-      sales: 8,
-      score: "85",
-    },
-    {
-      id: 2,
-      name: "João Santos",
-      leads: 38,
-      proposals: 15,
-      sales: 11,
-      score: "92",
-    },
-    {
-      id: 3,
-      name: "Ana Costa",
-      leads: 52,
-      proposals: 18,
-      sales: 14,
-      score: "88",
-    },
-  ];
-
   // CORREÇÃO: Taxa de conversão baseada nos dados reais filtrados
   const conversionData = [
     {
@@ -215,12 +176,12 @@ export function DashboardContent() {
   ];
 
   // CORREÇÃO: Função para verificar se um lead é oportunidade baseada nos dados reais
-  const isOpportunityLead = (lead: any): boolean => {
+  const isOpportunityLead = useCallback((lead: any): boolean => {
     const currentlyInOpportunity = lead.status === "Proposta" || lead.status === "Reunião";
     const passedThroughOpportunity = hasLeadPassedThroughStatus(lead.id, ["Proposta", "Reunião"]);
     
     return currentlyInOpportunity || passedThroughOpportunity;
-  };
+  }, [hasLeadPassedThroughStatus]);
 
   // CORREÇÃO: Gerar dados REAIS de conversão baseados nos leads filtrados
   const getRealConversionData = useMemo(() => {
@@ -288,7 +249,7 @@ export function DashboardContent() {
 
     console.log("✅ Dados de conversão calculados com leads filtrados:", { weeklyData, monthlyData });
     return { weekly: weeklyData, monthly: monthlyData };
-  }, [leads, statusHistory, hasLeadPassedThroughStatus]);
+  }, [leads, isOpportunityLead]);
 
   // CORREÇÃO: Gerar dados reais de leads por período baseados nos leads filtrados
   const getRealLeadsData = useMemo(() => {
@@ -337,7 +298,7 @@ export function DashboardContent() {
   }, [leads]);
 
   // Gerar dados reais de ação baseados nos leads filtrados
-  const getActionData = () => {
+  const getActionData = useCallback(() => {
     if (!leads || leads.length === 0) return [];
 
     if (actionView === 'type') {
@@ -399,7 +360,7 @@ export function DashboardContent() {
         .sort((a, b) => b.opportunities - a.opportunities)
         .slice(0, 5);
     }
-  };
+  }, [leads, actionView]);
 
   const chartConfig = {
     conversion: {
@@ -479,7 +440,10 @@ export function DashboardContent() {
     return `${value} (${conversionRate}% taxa)`;
   };
 
-  if (leadsLoading || contractsLoading) {
+  // CORREÇÃO: Estado de carregamento melhorado
+  const isLoading = leadsLoading || contractsLoading || !isInitialized;
+
+  if (isLoading) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-center py-8">
@@ -548,10 +512,11 @@ export function DashboardContent() {
         </div>
       )}
 
-      {/* Debug Info */}
+      {/* Debug Info - CORREÇÃO: Informações mais detalhadas */}
       <Card className="p-4 bg-gray-50">
         <h3 className="font-medium mb-2">Debug Info:</h3>
         <div className="text-sm text-gray-600">
+          <p>Status inicialização: {isInitialized ? 'Concluída' : 'Pendente'}</p>
           <p>Leads retornados pelo hook: {leads?.length || 0}</p>
           <p>Contratos retornados pelo hook: {contracts?.length || 0}</p>
           <p>Período aplicado: {appliedDateRange ? 
@@ -559,6 +524,8 @@ export function DashboardContent() {
             : 'Nenhum'}</p>
           <p>Hook leads carregando: {leadsLoading ? 'Sim' : 'Não'}</p>
           <p>Hook contratos carregando: {contractsLoading ? 'Sim' : 'Não'}</p>
+          <p>Usuário leads: {leadsUser?.name || 'N/A'}</p>
+          <p>Usuário contratos: {contractsUser?.name || 'N/A'}</p>
           <p>Erro leads: {leadsError || 'Nenhum'}</p>
           <p>Erro contratos: {contractsError || 'Nenhum'}</p>
         </div>
@@ -757,6 +724,7 @@ export function DashboardContent() {
             <TeamResultsPanel />
           </div>
         )}
+        
         {isComponentVisible('action-chart') && (
           <Card className="p-6 flex flex-col">
             <CardHeader className="p-0 mb-3">
