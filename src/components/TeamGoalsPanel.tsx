@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -181,8 +180,8 @@ export function TeamGoalsPanel({
         throw leadsError;
       }
 
-      // Type cast the leads data
-      const leads = Array.isArray(leadsData) ? leadsData as Lead[] : [];
+      // Type cast the leads data - cast through unknown first
+      const leads = Array.isArray(leadsData) ? (leadsData as unknown) as Lead[] : [];
       console.log(`📊 TeamGoalsPanel - ${leads.length} leads encontrados`);
 
       // Buscar histórico de status
@@ -195,8 +194,8 @@ export function TeamGoalsPanel({
         throw historyError;
       }
 
-      // Type cast the status history data
-      const statusHistory = Array.isArray(statusHistoryData) ? statusHistoryData as StatusHistory[] : [];
+      // Type cast the status history data - cast through unknown first
+      const statusHistory = Array.isArray(statusHistoryData) ? (statusHistoryData as unknown) as StatusHistory[] : [];
       console.log(`📈 TeamGoalsPanel - ${statusHistory.length} registros de histórico encontrados`);
 
       // Função para verificar se um lead passou por determinados status
