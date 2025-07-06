@@ -5,6 +5,7 @@ import { ActionGroupChart } from "@/components/ActionGroupChart";
 import { StateStatsChart } from "@/components/StateStatsChart";
 import { LeadsChart } from "@/components/analysis/LeadsChart";
 import { Lead } from "@/types/lead";
+import { DateRange } from "react-day-picker";
 
 interface ChartsSectionProps {
   leads: Lead[];
@@ -23,8 +24,8 @@ interface ChartsSectionProps {
   showLeadsChart?: boolean;
   showContractsChart?: boolean;
   showOpportunitiesChart?: boolean;
-  // Novo prop para o período aplicado
-  appliedDateRange?: { from: Date; to: Date } | undefined;
+  // Corrigido: usar DateRange em vez de tipo customizado
+  appliedDateRange?: DateRange | undefined;
 }
 
 export function ChartsSection({

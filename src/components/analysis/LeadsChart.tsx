@@ -8,13 +8,14 @@ import { useState, useMemo, useEffect } from "react";
 import { format, startOfWeek, endOfWeek, getDay, getMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { BrazilTimezone } from "@/lib/timezone";
+import { DateRange } from "react-day-picker";
 
 interface LeadsChartProps {
   leads: Lead[];
   title: string;
   filterFunction?: (lead: Lead) => boolean;
   viewMode?: 'weekly' | 'monthly';
-  appliedDateRange?: { from: Date; to: Date } | undefined;
+  appliedDateRange?: DateRange | undefined;
 }
 
 export function LeadsChart({ leads, title, filterFunction, viewMode: externalViewMode, appliedDateRange }: LeadsChartProps) {
@@ -94,6 +95,7 @@ export function LeadsChart({ leads, title, filterFunction, viewMode: externalVie
   const getChartTitle = () => {
     const baseTitle = `${title} - ${currentViewMode === 'weekly' ? 'Por Dia da Semana' : 'Por Mês'}`;
     
+    // Corrigido: verificar se appliedDateRange existe e tem both from and to
     if (currentViewMode === 'monthly' && appliedDateRange?.from && appliedDateRange?.to) {
       const periodText = `(${BrazilTimezone.formatDateForDisplay(appliedDateRange.from)} - ${BrazilTimezone.formatDateForDisplay(appliedDateRange.to)})`;
       return `${baseTitle} ${periodText}`;
