@@ -47,24 +47,10 @@ export function SearchAndFilters({
   });
 
   const mainCategory = selectedCategory.split('-')[0];
-  
-  // CORREÇÃO: Função para determinar quando mostrar ViewToggle
   const shouldShowViewToggle = (category: string) => {
-    // Não mostrar ViewToggle quando estiver na visualização de Estados
-    const isEstadosView = selectedCategory === "estados" || selectedCategory.endsWith("-estados");
-    if (isEstadosView) {
-      return false;
-    }
-    
     return category === "all" || 
            (category === "contratos" && (selectedCategory === "contratos" || selectedCategory.startsWith("contratos-"))) ||
            (category === "oportunidades" && (selectedCategory === "oportunidades" || selectedCategory.startsWith("oportunidades-")));
-  };
-
-  // CORREÇÃO: Função para determinar quando mostrar filtros avançados
-  const shouldShowAdvancedFilters = () => {
-    // Sempre mostrar filtros avançados, exceto quando estiver especificamente na visualização "estados"
-    return selectedCategory !== "estados" && !selectedCategory.endsWith("-estados");
   };
 
   return (
@@ -81,8 +67,7 @@ export function SearchAndFilters({
         </div>
         
         <div className="flex items-center gap-2">
-          {/* CORREÇÃO: Mostrar filtros avançados baseado na nova lógica */}
-          {shouldShowAdvancedFilters() && (
+          {selectedCategory !== "estados" && (
             <AdvancedFilters 
               onFiltersChange={setAdvancedFilters}
               activeFilters={advancedFilters}
@@ -103,7 +88,7 @@ export function SearchAndFilters({
             />
           )}
 
-          {/* Dropdown para visualização de contratos - SEMPRE mostrar quando categoria for "contratos" ou subcategorias (exceto estados) */}
+          {/* Dropdown para visualização de contratos - SEMPRE mostrar quando categoria for "contratos" ou subcategorias */}
           {shouldShowViewToggle("contratos") && mainCategory === "contratos" && onContractsViewChange && (
             <ViewToggleDropdown
               currentView={contractsViewMode}
@@ -115,7 +100,7 @@ export function SearchAndFilters({
             />
           )}
 
-          {/* Dropdown para visualização de oportunidades - SEMPRE mostrar quando categoria for "oportunidades" ou subcategorias (exceto estados) */}
+          {/* Dropdown para visualização de oportunidades - SEMPRE mostrar quando categoria for "oportunidades" ou subcategorias */}
           {shouldShowViewToggle("oportunidades") && mainCategory === "oportunidades" && onOpportunitiesViewChange && (
             <ViewToggleDropdown
               currentView={opportunitiesViewMode}
