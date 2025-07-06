@@ -1,7 +1,6 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Users } from "lucide-react";
 import { useTeamResults } from "@/hooks/useTeamResults";
@@ -16,7 +15,7 @@ const getPositionData = (index: number) => {
         </div>
       ),
       borderColor: 'border-l-yellow-500',
-      bgColor: 'bg-yellow-50'
+      bgColor: 'bg-white'
     };
   } else if (position === 2) {
     return {
@@ -25,8 +24,8 @@ const getPositionData = (index: number) => {
           2º
         </div>
       ),
-      borderColor: 'border-l-gray-500',
-      bgColor: 'bg-gray-50'
+      borderColor: 'border-l-blue-500',
+      bgColor: 'bg-white'
     };
   } else if (position === 3) {
     return {
@@ -35,8 +34,8 @@ const getPositionData = (index: number) => {
           3º
         </div>
       ),
-      borderColor: 'border-l-orange-500',
-      bgColor: 'bg-orange-50'
+      borderColor: 'border-l-blue-500',
+      bgColor: 'bg-white'
     };
   } else if (position <= 5) {
     return {
@@ -46,7 +45,7 @@ const getPositionData = (index: number) => {
         </div>
       ),
       borderColor: 'border-l-blue-500',
-      bgColor: 'bg-blue-50'
+      bgColor: 'bg-white'
     };
   }
   return {
@@ -55,13 +54,13 @@ const getPositionData = (index: number) => {
         {position}º
       </div>
     ),
-    borderColor: 'border-l-green-500',
-    bgColor: 'bg-green-50'
+    borderColor: 'border-l-blue-500',
+    bgColor: 'bg-white'
   };
 };
 
 export function TeamResultsPanel() {
-  const { teamMembers, isLoading, refreshData } = useTeamResults();
+  const { teamMembers, isLoading } = useTeamResults();
 
   if (isLoading) {
     return (
@@ -69,7 +68,7 @@ export function TeamResultsPanel() {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Users className="h-4 w-4 text-blue-600" />
-            Resultado do Time
+            Time
           </CardTitle>
         </CardHeader>
         <CardContent className="pb-4">
@@ -88,15 +87,10 @@ export function TeamResultsPanel() {
     return (
       <Card className="h-fit">
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Users className="h-4 w-4 text-blue-600" />
-              Resultado do Time
-            </CardTitle>
-            <Button onClick={refreshData} variant="outline" size="sm">
-              Atualizar
-            </Button>
-          </div>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Users className="h-4 w-4 text-blue-600" />
+            Time
+          </CardTitle>
         </CardHeader>
         <CardContent className="pb-4">
           <div className="text-center py-4">
@@ -111,15 +105,10 @@ export function TeamResultsPanel() {
   return (
     <Card className="h-fit">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Users className="h-4 w-4 text-blue-600" />
-            Resultado do Time ({teamMembers.length} membros)
-          </CardTitle>
-          <Button onClick={refreshData} variant="outline" size="sm">
-            Atualizar
-          </Button>
-        </div>
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Users className="h-4 w-4 text-blue-600" />
+          Time
+        </CardTitle>
       </CardHeader>
       <CardContent className="pb-4">
         {/* ScrollArea ajustado para mostrar exatamente 3 membros completos */}
