@@ -91,16 +91,28 @@ export function LeadsChart({ leads, title, filterFunction, viewMode: externalVie
     setInternalViewMode(view);
   };
 
-  // Gerar o título com período quando for mensal e houver período aplicado
+  // CORRIGIDO: Gerar o título com período quando houver appliedDateRange
   const getChartTitle = () => {
     const baseTitle = `${title} - ${currentViewMode === 'weekly' ? 'Por Dia da Semana' : 'Por Mês'}`;
     
-    // Corrigido: verificar se appliedDateRange existe e tem both from and to
-    if (currentViewMode === 'monthly' && appliedDateRange?.from && appliedDateRange?.to) {
-      const periodText = `(${BrazilTimezone.formatDateForDisplay(appliedDateRange.from)} - ${BrazilTimezone.formatDateForDisplay(appliedDateRange.to)})`;
-      return `${baseTitle} ${periodText}`;
+    console.log(`📊 getChartTitle - appliedDateRange:`, appliedDateRange);
+    console.log(`📊 getChartTitle - currentViewMode: ${currentViewMode}`);
+    
+    // CORRIGIDO: Mostrar período quando há filtro aplicado (independente se é monthly ou weekly)
+    if (appliedDateRange?.from) {
+      const fromDate = BrazilTimezone.formatDateForDisplay(appliedDateRange.from);
+      const toDate = appliedDateRange.to ? BrazilTimezone.formatDateForDisplay(appliedDateRange.to) : fromDate;
+      
+      console.log(`📊 getChartTitle - Adicionando período: ${fromDate} - ${toDate}`);
+      
+      if (fromDate === toDate) {
+        return `${baseTitle} (${fromDate})`;
+      } else {
+        return `${baseTitle} (${fromDate} - ${toDate})`;
+      }
     }
     
+    console.log(`📊 getChartTitle - Sem período aplicado`);
     return baseTitle;
   };
 
