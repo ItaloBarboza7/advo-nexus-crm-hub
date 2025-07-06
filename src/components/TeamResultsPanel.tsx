@@ -10,39 +10,39 @@ const getPositionData = (index: number) => {
   if (position === 1) {
     return {
       badge: (
-        <div className="bg-gray-600 text-white px-2 py-1 rounded text-xs font-medium">
-          1º
+        <div className="bg-gradient-to-b from-yellow-400 to-yellow-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shadow-lg">
+          1
         </div>
       ),
-      borderColor: 'border-l-gray-600',
-      bgColor: 'bg-gray-50'
+      borderColor: 'border-l-blue-600',
+      bgColor: 'bg-blue-50'
     };
   } else if (position === 2) {
     return {
       badge: (
-        <div className="bg-gray-500 text-white px-2 py-1 rounded text-xs font-medium">
-          2º
+        <div className="bg-gradient-to-b from-gray-300 to-gray-500 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shadow-lg">
+          2
         </div>
       ),
-      borderColor: 'border-l-gray-500',
-      bgColor: 'bg-gray-50'
+      borderColor: 'border-l-blue-500',
+      bgColor: 'bg-blue-100'
     };
   } else if (position === 3) {
     return {
       badge: (
-        <div className="bg-gray-400 text-white px-2 py-1 rounded text-xs font-medium">
-          3º
+        <div className="bg-gradient-to-b from-amber-600 to-amber-800 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shadow-lg">
+          3
         </div>
       ),
-      borderColor: 'border-l-gray-400',
-      bgColor: 'bg-gray-50'
+      borderColor: 'border-l-blue-400',
+      bgColor: 'bg-blue-200'
     };
   }
   // Para posições 4+ não mostrar badge
   return {
     badge: null,
-    borderColor: 'border-l-gray-300',
-    bgColor: 'bg-gray-50'
+    borderColor: 'border-l-blue-300',
+    bgColor: 'bg-blue-300'
   };
 };
 
