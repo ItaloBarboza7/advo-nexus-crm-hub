@@ -248,19 +248,7 @@ export function CalendarContent() {
           />
         </div>
 
-        {/* Monthly Goals Panel - Right Side */}
-        <div className="lg:col-span-1">
-          <MonthlyGoalsPanel 
-            currentSales={monthlyGoalData.currentSales}
-            monthlyGoal={monthlyGoalData.monthlyGoal}
-            daysInMonth={monthlyGoalData.daysInMonth}
-            currentDay={monthlyGoalData.currentDay}
-          />
-        </div>
-      </div>
-
-      {/* Calendar Widget - Second Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Calendar Widget - Right Side */}
         <div className="lg:col-span-1">
           <IntegratedCalendar 
             selectedDate={selectedDate}
@@ -284,6 +272,14 @@ export function CalendarContent() {
 
       {/* Weekly Follow Up Task */}
       <WeeklyFollowUpTask userName={currentUser.name} />
+
+      {/* Monthly Goals Panel - Replace the old simple card */}
+      <MonthlyGoalsPanel 
+        currentSales={monthlyGoalData.currentSales}
+        monthlyGoal={monthlyGoalData.monthlyGoal}
+        daysInMonth={monthlyGoalData.daysInMonth}
+        currentDay={monthlyGoalData.currentDay}
+      />
     </div>
   );
 }
