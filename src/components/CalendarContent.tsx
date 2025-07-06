@@ -6,10 +6,11 @@ import { UserComparisonCard } from "@/components/UserComparisonCard";
 import { ActivityPanel } from "@/components/ActivityPanel";
 import { IntegratedCalendar } from "@/components/IntegratedCalendar";
 import { WeeklyFollowUpTask } from "@/components/WeeklyFollowUpTask";
-import { MonthlyGoalsPanel } from "@/components/MonthlyGoalsPanel";
+import { TeamGoalsPanel } from "@/components/TeamGoalsPanel";
 import { useLeadsData } from "@/hooks/useLeadsData";
 import { useContractsData } from "@/hooks/useContractsData";
 import { useLeadsForDate } from "@/hooks/useLeadsForDate";
+import { useTeamResults } from "@/hooks/useTeamResults";
 import { supabase } from "@/integrations/supabase/client";
 import { BrazilTimezone } from "@/lib/timezone";
 import { useTenantSchema } from "@/hooks/useTenantSchema";
@@ -20,6 +21,7 @@ export function CalendarContent() {
   const [statusHistory, setStatusHistory] = useState<any[]>([]);
   const { leads, isLoading } = useLeadsData();
   const { tenantSchema } = useTenantSchema();
+  const { teamMembers, teamStats, isLoading: teamLoading } = useTeamResults();
   const { 
     contracts, 
     isLoading: contractsLoading, 
@@ -197,13 +199,14 @@ export function CalendarContent() {
 
   const contractsStats = getContractsStats();
 
-  // Dados para o MonthlyGoalsPanel
+  // Dados para o TeamGoalsPanel - usar dados da equipe
   const now = BrazilTimezone.now();
-  const monthlyGoalData = {
-    currentSales: contractsStats.currentMonth.completed,
-    monthlyGoal: 50, // Meta de 50 contratos por mês
+  const teamGoalData = {
+    teamSales: teamStats?.totalSales || 0,
+    teamGoal: 100, // Meta de 100 contratos por mês para a equipe
     daysInMonth: new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(),
-    currentDay: now.getDate()
+    currentDay: now.getDate(),
+    teamSize: teamStats?.teamSize || 1
   };
 
   const handleDateSelect = (date: Date) => {
@@ -215,7 +218,7 @@ export function CalendarContent() {
     setSelectedDate(null);
   };
 
-  if (isLoading || !currentUser) {
+  if (isLoading || !currentUser || teamLoading) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-center py-8">
@@ -233,7 +236,7 @@ export function CalendarContent() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Metas</h1>
-          <p className="text-gray-600">Acompanhe suas metas de contratos fechados</p>
+          <p className="text-gray-600">Acompanhe as metas de contratos fechados da equipe</p>
         </div>
       </div>
 
@@ -273,12 +276,13 @@ export function CalendarContent() {
       {/* Weekly Follow Up Task */}
       <WeeklyFollowUpTask userName={currentUser.name} />
 
-      {/* Monthly Goals Panel - Replace the old simple card */}
-      <MonthlyGoalsPanel 
-        currentSales={monthlyGoalData.currentSales}
-        monthlyGoal={monthlyGoalData.monthlyGoal}
-        daysInMonth={monthlyGoalData.daysInMonth}
-        currentDay={monthlyGoalData.currentDay}
+      {/* Team Goals Panel - Novo painel da equipe */}
+      <TeamGoalsPanel 
+        teamSales={teamGoalData.teamSales}
+        teamGoal={teamGoalData.teamGoal}
+        daysInMonth={teamGoalData.daysInMonth}
+        currentDay={teamGoalData.currentDay}
+        teamSize={teamGoalData.teamSize}
       />
     </div>
   );
