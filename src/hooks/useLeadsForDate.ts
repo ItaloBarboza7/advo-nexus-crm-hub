@@ -15,6 +15,8 @@ export interface LeadForDate {
   createdAt: Date;
   value?: number;
   user_id?: string;
+  action_type?: string;
+  action_group?: string;
 }
 
 export function useLeadsForDate() {
@@ -94,7 +96,7 @@ export function useLeadsForDate() {
       
       const sql = `
         SELECT 
-          id, name, phone, email, source, status, created_at, value, user_id
+          id, name, phone, email, source, status, created_at, value, user_id, action_type, action_group
         FROM ${tenantSchema}.leads
         WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = '${dateString}'
         ORDER BY created_at DESC
@@ -144,7 +146,9 @@ export function useLeadsForDate() {
             status: lead.status || 'Novo',
             createdAt: leadDate,
             value: lead.value ? Number(lead.value) : undefined,
-            user_id: lead.user_id
+            user_id: lead.user_id,
+            action_type: lead.action_type || undefined,
+            action_group: lead.action_group || undefined
           };
         });
 
@@ -187,7 +191,7 @@ export function useLeadsForDate() {
 
       const sql = `
         SELECT 
-          id, name, phone, email, source, status, created_at, value, user_id
+          id, name, phone, email, source, status, created_at, value, user_id, action_type, action_group
         FROM ${tenantSchema}.leads
         WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') BETWEEN '${fromDate}' AND '${toDate}'
         ORDER BY created_at DESC
@@ -217,7 +221,9 @@ export function useLeadsForDate() {
           status: lead.status || 'Novo',
           createdAt: new Date(lead.created_at),
           value: lead.value ? Number(lead.value) : undefined,
-          user_id: lead.user_id
+          user_id: lead.user_id,
+          action_type: lead.action_type || undefined,
+          action_group: lead.action_group || undefined
         }));
 
       console.log(`✅ ${transformedLeads.length} leads encontrados no período de todos os usuários`);
