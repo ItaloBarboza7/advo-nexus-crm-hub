@@ -1,4 +1,3 @@
-
 import { useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -201,15 +200,19 @@ export function StateStatsChart({ leads, selectedCategory = "all", hasLeadPassed
             }`}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold border ${
+                    index === 0 ? 'bg-gray-100 border-gray-800 text-gray-800' :
+                    index === 1 ? 'bg-gray-100 border-gray-600 text-gray-600' :
+                    'bg-gray-100 border-gray-400 text-gray-400'
+                  }`}>
+                    {index + 1}
+                  </div>
                   <span className="font-semibold">{estado.state}</span>
                 </div>
-                <Badge className={
-                  index === 0 ? 'bg-gray-200 text-gray-800 border-gray-800' :
-                  index === 1 ? 'bg-gray-200 text-gray-600 border-gray-600' :
-                  'bg-gray-200 text-gray-400 border-gray-400'
-                }>
-                  {estado.metrica}
-                </Badge>
+                <div className="text-right">
+                  <div className="text-lg font-bold">{estado.metrica}</div>
+                  <div className="text-xs text-gray-500">{getMetricaLabel()}</div>
+                </div>
               </div>
               
               <div className="grid grid-cols-2 gap-2 text-sm">
