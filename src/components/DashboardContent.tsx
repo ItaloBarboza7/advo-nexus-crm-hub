@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, UserPlus, UserX, DollarSign, TrendingUp, Target, BarChart3 } from "lucide-react";
+import { Users, UserPlus, UserX, DollarSign, TrendingUp, BarChart3 } from "lucide-react";
 import { DateRange } from "react-day-picker";
 import { DateFilter } from "@/components/DateFilter";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
@@ -516,7 +516,6 @@ export function DashboardContent() {
           <Card className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Taxa de Conversão</h3>
-              <Target className="h-5 w-5 text-blue-600" />
             </div>
             <div className="space-y-4">
               <div className="bg-gray-50 p-4 rounded-lg">

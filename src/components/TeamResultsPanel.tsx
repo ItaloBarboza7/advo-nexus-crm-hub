@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Users, Crown, Medal, Award } from "lucide-react";
+import { Users } from "lucide-react";
 import { useTeamResults } from "@/hooks/useTeamResults";
 
 const getPositionData = (index: number) => {
@@ -11,55 +11,52 @@ const getPositionData = (index: number) => {
   if (position === 1) {
     return {
       badge: (
-        <div className="flex items-center gap-1 bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-900 px-3 py-1 rounded-full text-sm font-bold shadow-sm">
-          <Crown className="h-4 w-4" />
-          1º Lugar
+        <div className="bg-yellow-500 text-white px-2 py-1 rounded text-xs font-medium">
+          1º
         </div>
       ),
       borderColor: 'border-l-yellow-500',
-      bgColor: 'bg-gradient-to-r from-yellow-50 to-yellow-100'
+      bgColor: 'bg-yellow-50'
     };
   } else if (position === 2) {
     return {
       badge: (
-        <div className="flex items-center gap-1 bg-gradient-to-r from-gray-300 to-gray-400 text-gray-800 px-3 py-1 rounded-full text-sm font-bold shadow-sm">
-          <Medal className="h-4 w-4" />
-          2º Lugar
+        <div className="bg-gray-500 text-white px-2 py-1 rounded text-xs font-medium">
+          2º
         </div>
       ),
-      borderColor: 'border-l-gray-400',
-      bgColor: 'bg-gradient-to-r from-gray-50 to-gray-100'
+      borderColor: 'border-l-gray-500',
+      bgColor: 'bg-gray-50'
     };
   } else if (position === 3) {
     return {
       badge: (
-        <div className="flex items-center gap-1 bg-gradient-to-r from-orange-400 to-orange-500 text-orange-900 px-3 py-1 rounded-full text-sm font-bold shadow-sm">
-          <Award className="h-4 w-4" />
-          3º Lugar
+        <div className="bg-orange-500 text-white px-2 py-1 rounded text-xs font-medium">
+          3º
         </div>
       ),
       borderColor: 'border-l-orange-500',
-      bgColor: 'bg-gradient-to-r from-orange-50 to-orange-100'
+      bgColor: 'bg-orange-50'
     };
   } else if (position <= 5) {
     return {
       badge: (
-        <div className="bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+        <div className="bg-blue-500 text-white px-2 py-1 rounded text-xs font-medium">
           {position}º
         </div>
       ),
       borderColor: 'border-l-blue-500',
-      bgColor: 'bg-gradient-to-r from-blue-50 to-blue-100'
+      bgColor: 'bg-blue-50'
     };
   }
   return {
     badge: (
-      <div className="bg-gradient-to-r from-green-100 to-green-200 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
+      <div className="bg-green-500 text-white px-2 py-1 rounded text-xs font-medium">
         {position}º
       </div>
     ),
     borderColor: 'border-l-green-500',
-    bgColor: 'bg-gradient-to-r from-green-50 to-green-100'
+    bgColor: 'bg-green-50'
   };
 };
 

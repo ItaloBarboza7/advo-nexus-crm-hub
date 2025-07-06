@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Phone, MessageSquare } from "lucide-react";
+import { Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenantSchema } from "@/hooks/useTenantSchema";
 import { BrazilTimezone } from "@/lib/timezone";
@@ -87,11 +87,11 @@ export function WeeklyFollowUpTask({ userName }: WeeklyFollowUpTaskProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Finalizado':
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 text-gray-700';
       case 'Perdido':
-        return 'bg-red-100 text-red-800';
+        return 'bg-red-100 text-red-700';
       default:
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-blue-100 text-blue-700';
     }
   };
 
@@ -107,13 +107,13 @@ export function WeeklyFollowUpTask({ userName }: WeeklyFollowUpTaskProps) {
   return (
     <Card className="p-6">
       <div className="flex items-center gap-3 mb-4">
-        <Clock className="h-6 w-6 text-orange-600" />
+        <Clock className="h-6 w-6 text-blue-600" />
         <h3 className="text-lg font-semibold text-gray-900">
-          Leads para Follow Up - {userName}
+          Follow UP - {userName}
         </h3>
       </div>
       
-      <div className="bg-gradient-to-r from-orange-50 to-yellow-100 p-6 rounded-lg border-l-4 border-orange-500">
+      <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
         <div className="mb-4">
           <h4 className="text-md font-medium text-gray-900 mb-2">
             Leads Finalizados/Perdidos na Última Semana
@@ -126,13 +126,13 @@ export function WeeklyFollowUpTask({ userName }: WeeklyFollowUpTaskProps) {
 
         {isLoading ? (
           <div className="flex items-center justify-center py-4">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600"></div>
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
             <span className="ml-2 text-gray-600">Carregando leads...</span>
           </div>
         ) : leads.length > 0 ? (
           <div className="space-y-3">
             {leads.map((lead) => (
-              <div key={lead.id} className="bg-white p-4 rounded-lg border border-orange-200 shadow-sm">
+              <div key={lead.id} className="bg-white p-3 rounded border border-gray-200">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
@@ -142,31 +142,9 @@ export function WeeklyFollowUpTask({ userName }: WeeklyFollowUpTaskProps) {
                       </Badge>
                     </div>
                     <div className="flex items-center gap-4 text-sm text-gray-600">
-                      <div className="flex items-center gap-1">
-                        <Phone className="h-4 w-4" />
-                        <span>{lead.phone}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-4 w-4" />
-                        <span>Atualizado em {formatDate(lead.updated_at)}</span>
-                      </div>
+                      <span>{lead.phone}</span>
+                      <span>Atualizado em {formatDate(lead.updated_at)}</span>
                     </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button 
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-                      title="Ligar para o lead"
-                      onClick={() => window.open(`tel:${lead.phone}`)}
-                    >
-                      <Phone className="h-4 w-4" />
-                    </button>
-                    <button 
-                      className="p-2 text-green-600 hover:bg-green-50 rounded-full transition-colors"
-                      title="Enviar WhatsApp"
-                      onClick={() => window.open(`https://wa.me/55${lead.phone.replace(/\D/g, '')}`)}
-                    >
-                      <MessageSquare className="h-4 w-4" />
-                    </button>
                   </div>
                 </div>
               </div>

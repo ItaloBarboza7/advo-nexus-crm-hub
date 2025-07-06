@@ -92,10 +92,10 @@ export function RecoverableLeadsTask({ userName }: RecoverableLeadsTaskProps) {
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high': return 'bg-red-100 text-red-800 border-red-200';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'low': return 'bg-blue-100 text-blue-800 border-blue-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'high': return 'bg-red-100 text-red-700 border-red-200';
+      case 'medium': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+      case 'low': return 'bg-gray-100 text-gray-700 border-gray-200';
+      default: return 'bg-gray-100 text-gray-700 border-gray-200';
     }
   };
 
@@ -130,7 +130,7 @@ export function RecoverableLeadsTask({ userName }: RecoverableLeadsTaskProps) {
       <Card className="p-6">
         <div className="flex items-center gap-3 mb-4">
           <RefreshCw className="h-6 w-6 text-green-600" />
-          <h3 className="text-lg font-semibold text-gray-900">Leads para Follow Up</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Follow UP</h3>
         </div>
         <div className="text-center py-6 text-gray-500">
           <AlertCircle className="h-12 w-12 mx-auto mb-3 text-gray-300" />
@@ -146,14 +146,14 @@ export function RecoverableLeadsTask({ userName }: RecoverableLeadsTaskProps) {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <RefreshCw className="h-6 w-6 text-green-600" />
-          <h3 className="text-lg font-semibold text-gray-900">Leads para Follow Up</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Follow UP</h3>
         </div>
         <Badge variant="outline" className="text-green-700 border-green-300">
           {visibleLeads.length} leads
         </Badge>
       </div>
 
-      <div className="bg-blue-50 rounded-lg p-4 mb-4 border-l-4 border-blue-500">
+      <div className="bg-blue-50 rounded-lg p-4 mb-4 border border-blue-200">
         <p className="text-blue-800 text-sm">
           <strong>{userName}</strong>, estes leads foram perdidos por motivos que podem ser revertidos.
           Entre em contato novamente para tentar recuperar essas oportunidades.
@@ -167,7 +167,7 @@ export function RecoverableLeadsTask({ userName }: RecoverableLeadsTaskProps) {
           const isExpanded = expandedLead === lead.id;
 
           return (
-            <div key={lead.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+            <div key={lead.id} className="bg-gray-50 rounded p-3 border border-gray-200">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
