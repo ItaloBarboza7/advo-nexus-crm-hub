@@ -100,152 +100,179 @@ serve(async (req) => {
     const customerId = customers.data[0].id;
     logStep("Stripe customer found", { customerId, customerEmail: customers.data[0].email });
 
-    // Buscar assinatura ativa
-    logStep("Searching for active subscriptions");
-    const subscriptions = await stripe.subscriptions.list({ 
+    // Buscar todas as assinaturas (não apenas ativas) para melhor diagnóstico
+    logStep("Searching for all subscriptions");
+    const allSubscriptions = await stripe.subscriptions.list({ 
       customer: customerId, 
-      status: "active", 
-      limit: 1 
+      limit: 10 
     });
     
-    if (!subscriptions.data.length) {
-      logStep("No active subscription found", { customerId, totalSubscriptions: subscriptions.data.length });
-      
-      // Check for incomplete or past_due subscriptions
-      const allSubscriptions = await stripe.subscriptions.list({ 
-        customer: customerId, 
-        limit: 5 
-      });
-      
-      logStep("All customer subscriptions", { 
-        total: allSubscriptions.data.length,
-        statuses: allSubscriptions.data.map(sub => ({ id: sub.id, status: sub.status }))
+    logStep("All customer subscriptions", { 
+      total: allSubscriptions.data.length,
+      statuses: allSubscriptions.data.map(sub => ({ 
+        id: sub.id, 
+        status: sub.status,
+        current_period_end: sub.current_period_end,
+        cancel_at_period_end: sub.cancel_at_period_end
+      }))
+    });
+
+    // Buscar assinatura ativa primeiro
+    const activeSubscriptions = allSubscriptions.data.filter(sub => sub.status === "active");
+    
+    if (activeSubscriptions.length > 0) {
+      const subscription = activeSubscriptions[0];
+      logStep("Active subscription found", { 
+        subscriptionId: subscription.id, 
+        status: subscription.status,
+        currentPeriodEnd: subscription.current_period_end
       });
 
-      // Check for incomplete subscription (payment processing)
-      const incompleteSubscription = allSubscriptions.data.find(sub => sub.status === 'incomplete');
-      if (incompleteSubscription) {
-        logStep("Found incomplete subscription", { subscriptionId: incompleteSubscription.id });
+      const item = subscription.items.data[0];
+      const plan = item.price;
+      logStep("Subscription plan details", { 
+        priceId: plan.id, 
+        amount: plan.unit_amount, 
+        currency: plan.currency,
+        nickname: plan.nickname
+      });
+
+      // Buscar payment method
+      let cardBrand = "";
+      let cardLast4 = "";
+      let cardExpMonth = "";
+      let cardExpYear = "";
+
+      try {
+        let paymentMethodId = null;
         
-        const item = incompleteSubscription.items.data[0];
-        const plan = item.price;
-        
-        return new Response(JSON.stringify({
-          success: true,
-          hasSubscription: false,
-          isPending: true,
-          message: "Pagamento sendo processado...",
-          plan_name: getPlanName(plan.unit_amount || 0, plan.nickname),
-          amount: plan.unit_amount || 0,
-          status: "processing",
-          subscription_id: incompleteSubscription.id
-        }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        });
+        if (subscription.default_payment_method) {
+          paymentMethodId = subscription.default_payment_method as string;
+          logStep("Using subscription payment method", { paymentMethodId });
+        } 
+        else if (customers.data[0].invoice_settings?.default_payment_method) {
+          paymentMethodId = customers.data[0].invoice_settings.default_payment_method as string;
+          logStep("Using customer default payment method", { paymentMethodId });
+        }
+        else {
+          const paymentMethods = await stripe.paymentMethods.list({
+            customer: customerId,
+            type: 'card',
+            limit: 1,
+          });
+          
+          if (paymentMethods.data.length > 0) {
+            paymentMethodId = paymentMethods.data[0].id;
+            logStep("Using first attached payment method", { paymentMethodId });
+          }
+        }
+
+        if (paymentMethodId) {
+          const pmethod = await stripe.paymentMethods.retrieve(paymentMethodId);
+          if (pmethod && pmethod.type === "card" && pmethod.card) {
+            cardBrand = pmethod.card.brand;
+            cardLast4 = pmethod.card.last4;
+            cardExpMonth = pmethod.card.exp_month.toString();
+            cardExpYear = pmethod.card.exp_year.toString();
+            logStep("Payment method details retrieved", { cardBrand, cardLast4 });
+          }
+        } else {
+          logStep("No payment method found for customer");
+        }
+      } catch (pmError) {
+        logStep("Error retrieving payment method", { error: pmError });
       }
+
+      const responseData = {
+        success: true,
+        hasSubscription: true,
+        plan_name: getPlanName(plan.unit_amount || 0, plan.nickname),
+        amount: plan.unit_amount || 0,
+        card_brand: cardBrand,
+        card_last4: cardLast4,
+        exp_month: cardExpMonth,
+        exp_year: cardExpYear,
+        status: subscription.status,
+        subscription_id: subscription.id,
+        current_period_end: subscription.current_period_end
+      };
+
+      logStep("Sending successful response", responseData);
+
+      return new Response(JSON.stringify(responseData), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
+    // Se não há assinatura ativa, verificar outras possibilidades
+    const paidSubscriptions = allSubscriptions.data.filter(sub => 
+      sub.status === "trialing" || 
+      sub.status === "past_due" || 
+      (sub.status === "canceled" && sub.cancel_at_period_end && new Date(sub.current_period_end * 1000) > new Date())
+    );
+
+    if (paidSubscriptions.length > 0) {
+      const subscription = paidSubscriptions[0];
+      logStep("Found paid/trialing subscription", { subscriptionId: subscription.id, status: subscription.status });
+      
+      const item = subscription.items.data[0];
+      const plan = item.price;
       
       return new Response(JSON.stringify({
         success: true,
-        hasSubscription: false,
-        message: "Nenhuma assinatura ativa encontrada",
-        plan_name: "Nenhum plano ativo",
-        amount: 0,
-        status: "inactive",
-        debug: {
-          customerId,
-          totalSubscriptions: allSubscriptions.data.length,
-          subscriptionStatuses: allSubscriptions.data.map(sub => sub.status)
-        }
+        hasSubscription: true,
+        plan_name: getPlanName(plan.unit_amount || 0, plan.nickname),
+        amount: plan.unit_amount || 0,
+        status: subscription.status,
+        subscription_id: subscription.id,
+        current_period_end: subscription.current_period_end
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
     }
+
+    // Verificar assinaturas incompletas apenas como último recurso
+    const incompleteSubscriptions = allSubscriptions.data.filter(sub => sub.status === "incomplete");
     
-    const subscription = subscriptions.data[0];
-    logStep("Active subscription found", { 
-      subscriptionId: subscription.id, 
-      status: subscription.status,
-      currentPeriodEnd: subscription.current_period_end
-    });
-
-    const item = subscription.items.data[0];
-    const plan = item.price;
-    logStep("Subscription plan details", { 
-      priceId: plan.id, 
-      amount: plan.unit_amount, 
-      currency: plan.currency,
-      nickname: plan.nickname
-    });
-
-    // Buscar payment method com fallbacks mais robustos
-    let cardBrand = "";
-    let cardLast4 = "";
-    let cardExpMonth = "";
-    let cardExpYear = "";
-
-    try {
-      let paymentMethodId = null;
+    if (incompleteSubscriptions.length > 0) {
+      const subscription = incompleteSubscriptions[0];
+      logStep("Found incomplete subscription", { subscriptionId: subscription.id });
       
-      // Tentar obter payment method da assinatura primeiro
-      if (subscription.default_payment_method) {
-        paymentMethodId = subscription.default_payment_method as string;
-        logStep("Using subscription payment method", { paymentMethodId });
-      } 
-      // Fallback para payment method do customer
-      else if (customers.data[0].invoice_settings?.default_payment_method) {
-        paymentMethodId = customers.data[0].invoice_settings.default_payment_method as string;
-        logStep("Using customer default payment method", { paymentMethodId });
-      }
-      // Último fallback: buscar payment methods anexados ao customer
-      else {
-        const paymentMethods = await stripe.paymentMethods.list({
-          customer: customerId,
-          type: 'card',
-          limit: 1,
-        });
-        
-        if (paymentMethods.data.length > 0) {
-          paymentMethodId = paymentMethods.data[0].id;
-          logStep("Using first attached payment method", { paymentMethodId });
-        }
-      }
-
-      if (paymentMethodId) {
-        const pmethod = await stripe.paymentMethods.retrieve(paymentMethodId);
-        if (pmethod && pmethod.type === "card" && pmethod.card) {
-          cardBrand = pmethod.card.brand;
-          cardLast4 = pmethod.card.last4;
-          cardExpMonth = pmethod.card.exp_month.toString();
-          cardExpYear = pmethod.card.exp_year.toString();
-          logStep("Payment method details retrieved", { cardBrand, cardLast4 });
-        }
-      } else {
-        logStep("No payment method found for customer");
-      }
-    } catch (pmError) {
-      logStep("Error retrieving payment method", { error: pmError });
-      // Não falhar a requisição por erro de payment method
+      const item = subscription.items.data[0];
+      const plan = item.price;
+      
+      return new Response(JSON.stringify({
+        success: true,
+        hasSubscription: false,
+        isPending: true,
+        message: "Pagamento sendo processado...",
+        plan_name: getPlanName(plan.unit_amount || 0, plan.nickname),
+        amount: plan.unit_amount || 0,
+        status: "processing",
+        subscription_id: subscription.id
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
     }
 
-    const responseData = {
+    logStep("No subscription found");
+    
+    return new Response(JSON.stringify({
       success: true,
-      hasSubscription: true,
-      plan_name: getPlanName(plan.unit_amount || 0, plan.nickname),
-      amount: plan.unit_amount || 0,
-      card_brand: cardBrand,
-      card_last4: cardLast4,
-      exp_month: cardExpMonth,
-      exp_year: cardExpYear,
-      status: subscription.status,
-      subscription_id: subscription.id,
-      current_period_end: subscription.current_period_end
-    };
-
-    logStep("Sending successful response", responseData);
-
-    return new Response(JSON.stringify(responseData), {
+      hasSubscription: false,
+      message: "Nenhuma assinatura ativa encontrada",
+      plan_name: "Nenhum plano ativo",
+      amount: 0,
+      status: "inactive",
+      debug: {
+        customerId,
+        totalSubscriptions: allSubscriptions.data.length,
+        subscriptionStatuses: allSubscriptions.data.map(sub => sub.status)
+      }
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
