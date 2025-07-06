@@ -12,6 +12,15 @@ interface TeamGoalsSettingsProps {
   onGoalsUpdated?: () => void;
 }
 
+interface TeamGoal {
+  id: string;
+  user_id: string;
+  monthly_goal: number;
+  daily_goal: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export function TeamGoalsSettings({ onGoalsUpdated }: TeamGoalsSettingsProps) {
   const [monthlyGoal, setMonthlyGoal] = useState<number>(100);
   const [dailyGoal, setDailyGoal] = useState<number>(3);
@@ -31,10 +40,9 @@ export function TeamGoalsSettings({ onGoalsUpdated }: TeamGoalsSettingsProps) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Buscar metas salvas (você pode criar uma tabela específica para isso)
-      // Por enquanto, vou usar valores padrão que podem ser editados
+      // Buscar metas salvas na tabela team_goals
       const { data: goals, error } = await supabase
-        .from('team_goals')
+        .from('team_goals' as any)
         .select('monthly_goal, daily_goal')
         .eq('user_id', user.id)
         .maybeSingle();
@@ -78,9 +86,9 @@ export function TeamGoalsSettings({ onGoalsUpdated }: TeamGoalsSettingsProps) {
         return;
       }
 
-      // Salvar ou atualizar metas
+      // Salvar ou atualizar metas usando upsert
       const { error } = await supabase
-        .from('team_goals')
+        .from('team_goals' as any)
         .upsert({
           user_id: user.id,
           monthly_goal: monthlyGoal,
