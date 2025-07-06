@@ -24,6 +24,7 @@ import { useLossReasonsGlobal } from "@/hooks/useLossReasonsGlobal";
 import { useTenantSchema } from "@/hooks/useTenantSchema";
 import { SubscriptionAndPaymentPanel } from "@/components/SubscriptionAndPaymentPanel";
 import { useKanbanColumnManager } from "@/hooks/useKanbanColumnManager";
+import { TeamGoalsSettings } from "@/components/TeamGoalsSettings";
 
 interface DashboardComponent {
   id: string;
@@ -42,6 +43,7 @@ export function SettingsContent() {
   const [isAddLossReasonDialogOpen, setIsAddLossReasonDialogOpen] = useState(false);
   const [isEditCompanyModalOpen, setIsEditCompanyModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
+  const [showPaymentConfig, setShowPaymentConfig] = useState(false);
   
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [isLoadingMembers, setIsLoadingMembers] = useState(true);
@@ -534,8 +536,52 @@ export function SettingsContent() {
           )}
         </Card>
 
-        {/* Subscription and Payment Panel (Stripe) */}
-        <SubscriptionAndPaymentPanel />
+        {/* Subscription Plan with Payment Configuration */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-md font-semibold text-gray-900">Plano de Assinatura</h4>
+          </div>
+          
+          {!showPaymentConfig ? (
+            <div className="space-y-4">
+              <div className="py-2 px-3 bg-muted rounded-md flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <span className="block font-medium">Plano Premium</span>
+                    <div className="flex items-center gap-2">
+                      <span className="block text-sm text-muted-foreground">R$ 79,90</span>
+                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
+                        anual
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <Button 
+                  variant="outline"
+                  onClick={() => setShowPaymentConfig(true)}
+                  className="ml-4"
+                >
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Configurar Pagamento
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between mb-4 pb-2 border-b">
+                <h5 className="font-medium text-gray-900">Configuração de Pagamento</h5>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setShowPaymentConfig(false)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <SubscriptionAndPaymentPanel />
+            </div>
+          )}
+        </Card>
       </div>
     );
   };
@@ -909,6 +955,9 @@ export function SettingsContent() {
             </ScrollArea>
           )}
         </Card>
+
+        {/* NOVO: Painel de Metas da Equipe */}
+        <TeamGoalsSettings />
       </div>
     );
   };
