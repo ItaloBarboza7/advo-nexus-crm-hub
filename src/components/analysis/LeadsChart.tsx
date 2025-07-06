@@ -4,7 +4,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import { Lead } from "@/types/lead";
 import { ViewToggleDropdown } from "./ViewToggleDropdown";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { format, startOfWeek, endOfWeek, getDay, getMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { BrazilTimezone } from "@/lib/timezone";
@@ -24,7 +24,6 @@ export function LeadsChart({ leads, title, filterFunction, viewMode: externalVie
   // Se receber viewMode como prop, usar ele, senão usar o estado interno
   const currentViewMode = externalViewMode || internalViewMode;
 
-  // LOGS DETALHADOS MOVIDOS PARA DENTRO DO COMPONENTE
   console.log(`📊 [LeadsChart "${title}"] === INÍCIO DO RENDER ===`);
   console.log(`📊 [LeadsChart "${title}"] Props recebidos:`, {
     title,
@@ -60,6 +59,52 @@ export function LeadsChart({ leads, title, filterFunction, viewMode: externalVie
     );
   }
 
+  // FUNÇÃO CORRIGIDA para gerar o título com período - usando useCallback para estabilidade
+  const getChartTitle = useCallback(() => {
+    const baseTitle = `${title} - ${currentViewMode === 'weekly' ? 'Por Dia da Semana' : 'Por Mês'}`;
+    
+    console.log(`📊 [LeadsChart "${title}"] getChartTitle - Parâmetros:`, {
+      baseTitle,
+      currentViewMode,
+      appliedDateRange: appliedDateRange ? {
+        from: appliedDateRange.from ? BrazilTimezone.formatDateForDisplay(appliedDateRange.from) : 'N/A',
+        to: appliedDateRange.to ? BrazilTimezone.formatDateForDisplay(appliedDateRange.to) : 'N/A'
+      } : 'Nenhum'
+    });
+    
+    // CORREÇÃO PRINCIPAL: Para gráficos mensais, SEMPRE mostrar período quando há appliedDateRange
+    if (currentViewMode === 'monthly' && appliedDateRange?.from) {
+      console.log(`📊 [LeadsChart "${title}"] getChartTitle - Processando datas para gráfico mensal...`);
+      
+      try {
+        const fromDate = BrazilTimezone.formatDateForDisplay(appliedDateRange.from);
+        const toDate = appliedDateRange.to ? BrazilTimezone.formatDateForDisplay(appliedDateRang
+
+        const toDate = appliedDateRange.to ? BrazilTimezone.formatDateForDisplay(appliedDateRange.to) : fromDate;
+        
+        console.log(`📊 [LeadsChart "${title}"] getChartTitle - Datas formatadas:`, { fromDate, toDate });
+        
+        let finalTitle;
+        if (fromDate === toDate) {
+          finalTitle = `${baseTitle} (${fromDate})`;
+        } else {
+          finalTitle = `${baseTitle} (${fromDate} - ${toDate})`;
+        }
+        
+        console.log(`✅ [LeadsChart "${title}"] getChartTitle - TÍTULO FINAL MENSAL: ${finalTitle}`);
+        return finalTitle;
+      } catch (error) {
+        console.error(`❌ [LeadsChart "${title}"] getChartTitle - Erro ao formatar datas:`, error);
+        return baseTitle;
+      }
+    }
+    
+    // Para gráficos semanais ou sem período aplicado, retornar apenas o título base
+    console.log(`📊 [LeadsChart "${title}"] getChartTitle - Retornando título base: ${baseTitle}`);
+    return baseTitle;
+  }, [title, currentViewMode, appliedDateRange]);
+
+  // CORREÇÃO: Mover o cálculo de chartData para useMemo com dependências corretas
   const chartData = useMemo(() => {
     try {
       const filteredLeads = filterFunction ? leads.filter(filterFunction) : leads;
@@ -127,49 +172,7 @@ export function LeadsChart({ leads, title, filterFunction, viewMode: externalVie
     setInternalViewMode(view);
   };
 
-  // FUNÇÃO PRINCIPAL CORRIGIDA para gerar o título com período
-  const getChartTitle = () => {
-    const baseTitle = `${title} - ${currentViewMode === 'weekly' ? 'Por Dia da Semana' : 'Por Mês'}`;
-    
-    console.log(`📊 [LeadsChart "${title}"] getChartTitle - Parâmetros:`, {
-      baseTitle,
-      currentViewMode,
-      appliedDateRange: appliedDateRange ? {
-        from: appliedDateRange.from ? BrazilTimezone.formatDateForDisplay(appliedDateRange.from) : 'N/A',
-        to: appliedDateRange.to ? BrazilTimezone.formatDateForDisplay(appliedDateRange.to) : 'N/A'
-      } : 'Nenhum'
-    });
-    
-    // REGRA CORRIGIDA: Mostrar período APENAS para gráficos mensais E quando há período aplicado
-    if (currentViewMode === 'monthly' && appliedDateRange?.from) {
-      console.log(`📊 [LeadsChart "${title}"] getChartTitle - Processando datas para gráfico mensal...`);
-      
-      try {
-        const fromDate = BrazilTimezone.formatDateForDisplay(appliedDateRange.from);
-        const toDate = appliedDateRange.to ? BrazilTimezone.formatDateForDisplay(appliedDateRange.to) : fromDate;
-        
-        console.log(`📊 [LeadsChart "${title}"] getChartTitle - Datas formatadas:`, { fromDate, toDate });
-        
-        let finalTitle;
-        if (fromDate === toDate) {
-          finalTitle = `${baseTitle} (${fromDate})`;
-        } else {
-          finalTitle = `${baseTitle} (${fromDate} - ${toDate})`;
-        }
-        
-        console.log(`✅ [LeadsChart "${title}"] getChartTitle - TÍTULO FINAL MENSAL: ${finalTitle}`);
-        return finalTitle;
-      } catch (error) {
-        console.error(`❌ [LeadsChart "${title}"] getChartTitle - Erro ao formatar datas:`, error);
-        return baseTitle;
-      }
-    }
-    
-    // Para gráficos semanais ou sem período aplicado, retornar apenas o título base
-    console.log(`📊 [LeadsChart "${title}"] getChartTitle - Retornando título base: ${baseTitle}`);
-    return baseTitle;
-  };
-
+  // CORREÇÃO: Usar getChartTitle como função ao invés de calcular inline
   const finalTitle = getChartTitle();
 
   console.log(`📊 [LeadsChart "${title}"] === FINALIZANDO RENDER ===`);

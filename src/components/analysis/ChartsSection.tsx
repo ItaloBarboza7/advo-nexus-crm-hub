@@ -1,4 +1,3 @@
-
 import { LossReasonsChart } from "@/components/LossReasonsChart";
 import { ActionTypesChart } from "@/components/ActionTypesChart";
 import { ActionGroupChart } from "@/components/ActionGroupChart";
@@ -46,7 +45,6 @@ export function ChartsSection({
   appliedDateRange
 }: ChartsSectionProps) {
   
-  // LOGS MOVIDOS PARA DENTRO DO COMPONENTE
   console.log(`🎨 [ChartsSection] === INÍCIO DO RENDER ===`);
   console.log(`🎨 [ChartsSection] Props recebidos:`, {
     selectedCategory,
@@ -111,7 +109,7 @@ export function ChartsSection({
     selectedCategory
   });
 
-  // RENDERIZAÇÃO SIMPLIFICADA: Usar try-catch para capturar erros
+  // RENDERIZAÇÃO CORRIGIDA: Garantir que appliedDateRange seja passado consistentemente
   try {
     return (
       <>
