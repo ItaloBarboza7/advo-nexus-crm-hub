@@ -27,9 +27,15 @@ export function TeamGoalsSettings({ onGoalsUpdated }: TeamGoalsSettingsProps) {
   const loadCurrentGoals = async () => {
     try {
       setIsLoading(true);
+      console.log("🔍 TeamGoalsSettings - Carregando metas atuais...");
       
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        console.error("❌ Usuário não autenticado");
+        return;
+      }
+
+      console.log("👤 User ID:", user.id);
 
       // Buscar metas salvas na tabela team_goals
       const { data: goals, error } = await supabase
@@ -38,17 +44,23 @@ export function TeamGoalsSettings({ onGoalsUpdated }: TeamGoalsSettingsProps) {
         .eq('user_id', user.id)
         .maybeSingle();
 
+      console.log("📊 Metas encontradas:", goals);
+      console.log("❓ Erro na busca:", error);
+
       if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-        console.error('Erro ao carregar metas:', error);
+        console.error('❌ Erro ao carregar metas:', error);
         return;
       }
 
       if (goals) {
+        console.log("✅ Aplicando metas carregadas:", goals);
         setMonthlyGoal(goals.monthly_goal || 100);
         setDailyGoal(goals.daily_goal || 3);
+      } else {
+        console.log("📝 Nenhuma meta encontrada, usando valores padrão");
       }
     } catch (error) {
-      console.error('Erro inesperado ao carregar metas:', error);
+      console.error('❌ Erro inesperado ao carregar metas:', error);
     } finally {
       setIsLoading(false);
     }
@@ -66,9 +78,11 @@ export function TeamGoalsSettings({ onGoalsUpdated }: TeamGoalsSettingsProps) {
 
     try {
       setIsSaving(true);
+      console.log("💾 TeamGoalsSettings - Iniciando salvamento das metas...");
       
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
+        console.error("❌ Usuário não autenticado para salvamento");
         toast({
           title: "Erro",
           description: "Usuário não autenticado.",
@@ -77,28 +91,66 @@ export function TeamGoalsSettings({ onGoalsUpdated }: TeamGoalsSettingsProps) {
         return;
       }
 
-      // Salvar ou atualizar metas usando upsert
-      const { error } = await supabase
-        .from('team_goals')
-        .upsert({
-          user_id: user.id,
-          monthly_goal: monthlyGoal,
-          daily_goal: dailyGoal,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id'
-        });
+      console.log("👤 Salvando para user ID:", user.id);
+      console.log("📊 Metas a salvar:", { monthlyGoal, dailyGoal });
 
-      if (error) {
-        console.error('Erro ao salvar metas:', error);
+      // Primeiro, verificar se já existe um registro
+      const { data: existingGoal, error: selectError } = await supabase
+        .from('team_goals')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      console.log("🔍 Meta existente:", existingGoal);
+      console.log("❓ Erro na verificação:", selectError);
+
+      if (selectError && selectError.code !== 'PGRST116') {
+        console.error('❌ Erro ao verificar meta existente:', selectError);
         toast({
           title: "Erro",
-          description: "Não foi possível salvar as metas.",
+          description: "Não foi possível verificar as metas existentes.",
           variant: "destructive"
         });
         return;
       }
 
+      let result;
+      if (existingGoal) {
+        // Atualizar registro existente
+        console.log("🔄 Atualizando meta existente...");
+        result = await supabase
+          .from('team_goals')
+          .update({
+            monthly_goal: monthlyGoal,
+            daily_goal: dailyGoal,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.id);
+      } else {
+        // Criar novo registro
+        console.log("➕ Criando nova meta...");
+        result = await supabase
+          .from('team_goals')
+          .insert({
+            user_id: user.id,
+            monthly_goal: monthlyGoal,
+            daily_goal: dailyGoal
+          });
+      }
+
+      console.log("💾 Resultado do salvamento:", result);
+
+      if (result.error) {
+        console.error('❌ Erro ao salvar metas:', result.error);
+        toast({
+          title: "Erro",
+          description: `Não foi possível salvar as metas: ${result.error.message}`,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      console.log("✅ Metas salvas com sucesso!");
       toast({
         title: "Metas atualizadas!",
         description: "As metas da equipe foram salvas com sucesso.",
@@ -109,7 +161,7 @@ export function TeamGoalsSettings({ onGoalsUpdated }: TeamGoalsSettingsProps) {
       }
 
     } catch (error) {
-      console.error('Erro inesperado ao salvar metas:', error);
+      console.error('❌ Erro inesperado ao salvar metas:', error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado ao salvar as metas.",
