@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +24,6 @@ export function WeeklyFollowUpTask({ userName }: WeeklyFollowUpTaskProps) {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const { tenantSchema } = useTenantSchema();
 
-  // Buscar informações do usuário atual
   useEffect(() => {
     const getCurrentUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -39,7 +37,6 @@ export function WeeklyFollowUpTask({ userName }: WeeklyFollowUpTaskProps) {
     getCurrentUser();
   }, []);
 
-  // Buscar leads movidos para "Finalizado" ou "Perdido" na última semana
   useEffect(() => {
     const fetchWeeklyLeads = async () => {
       if (!tenantSchema || !currentUser) return;
@@ -109,7 +106,7 @@ export function WeeklyFollowUpTask({ userName }: WeeklyFollowUpTaskProps) {
       <div className="flex items-center gap-3 mb-4">
         <Clock className="h-6 w-6 text-blue-600" />
         <h3 className="text-lg font-semibold text-gray-900">
-          Follow UP - {userName}
+          Follow UP
         </h3>
       </div>
       

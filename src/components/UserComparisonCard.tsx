@@ -1,4 +1,3 @@
-
 import { Card } from "@/components/ui/card";
 import { ChevronDown } from "lucide-react";
 
@@ -83,27 +82,25 @@ export function UserComparisonCard({
   const currentMonthData = generateCurrentMonthData();
   const previousMonthData = generatePreviousMonthData();
   
-  // Calcular valores do eixo Y com escala iniciando em 180
+  // Calcular valores do eixo Y com escala que inclui 0 e vai até 180+
   const maxDataValue = Math.max(...currentMonthData, ...previousMonthData, 180);
   
-  // Criar escala com início em 180 e espaçamento adequado
+  // Criar escala que inclui 0 e vai até um valor apropriado acima de 180
   const calculateYAxisValues = (maxValue: number) => {
-    const minValue = 180; // Valor mínimo da escala
-    const range = Math.max(maxValue - minValue, 360); // Garantir range mínimo
-    const topValue = minValue + range;
+    const adjustedMax = Math.max(maxValue, 360); // Garantir que vai além de 180
     
     return [
-      Math.round(topValue),
-      Math.round(topValue * 0.75 + minValue * 0.25),
-      Math.round(topValue * 0.5 + minValue * 0.5),
-      Math.round(topValue * 0.25 + minValue * 0.75),
-      minValue
+      adjustedMax,
+      Math.round(adjustedMax * 0.75),
+      Math.round(adjustedMax * 0.5),
+      180,
+      0
     ];
   };
 
   const yAxisValues = calculateYAxisValues(maxDataValue);
   const maxValue = yAxisValues[0];
-  const minValue = yAxisValues[4]; // 180
+  const minValue = 0; // Manter zero como valor mínimo
 
   return (
     <Card className="p-6 bg-white border border-gray-200">
@@ -157,7 +154,7 @@ export function UserComparisonCard({
 
         {/* Chart Area */}
         <div className="relative h-40 bg-gray-50 rounded border border-gray-100">
-          {/* Y-axis labels com escala iniciando em 180 */}
+          {/* Y-axis labels com escala que inclui 0 e vai até valores acima de 180 */}
           <div className="absolute left-0 top-0 h-full flex flex-col justify-between text-xs text-gray-500 pr-2 py-2">
             {yAxisValues.map((value, index) => (
               <span key={index}>{value}</span>

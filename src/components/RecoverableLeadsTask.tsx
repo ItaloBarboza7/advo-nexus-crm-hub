@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -155,7 +154,7 @@ export function RecoverableLeadsTask({ userName }: RecoverableLeadsTaskProps) {
 
       <div className="bg-blue-50 rounded-lg p-4 mb-4 border border-blue-200">
         <p className="text-blue-800 text-sm">
-          <strong>{userName}</strong>, estes leads foram perdidos por motivos que podem ser revertidos.
+          Estes leads foram perdidos por motivos que podem ser revertidos.
           Entre em contato novamente para tentar recuperar essas oportunidades.
         </p>
       </div>
