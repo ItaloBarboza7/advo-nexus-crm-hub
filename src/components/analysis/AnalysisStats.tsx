@@ -5,12 +5,31 @@ import { Lead } from "@/types/lead";
 
 interface AnalysisStatsProps {
   leads: Lead[];
+  yearlyLeads: Lead[];
   onCategoryChange: (category: string) => void;
   statusHistory: any[];
   hasLeadPassedThroughStatus: (leadId: string, statuses: string[]) => boolean;
+  leadsViewMode: 'weekly' | 'monthly';
+  contractsViewMode: 'weekly' | 'monthly';
+  opportunitiesViewMode: 'weekly' | 'monthly';
+  showLeadsChart: boolean;
+  showContractsChart: boolean;
+  showOpportunitiesChart: boolean;
 }
 
-export function AnalysisStats({ leads, onCategoryChange, statusHistory, hasLeadPassedThroughStatus }: AnalysisStatsProps) {
+export function AnalysisStats({ 
+  leads, 
+  yearlyLeads, 
+  onCategoryChange, 
+  statusHistory, 
+  hasLeadPassedThroughStatus,
+  leadsViewMode,
+  contractsViewMode,
+  opportunitiesViewMode,
+  showLeadsChart,
+  showContractsChart,
+  showOpportunitiesChart
+}: AnalysisStatsProps) {
   
   // Função corrigida para verificar se um lead é uma oportunidade (NOVA REGRA)
   const isOpportunityLead = (lead: Lead): boolean => {
