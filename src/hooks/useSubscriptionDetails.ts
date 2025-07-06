@@ -61,32 +61,13 @@ export function useSubscriptionDetails() {
 
       console.log("👤 Usuário autenticado:", user.email);
 
-      // Nova função edge chamada 'get-stripe-details'
+      // Chamar função edge melhorada 'get-stripe-details'
       const { data, error } = await supabase.functions.invoke('get-stripe-details');
       
       console.log("📊 Resposta da função get-stripe-details:", { data, error });
       
       if (error) {
         console.error("❌ Erro ao buscar detalhes do Stripe:", error);
-        
-        // Para novos usuários que ainda não têm assinatura, não mostrar erro
-        if (error.message?.includes('No customer found') || 
-            error.message?.includes('Customer not found') ||
-            error.message?.includes('No subscription found')) {
-          console.log("📝 Novo usuário sem assinatura ativa, usando valores padrão");
-          setDetails({
-            plan: "Nenhum plano ativo",
-            amount: 0,
-            cardBrand: "",
-            cardLast4: "",
-            cardExp: "",
-            status: "inactive",
-            isLoading: false,
-            error: undefined
-          });
-          return;
-        }
-        
         setDetails(d => ({ 
           ...d, 
           isLoading: false, 
@@ -96,7 +77,7 @@ export function useSubscriptionDetails() {
       }
 
       if (!data || typeof data !== 'object') {
-        console.log("📝 Dados de assinatura não encontrados, usuário sem plano ativo");
+        console.log("📝 Dados de assinatura não encontrados");
         setDetails({
           plan: "Nenhum plano ativo",
           amount: 0,
@@ -104,6 +85,22 @@ export function useSubscriptionDetails() {
           cardLast4: "",
           cardExp: "",
           status: "inactive",
+          isLoading: false,
+          error: undefined
+        });
+        return;
+      }
+
+      // Tratar resposta da função melhorada
+      if (!data.success || !data.hasSubscription) {
+        console.log("📝 Sem assinatura ativa:", data.message || "Usuário sem plano ativo");
+        setDetails({
+          plan: data.plan_name || "Nenhum plano ativo",
+          amount: data.amount || 0,
+          cardBrand: data.card_brand || "",
+          cardLast4: data.card_last4 || "",
+          cardExp: data.exp_month && data.exp_year ? `${data.exp_month}/${data.exp_year}` : "",
+          status: data.status || "inactive",
           isLoading: false,
           error: undefined
         });
@@ -127,16 +124,15 @@ export function useSubscriptionDetails() {
     } catch (error) {
       console.error("❌ Erro inesperado ao buscar detalhes da assinatura:", error);
       
-      // Para novos usuários, isso pode ser normal
       setDetails({
-        plan: "Nenhum plano ativo",
+        plan: "Erro ao carregar",
         amount: 0,
         cardBrand: "",
         cardLast4: "",
         cardExp: "",
-        status: "inactive",
+        status: "error",
         isLoading: false,
-        error: undefined // Não mostrar erro para novos usuários
+        error: "Erro de conexão. Tente novamente."
       });
     }
   }

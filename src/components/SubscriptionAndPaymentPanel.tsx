@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
+import { AlertCircle, CheckCircle, XCircle } from "lucide-react";
 
 export function SubscriptionAndPaymentPanel() {
   const {
@@ -53,13 +54,30 @@ export function SubscriptionAndPaymentPanel() {
     );
   }
 
-  // Se há erro, mostrar uma mensagem mais amigável
-  if (error) {
+  // Status icons and colors
+  const getStatusDisplay = () => {
+    switch (status) {
+      case "active":
+        return { icon: CheckCircle, color: "text-green-600", bgColor: "bg-green-50", text: "Ativo" };
+      case "inactive":
+        return { icon: AlertCircle, color: "text-yellow-600", bgColor: "bg-yellow-50", text: "Inativo" };
+      case "error":
+        return { icon: XCircle, color: "text-red-600", bgColor: "bg-red-50", text: "Erro" };
+      default:
+        return { icon: AlertCircle, color: "text-gray-600", bgColor: "bg-gray-50", text: status || "Desconhecido" };
+    }
+  };
+
+  // Se há erro crítico, mostrar mensagem de erro
+  if (error && status === "error") {
     return (
-      <div className="py-4 px-4 bg-yellow-50 border border-yellow-200 rounded-md">
-        <div className="text-center">
-          <p className="text-sm text-yellow-800 mb-2">Não foi possível carregar os dados da assinatura</p>
-          <p className="text-xs text-yellow-600">{error}</p>
+      <div className="py-4 px-4 bg-red-50 border border-red-200 rounded-md">
+        <div className="flex items-center gap-2 text-center">
+          <XCircle className="h-4 w-4 text-red-600" />
+          <div>
+            <p className="text-sm text-red-800 mb-1">Erro ao carregar dados da assinatura</p>
+            <p className="text-xs text-red-600">{error}</p>
+          </div>
         </div>
       </div>
     );
@@ -68,14 +86,20 @@ export function SubscriptionAndPaymentPanel() {
   // Para usuários sem plano ativo
   if (status === "inactive" || !plan || plan === "Nenhum plano ativo") {
     return (
-      <div className="py-4 px-4 bg-gray-50 border border-gray-200 rounded-md">
-        <div className="text-center">
-          <p className="text-sm text-gray-600 mb-2">Nenhum plano ativo encontrado</p>
-          <p className="text-xs text-gray-500">Entre em contato para ativar sua assinatura</p>
+      <div className="py-4 px-4 bg-yellow-50 border border-yellow-200 rounded-md">
+        <div className="flex items-center gap-2 text-center">
+          <AlertCircle className="h-4 w-4 text-yellow-600" />
+          <div>
+            <p className="text-sm text-yellow-800 mb-1">Nenhum plano ativo encontrado</p>
+            <p className="text-xs text-yellow-600">Entre em contato para ativar sua assinatura</p>
+          </div>
         </div>
       </div>
     );
   }
+
+  const statusDisplay = getStatusDisplay();
+  const StatusIcon = statusDisplay.icon;
 
   return (
     <div className="space-y-6">
@@ -84,11 +108,21 @@ export function SubscriptionAndPaymentPanel() {
         <div className="py-4 px-4 bg-muted rounded-md">
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <span className="block font-medium text-lg">{plan}</span>
-              <span className="block text-sm text-muted-foreground">R$ {(amount/100).toFixed(2)} / mês</span>
-              <span className={`inline-block text-xs rounded mt-2 px-2 py-0.5 ${status === "active" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-500"}`}>
-                {status === "active" ? "Ativo" : status}
+              <div className="flex items-center gap-2 mb-2">
+                <span className="block font-medium text-lg">{plan}</span>
+                <div className={`inline-flex items-center gap-1 text-xs rounded px-2 py-0.5 ${statusDisplay.bgColor} ${statusDisplay.color}`}>
+                  <StatusIcon className="h-3 w-3" />
+                  {statusDisplay.text}
+                </div>
+              </div>
+              <span className="block text-sm text-muted-foreground">
+                R$ {(amount/100).toFixed(2)} / mês
               </span>
+              {subscriptionId && (
+                <span className="block text-xs text-muted-foreground mt-1">
+                  ID: {subscriptionId}
+                </span>
+              )}
             </div>
             <Button 
               size="sm" 
@@ -125,7 +159,10 @@ export function SubscriptionAndPaymentPanel() {
               </div>
             ) : (
               <div className="py-3">
-                <p className="text-sm text-muted-foreground">Não há cartão cadastrado.</p>
+                <p className="text-sm text-muted-foreground mb-2">Não há cartão cadastrado.</p>
+                <Button size="sm" onClick={handleChangeCard}>
+                  Adicionar pagamento
+                </Button>
               </div>
             )}
           </div>

@@ -137,13 +137,13 @@ export function useUserLeadsForDate() {
       const dateString = BrazilTimezone.formatDateForQuery(selectedDate);
       console.log("📅 Data formatada para query:", dateString);
       
+      // CORREÇÃO: Removido o filtro user_id pois essa coluna não existe no esquema do tenant
       const sql = `
         SELECT 
-          id, name, phone, email, source, status, created_at, updated_at, value, user_id, 
+          id, name, phone, email, source, status, created_at, updated_at, value,
           action_type, action_group, description, state, loss_reason, closed_by_user_id
         FROM ${tenantSchema}.leads
         WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = '${dateString}'
-          AND user_id = '${currentUser.id}'
         ORDER BY created_at DESC
       `;
 
@@ -180,7 +180,7 @@ export function useUserLeadsForDate() {
             created_at: lead.created_at || new Date().toISOString(),
             updated_at: lead.updated_at || new Date().toISOString(),
             value: lead.value ? Number(lead.value) : null,
-            user_id: lead.user_id || currentUser.id,
+            user_id: currentUser.id, // Definir como o usuário atual
             action_type: lead.action_type || null,
             action_group: lead.action_group || null,
             description: lead.description || null,
@@ -190,7 +190,7 @@ export function useUserLeadsForDate() {
           } as Lead;
         });
 
-      console.log(`✅ ${transformedLeads.length} leads processados do usuário ${currentUser.name}:`, transformedLeads);
+      console.log(`✅ ${transformedLeads.length} leads processados:`, transformedLeads);
       setLeads(transformedLeads);
       
     } catch (error: any) {
