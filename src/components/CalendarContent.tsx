@@ -110,7 +110,7 @@ export function CalendarContent() {
     );
   };
 
-  // Calcular estatísticas reais usando a MESMA LÓGICA do useTeamResults mas para o usuário atual
+  // DEBUGGING: Calcular estatísticas reais usando a MESMA LÓGICA do useTeamResults mas para o usuário atual
   const getContractsStats = () => {
     if (!leads || leads.length === 0 || !currentUser) {
       return {
@@ -120,21 +120,56 @@ export function CalendarContent() {
       };
     }
 
+    console.log("🔍 DEBUGGING CalendarContent - getContractsStats:");
+    console.log("📊 Total de leads no sistema:", leads.length);
+    console.log("👤 Current user ID:", currentUser.id);
+    console.log("📈 Status history entries:", statusHistory.length);
+
     const now = BrazilTimezone.now();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
     const previousMonth = currentMonth === 0 ? 11 : currentMonth - 1;
     const previousYear = currentMonth === 0 ? currentYear - 1 : currentYear;
 
+    console.log("📅 Mês atual:", currentMonth + 1, "Ano:", currentYear);
+
     // Filtrar leads do usuário atual
     const userLeads = leads.filter(lead => lead.user_id === currentUser.id);
+    console.log("👤 Leads do usuário atual (total):", userLeads.length);
 
-    // Calcular dados do mês atual
+    // *** REMOVER FILTRO POR MÊS PARA COMPARAR COM TEAMRESULTS ***
+    // Vamos calcular SEM filtro de mês para ver se bate com os 295 pontos
+    
+    console.log("🔍 CALCULANDO SEM FILTRO DE MÊS (como no TeamResults):");
+    
+    const allUserProposals = userLeads.filter(lead => {
+      if (['Proposta', 'Reunião'].includes(lead.status)) {
+        return true;
+      }
+      return hasLeadPassedThroughStatus(lead.id, ['Proposta', 'Reunião']);
+    });
+
+    const allUserSales = userLeads.filter(lead => 
+      lead.status === 'Contrato Fechado'
+    );
+
+    const allUserPoints = (userLeads.length * 5) + (allUserProposals.length * 10) + (allUserSales.length * 100);
+
+    console.log("📈 SEM FILTRO DE MÊS:");
+    console.log("  - Leads:", userLeads.length);
+    console.log("  - Propostas:", allUserProposals.length);
+    console.log("  - Vendas:", allUserSales.length);
+    console.log("  - PONTOS TOTAIS:", allUserPoints);
+
+    // Agora calcular COM filtro de mês (lógica atual)
     const currentMonthLeads = userLeads.filter(lead => {
       const leadDate = new Date(lead.created_at);
       const leadDateLocal = BrazilTimezone.toLocal(leadDate);
       return leadDateLocal.getMonth() === currentMonth && leadDateLocal.getFullYear() === currentYear;
     });
+
+    console.log("📅 COM FILTRO DE MÊS ATUAL (julho):");
+    console.log("  - Leads do mês atual:", currentMonthLeads.length);
 
     const currentMonthProposals = currentMonthLeads.filter(lead => {
       if (['Proposta', 'Reunião'].includes(lead.status)) {
@@ -146,6 +181,9 @@ export function CalendarContent() {
     const currentMonthSales = currentMonthLeads.filter(lead => 
       lead.status === 'Contrato Fechado'
     );
+
+    console.log("  - Propostas do mês:", currentMonthProposals.length);
+    console.log("  - Vendas do mês:", currentMonthSales.length);
 
     // Calcular dados do mês anterior
     const previousMonthLeads = userLeads.filter(lead => {
@@ -169,6 +207,9 @@ export function CalendarContent() {
     const currentMonthPoints = (currentMonthLeads.length * 5) + (currentMonthProposals.length * 10) + (currentMonthSales.length * 100);
     const previousMonthPoints = (previousMonthLeads.length * 5) + (previousMonthProposals.length * 10) + (previousMonthSales.length * 100);
 
+    console.log("💰 PONTOS DO MÊS ATUAL:", currentMonthPoints);
+    console.log("💰 PONTOS DO MÊS ANTERIOR:", previousMonthPoints);
+
     console.log(`📊 CalendarContent - Estatísticas calculadas para ${currentUser.name}:`, {
       currentMonth: {
         leads: currentMonthLeads.length,
@@ -181,6 +222,12 @@ export function CalendarContent() {
         proposals: previousMonthProposals.length,
         sales: previousMonthSales.length,
         points: previousMonthPoints
+      },
+      withoutFilter: {
+        leads: userLeads.length,
+        proposals: allUserProposals.length,
+        sales: allUserSales.length,
+        points: allUserPoints
       }
     });
     
