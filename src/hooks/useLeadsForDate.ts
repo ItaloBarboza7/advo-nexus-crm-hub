@@ -6,14 +6,15 @@ import { BrazilTimezone } from '@/lib/timezone';
 import { DateRange } from 'react-day-picker';
 import { Lead } from '@/types/lead';
 
-// Cache de dados melhorado
+// Cache melhorado com controle de validade
 let dataCache: Map<string, {
   data: Lead[];
   timestamp: number;
   isValid: boolean;
+  userId: string;
 }> = new Map();
 
-const CACHE_DURATION = 3 * 60 * 1000; // 3 minutos
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
 
@@ -22,99 +23,88 @@ export function useLeadsForDate() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<{ id: string; name: string } | null>(null);
-  const { tenantSchema, isResolved: schemaResolved, isLoading: schemaLoading, refreshSchema } = useTenantSchema();
+  const { tenantSchema, isResolved: schemaResolved, refreshSchema } = useTenantSchema();
   
-  // Refs para controle de estado e prevenção de condições de corrida
+  // Refs para controle de estado
   const isMountedRef = useRef(true);
   const currentRequestRef = useRef<string | null>(null);
-  const lastSuccessfulDataRef = useRef<Lead[]>([]);
-  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const initializationRef = useRef<Promise<void> | null>(null);
-
-  // Buscar usuário atual apenas uma vez com retry melhorado
-  useEffect(() => {
-    let isMounted = true;
-    
-    // Prevenir múltiplas inicializações
-    if (initializationRef.current) {
-      return;
-    }
-    
-    initializationRef.current = (async () => {
-      let retryCount = 0;
-      
-      while (retryCount < MAX_RETRIES && isMounted) {
-        try {
-          console.log(`🔍 useLeadsForDate - Tentativa ${retryCount + 1} de obter usuário atual...`);
-          
-          const { data: { user }, error: userError } = await supabase.auth.getUser();
-          
-          if (userError || !user) {
-            throw new Error(userError?.message || 'Usuário não encontrado');
-          }
-
-          const { data: profile } = await supabase
-            .from('user_profiles')
-            .select('name')
-            .eq('user_id', user.id)
-            .maybeSingle();
-          
-          const userData = {
-            id: user.id,
-            name: profile?.name || user.email || 'Usuário'
-          };
-          
-          console.log("✅ useLeadsForDate - Usuário atual carregado:", userData);
-          
-          if (isMounted) {
-            setCurrentUser(userData);
-          }
-          break;
-          
-        } catch (error) {
-          console.error(`❌ useLeadsForDate - Erro na tentativa ${retryCount + 1}:`, error);
-          retryCount++;
-          
-          if (retryCount < MAX_RETRIES && isMounted) {
-            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-          } else if (isMounted) {
-            setError("Erro ao carregar dados do usuário");
-          }
-        }
-      }
-    })();
-
-    return () => {
-      isMounted = false;
-      initializationRef.current = null;
-    };
-  }, []);
+  const userInitializedRef = useRef(false);
 
   // Limpar referências quando componente for desmontado
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
+    };
+  }, []);
+
+  // Inicializar usuário uma única vez
+  useEffect(() => {
+    if (userInitializedRef.current) return;
+    
+    let isMounted = true;
+    
+    const initializeUser = async () => {
+      try {
+        console.log('🔍 useLeadsForDate - Inicializando usuário...');
+        
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        if (userError || !user) {
+          throw new Error(userError?.message || 'Usuário não encontrado');
+        }
+
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('name')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        const userData = {
+          id: user.id,
+          name: profile?.name || user.email || 'Usuário'
+        };
+        
+        console.log("✅ useLeadsForDate - Usuário inicializado:", userData);
+        
+        if (isMounted) {
+          setCurrentUser(userData);
+          userInitializedRef.current = true;
+        }
+        
+      } catch (error) {
+        console.error('❌ useLeadsForDate - Erro ao inicializar usuário:', error);
+        if (isMounted) {
+          setError("Erro ao carregar dados do usuário");
+        }
       }
+    };
+
+    initializeUser();
+
+    return () => {
+      isMounted = false;
     };
   }, []);
 
   // Função para gerar chave de cache
-  const getCacheKey = useCallback((dateQuery: string, tenantSchema: string) => {
-    return `${tenantSchema}_${dateQuery}`;
+  const getCacheKey = useCallback((dateQuery: string, tenantSchema: string, userId: string) => {
+    return `${tenantSchema}_${userId}_${dateQuery}`;
   }, []);
 
   // Função para verificar validade do cache
-  const isCacheValid = useCallback((cacheKey: string) => {
+  const isCacheValid = useCallback((cacheKey: string, userId: string) => {
     const cached = dataCache.get(cacheKey);
-    if (!cached || !cached.isValid) return false;
+    if (!cached || !cached.isValid || cached.userId !== userId) {
+      return false;
+    }
     
     const now = Date.now();
     const isValid = (now - cached.timestamp) < CACHE_DURATION;
     
     console.log(`🔍 useLeadsForDate - Cache check para "${cacheKey}":`, {
       exists: !!cached,
+      userMatch: cached.userId === userId,
       isValid: cached.isValid,
       age: now - cached.timestamp,
       maxAge: CACHE_DURATION,
@@ -124,25 +114,26 @@ export function useLeadsForDate() {
     return isValid;
   }, []);
 
+  // Verificação melhorada de dependências
   const canFetchData = useCallback(() => {
-    const canFetch = schemaResolved && tenantSchema && currentUser && !schemaLoading;
+    const canFetch = schemaResolved && tenantSchema && currentUser && userInitializedRef.current;
     
-    console.log("🔍 useLeadsForDate - Verificação de dependências (melhorada):", {
+    console.log("🔍 useLeadsForDate - Verificação de dependências:", {
       schemaResolved,
       hasTenantSchema: !!tenantSchema,
       hasCurrentUser: !!currentUser,
-      schemaLoading,
+      userInitialized: userInitializedRef.current,
       canFetch,
       tenantSchemaValue: tenantSchema
     });
     
     return canFetch;
-  }, [schemaResolved, tenantSchema, currentUser, schemaLoading]);
+  }, [schemaResolved, tenantSchema, currentUser]);
 
-  // Função interna para executar query com retry e cache
+  // Função para executar query com retry
   const executeLeadsQuery = async (sql: string, cacheKey: string, requestId: string): Promise<Lead[]> => {
     // Verificar cache primeiro
-    if (isCacheValid(cacheKey)) {
+    if (currentUser && isCacheValid(cacheKey, currentUser.id)) {
       const cached = dataCache.get(cacheKey);
       console.log(`✅ useLeadsForDate - Usando dados do cache para "${cacheKey}"`);
       return cached!.data;
@@ -188,11 +179,14 @@ export function useLeadsForDate() {
           } as Lead));
 
         // Armazenar no cache
-        dataCache.set(cacheKey, {
-          data: transformedLeads,
-          timestamp: Date.now(),
-          isValid: true
-        });
+        if (currentUser) {
+          dataCache.set(cacheKey, {
+            data: transformedLeads,
+            timestamp: Date.now(),
+            isValid: true,
+            userId: currentUser.id
+          });
+        }
 
         console.log(`✅ useLeadsForDate - ${transformedLeads.length} leads processados e armazenados no cache`);
         return transformedLeads;
@@ -211,176 +205,115 @@ export function useLeadsForDate() {
   };
 
   const fetchLeadsForDate = useCallback(async (selectedDate: Date) => {
-    // Limpar timeout anterior se existir
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
+    if (!selectedDate) {
+      console.log("🚫 useLeadsForDate - Data não fornecida");
+      setLeads([]);
+      return;
     }
 
-    // Debounce de 300ms
-    debounceTimeoutRef.current = setTimeout(async () => {
-      if (!selectedDate) {
-        console.log("🚫 useLeadsForDate - Data não fornecida");
-        if (lastSuccessfulDataRef.current.length === 0) {
-          setLeads([]);
-        }
-        return;
+    if (!canFetchData()) {
+      console.log("🚫 useLeadsForDate - Dependências não prontas");
+      return;
+    }
+
+    const requestId = `date_${selectedDate.getTime()}_${Date.now()}`;
+    currentRequestRef.current = requestId;
+
+    try {
+      if (!isMountedRef.current) return;
+      
+      setIsLoading(true);
+      setError(null);
+      
+      console.log("📅 useLeadsForDate - Buscando leads para data:", BrazilTimezone.formatDateForDisplay(selectedDate));
+
+      const dateString = BrazilTimezone.formatDateForQuery(selectedDate);
+      const cacheKey = getCacheKey(`date_${dateString}`, tenantSchema!, currentUser!.id);
+      
+      const sql = `
+        SELECT 
+          id, name, phone, email, source, status, created_at, updated_at, value, user_id, 
+          action_type, action_group, description, state, loss_reason, closed_by_user_id
+        FROM ${tenantSchema}.leads
+        WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = '${dateString}'
+        ORDER BY created_at DESC
+      `;
+
+      const transformedLeads = await executeLeadsQuery(sql, cacheKey, requestId);
+
+      if (isMountedRef.current && currentRequestRef.current === requestId) {
+        setLeads(transformedLeads);
+        console.log(`✅ useLeadsForDate - ${transformedLeads.length} leads carregados para a data`);
       }
-
-      if (!canFetchData()) {
-        console.log("🚫 useLeadsForDate - Dependências não prontas, tentando refresh do schema...");
-        
-        try {
-          await refreshSchema();
-          // Tentar novamente após o refresh
-          if (!canFetchData()) {
-            if (lastSuccessfulDataRef.current.length === 0) {
-              setLeads([]);
-            }
-            return;
-          }
-        } catch (error) {
-          console.error("❌ useLeadsForDate - Falha no refresh do schema:", error);
-          if (lastSuccessfulDataRef.current.length === 0) {
-            setLeads([]);
-          }
-          return;
-        }
+      
+    } catch (error: any) {
+      console.error('❌ useLeadsForDate - Erro ao buscar leads por data:', error);
+      if (isMountedRef.current && currentRequestRef.current === requestId) {
+        setError(error.message || "Erro ao carregar leads");
+        setLeads([]);
       }
-
-      const requestId = `date_${selectedDate.getTime()}_${Date.now()}`;
-      currentRequestRef.current = requestId;
-
-      try {
-        if (!isMountedRef.current) return;
-        
-        setIsLoading(true);
-        setError(null);
-        
-        console.log("📅 useLeadsForDate - Buscando leads cadastrados em:", BrazilTimezone.formatDateForDisplay(selectedDate));
-
-        const dateString = BrazilTimezone.formatDateForQuery(selectedDate);
-        const cacheKey = getCacheKey(`date_${dateString}`, tenantSchema!);
-        
-        const sql = `
-          SELECT 
-            id, name, phone, email, source, status, created_at, updated_at, value, user_id, 
-            action_type, action_group, description, state, loss_reason, closed_by_user_id
-          FROM ${tenantSchema}.leads
-          WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = '${dateString}'
-          ORDER BY created_at DESC
-        `;
-
-        const transformedLeads = await executeLeadsQuery(sql, cacheKey, requestId);
-
-        if (isMountedRef.current && currentRequestRef.current === requestId) {
-          setLeads(transformedLeads);
-          lastSuccessfulDataRef.current = transformedLeads;
-        }
-        
-      } catch (error: any) {
-        console.error('❌ useLeadsForDate - Erro ao buscar leads por data:', error);
-        if (isMountedRef.current && currentRequestRef.current === requestId) {
-          setError(error.message || "Erro ao carregar leads");
-          // Manter dados anteriores em caso de erro
-          if (lastSuccessfulDataRef.current.length > 0) {
-            setLeads(lastSuccessfulDataRef.current);
-          } else {
-            setLeads([]);
-          }
-        }
-      } finally {
-        if (isMountedRef.current && currentRequestRef.current === requestId) {
-          setIsLoading(false);
-        }
+    } finally {
+      if (isMountedRef.current && currentRequestRef.current === requestId) {
+        setIsLoading(false);
       }
-    }, 300);
-  }, [canFetchData, tenantSchema, currentUser, schemaResolved, schemaLoading, getCacheKey, refreshSchema]);
+    }
+  }, [canFetchData, tenantSchema, currentUser, getCacheKey]);
 
   const fetchLeadsForDateRange = useCallback(async (dateRange: DateRange) => {
-    // Limpar timeout anterior se existir
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
+    if (!dateRange.from) {
+      console.log("🚫 useLeadsForDate - Período não fornecido");
+      setLeads([]);
+      return;
     }
 
-    // Debounce de 300ms
-    debounceTimeoutRef.current = setTimeout(async () => {
-      if (!dateRange.from) {
-        console.log("🚫 useLeadsForDate - Período não fornecido");
-        if (lastSuccessfulDataRef.current.length === 0) {
-          setLeads([]);
-        }
-        return;
+    if (!canFetchData()) {
+      console.log("🚫 useLeadsForDate - Dependências não prontas para período");
+      return;
+    }
+
+    const requestId = `range_${dateRange.from.getTime()}_${dateRange.to?.getTime() || 0}_${Date.now()}`;
+    currentRequestRef.current = requestId;
+
+    try {
+      if (!isMountedRef.current) return;
+      
+      setIsLoading(true);
+      setError(null);
+      
+      const fromDate = BrazilTimezone.formatDateForQuery(dateRange.from);
+      const toDate = dateRange.to ? BrazilTimezone.formatDateForQuery(dateRange.to) : fromDate;
+      const cacheKey = getCacheKey(`range_${fromDate}_${toDate}`, tenantSchema!, currentUser!.id);
+      
+      console.log("📅 useLeadsForDate - Buscando leads para período:", { fromDate, toDate });
+
+      const sql = `
+        SELECT 
+          id, name, phone, email, source, status, created_at, updated_at, value, user_id, 
+          action_type, action_group, description, state, loss_reason, closed_by_user_id
+        FROM ${tenantSchema}.leads
+        WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') BETWEEN '${fromDate}' AND '${toDate}'
+        ORDER BY created_at DESC
+      `;
+
+      const transformedLeads = await executeLeadsQuery(sql, cacheKey, requestId);
+
+      if (isMountedRef.current && currentRequestRef.current === requestId) {
+        setLeads(transformedLeads);
+        console.log(`✅ useLeadsForDate - ${transformedLeads.length} leads carregados para o período`);
       }
-
-      if (!canFetchData()) {
-        console.log("🚫 useLeadsForDate - Dependências não prontas para período, tentando refresh...");
-        
-        try {
-          await refreshSchema();
-          if (!canFetchData()) {
-            if (lastSuccessfulDataRef.current.length === 0) {
-              setLeads([]);
-            }
-            return;
-          }
-        } catch (error) {
-          console.error("❌ useLeadsForDate - Falha no refresh para período:", error);
-          if (lastSuccessfulDataRef.current.length === 0) {
-            setLeads([]);
-          }
-          return;
-        }
+      
+    } catch (error: any) {
+      console.error('❌ useLeadsForDate - Erro ao buscar leads por período:', error);
+      if (isMountedRef.current && currentRequestRef.current === requestId) {
+        setError(error.message || "Erro ao carregar leads");
+        setLeads([]);
       }
-
-      const requestId = `range_${dateRange.from.getTime()}_${dateRange.to?.getTime() || 0}_${Date.now()}`;
-      currentRequestRef.current = requestId;
-
-      try {
-        if (!isMountedRef.current) return;
-        
-        setIsLoading(true);
-        setError(null);
-        
-        const fromDate = BrazilTimezone.formatDateForQuery(dateRange.from);
-        const toDate = dateRange.to ? BrazilTimezone.formatDateForQuery(dateRange.to) : fromDate;
-        const cacheKey = getCacheKey(`range_${fromDate}_${toDate}`, tenantSchema!);
-        
-        console.log("📅 useLeadsForDate - Buscando leads para período:", { fromDate, toDate });
-
-        const sql = `
-          SELECT 
-            id, name, phone, email, source, status, created_at, updated_at, value, user_id, 
-            action_type, action_group, description, state, loss_reason, closed_by_user_id
-          FROM ${tenantSchema}.leads
-          WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') BETWEEN '${fromDate}' AND '${toDate}'
-          ORDER BY created_at DESC
-        `;
-
-        const transformedLeads = await executeLeadsQuery(sql, cacheKey, requestId);
-
-        if (isMountedRef.current && currentRequestRef.current === requestId) {
-          setLeads(transformedLeads);
-          lastSuccessfulDataRef.current = transformedLeads;
-        }
-        
-      } catch (error: any) {
-        console.error('❌ useLeadsForDate - Erro ao buscar leads por período:', error);
-        if (isMountedRef.current && currentRequestRef.current === requestId) {
-          setError(error.message || "Erro ao carregar leads");
-          // Manter dados anteriores em caso de erro
-          if (lastSuccessfulDataRef.current.length > 0) {
-            setLeads(lastSuccessfulDataRef.current);
-          } else {
-            setLeads([]);
-          }
-        }
-      } finally {
-        if (isMountedRef.current && currentRequestRef.current === requestId) {
-          setIsLoading(false);
-        }
+    } finally {
+      if (isMountedRef.current && currentRequestRef.current === requestId) {
+        setIsLoading(false);
       }
-    }, 300);
-  }, [canFetchData, tenantSchema, currentUser, schemaResolved, schemaLoading, getCacheKey, refreshSchema]);
+    }
+  }, [canFetchData, tenantSchema, currentUser, getCacheKey]);
 
   // Função para limpar cache
   const clearCache = useCallback(() => {

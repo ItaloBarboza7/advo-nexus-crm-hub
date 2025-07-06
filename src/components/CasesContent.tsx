@@ -33,16 +33,10 @@ export function CasesContent() {
     valueRange: { min: null, max: null }
   });
   const [isInitialized, setIsInitialized] = useState(false);
-  const [initializationAttempted, setInitializationAttempted] = useState(false);
   
-  // Refs para controle de estado melhorado
+  // Refs para controle de estado
   const isMountedRef = useRef(true);
-  const initializationRef = useRef(false);
-  const lastValidStateRef = useRef<{
-    leads: any[];
-    appliedDateRange: DateRange | undefined;
-    timestamp: number;
-  } | null>(null);
+  const initializationPromiseRef = useRef<Promise<void> | null>(null);
   
   const { 
     leads, 
@@ -92,7 +86,7 @@ export function CasesContent() {
     shouldShowStateChart
   } = useAnalysisLogic(leads, selectedCategory, statusHistory, hasLeadPassedThroughStatus);
 
-  // Controle de montagem do componente melhorado
+  // Controle de montagem do componente
   useEffect(() => {
     isMountedRef.current = true;
     console.log('🚀 CasesContent - Componente montado');
@@ -103,49 +97,12 @@ export function CasesContent() {
     };
   }, []);
 
-  // Salvar estado válido para recuperação
-  useEffect(() => {
-    if (leads && leads.length > 0 && appliedDateRange) {
-      lastValidStateRef.current = {
-        leads: [...leads],
-        appliedDateRange: { ...appliedDateRange },
-        timestamp: Date.now()
-      };
-      console.log('💾 CasesContent - Estado válido salvo:', {
-        leadsCount: leads.length,
-        dateRange: appliedDateRange
-      });
-    }
-  }, [leads, appliedDateRange]);
-
-  // Função para recuperar estado válido anterior
-  const recoverFromValidState = useCallback(() => {
-    const validState = lastValidStateRef.current;
-    if (validState && isMountedRef.current) {
-      const ageMs = Date.now() - validState.timestamp;
-      const maxAge = 5 * 60 * 1000; // 5 minutos
-      
-      if (ageMs < maxAge) {
-        console.log('🔄 CasesContent - Recuperando estado válido anterior:', {
-          age: Math.round(ageMs / 1000) + 's',
-          leadsCount: validState.leads.length
-        });
-        
-        // Restaurar dados sem aguardar
-        setAppliedDateRange(validState.appliedDateRange);
-        // Os leads serão recarregados pela função de fetch
-        return true;
-      }
-    }
-    return false;
-  }, []);
-
   // Função para buscar dados do mês atual
   const fetchCurrentMonthData = useCallback(() => {
-    if (!isMountedRef.current || !canFetchData) {
+    if (!canFetchData) {
       console.log("🚫 CasesContent - Não é possível buscar dados do mês atual:", {
-        isMounted: isMountedRef.current,
-        canFetchData
+        canFetchData,
+        isMounted: isMountedRef.current
       });
       return;
     }
@@ -170,9 +127,10 @@ export function CasesContent() {
     }
   }, [fetchLeadsForDateRange, canFetchData]);
 
-  // Inicialização controlada e melhorada
+  // Inicialização única e controlada
   useEffect(() => {
-    if (!schemaResolved || initializationRef.current || initializationAttempted) {
+    // Prevenir múltiplas inicializações
+    if (initializationPromiseRef.current || isInitialized) {
       return;
     }
 
@@ -183,47 +141,30 @@ export function CasesContent() {
       isMounted: isMountedRef.current
     });
 
-    // Marcar que tentativa de inicialização foi feita
-    setInitializationAttempted(true);
-
-    // Aguardar que todas as dependências estejam prontas
     if (canFetchData && currentUser && isMountedRef.current) {
-      console.log("🚀 CasesContent - Inicializando análises com schema resolvido");
-      initializationRef.current = true;
+      console.log("🚀 CasesContent - Iniciando carregamento de dados");
       
-      // Tentar recuperar estado válido primeiro
-      if (!recoverFromValidState()) {
-        fetchCurrentMonthData();
-      }
-      
-      setIsInitialized(true);
-    } else {
-      console.log("⏳ CasesContent - Aguardando dependências...");
-      
-      // Se não conseguir inicializar, tentar recuperar estado válido
-      setTimeout(() => {
-        if (isMountedRef.current && !isInitialized) {
-          console.log("🔄 CasesContent - Tentando recuperação após timeout...");
-          recoverFromValidState();
+      initializationPromiseRef.current = (async () => {
+        try {
+          await new Promise(resolve => setTimeout(resolve, 100)); // Pequeno delay para estabilizar
+          
+          if (isMountedRef.current) {
+            fetchCurrentMonthData();
+            setIsInitialized(true);
+            console.log("✅ CasesContent - Inicialização concluída");
+          }
+        } catch (error) {
+          console.error("❌ CasesContent - Erro na inicialização:", error);
+        } finally {
+          initializationPromiseRef.current = null;
         }
-      }, 2000);
+      })();
     }
-  }, [schemaResolved, canFetchData, currentUser, fetchCurrentMonthData, initializationAttempted, recoverFromValidState, isInitialized]);
-
-  // Reset quando componente for remontado
-  useEffect(() => {
-    return () => {
-      // Limpar estado de inicialização quando componente for desmontado
-      initializationRef.current = false;
-      setIsInitialized(false);
-      setInitializationAttempted(false);
-    };
-  }, []);
+  }, [canFetchData, currentUser, schemaResolved, fetchCurrentMonthData, isInitialized]);
 
   const handleDateRangeApply = useCallback((range: DateRange | undefined) => {
-    if (!isMountedRef.current || !canFetchData) {
+    if (!canFetchData) {
       console.log("🚫 CasesContent - Não é possível aplicar filtro de período:", {
-        isMounted: isMountedRef.current,
         canFetchData
       });
       return;
@@ -289,13 +230,7 @@ export function CasesContent() {
     clearCache();
     
     if (!canFetchData) {
-      console.log("🚫 CasesContent - Não é possível atualizar dados:", {
-        isMounted: isMountedRef.current,
-        canFetchData
-      });
-      
-      // Tentar recuperar estado válido em caso de problemas
-      recoverFromValidState();
+      console.log("🚫 CasesContent - Não é possível atualizar dados");
       return;
     }
     
@@ -304,7 +239,7 @@ export function CasesContent() {
     } else {
       fetchCurrentMonthData();
     }
-  }, [appliedDateRange, fetchLeadsForDateRange, fetchCurrentMonthData, canFetchData, clearCache, recoverFromValidState]);
+  }, [appliedDateRange, fetchLeadsForDateRange, fetchCurrentMonthData, canFetchData, clearCache]);
 
   const getDisplayTitle = useCallback(() => {
     if (appliedDateRange?.from) {
@@ -317,7 +252,7 @@ export function CasesContent() {
     return "Análise detalhada de leads e performance de vendas";
   }, [appliedDateRange]);
 
-  console.log("📊 CasesContent - Estado atual (melhorado):", {
+  console.log("📊 CasesContent - Estado atual:", {
     totalLeads: leads?.length || 0,
     filteredLeads: filteredLeads.length,
     appliedDateRange: appliedDateRange ? {
@@ -328,12 +263,11 @@ export function CasesContent() {
     isInitialized,
     schemaResolved,
     canFetchData,
-    isMounted: isMountedRef.current,
-    hasValidState: !!lastValidStateRef.current
+    isMounted: isMountedRef.current
   });
 
-  // Estado de carregamento melhorado
-  if (!schemaResolved || (isLoading && !isInitialized)) {
+  // Estado de carregamento inicial
+  if ((!schemaResolved || !canFetchData || !currentUser) && !isInitialized) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-center py-8">
@@ -342,44 +276,6 @@ export function CasesContent() {
             <p className="text-gray-600">
               {!schemaResolved ? 'Carregando configuração...' : 'Carregando dados das análises...'}
             </p>
-            {lastValidStateRef.current && (
-              <button 
-                onClick={() => recoverFromValidState()}
-                className="mt-2 px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
-              >
-                Recuperar dados anteriores
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Estado de erro do schema
-  if (schemaResolved && !canFetchData && initializationAttempted) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-center py-8">
-          <div className="text-center">
-            <div className="text-red-600 mb-4">⚠️</div>
-            <p className="text-gray-600 mb-4">Não foi possível carregar a configuração necessária</p>
-            <div className="space-x-2">
-              <button 
-                onClick={() => window.location.reload()}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              >
-                Tentar novamente
-              </button>
-              {lastValidStateRef.current && (
-                <button 
-                  onClick={() => recoverFromValidState()}
-                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                >
-                  Recuperar dados anteriores
-                </button>
-              )}
-            </div>
           </div>
         </div>
       </div>
@@ -472,22 +368,12 @@ export function CasesContent() {
           <div className="text-red-800">
             <p className="font-medium">Erro ao carregar dados:</p>
             <p className="text-sm mt-1">{error}</p>
-            <div className="mt-2 space-x-2">
-              <button 
-                onClick={handleRefresh}
-                className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
-              >
-                Tentar novamente
-              </button>
-              {lastValidStateRef.current && (
-                <button 
-                  onClick={() => recoverFromValidState()}
-                  className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
-                >
-                  Recuperar dados anteriores
-                </button>
-              )}
-            </div>
+            <button 
+              onClick={handleRefresh}
+              className="mt-2 px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+            >
+              Tentar novamente
+            </button>
           </div>
         </div>
       )}
