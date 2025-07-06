@@ -48,11 +48,19 @@ export function SearchAndFilters({
 
   const mainCategory = selectedCategory.split('-')[0];
   
+  // CORREÇÃO: Verificar se estamos na visualização de Estados
+  const isEstadosView = selectedCategory === "estados" || selectedCategory.endsWith("-estados");
+  
   // CORREÇÃO: Função revisada para mostrar botões de visualização corretamente
   const shouldShowViewToggle = (category: string) => {
-    // Sempre mostrar para "all" (incluindo quando está em "estados")
+    // NÃO mostrar se estivermos em visualização de Estados
+    if (isEstadosView) {
+      return false;
+    }
+    
+    // Sempre mostrar para "all"
     if (category === "all") {
-      return selectedCategory === "all" || selectedCategory === "estados";
+      return selectedCategory === "all";
     }
     
     // Para contratos: mostrar quando categoria é "contratos" ou suas subcategorias
@@ -82,20 +90,22 @@ export function SearchAndFilters({
         </div>
         
         <div className="flex items-center gap-2">
-          {/* CORREÇÃO: Sempre mostrar filtros avançados, exceto para perdas onde há lógica específica */}
-          <AdvancedFilters 
-            onFiltersChange={setAdvancedFilters}
-            activeFilters={advancedFilters}
-            selectedCategory={selectedCategory}
-            lossReasons={lossReasons}
-          />
+          {/* CORREÇÃO: NÃO mostrar filtros avançados quando estivermos em visualização de Estados */}
+          {!isEstadosView && (
+            <AdvancedFilters 
+              onFiltersChange={setAdvancedFilters}
+              activeFilters={advancedFilters}
+              selectedCategory={selectedCategory}
+              lossReasons={lossReasons}
+            />
+          )}
           
-          {/* Dropdown para visualização de leads quando categoria for "all" ou "estados" */}
+          {/* Dropdown para visualização de leads quando categoria for "all" - NÃO mostrar para Estados */}
           {shouldShowViewToggle("all") && onLeadsViewChange && (
             <ViewToggleDropdown
               currentView={leadsViewMode}
               onViewChange={(view) => {
-                console.log(`🎯 ViewToggleDropdown (all/estados) - view: ${view}`);
+                console.log(`🎯 ViewToggleDropdown (all) - view: ${view}`);
                 onLeadsViewChange(view);
               }}
               label="Leads"
@@ -126,10 +136,13 @@ export function SearchAndFilters({
             />
           )}
           
-          <ActionToggleDropdown
-            selectedCategory={selectedCategory}
-            onCategoryChange={onCategoryChange}
-          />
+          {/* CORREÇÃO: NÃO mostrar ActionToggleDropdown quando estivermos em visualização de Estados */}
+          {!isEstadosView && (
+            <ActionToggleDropdown
+              selectedCategory={selectedCategory}
+              onCategoryChange={onCategoryChange}
+            />
+          )}
         </div>
       </div>
     </Card>
