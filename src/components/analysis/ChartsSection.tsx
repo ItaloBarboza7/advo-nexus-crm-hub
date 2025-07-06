@@ -23,6 +23,8 @@ interface ChartsSectionProps {
   showLeadsChart?: boolean;
   showContractsChart?: boolean;
   showOpportunitiesChart?: boolean;
+  // Handlers para mudança de visualização
+  onLeadsViewChange?: (view: 'weekly' | 'monthly') => void;
 }
 
 export function ChartsSection({
@@ -39,7 +41,8 @@ export function ChartsSection({
   opportunitiesViewMode = 'weekly',
   showLeadsChart = false,
   showContractsChart = false,
-  showOpportunitiesChart = false
+  showOpportunitiesChart = false,
+  onLeadsViewChange
 }: ChartsSectionProps) {
   if (!shouldShowChart) {
     return null;
@@ -140,6 +143,8 @@ export function ChartsSection({
           leads={leads} 
           selectedCategory={selectedCategory}
           hasLeadPassedThroughStatus={hasLeadPassedThroughStatus}
+          viewMode={leadsViewMode}
+          onViewChange={onLeadsViewChange}
         />
       )}
 
