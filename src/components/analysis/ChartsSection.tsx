@@ -82,16 +82,16 @@ export function ChartsSection({
     return false;
   };
 
-  console.log(`🎨 ChartsSection - selectedCategory: ${selectedCategory}`);
-  console.log(`📊 ChartsSection - showLeadsChart: ${showLeadsChart}, showContractsChart: ${showContractsChart}, showOpportunitiesChart: ${showOpportunitiesChart}`);
-  console.log(`📅 ChartsSection - viewModes:`, { leadsViewMode, contractsViewMode, opportunitiesViewMode });
+  // LOGS DETALHADOS para debug
+  console.log(`🎨 [ChartsSection] === INÍCIO DO RENDER ===`);
+  console.log(`🎨 [ChartsSection] selectedCategory: "${selectedCategory}"`);
+  console.log(`🎨 [ChartsSection] appliedDateRange:`, appliedDateRange);
+  console.log(`📊 [ChartsSection] viewModes:`, { leadsViewMode, contractsViewMode, opportunitiesViewMode });
 
-  // CORREÇÃO: Usar startsWith em vez de igualdade exata para permitir subcategorias
+  // SIMPLIFICADO: Usar startsWith em vez de igualdade exata para permitir subcategorias
   const isAllCategory = selectedCategory === "all";
   const isContractsCategory = selectedCategory.startsWith("contratos");
   const isOpportunitiesCategory = selectedCategory.startsWith("oportunidades");
-
-  // CORREÇÃO: Verificar se estamos em visualização de Estados (incluindo "estados" principal)
   const isEstadosView = selectedCategory === "estados" || selectedCategory.endsWith("-estados");
 
   console.log(`🔍 [ChartsSection] Categorias detectadas:`, {
@@ -104,55 +104,68 @@ export function ChartsSection({
 
   return (
     <>
-      {/* CORREÇÃO: Só mostrar gráficos se NÃO estivermos em visualização de Estados */}
+      {/* RENDERIZAÇÃO SIMPLIFICADA: Só mostrar gráficos se NÃO estivermos em visualização de Estados */}
       {!isEstadosView && (
         <>
-          {/* CORRIGIDO: Gráfico de Leads Gerais - aparece na categoria "all" por padrão */}
+          {/* Gráfico de Leads Gerais - categoria "all" */}
           {isAllCategory && (
-            <LeadsChart 
-              leads={leads}
-              title="Todos os Leads"
-              viewMode={leadsViewMode}
-              appliedDateRange={appliedDateRange}
-            />
+            <>
+              {console.log(`✅ [ChartsSection] Renderizando gráfico de Leads Gerais`)}
+              <LeadsChart 
+                leads={leads}
+                title="Todos os Leads"
+                viewMode={leadsViewMode}
+                appliedDateRange={appliedDateRange}
+              />
+            </>
           )}
 
-          {/* CORRIGIDO: Gráfico de Contratos - aparece em qualquer categoria que comece com "contratos" por padrão */}
+          {/* Gráfico de Contratos - categoria "contratos" */}
           {isContractsCategory && (
-            <LeadsChart 
-              leads={leads}
-              title="Novos Contratos"
-              filterFunction={(lead) => lead.status === "Contrato Fechado"}
-              viewMode={contractsViewMode}
-              appliedDateRange={appliedDateRange}
-            />
+            <>
+              {console.log(`✅ [ChartsSection] Renderizando gráfico de Contratos`)}
+              <LeadsChart 
+                leads={leads}
+                title="Novos Contratos"
+                filterFunction={(lead) => lead.status === "Contrato Fechado"}
+                viewMode={contractsViewMode}
+                appliedDateRange={appliedDateRange}
+              />
+            </>
           )}
 
-          {/* CORRIGIDO: Gráfico de Oportunidades - aparece em qualquer categoria que comece com "oportunidades" por padrão */}
+          {/* Gráfico de Oportunidades - categoria "oportunidades" */}
           {isOpportunitiesCategory && (
-            <LeadsChart 
-              leads={leads}
-              title="Oportunidades"
-              filterFunction={isOpportunityLead}
-              viewMode={opportunitiesViewMode}
-              appliedDateRange={appliedDateRange}
-            />
+            <>
+              {console.log(`✅ [ChartsSection] Renderizando gráfico de Oportunidades`)}
+              <LeadsChart 
+                leads={leads}
+                title="Oportunidades"
+                filterFunction={isOpportunityLead}
+                viewMode={opportunitiesViewMode}
+                appliedDateRange={appliedDateRange}
+              />
+            </>
           )}
         </>
       )}
 
-      {/* Gráfico de Estados - CORRIGIDO: aparece quando estamos em visualização de Estados (incluindo "estados" principal) */}
+      {/* Gráfico de Estados - aparece quando estamos em visualização de Estados */}
       {isEstadosView && shouldShowStateChart && (
-        <StateStatsChart 
-          leads={leads} 
-          selectedCategory={selectedCategory}
-          hasLeadPassedThroughStatus={hasLeadPassedThroughStatus}
-        />
+        <>
+          {console.log(`✅ [ChartsSection] Renderizando gráfico de Estados`)}
+          <StateStatsChart 
+            leads={leads} 
+            selectedCategory={selectedCategory}
+            hasLeadPassedThroughStatus={hasLeadPassedThroughStatus}
+          />
+        </>
       )}
 
-      {/* CORRIGIDO: Gráficos de análise só aparecem quando NÃO há gráfico de leads sendo exibido E não estamos em Estados */}
+      {/* Gráficos de análise só aparecem em outras categorias */}
       {!isAllCategory && !isContractsCategory && !isOpportunitiesCategory && !isEstadosView && (
         <>
+          {console.log(`✅ [ChartsSection] Renderizando gráficos de análise para categoria: ${selectedCategory}`)}
           {shouldShowLossReasonsChart && (
             <LossReasonsChart leads={leads} />
           )}

@@ -24,6 +24,12 @@ export function LeadsChart({ leads, title, filterFunction, viewMode: externalVie
   // Se receber viewMode como prop, usar ele, senão usar o estado interno
   const currentViewMode = externalViewMode || internalViewMode;
 
+  // LOG DETALHADO no início do componente
+  console.log(`📊 [LeadsChart "${title}"] === INÍCIO DO RENDER ===`);
+  console.log(`📊 [LeadsChart "${title}"] appliedDateRange recebido:`, appliedDateRange);
+  console.log(`📊 [LeadsChart "${title}"] currentViewMode: ${currentViewMode}`);
+  console.log(`📊 [LeadsChart "${title}"] leads count: ${leads.length}`);
+
   // Sincronizar o estado interno com o viewMode externo quando ele mudar
   useEffect(() => {
     if (externalViewMode) {
@@ -91,37 +97,45 @@ export function LeadsChart({ leads, title, filterFunction, viewMode: externalVie
     setInternalViewMode(view);
   };
 
-  // CORRIGIDO: Gerar o título com período quando houver appliedDateRange
+  // FUNÇÃO PRINCIPAL para gerar o título com período
   const getChartTitle = () => {
     const baseTitle = `${title} - ${currentViewMode === 'weekly' ? 'Por Dia da Semana' : 'Por Mês'}`;
     
-    console.log(`📊 getChartTitle - appliedDateRange:`, appliedDateRange);
-    console.log(`📊 getChartTitle - currentViewMode: ${currentViewMode}`);
+    console.log(`📊 [LeadsChart "${title}"] getChartTitle - appliedDateRange:`, appliedDateRange);
+    console.log(`📊 [LeadsChart "${title}"] getChartTitle - currentViewMode: ${currentViewMode}`);
     
-    // CORRIGIDO: Mostrar período quando há filtro aplicado (independente se é monthly ou weekly)
+    // VERIFICAÇÃO DETALHADA: Mostrar período quando há filtro aplicado
     if (appliedDateRange?.from) {
+      console.log(`📊 [LeadsChart "${title}"] getChartTitle - Processando datas...`);
+      
       const fromDate = BrazilTimezone.formatDateForDisplay(appliedDateRange.from);
       const toDate = appliedDateRange.to ? BrazilTimezone.formatDateForDisplay(appliedDateRange.to) : fromDate;
       
-      console.log(`📊 getChartTitle - Adicionando período: ${fromDate} - ${toDate}`);
+      console.log(`📊 [LeadsChart "${title}"] getChartTitle - fromDate: ${fromDate}, toDate: ${toDate}`);
       
+      let finalTitle;
       if (fromDate === toDate) {
-        return `${baseTitle} (${fromDate})`;
+        finalTitle = `${baseTitle} (${fromDate})`;
       } else {
-        return `${baseTitle} (${fromDate} - ${toDate})`;
+        finalTitle = `${baseTitle} (${fromDate} - ${toDate})`;
       }
+      
+      console.log(`📊 [LeadsChart "${title}"] getChartTitle - TÍTULO FINAL: ${finalTitle}`);
+      return finalTitle;
     }
     
-    console.log(`📊 getChartTitle - Sem período aplicado`);
+    console.log(`📊 [LeadsChart "${title}"] getChartTitle - Sem período aplicado - TÍTULO FINAL: ${baseTitle}`);
     return baseTitle;
   };
+
+  const finalTitle = getChartTitle();
 
   return (
     <Card className="p-6">
       <CardHeader className="p-0 mb-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold text-gray-900">
-            {getChartTitle()}
+            {finalTitle}
           </CardTitle>
           {/* Só mostrar o dropdown interno se não receber viewMode como prop */}
           {!externalViewMode && (
