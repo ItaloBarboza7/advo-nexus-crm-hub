@@ -1,4 +1,3 @@
-
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserPlus, UserX, DollarSign, TrendingUp, BarChart3 } from "lucide-react";
@@ -221,7 +220,7 @@ export function DashboardContent() {
     // Usar created_at para agrupamento, mas considerar status atual e histórico
     const weekDays = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
     const weeklyData = weekDays.map((day, index) => {
-      const dayLeads = leads.filter(lead => lead.createdAt && getDay(new Date(lead.createdAt)) === index);
+      const dayLeads = leads.filter(lead => lead.created_at && getDay(new Date(lead.created_at)) === index);
       const dayOpportunities = dayLeads.filter(lead => isOpportunityLead(lead));
       const daySales = dayLeads.filter(lead => lead.status === "Contrato Fechado");
       const conversion = dayOpportunities.length > 0 ? Math.min((daySales.length / dayOpportunities.length) * 100, 100) : 0;
@@ -235,7 +234,7 @@ export function DashboardContent() {
 
     const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
     const monthlyData = months.map((month, index) => {
-      const monthLeads = leads.filter(lead => lead.createdAt && getMonth(new Date(lead.createdAt)) === index);
+      const monthLeads = leads.filter(lead => lead.created_at && getMonth(new Date(lead.created_at)) === index);
       const monthOpportunities = monthLeads.filter(lead => isOpportunityLead(lead));
       const monthSales = monthLeads.filter(lead => lead.status === "Contrato Fechado");
       const conversion = monthOpportunities.length > 0 ? Math.min((monthSales.length / monthOpportunities.length) * 100, 100) : 0;
@@ -285,13 +284,13 @@ export function DashboardContent() {
     const weekDays = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
     const weeklyData = weekDays.map((day, index) => ({
       day,
-      leads: leads.filter(lead => lead.createdAt && getDay(new Date(lead.createdAt)) === index).length
+      leads: leads.filter(lead => lead.created_at && getDay(new Date(lead.created_at)) === index).length
     }));
 
     const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
     const monthlyData = months.map((month, index) => ({
       month,
-      leads: leads.filter(lead => lead.createdAt && getMonth(new Date(lead.createdAt)) === index).length
+      leads: leads.filter(lead => lead.created_at && getMonth(new Date(lead.created_at)) === index).length
     }));
 
     return { weekly: weeklyData, monthly: monthlyData };

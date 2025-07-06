@@ -3,13 +3,13 @@ import { Card } from "@/components/ui/card";
 import { Calendar, User, FileText, UserPlus } from "lucide-react";
 import { BrazilTimezone } from "@/lib/timezone";
 import { ContractData } from "@/hooks/useContractsData";
-import { LeadForDate } from "@/hooks/useLeadsForDate";
+import { Lead } from "@/types/lead";
 import { useEffect } from "react";
 
 interface ActivityPanelProps {
   selectedDate: Date;
   contracts: ContractData[];
-  leads: LeadForDate[];
+  leads: Lead[];
   isLoading: boolean;
   error: string | null;
   currentUser: { id: string; name: string } | null;
@@ -142,7 +142,7 @@ export function ActivityPanel({
                           <span>Telefone: {lead.phone}</span>
                           {lead.email && <span>Email: {lead.email}</span>}
                           {lead.source && <span>Origem: {lead.source}</span>}
-                          <span>Cadastrado às: {BrazilTimezone.toLocal(lead.createdAt).toLocaleTimeString('pt-BR', { 
+                          <span>Cadastrado às: {BrazilTimezone.toLocal(lead.created_at).toLocaleTimeString('pt-BR', { 
                             hour: '2-digit', 
                             minute: '2-digit'
                           })}</span>
