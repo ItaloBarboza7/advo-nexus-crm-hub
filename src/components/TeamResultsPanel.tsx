@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -10,38 +9,38 @@ const getPositionData = (index: number) => {
   if (position === 1) {
     return {
       badge: (
-        <div className="text-gray-600 text-sm font-bold">
+        <div className="text-blue-600 text-sm font-bold">
           1º
         </div>
       ),
-      borderColor: 'border-l-gray-600',
+      borderColor: 'border-l-blue-600',
       bgColor: 'bg-gray-50'
     };
   } else if (position === 2) {
     return {
       badge: (
-        <div className="text-gray-500 text-sm font-bold">
+        <div className="text-blue-500 text-sm font-bold">
           2º
         </div>
       ),
-      borderColor: 'border-l-gray-500',
+      borderColor: 'border-l-blue-500',
       bgColor: 'bg-gray-50'
     };
   } else if (position === 3) {
     return {
       badge: (
-        <div className="text-gray-400 text-sm font-bold">
+        <div className="text-blue-400 text-sm font-bold">
           3º
         </div>
       ),
-      borderColor: 'border-l-gray-400',
+      borderColor: 'border-l-blue-400',
       bgColor: 'bg-gray-50'
     };
   }
   // Para posições 4+ não mostrar badge
   return {
     badge: null,
-    borderColor: 'border-l-gray-300',
+    borderColor: 'border-l-blue-300',
     bgColor: 'bg-gray-50'
   };
 };
