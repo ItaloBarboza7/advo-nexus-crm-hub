@@ -92,7 +92,7 @@ export function Dashboard() {
 
   const filteredContracts = appliedDateRange?.from && appliedDateRange?.to
     ? contracts.filter(contract => {
-        const contractDate = new Date(contract.date);
+        const contractDate = new Date(contract.closedAt);
         return contractDate >= appliedDateRange.from! && contractDate <= appliedDateRange.to!;
       })
     : contracts;
