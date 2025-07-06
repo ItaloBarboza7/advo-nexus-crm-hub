@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { DateRange } from "react-day-picker";
 import { DateFilter } from "@/components/DateFilter";
@@ -314,7 +315,6 @@ export function CasesContent() {
         showLeadsChart={showLeadsChart}
         showContractsChart={showContractsChart}
         showOpportunitiesChart={showOpportunitiesChart}
-        onLeadsViewChange={handleLeadsViewChange}
       />
 
       <LeadsSection

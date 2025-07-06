@@ -4,24 +4,14 @@ import { Badge } from "@/components/ui/badge";
 import { MapPin, Users, UserCheck, Trophy } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Lead } from "@/types/lead";
-import { ViewToggleDropdown } from "@/components/analysis/ViewToggleDropdown";
-import { format, getDay, getMonth } from "date-fns";
 
 interface StateStatsChartProps {
   leads: Lead[];
   selectedCategory?: string;
   hasLeadPassedThroughStatus?: (leadId: string, statuses: string[]) => boolean;
-  viewMode?: 'weekly' | 'monthly';
-  onViewChange?: (view: 'weekly' | 'monthly') => void;
 }
 
-export function StateStatsChart({ 
-  leads, 
-  selectedCategory = "all", 
-  hasLeadPassedThroughStatus,
-  viewMode = 'weekly',
-  onViewChange 
-}: StateStatsChartProps) {
+export function StateStatsChart({ leads, selectedCategory = "all", hasLeadPassedThroughStatus }: StateStatsChartProps) {
   
   // Função para verificar se um lead é uma oportunidade (NOVA REGRA)
   const isOpportunityLead = (lead: Lead): boolean => {
@@ -47,32 +37,7 @@ export function StateStatsChart({
     
     const mainCategory = selectedCategory.split('-')[0];
     
-    // Filtrar leads baseado no viewMode
-    let filteredLeads = leads;
-    
-    if (viewMode === 'weekly') {
-      // Filtrar leads da semana atual
-      const now = new Date();
-      const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
-      const endOfWeek = new Date(now.setDate(now.getDate() - now.getDay() + 6));
-      
-      filteredLeads = leads.filter(lead => {
-        const leadDate = new Date(lead.created_at);
-        return leadDate >= startOfWeek && leadDate <= endOfWeek;
-      });
-    } else if (viewMode === 'monthly') {
-      // Filtrar leads do mês atual
-      const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      
-      filteredLeads = leads.filter(lead => {
-        const leadDate = new Date(lead.created_at);
-        return leadDate >= startOfMonth && leadDate <= endOfMonth;
-      });
-    }
-    
-    const states = filteredLeads.reduce((acc, lead) => {
+    const states = leads.reduce((acc, lead) => {
       const state = lead.state || "Não informado";
       if (!acc[state]) {
         acc[state] = {
@@ -145,21 +110,19 @@ export function StateStatsChart({
         }
         return b.metrica - a.metrica;
       });
-  }, [leads, selectedCategory, hasLeadPassedThroughStatus, viewMode]);
+  }, [leads, selectedCategory, hasLeadPassedThroughStatus]);
 
   const getTitle = () => {
     const mainCategory = selectedCategory.split('-')[0];
-    const periodText = viewMode === 'weekly' ? ' (Semanal)' : ' (Mensal)';
-    
     switch (mainCategory) {
       case "contratos":
-        return "Estados com Mais Contratos" + periodText;
+        return "Estados com Mais Contratos";
       case "oportunidades":
-        return "Estados com Mais Oportunidades" + periodText;
+        return "Estados com Mais Oportunidades";
       case "perdas":
-        return "Estados com Mais Perdas" + periodText;
+        return "Estados com Mais Perdas";
       default:
-        return "Estados com Mais Leads" + periodText;
+        return "Estados com Mais Leads";
     }
   };
 
@@ -189,13 +152,6 @@ export function StateStatsChart({
             <MapPin className="h-5 w-5 text-purple-500" />
             {getTitle()}
           </h3>
-          {onViewChange && (
-            <ViewToggleDropdown
-              currentView={viewMode}
-              onViewChange={onViewChange}
-              label="Estados"
-            />
-          )}
         </div>
         <div className="text-center text-gray-500 py-8">
           <p>Nenhum lead encontrado.</p>
@@ -211,24 +167,15 @@ export function StateStatsChart({
           <MapPin className="h-5 w-5 text-purple-500" />
           {getTitle()}
         </h3>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-4 text-sm text-gray-600">
-            <div className="flex items-center gap-1">
-              <Users className="h-4 w-4" />
-              <span>{totalLeads} leads</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <UserCheck className="h-4 w-4 text-green-600" />
-              <span>{totalMetrica} {getMetricaLabel()}</span>
-            </div>
+        <div className="flex items-center gap-4 text-sm text-gray-600">
+          <div className="flex items-center gap-1">
+            <Users className="h-4 w-4" />
+            <span>{totalLeads} leads</span>
           </div>
-          {onViewChange && (
-            <ViewToggleDropdown
-              currentView={viewMode}
-              onViewChange={onViewChange}
-              label="Estados"
-            />
-          )}
+          <div className="flex items-center gap-1">
+            <UserCheck className="h-4 w-4 text-green-600" />
+            <span>{totalMetrica} {getMetricaLabel()}</span>
+          </div>
         </div>
       </div>
 
