@@ -7,9 +7,11 @@ import { User as SupabaseUser } from "@supabase/supabase-js"
 import { Lead } from "@/types/lead"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { UserProfileModal } from "./UserProfileModal"
+import { LeadDialogs } from "./analysis/LeadDialogs"
 import { useState, useEffect } from "react"
 import { supabase } from "@/integrations/supabase/client"
 import { useCompanyInfo } from "@/hooks/useCompanyInfo"
+import { useLeadDialogs } from "@/hooks/useLeadDialogs"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,10 +31,21 @@ interface UserProfile {
   avatar_url?: string
 }
 
-export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
+export function Header({ user, onLogout }: HeaderProps) {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
   const [userProfile, setUserProfile] = useState<UserProfile>({ name: "Usuário" })
   const { companyInfo, refreshCompanyInfo } = useCompanyInfo()
+  
+  // Integrar com o sistema de diálogos de leads
+  const {
+    selectedLead,
+    isDetailsDialogOpen,
+    setIsDetailsDialogOpen,
+    isEditFormOpen,
+    setIsEditFormOpen,
+    handleViewDetails,
+    handleEditLead
+  } = useLeadDialogs()
 
   useEffect(() => {
     if (user) {
@@ -148,6 +161,18 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
     setIsProfileModalOpen(true);
   }
 
+  // Função para lidar com a seleção de lead da pesquisa global
+  const handleLeadSelectFromSearch = (lead: Lead) => {
+    console.log('[Header] Lead selecionado da pesquisa global:', lead.name);
+    handleViewDetails(lead);
+  }
+
+  // Função para simular refresh de dados após edição
+  const handleLeadUpdated = () => {
+    console.log('[Header] Lead atualizado - dados podem ser atualizados');
+    // Aqui você poderia adicionar lógica para atualizar dados se necessário
+  }
+
   return (
     <>
       <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
@@ -157,7 +182,7 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
         </div>
         
         <div className="flex-1">
-          {onLeadSelect && <GlobalSearch onLeadSelect={onLeadSelect} />}
+          <GlobalSearch onLeadSelect={handleLeadSelectFromSearch} />
         </div>
         
         {user && (
@@ -200,6 +225,16 @@ export function Header({ user, onLogout, onLeadSelect }: HeaderProps) {
       <UserProfileModal 
         isOpen={isProfileModalOpen} 
         onClose={handleProfileModalClose}
+      />
+
+      <LeadDialogs
+        selectedLead={selectedLead}
+        isDetailsDialogOpen={isDetailsDialogOpen}
+        setIsDetailsDialogOpen={setIsDetailsDialogOpen}
+        isEditFormOpen={isEditFormOpen}
+        setIsEditFormOpen={setIsEditFormOpen}
+        onEditLead={handleEditLead}
+        onLeadUpdated={handleLeadUpdated}
       />
     </>
   )
