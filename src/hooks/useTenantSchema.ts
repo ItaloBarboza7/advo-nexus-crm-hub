@@ -2,24 +2,31 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-// Cache global para o schema do tenant
-let schemaCache: { schema: string | null; timestamp: number; userId: string | null } = {
+// Cache global para o schema do tenant - melhorado com persistência
+let schemaCache: { 
+  schema: string | null; 
+  timestamp: number; 
+  userId: string | null;
+  isValid: boolean;
+} = {
   schema: null,
   timestamp: 0,
-  userId: null
+  userId: null,
+  isValid: false
 };
 
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000; // 1 segundo
+const CACHE_DURATION = 10 * 60 * 1000; // Aumentado para 10 minutos
+const MAX_RETRIES = 5; // Aumentado para 5 tentativas
+const RETRY_DELAY = 1500; // Aumentado para 1.5 segundos
 
 export function useTenantSchema() {
-  const [tenantSchema, setTenantSchema] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isResolved, setIsResolved] = useState(false);
+  const [tenantSchema, setTenantSchema] = useState<string | null>(schemaCache.schema);
+  const [isLoading, setIsLoading] = useState(!schemaCache.isValid);
+  const [isResolved, setIsResolved] = useState(schemaCache.isValid);
   const [error, setError] = useState<string | null>(null);
   const retryCountRef = useRef(0);
   const isMountedRef = useRef(true);
+  const initializationPromiseRef = useRef<Promise<string | null> | null>(null);
 
   // Limpar referência quando componente for desmontado
   useEffect(() => {
@@ -33,7 +40,7 @@ export function useTenantSchema() {
       const { data: { user } } = await supabase.auth.getUser();
       return user?.id || null;
     } catch (error) {
-      console.error('❌ Erro ao obter usuário atual:', error);
+      console.error('❌ useTenantSchema - Erro ao obter usuário atual:', error);
       return null;
     }
   };
@@ -42,11 +49,13 @@ export function useTenantSchema() {
     const now = Date.now();
     const isValid = schemaCache.schema && 
                    schemaCache.userId === userId &&
+                   schemaCache.isValid &&
                    (now - schemaCache.timestamp) < CACHE_DURATION;
     
-    console.log('🔍 useTenantSchema - Cache validation:', {
+    console.log('🔍 useTenantSchema - Cache validation (melhorada):', {
       hasSchema: !!schemaCache.schema,
       userMatch: schemaCache.userId === userId,
+      cacheIsValid: schemaCache.isValid,
       ageMs: now - schemaCache.timestamp,
       maxAgeMs: CACHE_DURATION,
       isValid
@@ -71,11 +80,12 @@ export function useTenantSchema() {
 
       console.log(`✅ useTenantSchema - Esquema obtido na tentativa ${attempt}: ${data}`);
       
-      // Atualizar cache
+      // Atualizar cache com validação melhorada
       schemaCache = {
         schema: data,
         timestamp: Date.now(),
-        userId: userId
+        userId: userId,
+        isValid: true
       };
       
       return data;
@@ -88,59 +98,89 @@ export function useTenantSchema() {
         return getTenantSchemaWithRetry(userId, attempt + 1);
       }
       
+      // Invalidar cache em caso de erro persistente
+      schemaCache.isValid = false;
       throw error;
     }
   };
 
-  useEffect(() => {
-    let isMounted = true;
-    
-    const initializeTenantSchema = async () => {
+  // Função de inicialização centralizada com controle de concorrência
+  const initializeTenantSchema = async (): Promise<string | null> => {
+    // Prevenir múltiplas inicializações simultâneas
+    if (initializationPromiseRef.current) {
+      console.log('🔒 useTenantSchema - Inicialização já em andamento, aguardando...');
+      return initializationPromiseRef.current;
+    }
+
+    initializationPromiseRef.current = (async () => {
       try {
-        if (!isMountedRef.current) return;
+        if (!isMountedRef.current) return null;
         
-        console.log('🚀 useTenantSchema - Inicializando...');
+        console.log('🚀 useTenantSchema - Inicializando (versão melhorada)...');
         setIsLoading(true);
         setError(null);
         retryCountRef.current = 0;
 
         const currentUserId = await getCurrentUserId();
         
-        if (!isMountedRef.current) return;
+        if (!isMountedRef.current) return null;
 
         // Verificar cache primeiro
         if (isCacheValid(currentUserId)) {
-          console.log('✅ useTenantSchema - Usando schema do cache:', schemaCache.schema);
-          if (isMounted) {
+          console.log('✅ useTenantSchema - Usando schema do cache (validado):', schemaCache.schema);
+          if (isMountedRef.current) {
             setTenantSchema(schemaCache.schema);
             setIsResolved(true);
             setIsLoading(false);
           }
-          return;
+          return schemaCache.schema;
         }
 
-        // Buscar schema com retry
+        // Buscar schema com retry melhorado
         const schema = await getTenantSchemaWithRetry(currentUserId);
         
-        if (!isMountedRef.current || !isMounted) return;
+        if (!isMountedRef.current) return null;
         
         setTenantSchema(schema);
         setIsResolved(true);
+        setIsLoading(false);
+        
+        return schema;
         
       } catch (error: any) {
-        console.error('❌ useTenantSchema - Erro final:', error);
-        if (isMountedRef.current && isMounted) {
+        console.error('❌ useTenantSchema - Erro final na inicialização:', error);
+        if (isMountedRef.current) {
           setError(error.message || 'Erro ao obter esquema do tenant');
-          setIsResolved(true); // Marcar como resolvido mesmo com erro
-        }
-      } finally {
-        if (isMountedRef.current && isMounted) {
+          setIsResolved(true);
           setIsLoading(false);
         }
+        return null;
+      } finally {
+        initializationPromiseRef.current = null;
       }
+    })();
+
+    return initializationPromiseRef.current;
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+    
+    // Verificar se já temos dados válidos no cache
+    if (schemaCache.isValid && schemaCache.schema) {
+      console.log('🎯 useTenantSchema - Dados válidos já disponíveis no cache');
+      setTenantSchema(schemaCache.schema);
+      setIsResolved(true);
+      setIsLoading(false);
+      return;
+    }
+
+    const initialize = async () => {
+      if (!isMounted) return;
+      await initializeTenantSchema();
     };
 
-    initializeTenantSchema();
+    initialize();
 
     return () => {
       isMounted = false;
@@ -160,29 +200,44 @@ export function useTenantSchema() {
 
       console.log(`✅ useTenantSchema - Esquema garantido: ${data}`);
       
-      // Atualizar cache e estado
+      // Atualizar cache e estado com validação
       const currentUserId = await getCurrentUserId();
       schemaCache = {
         schema: data,
         timestamp: Date.now(),
-        userId: currentUserId
+        userId: currentUserId,
+        isValid: true
       };
       
       if (isMountedRef.current) {
         setTenantSchema(data);
         setIsResolved(true);
+        setError(null);
       }
       
       return data;
     } catch (error) {
       console.error('❌ Erro inesperado ao garantir esquema do tenant:', error);
+      schemaCache.isValid = false;
       return null;
     }
   };
 
   const invalidateCache = () => {
     console.log('🗑️ useTenantSchema - Invalidando cache...');
-    schemaCache = { schema: null, timestamp: 0, userId: null };
+    schemaCache = { schema: null, timestamp: 0, userId: null, isValid: false };
+    if (isMountedRef.current) {
+      setTenantSchema(null);
+      setIsResolved(false);
+      setIsLoading(true);
+      setError(null);
+    }
+  };
+
+  const refreshSchema = async () => {
+    console.log('🔄 useTenantSchema - Forçando refresh do schema...');
+    invalidateCache();
+    return await initializeTenantSchema();
   };
 
   return {
@@ -191,6 +246,7 @@ export function useTenantSchema() {
     isResolved,
     error,
     ensureTenantSchema,
-    invalidateCache
+    invalidateCache,
+    refreshSchema
   };
 }

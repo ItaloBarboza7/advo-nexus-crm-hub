@@ -24,7 +24,7 @@ export function LeadsChart({ leads, title, filterFunction, viewMode: externalVie
   // Se receber viewMode como prop, usar ele, senão usar o estado interno
   const currentViewMode = externalViewMode || internalViewMode;
 
-  console.log(`📊 [LeadsChart "${title}"] Renderizando com:`, {
+  console.log(`📊 [LeadsChart "${title}"] Renderizando (versão melhorada):`, {
     leadsCount: leads?.length || 0,
     currentViewMode,
     hasAppliedDateRange: !!appliedDateRange,
@@ -33,16 +33,17 @@ export function LeadsChart({ leads, title, filterFunction, viewMode: externalVie
       to: appliedDateRange.to ? BrazilTimezone.formatDateForDisplay(appliedDateRange.to) : 'N/A'
     } : 'Nenhum',
     hasFilterFunction: !!filterFunction,
-    externalViewMode
+    externalViewMode,
+    timestamp: new Date().toISOString()
   });
 
   // Sincronizar o estado interno com o viewMode externo quando ele mudar
   useEffect(() => {
-    if (externalViewMode) {
+    if (externalViewMode && externalViewMode !== internalViewMode) {
+      console.log(`📊 LeadsChart "${title}" - Sincronizando viewMode: ${internalViewMode} -> ${externalViewMode}`);
       setInternalViewMode(externalViewMode);
-      console.log(`📊 LeadsChart "${title}" - viewMode sincronizado para: ${externalViewMode}`);
     }
-  }, [externalViewMode, title]);
+  }, [externalViewMode, title, internalViewMode]);
 
   // ERROR HANDLING: Validar props essenciais
   if (!leads || !Array.isArray(leads)) {
@@ -96,16 +97,23 @@ export function LeadsChart({ leads, title, filterFunction, viewMode: externalVie
     return baseTitle;
   }, [title, currentViewMode, appliedDateRange]);
 
-  // Cálculo de chartData com melhor logging
+  // Cálculo de chartData com melhor logging e tratamento de erro
   const chartData = useMemo(() => {
-    console.log(`📊 [LeadsChart "${title}"] Calculando chartData:`, {
+    console.log(`📊 [LeadsChart "${title}"] Calculando chartData (melhorado):`, {
       totalLeads: leads.length,
       currentViewMode,
       hasFilterFunction: !!filterFunction
     });
 
     try {
-      const filteredLeads = filterFunction ? leads.filter(filterFunction) : leads;
+      // Aplicar filtro com segurança
+      let filteredLeads;
+      try {
+        filteredLeads = filterFunction ? leads.filter(filterFunction) : leads;
+      } catch (filterError) {
+        console.error(`❌ [LeadsChart "${title}"] Erro no filtro:`, filterError);
+        filteredLeads = leads; // Fallback para todos os leads
+      }
       
       console.log(`📊 [LeadsChart "${title}"] Leads após filtro:`, {
         original: leads.length,
@@ -120,9 +128,15 @@ export function LeadsChart({ leads, title, filterFunction, viewMode: externalVie
         }));
 
         filteredLeads.forEach(lead => {
-          if (lead.created_at) {
-            const dayIndex = getDay(new Date(lead.created_at));
-            weeklyData[dayIndex].leads += 1;
+          try {
+            if (lead.created_at) {
+              const dayIndex = getDay(new Date(lead.created_at));
+              if (dayIndex >= 0 && dayIndex < 7) {
+                weeklyData[dayIndex].leads += 1;
+              }
+            }
+          } catch (dateError) {
+            console.warn(`⚠️ [LeadsChart "${title}"] Erro ao processar data do lead ${lead.id}:`, dateError);
           }
         });
 
@@ -139,9 +153,15 @@ export function LeadsChart({ leads, title, filterFunction, viewMode: externalVie
         }));
 
         filteredLeads.forEach(lead => {
-          if (lead.created_at) {
-            const monthIndex = getMonth(new Date(lead.created_at));
-            monthlyData[monthIndex].leads += 1;
+          try {
+            if (lead.created_at) {
+              const monthIndex = getMonth(new Date(lead.created_at));
+              if (monthIndex >= 0 && monthIndex < 12) {
+                monthlyData[monthIndex].leads += 1;
+              }
+            }
+          } catch (dateError) {
+            console.warn(`⚠️ [LeadsChart "${title}"] Erro ao processar data do lead ${lead.id}:`, dateError);
           }
         });
 
@@ -150,14 +170,29 @@ export function LeadsChart({ leads, title, filterFunction, viewMode: externalVie
       }
     } catch (error) {
       console.error(`❌ [LeadsChart "${title}"] Erro ao processar dados:`, error);
-      return [];
+      // Retornar dados vazios em caso de erro
+      const emptyPeriods = currentViewMode === 'weekly' 
+        ? ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
+        : ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+      
+      return emptyPeriods.map(period => ({ period, leads: 0 }));
     }
   }, [leads, currentViewMode, filterFunction, title]);
 
-  const totalLeads = chartData.reduce((sum, item) => sum + item.leads, 0);
-  const maxPeriod = chartData.reduce((prev, current) => 
-    current.leads > prev.leads ? current : prev
-  );
+  // Calcular estatísticas com segurança
+  const { totalLeads, maxPeriod } = useMemo(() => {
+    try {
+      const total = chartData.reduce((sum, item) => sum + (item.leads || 0), 0);
+      const max = chartData.reduce((prev, current) => 
+        (current.leads || 0) > (prev.leads || 0) ? current : prev
+      , chartData[0] || { period: 'N/A', leads: 0 });
+      
+      return { totalLeads: total, maxPeriod: max };
+    } catch (error) {
+      console.error(`❌ [LeadsChart "${title}"] Erro ao calcular estatísticas:`, error);
+      return { totalLeads: 0, maxPeriod: { period: 'N/A', leads: 0 } };
+    }
+  }, [chartData, title]);
 
   const chartConfig = {
     leads: {
@@ -167,17 +202,18 @@ export function LeadsChart({ leads, title, filterFunction, viewMode: externalVie
   };
 
   const handleViewChange = (view: 'weekly' | 'monthly') => {
-    console.log(`📊 LeadsChart "${title}" - Mudança de visualização: ${view}`);
+    console.log(`📊 LeadsChart "${title}" - Mudança de visualização: ${internalViewMode} -> ${view}`);
     setInternalViewMode(view);
   };
 
   const finalTitle = getChartTitle();
 
-  console.log(`📊 [LeadsChart "${title}"] Finalizando render:`, {
+  console.log(`📊 [LeadsChart "${title}"] Finalizando render (melhorado):`, {
     finalTitle,
     totalLeads,
     maxPeriod: maxPeriod.period,
-    dataPoints: chartData.length
+    dataPoints: chartData.length,
+    hasValidData: chartData.some(item => item.leads > 0)
   });
 
   return (
@@ -203,7 +239,7 @@ export function LeadsChart({ leads, title, filterFunction, viewMode: externalVie
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 25 }}>
                 <defs>
-                  <linearGradient id="leadsGradient" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient id={`leadsGradient-${title.replace(/\s+/g, '-')}`} x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#3b82f6" stopOpacity={1}/>
                     <stop offset="100%" stopColor="#1e40af" stopOpacity={1}/>
                   </linearGradient>
@@ -229,7 +265,7 @@ export function LeadsChart({ leads, title, filterFunction, viewMode: externalVie
                 />
                 <Bar 
                   dataKey="leads" 
-                  fill="url(#leadsGradient)"
+                  fill={`url(#leadsGradient-${title.replace(/\s+/g, '-')})`}
                   radius={[4, 4, 0, 0]}
                 />
               </BarChart>

@@ -35,9 +35,14 @@ export function CasesContent() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [initializationAttempted, setInitializationAttempted] = useState(false);
   
-  // Refs para controle de estado
+  // Refs para controle de estado melhorado
   const isMountedRef = useRef(true);
   const initializationRef = useRef(false);
+  const lastValidStateRef = useRef<{
+    leads: any[];
+    appliedDateRange: DateRange | undefined;
+    timestamp: number;
+  } | null>(null);
   
   const { 
     leads, 
@@ -47,7 +52,8 @@ export function CasesContent() {
     fetchLeadsForDate,
     fetchLeadsForDateRange,
     schemaResolved,
-    canFetchData
+    canFetchData,
+    clearCache
   } = useLeadsForDate();
 
   const { lossReasons } = useLossReasonsGlobal();
@@ -86,12 +92,52 @@ export function CasesContent() {
     shouldShowStateChart
   } = useAnalysisLogic(leads, selectedCategory, statusHistory, hasLeadPassedThroughStatus);
 
-  // Controle de montagem do componente
+  // Controle de montagem do componente melhorado
   useEffect(() => {
     isMountedRef.current = true;
+    console.log('🚀 CasesContent - Componente montado');
+    
     return () => {
+      console.log('🔥 CasesContent - Componente desmontado');
       isMountedRef.current = false;
     };
+  }, []);
+
+  // Salvar estado válido para recuperação
+  useEffect(() => {
+    if (leads && leads.length > 0 && appliedDateRange) {
+      lastValidStateRef.current = {
+        leads: [...leads],
+        appliedDateRange: { ...appliedDateRange },
+        timestamp: Date.now()
+      };
+      console.log('💾 CasesContent - Estado válido salvo:', {
+        leadsCount: leads.length,
+        dateRange: appliedDateRange
+      });
+    }
+  }, [leads, appliedDateRange]);
+
+  // Função para recuperar estado válido anterior
+  const recoverFromValidState = useCallback(() => {
+    const validState = lastValidStateRef.current;
+    if (validState && isMountedRef.current) {
+      const ageMs = Date.now() - validState.timestamp;
+      const maxAge = 5 * 60 * 1000; // 5 minutos
+      
+      if (ageMs < maxAge) {
+        console.log('🔄 CasesContent - Recuperando estado válido anterior:', {
+          age: Math.round(ageMs / 1000) + 's',
+          leadsCount: validState.leads.length
+        });
+        
+        // Restaurar dados sem aguardar
+        setAppliedDateRange(validState.appliedDateRange);
+        // Os leads serão recarregados pela função de fetch
+        return true;
+      }
+    }
+    return false;
   }, []);
 
   // Função para buscar dados do mês atual
@@ -124,11 +170,18 @@ export function CasesContent() {
     }
   }, [fetchLeadsForDateRange, canFetchData]);
 
-  // Inicialização controlada - aguardar schema estar resolvido
+  // Inicialização controlada e melhorada
   useEffect(() => {
     if (!schemaResolved || initializationRef.current || initializationAttempted) {
       return;
     }
+
+    console.log('🔍 CasesContent - Verificando condições de inicialização:', {
+      schemaResolved,
+      canFetchData,
+      hasCurrentUser: !!currentUser,
+      isMounted: isMountedRef.current
+    });
 
     // Marcar que tentativa de inicialização foi feita
     setInitializationAttempted(true);
@@ -137,17 +190,25 @@ export function CasesContent() {
     if (canFetchData && currentUser && isMountedRef.current) {
       console.log("🚀 CasesContent - Inicializando análises com schema resolvido");
       initializationRef.current = true;
-      fetchCurrentMonthData();
+      
+      // Tentar recuperar estado válido primeiro
+      if (!recoverFromValidState()) {
+        fetchCurrentMonthData();
+      }
+      
       setIsInitialized(true);
     } else {
-      console.log("🔍 CasesContent - Aguardando dependências:", {
-        schemaResolved,
-        canFetchData,
-        hasCurrentUser: !!currentUser,
-        isMounted: isMountedRef.current
-      });
+      console.log("⏳ CasesContent - Aguardando dependências...");
+      
+      // Se não conseguir inicializar, tentar recuperar estado válido
+      setTimeout(() => {
+        if (isMountedRef.current && !isInitialized) {
+          console.log("🔄 CasesContent - Tentando recuperação após timeout...");
+          recoverFromValidState();
+        }
+      }, 2000);
     }
-  }, [schemaResolved, canFetchData, currentUser, fetchCurrentMonthData, initializationAttempted]);
+  }, [schemaResolved, canFetchData, currentUser, fetchCurrentMonthData, initializationAttempted, recoverFromValidState, isInitialized]);
 
   // Reset quando componente for remontado
   useEffect(() => {
@@ -203,6 +264,7 @@ export function CasesContent() {
   const handleCategoryChange = useCallback((category: string) => {
     if (!isMountedRef.current) return;
     
+    console.log('🏷️ CasesContent - Mudança de categoria:', category);
     setSelectedCategory(category);
     resetChartStates();
     setAdvancedFilters({
@@ -216,11 +278,24 @@ export function CasesContent() {
   }, [resetChartStates]);
 
   const handleRefresh = useCallback(() => {
-    if (!isMountedRef.current || !canFetchData) {
+    if (!isMountedRef.current) {
+      console.log("🚫 CasesContent - Componente desmontado, ignorando refresh");
+      return;
+    }
+    
+    console.log("🔄 CasesContent - Forçando refresh dos dados...");
+    
+    // Limpar cache primeiro
+    clearCache();
+    
+    if (!canFetchData) {
       console.log("🚫 CasesContent - Não é possível atualizar dados:", {
         isMounted: isMountedRef.current,
         canFetchData
       });
+      
+      // Tentar recuperar estado válido em caso de problemas
+      recoverFromValidState();
       return;
     }
     
@@ -229,7 +304,7 @@ export function CasesContent() {
     } else {
       fetchCurrentMonthData();
     }
-  }, [appliedDateRange, fetchLeadsForDateRange, fetchCurrentMonthData, canFetchData]);
+  }, [appliedDateRange, fetchLeadsForDateRange, fetchCurrentMonthData, canFetchData, clearCache, recoverFromValidState]);
 
   const getDisplayTitle = useCallback(() => {
     if (appliedDateRange?.from) {
@@ -242,7 +317,7 @@ export function CasesContent() {
     return "Análise detalhada de leads e performance de vendas";
   }, [appliedDateRange]);
 
-  console.log("📊 CasesContent - Estado atual:", {
+  console.log("📊 CasesContent - Estado atual (melhorado):", {
     totalLeads: leads?.length || 0,
     filteredLeads: filteredLeads.length,
     appliedDateRange: appliedDateRange ? {
@@ -253,7 +328,8 @@ export function CasesContent() {
     isInitialized,
     schemaResolved,
     canFetchData,
-    isMounted: isMountedRef.current
+    isMounted: isMountedRef.current,
+    hasValidState: !!lastValidStateRef.current
   });
 
   // Estado de carregamento melhorado
@@ -266,6 +342,14 @@ export function CasesContent() {
             <p className="text-gray-600">
               {!schemaResolved ? 'Carregando configuração...' : 'Carregando dados das análises...'}
             </p>
+            {lastValidStateRef.current && (
+              <button 
+                onClick={() => recoverFromValidState()}
+                className="mt-2 px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+              >
+                Recuperar dados anteriores
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -280,12 +364,22 @@ export function CasesContent() {
           <div className="text-center">
             <div className="text-red-600 mb-4">⚠️</div>
             <p className="text-gray-600 mb-4">Não foi possível carregar a configuração necessária</p>
-            <button 
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Tentar novamente
-            </button>
+            <div className="space-x-2">
+              <button 
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Tentar novamente
+              </button>
+              {lastValidStateRef.current && (
+                <button 
+                  onClick={() => recoverFromValidState()}
+                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                >
+                  Recuperar dados anteriores
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -378,12 +472,22 @@ export function CasesContent() {
           <div className="text-red-800">
             <p className="font-medium">Erro ao carregar dados:</p>
             <p className="text-sm mt-1">{error}</p>
-            <button 
-              onClick={handleRefresh}
-              className="mt-2 px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
-            >
-              Tentar novamente
-            </button>
+            <div className="mt-2 space-x-2">
+              <button 
+                onClick={handleRefresh}
+                className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+              >
+                Tentar novamente
+              </button>
+              {lastValidStateRef.current && (
+                <button 
+                  onClick={() => recoverFromValidState()}
+                  className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                >
+                  Recuperar dados anteriores
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
