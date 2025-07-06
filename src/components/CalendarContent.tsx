@@ -6,6 +6,7 @@ import { UserComparisonCard } from "@/components/UserComparisonCard";
 import { ActivityPanel } from "@/components/ActivityPanel";
 import { IntegratedCalendar } from "@/components/IntegratedCalendar";
 import { WeeklyFollowUpTask } from "@/components/WeeklyFollowUpTask";
+import { MonthlyGoalsPanel } from "@/components/MonthlyGoalsPanel";
 import { useLeadsData } from "@/hooks/useLeadsData";
 import { useContractsData } from "@/hooks/useContractsData";
 import { useLeadsForDate } from "@/hooks/useLeadsForDate";
@@ -196,19 +197,13 @@ export function CalendarContent() {
 
   const contractsStats = getContractsStats();
 
-  // Metas mensais baseadas nos dados reais do usuário
+  // Dados para o MonthlyGoalsPanel
   const now = BrazilTimezone.now();
-  const monthNames = [
-    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-  ];
-  
-  const monthlyGoals = {
-    totalGoal: 50,
-    achieved: contractsStats.currentMonth.completed,
-    percentage: Math.round((contractsStats.currentMonth.completed / 50) * 100),
-    month: `${monthNames[now.getMonth()]} ${now.getFullYear()}`,
-    remaining: Math.max(0, 50 - contractsStats.currentMonth.completed)
+  const monthlyGoalData = {
+    currentSales: contractsStats.currentMonth.completed,
+    monthlyGoal: 50, // Meta de 50 contratos por mês
+    daysInMonth: new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(),
+    currentDay: now.getDate()
   };
 
   const handleDateSelect = (date: Date) => {
@@ -253,7 +248,19 @@ export function CalendarContent() {
           />
         </div>
 
-        {/* Calendar Widget - Right Side */}
+        {/* Monthly Goals Panel - Right Side */}
+        <div className="lg:col-span-1">
+          <MonthlyGoalsPanel 
+            currentSales={monthlyGoalData.currentSales}
+            monthlyGoal={monthlyGoalData.monthlyGoal}
+            daysInMonth={monthlyGoalData.daysInMonth}
+            currentDay={monthlyGoalData.currentDay}
+          />
+        </div>
+      </div>
+
+      {/* Calendar Widget - Second Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">
           <IntegratedCalendar 
             selectedDate={selectedDate}
@@ -277,43 +284,6 @@ export function CalendarContent() {
 
       {/* Weekly Follow Up Task */}
       <WeeklyFollowUpTask userName={currentUser.name} />
-
-      {/* Monthly Goal Summary - Bottom */}
-      <Card className="p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <Flag className="h-6 w-6 text-blue-600" />
-          <h3 className="text-lg font-semibold text-gray-900">Sua Meta Mensal - {monthlyGoals.month}</h3>
-        </div>
-        
-        <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-lg border-l-4 border-blue-500">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-blue-600">{monthlyGoals.achieved}</div>
-              <div className="text-sm text-gray-600">Contratos Fechados por Você</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-gray-700">{monthlyGoals.totalGoal}</div>
-              <div className="text-sm text-gray-600">Sua Meta Total</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-green-600">{monthlyGoals.percentage}%</div>
-              <div className="text-sm text-gray-600">Seu Progresso</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-red-600">{monthlyGoals.remaining}</div>
-              <div className="text-sm text-gray-600">Restante</div>
-            </div>
-          </div>
-          
-          <div className="mt-4">
-            <div className="flex justify-between text-sm text-gray-600 mb-1">
-              <span>Progresso da Sua Meta</span>
-              <span>{monthlyGoals.achieved}/{monthlyGoals.totalGoal}</span>
-            </div>
-            <Progress value={monthlyGoals.percentage} className="h-3 [&>div]:bg-blue-500" />
-          </div>
-        </div>
-      </Card>
     </div>
   );
 }
