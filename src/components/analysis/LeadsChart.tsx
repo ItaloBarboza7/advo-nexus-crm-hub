@@ -97,16 +97,16 @@ export function LeadsChart({ leads, title, filterFunction, viewMode: externalVie
     setInternalViewMode(view);
   };
 
-  // FUNÇÃO PRINCIPAL para gerar o título com período
+  // FUNÇÃO PRINCIPAL para gerar o título com período APENAS para gráficos mensais
   const getChartTitle = () => {
     const baseTitle = `${title} - ${currentViewMode === 'weekly' ? 'Por Dia da Semana' : 'Por Mês'}`;
     
     console.log(`📊 [LeadsChart "${title}"] getChartTitle - appliedDateRange:`, appliedDateRange);
     console.log(`📊 [LeadsChart "${title}"] getChartTitle - currentViewMode: ${currentViewMode}`);
     
-    // VERIFICAÇÃO DETALHADA: Mostrar período quando há filtro aplicado
-    if (appliedDateRange?.from) {
-      console.log(`📊 [LeadsChart "${title}"] getChartTitle - Processando datas...`);
+    // NOVA REGRA: Mostrar período APENAS para gráficos mensais
+    if (currentViewMode === 'monthly' && appliedDateRange?.from) {
+      console.log(`📊 [LeadsChart "${title}"] getChartTitle - Processando datas para gráfico mensal...`);
       
       const fromDate = BrazilTimezone.formatDateForDisplay(appliedDateRange.from);
       const toDate = appliedDateRange.to ? BrazilTimezone.formatDateForDisplay(appliedDateRange.to) : fromDate;
@@ -120,11 +120,12 @@ export function LeadsChart({ leads, title, filterFunction, viewMode: externalVie
         finalTitle = `${baseTitle} (${fromDate} - ${toDate})`;
       }
       
-      console.log(`📊 [LeadsChart "${title}"] getChartTitle - TÍTULO FINAL: ${finalTitle}`);
+      console.log(`📊 [LeadsChart "${title}"] getChartTitle - TÍTULO FINAL MENSAL: ${finalTitle}`);
       return finalTitle;
     }
     
-    console.log(`📊 [LeadsChart "${title}"] getChartTitle - Sem período aplicado - TÍTULO FINAL: ${baseTitle}`);
+    // Para gráficos semanais ou sem período aplicado, retornar apenas o título base
+    console.log(`📊 [LeadsChart "${title}"] getChartTitle - Gráfico semanal ou sem período - TÍTULO FINAL: ${baseTitle}`);
     return baseTitle;
   };
 
