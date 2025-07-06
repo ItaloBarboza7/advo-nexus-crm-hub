@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +19,7 @@ export function CalendarContent() {
   const [showActivityPanel, setShowActivityPanel] = useState(false);
 
   const { tenantSchema } = useTenantSchema();
-  const { teamResults, isLoadingTeam } = useTeamResults();
+  const { teamMembers, isLoading: isLoadingTeam } = useTeamResults();
 
   const { 
     contracts, 
@@ -268,7 +269,7 @@ export function CalendarContent() {
   }, [leads, leadsUser, tenantSchema]);
 
   const userStats = getContractsStats();
-  const teamSales = teamResults?.reduce((sum, member) => sum + member.closed_contracts, 0) || 0;
+  const teamSales = teamMembers?.reduce((sum, member) => sum + member.sales, 0) || 0;
 
   const now = BrazilTimezone.now();
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
@@ -308,15 +309,6 @@ export function CalendarContent() {
               selected={selectedDate}
               onSelect={handleDateSelect}
               className="rounded-md border w-full"
-              locale={{
-                localize: {
-                  day: (n: number) => ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][n],
-                  month: (n: number) => [
-                    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-                    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-                  ][n]
-                }
-              }}
             />
           </CardContent>
         </Card>
@@ -333,13 +325,13 @@ export function CalendarContent() {
             teamSales={teamSales}
             daysInMonth={daysInMonth}
             currentDay={currentDay}
-            teamSize={teamResults?.length || 0}
+            teamSize={teamMembers?.length || 0}
           />
         </div>
       </div>
 
       {/* Weekly Follow-up */}
-      <WeeklyFollowUpTask />
+      <WeeklyFollowUpTask userName={currentUserData?.name || 'Usuário'} />
     </div>
   );
 }
