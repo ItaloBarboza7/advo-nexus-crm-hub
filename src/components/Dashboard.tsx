@@ -10,7 +10,6 @@ import { ActivityPanel } from "@/components/ActivityPanel";
 import { useLeadsForDate } from "@/hooks/useLeadsForDate";
 import { useContractsData } from "@/hooks/useContractsData";
 import { DateFilter } from "@/components/DateFilter";
-import { cn } from "@/lib/utils";
 
 export function Dashboard() {
   const [selectedDate, setSelectedDate] = useState<Date>(BrazilTimezone.now());
@@ -36,6 +35,25 @@ export function Dashboard() {
     currentUser: contractsUser, 
     fetchContractsForDate 
   } = useContractsData();
+
+  // Definir período padrão como mês atual na primeira carga
+  useEffect(() => {
+    const now = BrazilTimezone.now();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    
+    const currentMonthRange = {
+      from: startOfMonth,
+      to: endOfMonth
+    };
+    
+    console.log("📅 Dashboard - Definindo período padrão como mês atual:", {
+      from: BrazilTimezone.formatDateForDisplay(startOfMonth),
+      to: BrazilTimezone.formatDateForDisplay(endOfMonth)
+    });
+    
+    setAppliedDateRange(currentMonthRange);
+  }, []);
 
   // Fetch data when date changes or when date range is applied
   useEffect(() => {
@@ -91,7 +109,7 @@ export function Dashboard() {
     setShowActivityPanel(false);
   }, []);
 
-  // Agora todos os cards usam a mesma lógica de filtragem por período
+  // Todos os cards usam a mesma lógica de filtragem por período
   const filteredLeads = appliedDateRange?.from
     ? leads.filter(lead => {
         const leadDate = new Date(lead.createdAt);
@@ -122,6 +140,19 @@ export function Dashboard() {
 
   const getDisplayTitle = () => {
     if (appliedDateRange?.from && appliedDateRange?.to) {
+      // Verificar se é o mês atual
+      const now = BrazilTimezone.now();
+      const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      
+      const isCurrentMonth = 
+        appliedDateRange.from.getTime() === startOfCurrentMonth.getTime() &&
+        appliedDateRange.to.getTime() === endOfCurrentMonth.getTime();
+      
+      if (isCurrentMonth) {
+        return `Resumo das atividades do mês atual (${now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })})`;
+      }
+      
       return `Período de ${BrazilTimezone.formatDateForDisplay(appliedDateRange.from)} a ${BrazilTimezone.formatDateForDisplay(appliedDateRange.to)}`;
     } else if (appliedDateRange?.from) {
       return `Resumo das atividades de ${BrazilTimezone.formatDateForDisplay(appliedDateRange.from)}`;

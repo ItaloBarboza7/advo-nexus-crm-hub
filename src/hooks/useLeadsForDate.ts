@@ -87,17 +87,17 @@ export function useLeadsForDate() {
       setError(null);
       
       console.log("📅 Buscando leads cadastrados em:", BrazilTimezone.formatDateForDisplay(selectedDate));
-      console.log("👤 Para usuário:", currentUser.name, "(ID:", currentUser.id, ")");
+      console.log("🏢 Para todos os usuários do tenant");
 
       const dateString = BrazilTimezone.formatDateForQuery(selectedDate);
       console.log("📅 Data formatada para query:", dateString);
       
+      // Removido filtro de user_id para buscar todos os leads do tenant
       const sql = `
         SELECT 
           id, name, phone, email, source, status, created_at, value, user_id
         FROM ${tenantSchema}.leads
         WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = '${dateString}'
-          AND user_id = '${currentUser.id}'
         ORDER BY created_at DESC
       `;
 
@@ -149,7 +149,7 @@ export function useLeadsForDate() {
           };
         });
 
-      console.log(`✅ ${transformedLeads.length} leads processados para ${currentUser.name}:`, transformedLeads);
+      console.log(`✅ ${transformedLeads.length} leads processados de todos os usuários:`, transformedLeads);
       setLeads(transformedLeads);
       
     } catch (error: any) {
@@ -180,12 +180,12 @@ export function useLeadsForDate() {
       const fromDate = BrazilTimezone.formatDateForQuery(dateRange.from);
       const toDate = BrazilTimezone.formatDateForQuery(dateRange.to);
       
+      // Removido filtro de user_id para buscar todos os leads do tenant
       const sql = `
         SELECT 
           id, name, phone, email, source, status, created_at, value, user_id
         FROM ${tenantSchema}.leads
         WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') BETWEEN '${fromDate}' AND '${toDate}'
-          AND user_id = '${currentUser.id}'
         ORDER BY created_at DESC
       `;
 
@@ -216,7 +216,7 @@ export function useLeadsForDate() {
           user_id: lead.user_id
         }));
 
-      console.log(`✅ ${transformedLeads.length} leads encontrados no período`);
+      console.log(`✅ ${transformedLeads.length} leads encontrados no período de todos os usuários`);
       setLeads(transformedLeads);
       
     } catch (error: any) {

@@ -84,19 +84,21 @@ export function useContractsData() {
       setError(null);
       
       console.log("📅 Buscando contratos fechados em:", BrazilTimezone.formatDateForDisplay(selectedDate));
-      console.log("👤 Para usuário:", currentUser.name, "(ID:", currentUser.id, ")");
+      console.log("🏢 Para todos os usuários do tenant");
 
       const dateString = BrazilTimezone.formatDateForQuery(selectedDate);
       console.log("📅 Data formatada para query:", dateString);
       
+      // Removido filtro de closed_by_user_id para buscar todos os contratos do tenant
       const sql = `
         SELECT 
-          id, name, email, phone, value, status, updated_at, closed_by_user_id
-        FROM ${tenantSchema}.leads
-        WHERE status = 'Contrato Fechado'
-          AND closed_by_user_id = '${currentUser.id}'
-          AND DATE(updated_at AT TIME ZONE 'America/Sao_Paulo') = '${dateString}'
-        ORDER BY updated_at DESC
+          l.id, l.name, l.email, l.phone, l.value, l.status, l.updated_at, l.closed_by_user_id,
+          up.name as closed_by_name
+        FROM ${tenantSchema}.leads l
+        LEFT JOIN public.user_profiles up ON l.closed_by_user_id = up.user_id
+        WHERE l.status = 'Contrato Fechado'
+          AND DATE(l.updated_at AT TIME ZONE 'America/Sao_Paulo') = '${dateString}'
+        ORDER BY l.updated_at DESC
       `;
 
       console.log("🔍 Executando SQL para contratos:", sql);
@@ -106,8 +108,6 @@ export function useContractsData() {
       });
 
       console.log("🔍 Dados brutos de contratos recebidos:", data);
-      console.log("🔍 Tipo dos dados:", typeof data);
-      console.log("🔍 É array?", Array.isArray(data));
 
       if (error) {
         console.error("❌ Erro na consulta exec_sql:", error);
@@ -139,7 +139,7 @@ export function useContractsData() {
           return {
             id: lead.id || 'unknown',
             clientName: lead.name || 'Nome não informado',
-            closedBy: currentUser.name,
+            closedBy: lead.closed_by_name || 'Usuário desconhecido',
             value: lead.value ? Number(lead.value) : 0,
             closedAt: leadDate,
             email: lead.email || undefined,
@@ -147,7 +147,7 @@ export function useContractsData() {
           };
         });
 
-      console.log(`✅ ${transformedContracts.length} contratos processados para ${currentUser.name}:`, transformedContracts);
+      console.log(`✅ ${transformedContracts.length} contratos processados de todos os usuários:`, transformedContracts);
       setContracts(transformedContracts);
       
     } catch (error: any) {
