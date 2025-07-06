@@ -15,6 +15,7 @@ import { useLeadFiltering } from "@/components/analysis/useLeadFiltering";
 import { useChartStates } from "@/hooks/useChartStates";
 import { useLeadDialogs } from "@/hooks/useLeadDialogs";
 import { useLeadsForDate } from "@/hooks/useLeadsForDate";
+import { useLeadsForYear } from "@/hooks/useLeadsForYear";
 import { useLossReasonsGlobal } from "@/hooks/useLossReasonsGlobal";
 import { FilterOptions } from "@/components/AdvancedFilters";
 import { BrazilTimezone } from "@/lib/timezone";
@@ -36,13 +37,19 @@ export function CasesContent() {
   
   // Usar hooks com filtro de data que agora retorna Lead[] completo
   const { 
-    leads, 
+    leads: filteredLeads, 
     isLoading, 
     error, 
     currentUser, 
     fetchLeadsForDate,
     fetchLeadsForDateRange 
   } = useLeadsForDate();
+
+  // Hook para dados anuais (para visualizações mensais dos cards)
+  const {
+    leads: yearlyLeads,
+    isLoading: yearlyLoading
+  } = useLeadsForYear();
 
   const { lossReasons } = useLossReasonsGlobal();
   const { statusHistory, hasLeadPassedThroughStatus } = useLeadStatusHistory();
@@ -71,6 +78,17 @@ export function CasesContent() {
     handleEditLead
   } = useLeadDialogs();
   
+  // Função para selecionar quais leads usar baseado na visualização
+  const getLeadsForAnalysis = useCallback((viewType: 'weekly' | 'monthly') => {
+    if (viewType === 'monthly') {
+      console.log("📊 CasesContent - Usando dados anuais para análise mensal");
+      return yearlyLeads || [];
+    } else {
+      console.log("📊 CasesContent - Usando dados filtrados para análise semanal");
+      return filteredLeads || [];
+    }
+  }, [yearlyLeads, filteredLeads]);
+
   const {
     getLeadsForChart,
     shouldShowChart,
@@ -78,7 +96,7 @@ export function CasesContent() {
     shouldShowActionTypesChart,
     shouldShowActionGroupChart,
     shouldShowStateChart
-  } = useAnalysisLogic(leads, selectedCategory, statusHistory, hasLeadPassedThroughStatus);
+  } = useAnalysisLogic(filteredLeads || [], selectedCategory, statusHistory, hasLeadPassedThroughStatus);
 
   // Função memoizada para buscar dados do mês atual
   const fetchCurrentMonthData = useCallback(() => {
@@ -114,13 +132,11 @@ export function CasesContent() {
     console.log("📅 CasesContent - Aplicando filtro de período:", range);
     
     if (!range?.from) {
-      // Se não há filtro, buscar dados do mês atual
       console.log("📅 CasesContent - Sem filtro aplicado, carregando mês atual");
       fetchCurrentMonthData();
       return;
     }
 
-    // Aplicar o novo filtro
     const rangeToApply = {
       from: range.from,
       to: range.to || range.from
@@ -135,8 +151,8 @@ export function CasesContent() {
     fetchLeadsForDateRange(rangeToApply);
   }, [fetchCurrentMonthData, fetchLeadsForDateRange]);
 
-  const { filteredLeads } = useLeadFiltering(
-    leads || [],
+  const { filteredLeads: searchFilteredLeads } = useLeadFiltering(
+    filteredLeads || [],
     searchTerm,
     selectedCategory,
     advancedFilters,
@@ -145,9 +161,7 @@ export function CasesContent() {
 
   const handleCategoryChange = (category: string) => {
     setSelectedCategory(category);
-    // Resetar estados dos gráficos quando mudar de categoria
     resetChartStates();
-    // Limpar filtros avançados quando mudar de categoria
     setAdvancedFilters({
       status: [],
       source: [],
@@ -167,14 +181,20 @@ export function CasesContent() {
   };
 
   console.log("📊 CasesContent - Dados:", {
-    totalLeads: leads?.length || 0,
-    filteredLeads: filteredLeads.length,
+    totalFilteredLeads: filteredLeads?.length || 0,
+    totalYearlyLeads: yearlyLeads?.length || 0,
+    searchFilteredLeads: searchFilteredLeads.length,
     appliedDateRange: appliedDateRange ? {
       from: appliedDateRange.from ? BrazilTimezone.formatDateForDisplay(appliedDateRange.from) : 'N/A',
       to: appliedDateRange.to ? BrazilTimezone.formatDateForDisplay(appliedDateRange.to) : 'N/A'
     } : 'Nenhum',
     selectedCategory,
-    isInitialized
+    isInitialized,
+    viewModes: {
+      leads: leadsViewMode,
+      contracts: contractsViewMode,
+      opportunities: opportunitiesViewMode
+    }
   });
 
   // Melhorar getDisplayTitle para lidar com casos onde to pode ser undefined
@@ -190,7 +210,7 @@ export function CasesContent() {
   };
 
   // Estado de carregamento melhorado
-  if (isLoading || !isInitialized) {
+  if ((isLoading || yearlyLoading) || !isInitialized) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-center py-8">
@@ -219,12 +239,19 @@ export function CasesContent() {
         />
       </div>
 
-      {/* Usar dados filtrados por data para as estatísticas */}
+      {/* Usar dados filtrados por data para as estatísticas dos cards */}
       <AnalysisStats 
-        leads={leads || []} 
+        leads={filteredLeads || []} 
+        yearlyLeads={yearlyLeads || []}
         onCategoryChange={handleCategoryChange}
         statusHistory={statusHistory}
         hasLeadPassedThroughStatus={hasLeadPassedThroughStatus}
+        leadsViewMode={leadsViewMode}
+        contractsViewMode={contractsViewMode}
+        opportunitiesViewMode={opportunitiesViewMode}
+        showLeadsChart={showLeadsChart}
+        showContractsChart={showContractsChart}
+        showOpportunitiesChart={showOpportunitiesChart}
       />
 
       <CategoryButtons 
@@ -250,6 +277,7 @@ export function CasesContent() {
 
       <ChartsSection
         leads={getLeadsForChart}
+        yearlyLeads={yearlyLeads || []}
         selectedCategory={selectedCategory}
         shouldShowChart={shouldShowChart()}
         shouldShowLossReasonsChart={shouldShowLossReasonsChart()}
@@ -266,7 +294,7 @@ export function CasesContent() {
       />
 
       <LeadsSection
-        filteredLeads={filteredLeads}
+        filteredLeads={searchFilteredLeads}
         selectedCategory={selectedCategory}
         isLoading={isLoading}
         shouldShowStateChart={shouldShowStateChart()}
@@ -299,13 +327,14 @@ export function CasesContent() {
         <h3 className="font-medium mb-2">Debug Info:</h3>
         <div className="text-sm text-gray-600">
           <p>Status inicialização: {isInitialized ? 'Concluída' : 'Pendente'}</p>
-          <p>Leads retornados pelo hook: {leads?.length || 0}</p>
+          <p>Leads filtrados: {filteredLeads?.length || 0}</p>
+          <p>Leads do ano: {yearlyLeads?.length || 0}</p>
+          <p>View modes: Leads={leadsViewMode}, Contratos={contractsViewMode}, Oportunidades={opportunitiesViewMode}</p>
+          <p>Gráficos ativos: Leads={showLeadsChart ? 'Sim' : 'Não'}, Contratos={showContractsChart ? 'Sim' : 'Não'}, Oportunidades={showOpportunitiesChart ? 'Sim' : 'Não'}</p>
           <p>Período aplicado: {appliedDateRange ? 
             `${appliedDateRange.from ? BrazilTimezone.formatDateForDisplay(appliedDateRange.from) : 'N/A'} - ${appliedDateRange.to ? BrazilTimezone.formatDateForDisplay(appliedDateRange.to) : 'N/A'}` 
             : 'Nenhum'}</p>
-          <p>Hook carregando: {isLoading ? 'Sim' : 'Não'}</p>
           <p>Usuário: {currentUser?.name || 'N/A'}</p>
-          <p>Erro: {error || 'Nenhum'}</p>
         </div>
       </div>
     </div>
