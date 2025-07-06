@@ -7,15 +7,17 @@ import { ViewToggleDropdown } from "./ViewToggleDropdown";
 import { useState, useMemo, useEffect } from "react";
 import { format, startOfWeek, endOfWeek, getDay, getMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { BrazilTimezone } from "@/lib/timezone";
 
 interface LeadsChartProps {
   leads: Lead[];
   title: string;
   filterFunction?: (lead: Lead) => boolean;
   viewMode?: 'weekly' | 'monthly';
+  appliedDateRange?: { from: Date; to: Date } | undefined;
 }
 
-export function LeadsChart({ leads, title, filterFunction, viewMode: externalViewMode }: LeadsChartProps) {
+export function LeadsChart({ leads, title, filterFunction, viewMode: externalViewMode, appliedDateRange }: LeadsChartProps) {
   const [internalViewMode, setInternalViewMode] = useState<'weekly' | 'monthly'>('weekly');
   
   // Se receber viewMode como prop, usar ele, senão usar o estado interno
@@ -88,12 +90,24 @@ export function LeadsChart({ leads, title, filterFunction, viewMode: externalVie
     setInternalViewMode(view);
   };
 
+  // Gerar o título com período quando for mensal e houver período aplicado
+  const getChartTitle = () => {
+    const baseTitle = `${title} - ${currentViewMode === 'weekly' ? 'Por Dia da Semana' : 'Por Mês'}`;
+    
+    if (currentViewMode === 'monthly' && appliedDateRange?.from && appliedDateRange?.to) {
+      const periodText = `(${BrazilTimezone.formatDateForDisplay(appliedDateRange.from)} - ${BrazilTimezone.formatDateForDisplay(appliedDateRange.to)})`;
+      return `${baseTitle} ${periodText}`;
+    }
+    
+    return baseTitle;
+  };
+
   return (
     <Card className="p-6">
       <CardHeader className="p-0 mb-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold text-gray-900">
-            {title} - {currentViewMode === 'weekly' ? 'Por Dia da Semana' : 'Por Mês'}
+            {getChartTitle()}
           </CardTitle>
           {/* Só mostrar o dropdown interno se não receber viewMode como prop */}
           {!externalViewMode && (

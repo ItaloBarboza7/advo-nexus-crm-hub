@@ -23,6 +23,8 @@ interface ChartsSectionProps {
   showLeadsChart?: boolean;
   showContractsChart?: boolean;
   showOpportunitiesChart?: boolean;
+  // Novo prop para o período aplicado
+  appliedDateRange?: { from: Date; to: Date } | undefined;
 }
 
 export function ChartsSection({
@@ -39,7 +41,8 @@ export function ChartsSection({
   opportunitiesViewMode = 'weekly',
   showLeadsChart = false,
   showContractsChart = false,
-  showOpportunitiesChart = false
+  showOpportunitiesChart = false,
+  appliedDateRange
 }: ChartsSectionProps) {
   if (!shouldShowChart) {
     return null;
@@ -109,6 +112,7 @@ export function ChartsSection({
               leads={leads}
               title="Todos os Leads"
               viewMode={leadsViewMode}
+              appliedDateRange={appliedDateRange}
             />
           )}
 
@@ -119,6 +123,7 @@ export function ChartsSection({
               title="Novos Contratos"
               filterFunction={(lead) => lead.status === "Contrato Fechado"}
               viewMode={contractsViewMode}
+              appliedDateRange={appliedDateRange}
             />
           )}
 
@@ -129,6 +134,7 @@ export function ChartsSection({
               title="Oportunidades"
               filterFunction={isOpportunityLead}
               viewMode={opportunitiesViewMode}
+              appliedDateRange={appliedDateRange}
             />
           )}
         </>
