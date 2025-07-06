@@ -1,3 +1,4 @@
+
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserPlus, UserX, DollarSign, TrendingUp, BarChart3 } from "lucide-react";
@@ -112,16 +113,34 @@ export function DashboardContent() {
     fetchContractsForDate(rangeToApply.from);
   }, [fetchCurrentMonthData, fetchLeadsForDateRange, fetchContractsForDate]);
 
-  // Função para selecionar quais leads usar baseado na visualização
+  // CORREÇÃO PRINCIPAL: Função para selecionar dados baseada no período aplicado
   const getLeadsForView = useCallback((viewType: 'weekly' | 'monthly') => {
-    if (viewType === 'monthly') {
-      console.log("📊 DashboardContent - Usando dados anuais para visualização mensal");
-      return yearlyLeads || [];
-    } else {
-      console.log("📊 DashboardContent - Usando dados filtrados para visualização semanal");
-      return filteredLeads || [];
+    console.log(`📊 DashboardContent - getLeadsForView chamada com viewType: ${viewType}`);
+    console.log(`📊 DashboardContent - appliedDateRange:`, appliedDateRange);
+    console.log(`📊 DashboardContent - filteredLeads count: ${filteredLeads?.length || 0}`);
+    console.log(`📊 DashboardContent - yearlyLeads count: ${yearlyLeads?.length || 0}`);
+    
+    // Se tem um período aplicado (não é o ano todo), sempre usar dados filtrados
+    if (appliedDateRange?.from && appliedDateRange?.to) {
+      const rangeDurationInDays = Math.floor((appliedDateRange.to.getTime() - appliedDateRange.from.getTime()) / (1000 * 60 * 60 * 24));
+      console.log(`📊 DashboardContent - Período aplicado tem ${rangeDurationInDays} dias`);
+      
+      // Se o período é menor que 300 dias (não é o ano todo), usar dados filtrados
+      if (rangeDurationInDays < 300) {
+        console.log("📊 DashboardContent - Usando dados filtrados (período específico)");
+        return filteredLeads || [];
+      }
     }
-  }, [yearlyLeads, filteredLeads]);
+    
+    // Só usar dados anuais se for visualização mensal E não houver filtro específico aplicado
+    if (viewType === 'monthly' && (!appliedDateRange?.from || !appliedDateRange?.to)) {
+      console.log("📊 DashboardContent - Usando dados anuais (visualização mensal sem filtro)");
+      return yearlyLeads || [];
+    }
+    
+    console.log("📊 DashboardContent - Usando dados filtrados (padrão)");
+    return filteredLeads || [];
+  }, [yearlyLeads, filteredLeads, appliedDateRange]);
 
   // CORREÇÃO: Calcular estatísticas reais baseadas nos leads filtrados
   const leads = filteredLeads; // Para estatísticas, sempre usar dados filtrados
@@ -201,7 +220,7 @@ export function DashboardContent() {
     return currentlyInOpportunity || passedThroughOpportunity;
   }, [hasLeadPassedThroughStatus]);
 
-  // CORREÇÃO: Gerar dados REAIS de conversão baseados nos leads (filtrados ou anuais)
+  // CORREÇÃO: Gerar dados REAIS de conversão baseados nos leads selecionados
   const getRealConversionData = useMemo(() => {
     const dataToUse = getLeadsForView(conversionView);
     console.log(`📊 Calculando dados de conversão para view ${conversionView} com ${dataToUse.length} leads...`);
@@ -269,7 +288,7 @@ export function DashboardContent() {
     return { weekly: weeklyData, monthly: monthlyData };
   }, [conversionView, getLeadsForView, isOpportunityLead]);
 
-  // CORREÇÃO: Gerar dados reais de leads por período baseados nos leads (filtrados ou anuais)
+  // CORREÇÃO: Gerar dados reais de leads por período baseados nos leads selecionados
   const getRealLeadsData = useMemo(() => {
     const dataToUse = getLeadsForView(leadsView);
     console.log(`📊 Calculando dados de leads para view ${leadsView} com ${dataToUse.length} leads...`);
