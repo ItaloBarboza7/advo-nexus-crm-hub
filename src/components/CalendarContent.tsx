@@ -1,27 +1,25 @@
-import { useState, useEffect } from "react";
-import { Card } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Flag } from "lucide-react";
-import { UserComparisonCard } from "@/components/UserComparisonCard";
-import { ActivityPanel } from "@/components/ActivityPanel";
-import { IntegratedCalendar } from "@/components/IntegratedCalendar";
-import { WeeklyFollowUpTask } from "@/components/WeeklyFollowUpTask";
-import { TeamGoalsPanel } from "@/components/TeamGoalsPanel";
-import { useLeadsData } from "@/hooks/useLeadsData";
+import { useState, useEffect, useCallback } from "react";
+import { Calendar } from "@/components/ui/calendar";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Calendar as CalendarIcon, Target, TrendingUp, Users } from "lucide-react";
+import { BrazilTimezone } from "@/lib/timezone";
 import { useContractsData } from "@/hooks/useContractsData";
 import { useLeadsForDate } from "@/hooks/useLeadsForDate";
+import { ActivityPanel } from "@/components/ActivityPanel";
+import { MonthlyGoalsPanel } from "@/components/MonthlyGoalsPanel";
+import { TeamGoalsPanel } from "@/components/TeamGoalsPanel";
 import { useTeamResults } from "@/hooks/useTeamResults";
-import { supabase } from "@/integrations/supabase/client";
-import { BrazilTimezone } from "@/lib/timezone";
+import { WeeklyFollowUpTask } from "@/components/WeeklyFollowUpTask";
 import { useTenantSchema } from "@/hooks/useTenantSchema";
+import { supabase } from "@/integrations/supabase/client";
 
 export function CalendarContent() {
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const [statusHistory, setStatusHistory] = useState<any[]>([]);
-  const { leads, isLoading } = useLeadsData();
+  const [selectedDate, setSelectedDate] = useState<Date>(BrazilTimezone.now());
+  const [showActivityPanel, setShowActivityPanel] = useState(false);
+
   const { tenantSchema } = useTenantSchema();
-  const { teamMembers, teamStats, isLoading: teamLoading } = useTeamResults();
+  const { teamResults, isLoadingTeam } = useTeamResults();
+
   const { 
     contracts, 
     isLoading: contractsLoading, 
@@ -29,101 +27,159 @@ export function CalendarContent() {
     currentUser: contractsUser, 
     fetchContractsForDate 
   } = useContractsData();
-  const {
-    leads: leadsForDate,
-    isLoading: leadsLoading,
-    error: leadsError,
-    currentUser: leadsCurrentUser,
-    fetchLeadsForDate
+
+  const { 
+    leads, 
+    isLoading: leadsLoading, 
+    error: leadsError, 
+    currentUser: leadsUser, 
+    fetchLeadsForDate 
   } = useLeadsForDate();
 
-  // Definir automaticamente o dia atual quando a página carrega (usando timezone brasileiro)
-  useEffect(() => {
-    const today = BrazilTimezone.now();
-    BrazilTimezone.debugLog("📅 CalendarContent - Data atual definida", today);
+  // Estados para atividades filtradas do usuário atual
+  const [userContracts, setUserContracts] = useState<any[]>([]);
+  const [userLeads, setUserLeads] = useState<any[]>([]);
+  const [currentUserData, setCurrentUserData] = useState<{id: string, name: string} | null>(null);
+
+  // Função para buscar dados filtrados do usuário atual
+  const fetchUserActivityData = useCallback(async (date: Date) => {
+    if (!tenantSchema) return;
     
-    setSelectedDate(today);
-  }, []);
-
-  // Buscar informações do usuário atual
-  useEffect(() => {
-    const getCurrentUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        // Buscar o perfil do usuário para obter o nome
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('name')
-          .eq('user_id', user.id)
-          .maybeSingle();
-        
-        setCurrentUser({
-          id: user.id,
-          name: profile?.name || user.email || 'Usuário'
-        });
-      }
-    };
-
-    getCurrentUser();
-  }, []);
-
-  // Buscar histórico de status quando o tenant schema estiver disponível
-  useEffect(() => {
-    const fetchStatusHistory = async () => {
-      if (!tenantSchema) return;
+    try {
+      console.log("🔍 CalendarContent - Buscando atividades do usuário para:", BrazilTimezone.formatDateForDisplay(date));
       
-      try {
-        const { data, error } = await supabase.rpc('exec_sql', {
-          sql: `SELECT * FROM ${tenantSchema}.lead_status_history ORDER BY changed_at DESC`
-        });
-
-        if (error) {
-          console.error("❌ Erro ao buscar histórico de status:", error);
-          return;
-        }
-
-        const historyData = Array.isArray(data) ? data : [];
-        console.log(`📈 CalendarContent - ${historyData.length} registros de histórico encontrados`);
-        setStatusHistory(historyData);
-      } catch (error) {
-        console.error("❌ Erro inesperado ao buscar histórico:", error);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error("❌ Usuário não autenticado");
+        return;
       }
-    };
 
-    fetchStatusHistory();
+      console.log("👤 Usuário atual:", user.id);
+
+      // Buscar perfil do usuário
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('name')
+        .eq('user_id', user.id)
+        .single();
+
+      setCurrentUserData({
+        id: user.id,
+        name: profile?.name || 'Usuário'
+      });
+
+      const dateStr = BrazilTimezone.formatDateForQuery(date);
+      
+      // Buscar contratos fechados pelo usuário atual na data selecionada
+      const { data: contractsData, error: contractsError } = await supabase.rpc('exec_sql', {
+        sql: `
+          SELECT 
+            l.id,
+            l.name as client_name,
+            l.phone,
+            l.email,
+            l.value,
+            l.updated_at as closed_at,
+            l.closed_by_user_id,
+            up.name as closed_by_name
+          FROM ${tenantSchema}.leads l
+          LEFT JOIN public.user_profiles up ON l.closed_by_user_id = up.user_id
+          WHERE l.status = 'Contrato Fechado'
+            AND l.closed_by_user_id = '${user.id}'
+            AND DATE(l.updated_at AT TIME ZONE 'America/Sao_Paulo') = '${dateStr}'
+          ORDER BY l.updated_at DESC
+        `
+      });
+
+      if (contractsError) {
+        console.error("❌ Erro ao buscar contratos do usuário:", contractsError);
+        return;
+      }
+
+      // Processar contratos
+      let processedContracts: any[] = [];
+      if (Array.isArray(contractsData) && contractsData.length > 0) {
+        processedContracts = contractsData.map((contract: any) => ({
+          id: contract.id,
+          clientName: contract.client_name,
+          closedBy: contract.closed_by_name || 'N/A',
+          value: contract.value || 0,
+          closedAt: BrazilTimezone.toLocal(contract.closed_at),
+          email: contract.email,
+          phone: contract.phone
+        }));
+      }
+
+      console.log(`✅ ${processedContracts.length} contratos encontrados para o usuário`);
+
+      // Buscar leads cadastrados pelo usuário atual na data selecionada
+      const { data: leadsData, error: leadsError } = await supabase.rpc('exec_sql', {
+        sql: `
+          SELECT *
+          FROM ${tenantSchema}.leads l
+          WHERE l.user_id = '${user.id}'
+            AND DATE(l.created_at AT TIME ZONE 'America/Sao_Paulo') = '${dateStr}'
+          ORDER BY l.created_at DESC
+        `
+      });
+
+      if (leadsError) {
+        console.error("❌ Erro ao buscar leads do usuário:", leadsError);
+        return;
+      }
+
+      // Processar leads
+      let processedLeads: any[] = [];
+      if (Array.isArray(leadsData) && leadsData.length > 0) {
+        processedLeads = leadsData.map((lead: any) => ({
+          ...lead,
+          created_at: lead.created_at,
+          updated_at: lead.updated_at
+        }));
+      }
+
+      console.log(`✅ ${processedLeads.length} leads encontrados para o usuário`);
+
+      setUserContracts(processedContracts);
+      setUserLeads(processedLeads);
+
+    } catch (error) {
+      console.error("❌ Erro inesperado ao buscar atividades do usuário:", error);
+    }
   }, [tenantSchema]);
 
-  // Buscar contratos e leads quando uma data é selecionada
+  // Buscar dados quando a data é selecionada
   useEffect(() => {
-    if (selectedDate && contractsUser && fetchContractsForDate) {
-      fetchContractsForDate(selectedDate);
+    if (showActivityPanel && selectedDate) {
+      fetchUserActivityData(selectedDate);
     }
-    if (selectedDate && leadsCurrentUser && fetchLeadsForDate) {
-      fetchLeadsForDate(selectedDate);
-    }
-  }, [selectedDate, contractsUser, leadsCurrentUser]);
+  }, [showActivityPanel, selectedDate, fetchUserActivityData]);
 
-  // Função para verificar se um lead passou por determinados status (MESMA LÓGICA DO TEAM RESULTS)
-  const hasLeadPassedThroughStatus = (leadId: string, statuses: string[]): boolean => {
-    return statusHistory.some(history => 
-      history.lead_id === leadId && statuses.includes(history.new_status)
-    );
+  const handleDateSelect = (date: Date | undefined) => {
+    if (date) {
+      console.log("📅 Data selecionada:", BrazilTimezone.formatDateForDisplay(date));
+      setSelectedDate(date);
+      setShowActivityPanel(true);
+      // Os dados serão buscados pelo useEffect acima
+    }
   };
 
-  // DEBUGGING: Calcular estatísticas reais usando a MESMA LÓGICA do useTeamResults mas para o usuário atual
-  const getContractsStats = () => {
-    if (!leads || leads.length === 0 || !currentUser) {
-      return {
-        currentMonth: { completed: 0, points: 0 },
-        previousMonth: { completed: 0, points: 0 },
-        goal: 1000
-      };
-    }
+  const handleCloseActivityPanel = () => {
+    setShowActivityPanel(false);
+    setUserContracts([]);
+    setUserLeads([]);
+  };
+
+  const getContractsStats = useCallback(() => {
+    if (!tenantSchema || !leadsUser) return { currentMonth: { leads: 0, proposals: 0, sales: 0, points: 0 }, previousMonth: { leads: 0, proposals: 0, sales: 0, points: 0 }, withoutFilter: { leads: 0, proposals: 0, sales: 0, points: 0 } };
 
     console.log("🔍 DEBUGGING CalendarContent - getContractsStats:");
-    console.log("📊 Total de leads no sistema:", leads.length);
-    console.log("👤 Current user ID:", currentUser.id);
-    console.log("📈 Status history entries:", statusHistory.length);
+    console.log("📊 Total de leads no sistema:", leads?.length || 0);
+    console.log("👤 Current user ID:", leadsUser.id);
+
+    if (!leads || leads.length === 0) {
+      return { currentMonth: { leads: 0, proposals: 0, sales: 0, points: 0 }, previousMonth: { leads: 0, proposals: 0, sales: 0, points: 0 }, withoutFilter: { leads: 0, proposals: 0, sales: 0, points: 0 } };
+    }
 
     const now = BrazilTimezone.now();
     const currentMonth = now.getMonth();
@@ -133,84 +189,60 @@ export function CalendarContent() {
 
     console.log("📅 Mês atual:", currentMonth + 1, "Ano:", currentYear);
 
-    // Filtrar leads do usuário atual
-    const userLeads = leads.filter(lead => lead.user_id === currentUser.id);
+    const userLeads = leads.filter(lead => lead.user_id === leadsUser.id);
     console.log("👤 Leads do usuário atual (total):", userLeads.length);
 
-    // *** REMOVER FILTRO POR MÊS PARA COMPARAR COM TEAMRESULTS ***
-    // Vamos calcular SEM filtro de mês para ver se bate com os 295 pontos
-    
     console.log("🔍 CALCULANDO SEM FILTRO DE MÊS (como no TeamResults):");
-    
-    const allUserProposals = userLeads.filter(lead => {
-      if (['Proposta', 'Reunião'].includes(lead.status)) {
-        return true;
-      }
-      return hasLeadPassedThroughStatus(lead.id, ['Proposta', 'Reunião']);
+    const withoutFilterProposals = userLeads.filter(lead => {
+      if (['Proposta', 'Reunião'].includes(lead.status)) return true;
+      return false;
     });
-
-    const allUserSales = userLeads.filter(lead => 
-      lead.status === 'Contrato Fechado'
-    );
-
-    const allUserPoints = (userLeads.length * 5) + (allUserProposals.length * 10) + (allUserSales.length * 100);
+    
+    const withoutFilterSales = userLeads.filter(lead => lead.status === 'Contrato Fechado');
+    const withoutFilterPoints = (userLeads.length * 5) + (withoutFilterProposals.length * 10) + (withoutFilterSales.length * 100);
 
     console.log("📈 SEM FILTRO DE MÊS:");
     console.log("  - Leads:", userLeads.length);
-    console.log("  - Propostas:", allUserProposals.length);
-    console.log("  - Vendas:", allUserSales.length);
-    console.log("  - PONTOS TOTAIS:", allUserPoints);
+    console.log("  - Propostas:", withoutFilterProposals.length);
+    console.log("  - Vendas:", withoutFilterSales.length);
+    console.log("  - PONTOS TOTAIS:", withoutFilterPoints);
 
-    // Agora calcular COM filtro de mês (lógica atual)
     const currentMonthLeads = userLeads.filter(lead => {
       const leadDate = new Date(lead.created_at);
-      const leadDateLocal = BrazilTimezone.toLocal(leadDate);
-      return leadDateLocal.getMonth() === currentMonth && leadDateLocal.getFullYear() === currentYear;
+      return leadDate.getMonth() === currentMonth && leadDate.getFullYear() === currentYear;
     });
-
+    
     console.log("📅 COM FILTRO DE MÊS ATUAL (julho):");
     console.log("  - Leads do mês atual:", currentMonthLeads.length);
 
     const currentMonthProposals = currentMonthLeads.filter(lead => {
-      if (['Proposta', 'Reunião'].includes(lead.status)) {
-        return true;
-      }
-      return hasLeadPassedThroughStatus(lead.id, ['Proposta', 'Reunião']);
+      if (['Proposta', 'Reunião'].includes(lead.status)) return true;
+      return false;
     });
-
-    const currentMonthSales = currentMonthLeads.filter(lead => 
-      lead.status === 'Contrato Fechado'
-    );
+    
+    const currentMonthSales = currentMonthLeads.filter(lead => lead.status === 'Contrato Fechado');
+    const currentMonthPoints = (currentMonthLeads.length * 5) + (currentMonthProposals.length * 10) + (currentMonthSales.length * 100);
 
     console.log("  - Propostas do mês:", currentMonthProposals.length);
     console.log("  - Vendas do mês:", currentMonthSales.length);
+    console.log("💰 PONTOS DO MÊS ATUAL:", currentMonthPoints);
 
-    // Calcular dados do mês anterior
     const previousMonthLeads = userLeads.filter(lead => {
       const leadDate = new Date(lead.created_at);
-      const leadDateLocal = BrazilTimezone.toLocal(leadDate);
-      return leadDateLocal.getMonth() === previousMonth && leadDateLocal.getFullYear() === previousYear;
+      return leadDate.getMonth() === previousMonth && leadDate.getFullYear() === previousYear;
     });
 
     const previousMonthProposals = previousMonthLeads.filter(lead => {
-      if (['Proposta', 'Reunião'].includes(lead.status)) {
-        return true;
-      }
-      return hasLeadPassedThroughStatus(lead.id, ['Proposta', 'Reunião']);
+      if (['Proposta', 'Reunião'].includes(lead.status)) return true;
+      return false;
     });
-
-    const previousMonthSales = previousMonthLeads.filter(lead => 
-      lead.status === 'Contrato Fechado'
-    );
-
-    // USAR A MESMA LÓGICA DE PONTUAÇÃO: Leads = 5pts, Propostas = 10pts, Vendas = 100pts
-    const currentMonthPoints = (currentMonthLeads.length * 5) + (currentMonthProposals.length * 10) + (currentMonthSales.length * 100);
+    
+    const previousMonthSales = previousMonthLeads.filter(lead => lead.status === 'Contrato Fechado');
     const previousMonthPoints = (previousMonthLeads.length * 5) + (previousMonthProposals.length * 10) + (previousMonthSales.length * 100);
 
-    console.log("💰 PONTOS DO MÊS ATUAL:", currentMonthPoints);
     console.log("💰 PONTOS DO MÊS ANTERIOR:", previousMonthPoints);
 
-    console.log(`📊 CalendarContent - Estatísticas calculadas para ${currentUser.name}:`, {
+    const result = {
       currentMonth: {
         leads: currentMonthLeads.length,
         proposals: currentMonthProposals.length,
@@ -225,110 +257,89 @@ export function CalendarContent() {
       },
       withoutFilter: {
         leads: userLeads.length,
-        proposals: allUserProposals.length,
-        sales: allUserSales.length,
-        points: allUserPoints
+        proposals: withoutFilterProposals.length,
+        sales: withoutFilterSales.length,
+        points: withoutFilterPoints
       }
-    });
-    
-    return {
-      currentMonth: {
-        completed: currentMonthSales.length,
-        points: currentMonthPoints
-      },
-      previousMonth: {
-        completed: previousMonthSales.length,
-        points: previousMonthPoints
-      },
-      goal: 1000
     };
-  };
 
-  const contractsStats = getContractsStats();
+    console.log(`📊 CalendarContent - Estatísticas calculadas para ${leadsUser.name}:`, result);
+    return result;
+  }, [leads, leadsUser, tenantSchema]);
 
-  // Dados para o TeamGoalsPanel - usar dados da equipe
+  const userStats = getContractsStats();
+  const teamSales = teamResults?.reduce((sum, member) => sum + member.closed_contracts, 0) || 0;
+
   const now = BrazilTimezone.now();
-  const teamGoalData = {
-    teamSales: teamStats?.totalSales || 0,
-    daysInMonth: new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(),
-    currentDay: now.getDate(),
-    teamSize: teamStats?.teamSize || 1
-  };
-
-  const handleDateSelect = (date: Date) => {
-    setSelectedDate(date);
-    BrazilTimezone.debugLog("📅 Data selecionada pelo usuário", date);
-  };
-
-  const handleCloseActivityPanel = () => {
-    setSelectedDate(null);
-  };
-
-  if (isLoading || !currentUser || teamLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-center py-8">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Carregando dados das metas...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const currentDay = now.getDate();
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Metas</h1>
-          <p className="text-gray-600">Acompanhe as metas de contratos fechados da equipe</p>
-        </div>
+      <div className="flex items-center gap-2 mb-4">
+        <CalendarIcon className="h-6 w-6 text-blue-600" />
+        <h1 className="text-2xl font-bold text-gray-900">Calendário e Metas</h1>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Individual Comparison - Left Side */}
-        <div className="lg:col-span-2">
-          <UserComparisonCard
-            userName={currentUser.name}
-            currentMonth={contractsStats.currentMonth}
-            previousMonth={contractsStats.previousMonth}
-            goal={contractsStats.goal}
-          />
-        </div>
-
-        {/* Calendar Widget - Right Side */}
-        <div className="lg:col-span-1">
-          <IntegratedCalendar 
-            selectedDate={selectedDate}
-            onDateSelect={handleDateSelect}
-          />
-        </div>
-      </div>
-
-      {/* Activity Panel */}
-      {selectedDate && (
-        <ActivityPanel 
+      {showActivityPanel && (
+        <ActivityPanel
           selectedDate={selectedDate}
-          contracts={contracts}
-          leads={leadsForDate}
-          isLoading={contractsLoading || leadsLoading}
-          error={contractsError || leadsError}
-          currentUser={contractsUser || leadsCurrentUser}
+          contracts={userContracts}
+          leads={userLeads}
+          isLoading={false}
+          error={null}
+          currentUser={currentUserData}
           onClose={handleCloseActivityPanel}
         />
       )}
 
-      {/* Weekly Follow Up Task */}
-      <WeeklyFollowUpTask userName={currentUser.name} />
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Calendar */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CalendarIcon className="h-5 w-5" />
+              Calendário
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={handleDateSelect}
+              className="rounded-md border w-full"
+              locale={{
+                localize: {
+                  day: (n: number) => ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][n],
+                  month: (n: number) => [
+                    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+                  ][n]
+                }
+              }}
+            />
+          </CardContent>
+        </Card>
 
-      {/* Team Goals Panel - Novo painel da equipe */}
-      <TeamGoalsPanel 
-        teamSales={teamGoalData.teamSales}
-        daysInMonth={teamGoalData.daysInMonth}
-        currentDay={teamGoalData.currentDay}
-        teamSize={teamGoalData.teamSize}
-      />
+        {/* Goals */}
+        <div className="lg:col-span-2 space-y-6">
+          <MonthlyGoalsPanel
+            currentSales={userStats.currentMonth.sales}
+            daysInMonth={daysInMonth}
+            currentDay={currentDay}
+          />
+          
+          <TeamGoalsPanel
+            teamSales={teamSales}
+            daysInMonth={daysInMonth}
+            currentDay={currentDay}
+            teamSize={teamResults?.length || 0}
+          />
+        </div>
+      </div>
+
+      {/* Weekly Follow-up */}
+      <WeeklyFollowUpTask />
     </div>
   );
 }
