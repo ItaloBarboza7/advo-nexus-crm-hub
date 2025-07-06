@@ -10,12 +10,12 @@ const getPositionData = (index: number) => {
   if (position === 1) {
     return {
       badge: (
-        <div className="bg-yellow-500 text-white px-2 py-1 rounded text-xs font-medium">
+        <div className="bg-gray-600 text-white px-2 py-1 rounded text-xs font-medium">
           1º
         </div>
       ),
-      borderColor: 'border-l-yellow-500',
-      bgColor: 'bg-white'
+      borderColor: 'border-l-gray-600',
+      bgColor: 'bg-gray-50'
     };
   } else if (position === 2) {
     return {
@@ -24,38 +24,25 @@ const getPositionData = (index: number) => {
           2º
         </div>
       ),
-      borderColor: 'border-l-blue-500',
-      bgColor: 'bg-white'
+      borderColor: 'border-l-gray-500',
+      bgColor: 'bg-gray-50'
     };
   } else if (position === 3) {
     return {
       badge: (
-        <div className="bg-orange-500 text-white px-2 py-1 rounded text-xs font-medium">
+        <div className="bg-gray-400 text-white px-2 py-1 rounded text-xs font-medium">
           3º
         </div>
       ),
-      borderColor: 'border-l-blue-500',
-      bgColor: 'bg-white'
-    };
-  } else if (position <= 5) {
-    return {
-      badge: (
-        <div className="bg-blue-500 text-white px-2 py-1 rounded text-xs font-medium">
-          {position}º
-        </div>
-      ),
-      borderColor: 'border-l-blue-500',
-      bgColor: 'bg-white'
+      borderColor: 'border-l-gray-400',
+      bgColor: 'bg-gray-50'
     };
   }
+  // Para posições 4+ não mostrar badge
   return {
-    badge: (
-      <div className="bg-green-500 text-white px-2 py-1 rounded text-xs font-medium">
-        {position}º
-      </div>
-    ),
-    borderColor: 'border-l-blue-500',
-    bgColor: 'bg-white'
+    badge: null,
+    borderColor: 'border-l-gray-300',
+    bgColor: 'bg-gray-50'
   };
 };
 
@@ -111,7 +98,6 @@ export function TeamResultsPanel() {
         </CardTitle>
       </CardHeader>
       <CardContent className="pb-4">
-        {/* ScrollArea ajustado para mostrar exatamente 3 membros completos */}
         <ScrollArea className="h-[300px] w-full">
           <div className="space-y-4 pr-4">
             {teamMembers.map((member, index) => {
@@ -120,7 +106,7 @@ export function TeamResultsPanel() {
               return (
                 <div 
                   key={member.id} 
-                  className={`border-l-4 ${positionData.borderColor} ${positionData.bgColor} rounded-r-lg p-4 shadow-sm`}
+                  className={`border-l-4 ${positionData.borderColor} ${positionData.bgColor} rounded-r-lg p-4 shadow-sm border border-gray-200`}
                 >
                   <div className="mb-3">
                     <div className="flex items-center justify-between mb-2">

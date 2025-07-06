@@ -27,39 +27,39 @@ export function MonthlyGoalsPanel({
     <Card className="h-fit">
       <CardHeader className="pb-4">
         <CardTitle className="flex items-center gap-2 text-lg">
-          <Target className="h-5 w-5 text-slate-700" />
-          Sua Meta Mensal
+          <Target className="h-5 w-5 text-blue-600" />
+          Meta Mensal
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Números principais */}
         <div className="grid grid-cols-2 gap-6">
           <div className="text-center">
-            <div className="text-3xl font-bold text-slate-800 mb-1">
+            <div className="text-2xl font-bold text-blue-600 mb-1">
               {currentSales}
             </div>
-            <p className="text-sm font-medium text-slate-600">Vendas Realizadas</p>
+            <p className="text-sm font-medium text-gray-600">Contratos Fechados</p>
           </div>
           <div className="text-center">
-            <div className="text-3xl font-bold text-slate-800 mb-1">
+            <div className="text-2xl font-bold text-blue-600 mb-1">
               {monthlyGoal}
             </div>
-            <p className="text-sm font-medium text-slate-600">Meta do Mês</p>
+            <p className="text-sm font-medium text-gray-600">Meta do Mês</p>
           </div>
         </div>
 
         {/* Barra de progresso */}
         <div className="space-y-2">
           <div className="flex justify-between items-center">
-            <span className="text-sm font-medium text-slate-700">Progresso</span>
-            <span className="text-sm font-bold text-slate-800">
+            <span className="text-sm font-medium text-gray-700">Progresso</span>
+            <span className="text-sm font-bold text-blue-600">
               {Math.round(progressPercentage)}%
             </span>
           </div>
-          <div className="w-full bg-slate-200 rounded-full h-3">
+          <div className="w-full bg-gray-200 rounded-full h-3">
             <div 
               className={`h-3 rounded-full transition-all duration-300 ${
-                isOnTrack ? 'bg-slate-700' : 'bg-slate-500'
+                isOnTrack ? 'bg-blue-600' : 'bg-blue-400'
               }`}
               style={{ width: `${Math.min(progressPercentage, 100)}%` }}
             ></div>
@@ -67,19 +67,19 @@ export function MonthlyGoalsPanel({
         </div>
 
         {/* Métricas adicionais */}
-        <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-200">
+        <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-200">
           <div className="flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-slate-600" />
+            <TrendingUp className="h-4 w-4 text-blue-600" />
             <div>
-              <div className="text-lg font-bold text-slate-800">{dailyTarget}</div>
-              <p className="text-xs text-slate-600">Vendas/dia</p>
+              <div className="text-lg font-bold text-blue-600">{dailyTarget}</div>
+              <p className="text-xs text-gray-600">Vendas/dia</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-slate-600" />
+            <Calendar className="h-4 w-4 text-blue-600" />
             <div>
-              <div className="text-lg font-bold text-slate-800">{daysRemaining}</div>
-              <p className="text-xs text-slate-600">Dias restantes</p>
+              <div className="text-lg font-bold text-blue-600">{daysRemaining}</div>
+              <p className="text-xs text-gray-600">Dias restantes</p>
             </div>
           </div>
         </div>
@@ -87,8 +87,8 @@ export function MonthlyGoalsPanel({
         {/* Status */}
         <div className={`text-center p-3 rounded-lg ${
           isOnTrack 
-            ? 'bg-slate-100 text-slate-800' 
-            : 'bg-slate-50 text-slate-700'
+            ? 'bg-blue-50 text-blue-800' 
+            : 'bg-gray-50 text-gray-700'
         }`}>
           <p className="text-sm font-medium">
             {isOnTrack 
