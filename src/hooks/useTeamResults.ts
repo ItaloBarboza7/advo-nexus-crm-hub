@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useTenantSchema } from "@/hooks/useTenantSchema";
+import { BrazilTimezone } from "@/lib/timezone";
 
 interface TeamMember {
   id: string;
@@ -112,6 +113,13 @@ export function useTeamResults() {
         );
       };
 
+      // *** NOVA LÓGICA: CALCULAR APENAS DO MÊS ATUAL ***
+      const now = BrazilTimezone.now();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+
+      console.log(`📅 useTeamResults - Calculando pontos apenas do mês atual: ${currentMonth + 1}/${currentYear}`);
+
       // Processar dados da equipe
       const teamMembersData: TeamMember[] = [];
       const roleMap = new Map(roles?.map(r => [r.user_id, r.role]) || []);
@@ -122,11 +130,16 @@ export function useTeamResults() {
         const role = roleMap.get(userId);
         const isAdmin = role === 'admin';
         
-        // Calcular estatísticas reais para este usuário específico
-        const userLeads = leadsData.filter(lead => lead.user_id === userId);
+        // *** FILTRAR LEADS APENAS DO MÊS ATUAL ***
+        const allUserLeads = leadsData.filter(lead => lead.user_id === userId);
+        const userLeads = allUserLeads.filter(lead => {
+          const leadDate = new Date(lead.created_at);
+          const leadDateLocal = BrazilTimezone.toLocal(leadDate);
+          return leadDateLocal.getMonth() === currentMonth && leadDateLocal.getFullYear() === currentYear;
+        });
         
         // CORREÇÃO: Contar propostas considerando leads que passaram por Proposta/Reunião
-        // não apenas os que estão atualmente nesses status
+        // mas APENAS para leads do mês atual
         const userProposals = userLeads.filter(lead => {
           // Se está atualmente em Proposta ou Reunião, conta
           if (['Proposta', 'Reunião'].includes(lead.status)) {
@@ -144,7 +157,8 @@ export function useTeamResults() {
         const conversionRate = userProposals.length > 0 ? 
           (userSales.length / userProposals.length) * 100 : 0;
         
-        // NOVO SISTEMA DE PONTUAÇÃO: Leads = 5pts, Propostas = 10pts, Vendas = 100pts
+        // SISTEMA DE PONTUAÇÃO: Leads = 5pts, Propostas = 10pts, Vendas = 100pts
+        // *** AGORA CALCULADO APENAS PARA O MÊS ATUAL ***
         const score = (userLeads.length * 5) + (userProposals.length * 10) + (userSales.length * 100);
 
         teamMembersData.push({
@@ -159,13 +173,13 @@ export function useTeamResults() {
           conversion_rate: Math.round(conversionRate * 10) / 10
         });
 
-        console.log(`👤 useTeamResults - Processado: ${profile.name} (${isAdmin ? 'Admin' : 'Membro'}) - ${userLeads.length} leads, ${userProposals.length} propostas (incluindo histórico), ${userSales.length} vendas - Score: ${score}`);
+        console.log(`👤 useTeamResults - Processado: ${profile.name} (${isAdmin ? 'Admin' : 'Membro'}) - MÊS ATUAL: ${userLeads.length} leads, ${userProposals.length} propostas, ${userSales.length} vendas - Score: ${score}`);
       }
 
       // Ordenar por score (melhor performance primeiro)
       teamMembersData.sort((a, b) => b.score - a.score);
 
-      console.log(`✅ useTeamResults - ${teamMembersData.length} membros da equipe processados`);
+      console.log(`✅ useTeamResults - ${teamMembersData.length} membros da equipe processados (pontuação do mês atual)`);
       setTeamMembers(teamMembersData);
 
     } catch (error: any) {
