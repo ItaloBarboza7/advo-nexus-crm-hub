@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { DateRange } from "react-day-picker";
 import { DateFilter } from "@/components/DateFilter";
 import { AnalysisStats } from "@/components/analysis/AnalysisStats";
@@ -34,20 +34,14 @@ export function CasesContent() {
   });
   const [isInitialized, setIsInitialized] = useState(false);
   
-  // Refs para controle de estado
-  const isMountedRef = useRef(true);
-  const initializationPromiseRef = useRef<Promise<void> | null>(null);
-  
+  // Usar hooks com filtro de data que agora retorna Lead[] completo
   const { 
     leads, 
     isLoading, 
     error, 
     currentUser, 
     fetchLeadsForDate,
-    fetchLeadsForDateRange,
-    schemaResolved,
-    canFetchData,
-    clearCache
+    fetchLeadsForDateRange 
   } = useLeadsForDate();
 
   const { lossReasons } = useLossReasonsGlobal();
@@ -86,27 +80,8 @@ export function CasesContent() {
     shouldShowStateChart
   } = useAnalysisLogic(leads, selectedCategory, statusHistory, hasLeadPassedThroughStatus);
 
-  // Controle de montagem do componente
-  useEffect(() => {
-    isMountedRef.current = true;
-    console.log('🚀 CasesContent - Componente montado');
-    
-    return () => {
-      console.log('🔥 CasesContent - Componente desmontado');
-      isMountedRef.current = false;
-    };
-  }, []);
-
-  // Função para buscar dados do mês atual
+  // Função memoizada para buscar dados do mês atual
   const fetchCurrentMonthData = useCallback(() => {
-    if (!canFetchData) {
-      console.log("🚫 CasesContent - Não é possível buscar dados do mês atual:", {
-        canFetchData,
-        isMounted: isMountedRef.current
-      });
-      return;
-    }
-    
     const now = BrazilTimezone.now();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -121,63 +96,31 @@ export function CasesContent() {
       to: BrazilTimezone.formatDateForDisplay(endOfMonth)
     });
     
-    if (isMountedRef.current) {
-      setAppliedDateRange(currentMonthRange);
-      fetchLeadsForDateRange(currentMonthRange);
-    }
-  }, [fetchLeadsForDateRange, canFetchData]);
+    setAppliedDateRange(currentMonthRange);
+    fetchLeadsForDateRange(currentMonthRange);
+  }, [fetchLeadsForDateRange]);
 
-  // Inicialização única e controlada
+  // Inicialização única sem dependência circular
   useEffect(() => {
-    // Prevenir múltiplas inicializações
-    if (initializationPromiseRef.current || isInitialized) {
-      return;
+    if (!isInitialized && currentUser) {
+      console.log("🚀 CasesContent - Inicializando análises pela primeira vez");
+      fetchCurrentMonthData();
+      setIsInitialized(true);
     }
+  }, [isInitialized, currentUser, fetchCurrentMonthData]);
 
-    console.log('🔍 CasesContent - Verificando condições de inicialização:', {
-      schemaResolved,
-      canFetchData,
-      hasCurrentUser: !!currentUser,
-      isMounted: isMountedRef.current
-    });
-
-    if (canFetchData && currentUser && isMountedRef.current) {
-      console.log("🚀 CasesContent - Iniciando carregamento de dados");
-      
-      initializationPromiseRef.current = (async () => {
-        try {
-          await new Promise(resolve => setTimeout(resolve, 100)); // Pequeno delay para estabilizar
-          
-          if (isMountedRef.current) {
-            fetchCurrentMonthData();
-            setIsInitialized(true);
-            console.log("✅ CasesContent - Inicialização concluída");
-          }
-        } catch (error) {
-          console.error("❌ CasesContent - Erro na inicialização:", error);
-        } finally {
-          initializationPromiseRef.current = null;
-        }
-      })();
-    }
-  }, [canFetchData, currentUser, schemaResolved, fetchCurrentMonthData, isInitialized]);
-
+  // Função para aplicar filtro de data sem recursão
   const handleDateRangeApply = useCallback((range: DateRange | undefined) => {
-    if (!canFetchData) {
-      console.log("🚫 CasesContent - Não é possível aplicar filtro de período:", {
-        canFetchData
-      });
-      return;
-    }
-    
     console.log("📅 CasesContent - Aplicando filtro de período:", range);
     
     if (!range?.from) {
+      // Se não há filtro, buscar dados do mês atual
       console.log("📅 CasesContent - Sem filtro aplicado, carregando mês atual");
       fetchCurrentMonthData();
       return;
     }
 
+    // Aplicar o novo filtro
     const rangeToApply = {
       from: range.from,
       to: range.to || range.from
@@ -188,11 +131,9 @@ export function CasesContent() {
       to: BrazilTimezone.formatDateForDisplay(rangeToApply.to)
     });
 
-    if (isMountedRef.current) {
-      setAppliedDateRange(rangeToApply);
-      fetchLeadsForDateRange(rangeToApply);
-    }
-  }, [fetchCurrentMonthData, fetchLeadsForDateRange, canFetchData]);
+    setAppliedDateRange(rangeToApply);
+    fetchLeadsForDateRange(rangeToApply);
+  }, [fetchCurrentMonthData, fetchLeadsForDateRange]);
 
   const { filteredLeads } = useLeadFiltering(
     leads || [],
@@ -202,12 +143,11 @@ export function CasesContent() {
     isOpportunityLead
   );
 
-  const handleCategoryChange = useCallback((category: string) => {
-    if (!isMountedRef.current) return;
-    
-    console.log('🏷️ CasesContent - Mudança de categoria:', category);
+  const handleCategoryChange = (category: string) => {
     setSelectedCategory(category);
+    // Resetar estados dos gráficos quando mudar de categoria
     resetChartStates();
+    // Limpar filtros avançados quando mudar de categoria
     setAdvancedFilters({
       status: [],
       source: [],
@@ -216,32 +156,29 @@ export function CasesContent() {
       lossReason: [],
       valueRange: { min: null, max: null }
     });
-  }, [resetChartStates]);
+  };
 
-  const handleRefresh = useCallback(() => {
-    if (!isMountedRef.current) {
-      console.log("🚫 CasesContent - Componente desmontado, ignorando refresh");
-      return;
-    }
-    
-    console.log("🔄 CasesContent - Forçando refresh dos dados...");
-    
-    // Limpar cache primeiro
-    clearCache();
-    
-    if (!canFetchData) {
-      console.log("🚫 CasesContent - Não é possível atualizar dados");
-      return;
-    }
-    
+  const handleRefresh = () => {
     if (appliedDateRange) {
       fetchLeadsForDateRange(appliedDateRange);
     } else {
       fetchCurrentMonthData();
     }
-  }, [appliedDateRange, fetchLeadsForDateRange, fetchCurrentMonthData, canFetchData, clearCache]);
+  };
 
-  const getDisplayTitle = useCallback(() => {
+  console.log("📊 CasesContent - Dados:", {
+    totalLeads: leads?.length || 0,
+    filteredLeads: filteredLeads.length,
+    appliedDateRange: appliedDateRange ? {
+      from: appliedDateRange.from ? BrazilTimezone.formatDateForDisplay(appliedDateRange.from) : 'N/A',
+      to: appliedDateRange.to ? BrazilTimezone.formatDateForDisplay(appliedDateRange.to) : 'N/A'
+    } : 'Nenhum',
+    selectedCategory,
+    isInitialized
+  });
+
+  // Melhorar getDisplayTitle para lidar com casos onde to pode ser undefined
+  const getDisplayTitle = () => {
     if (appliedDateRange?.from) {
       if (appliedDateRange?.to) {
         return `Análise detalhada - Período: ${BrazilTimezone.formatDateForDisplay(appliedDateRange.from)} a ${BrazilTimezone.formatDateForDisplay(appliedDateRange.to)}`;
@@ -250,32 +187,16 @@ export function CasesContent() {
       }
     }
     return "Análise detalhada de leads e performance de vendas";
-  }, [appliedDateRange]);
+  };
 
-  console.log("📊 CasesContent - Estado atual:", {
-    totalLeads: leads?.length || 0,
-    filteredLeads: filteredLeads.length,
-    appliedDateRange: appliedDateRange ? {
-      from: appliedDateRange.from ? BrazilTimezone.formatDateForDisplay(appliedDateRange.from) : 'N/A',
-      to: appliedDateRange.to ? BrazilTimezone.formatDateForDisplay(appliedDateRange.to) : 'N/A'
-    } : 'Nenhum',
-    selectedCategory,
-    isInitialized,
-    schemaResolved,
-    canFetchData,
-    isMounted: isMountedRef.current
-  });
-
-  // Estado de carregamento inicial
-  if ((!schemaResolved || !canFetchData || !currentUser) && !isInitialized) {
+  // Estado de carregamento melhorado
+  if (isLoading || !isInitialized) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-center py-8">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">
-              {!schemaResolved ? 'Carregando configuração...' : 'Carregando dados das análises...'}
-            </p>
+            <p className="text-gray-600">Carregando dados das análises...</p>
           </div>
         </div>
       </div>
@@ -298,6 +219,7 @@ export function CasesContent() {
         />
       </div>
 
+      {/* Usar dados filtrados por data para as estatísticas */}
       <AnalysisStats 
         leads={leads || []} 
         onCategoryChange={handleCategoryChange}
@@ -341,7 +263,6 @@ export function CasesContent() {
         showLeadsChart={showLeadsChart}
         showContractsChart={showContractsChart}
         showOpportunitiesChart={showOpportunitiesChart}
-        appliedDateRange={appliedDateRange}
       />
 
       <LeadsSection
@@ -363,20 +284,30 @@ export function CasesContent() {
         onLeadUpdated={handleRefresh}
       />
 
+      {/* Error States */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="text-red-800">
             <p className="font-medium">Erro ao carregar dados:</p>
             <p className="text-sm mt-1">{error}</p>
-            <button 
-              onClick={handleRefresh}
-              className="mt-2 px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
-            >
-              Tentar novamente
-            </button>
           </div>
         </div>
       )}
+
+      {/* Debug Info */}
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+        <h3 className="font-medium mb-2">Debug Info:</h3>
+        <div className="text-sm text-gray-600">
+          <p>Status inicialização: {isInitialized ? 'Concluída' : 'Pendente'}</p>
+          <p>Leads retornados pelo hook: {leads?.length || 0}</p>
+          <p>Período aplicado: {appliedDateRange ? 
+            `${appliedDateRange.from ? BrazilTimezone.formatDateForDisplay(appliedDateRange.from) : 'N/A'} - ${appliedDateRange.to ? BrazilTimezone.formatDateForDisplay(appliedDateRange.to) : 'N/A'}` 
+            : 'Nenhum'}</p>
+          <p>Hook carregando: {isLoading ? 'Sim' : 'Não'}</p>
+          <p>Usuário: {currentUser?.name || 'N/A'}</p>
+          <p>Erro: {error || 'Nenhum'}</p>
+        </div>
+      </div>
     </div>
   );
 }
