@@ -24,6 +24,29 @@ interface TeamMember {
   score: number;
 }
 
+interface Lead {
+  id: string;
+  user_id: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface StatusHistory {
+  id: string;
+  lead_id: string;
+  old_status: string | null;
+  new_status: string;
+  changed_at: string;
+}
+
+interface UserProfile {
+  user_id: string;
+  name: string;
+  email: string;
+  parent_user_id: string | null;
+}
+
 export function TeamGoalsPanel({ 
   teamSales, 
   teamGoal, 
@@ -149,7 +172,7 @@ export function TeamGoalsPanel({
       console.log(`👥 TeamGoalsPanel - ${profiles?.length || 0} perfis encontrados`);
 
       // Buscar leads do esquema do tenant
-      const { data: leads, error: leadsError } = await supabase.rpc('exec_sql', {
+      const { data: leadsData, error: leadsError } = await supabase.rpc('exec_sql', {
         sql: `SELECT * FROM ${tenantSchema}.leads`
       });
 
@@ -158,11 +181,12 @@ export function TeamGoalsPanel({
         throw leadsError;
       }
 
-      const leadsData = Array.isArray(leads) ? leads : [];
-      console.log(`📊 TeamGoalsPanel - ${leadsData.length} leads encontrados`);
+      // Type cast the leads data
+      const leads = Array.isArray(leadsData) ? leadsData as Lead[] : [];
+      console.log(`📊 TeamGoalsPanel - ${leads.length} leads encontrados`);
 
       // Buscar histórico de status
-      const { data: statusHistory, error: historyError } = await supabase.rpc('exec_sql', {
+      const { data: statusHistoryData, error: historyError } = await supabase.rpc('exec_sql', {
         sql: `SELECT * FROM ${tenantSchema}.lead_status_history ORDER BY changed_at DESC`
       });
 
@@ -171,12 +195,13 @@ export function TeamGoalsPanel({
         throw historyError;
       }
 
-      const historyData = Array.isArray(statusHistory) ? statusHistory : [];
-      console.log(`📈 TeamGoalsPanel - ${historyData.length} registros de histórico encontrados`);
+      // Type cast the status history data
+      const statusHistory = Array.isArray(statusHistoryData) ? statusHistoryData as StatusHistory[] : [];
+      console.log(`📈 TeamGoalsPanel - ${statusHistory.length} registros de histórico encontrados`);
 
       // Função para verificar se um lead passou por determinados status
       const hasLeadPassedThroughStatus = (leadId: string, statuses: string[]): boolean => {
-        return historyData.some(history => 
+        return statusHistory.some(history => 
           history.lead_id === leadId && statuses.includes(history.new_status)
         );
       };
@@ -188,7 +213,7 @@ export function TeamGoalsPanel({
         const userId = profile.user_id;
         
         // Calcular estatísticas reais para este usuário específico
-        const userLeads = leadsData.filter(lead => lead.user_id === userId);
+        const userLeads = leads.filter(lead => lead.user_id === userId);
         
         // CORREÇÃO: Contar propostas considerando leads que passaram por Proposta/Reunião
         const userProposals = userLeads.filter(lead => {
