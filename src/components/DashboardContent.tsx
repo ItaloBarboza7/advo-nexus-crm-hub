@@ -1,4 +1,3 @@
-
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserPlus, UserX, DollarSign, TrendingUp, BarChart3 } from "lucide-react";
@@ -9,7 +8,6 @@ import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Legend, BarChart, B
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDashboardSettings } from "@/hooks/useDashboardSettings";
 import { useLeadsForDate } from "@/hooks/useLeadsForDate";
-import { useLeadsForYear } from "@/hooks/useLeadsForYear";
 import { useContractsData } from "@/hooks/useContractsData";
 import { useLeadStatusHistory } from "@/hooks/useLeadStatusHistory";
 import { getDay, getMonth, format } from "date-fns";
@@ -26,21 +24,14 @@ export function DashboardContent() {
 
   const { components } = useDashboardSettings();
   
-  // Hook para dados filtrados por período
   const { 
-    leads: filteredLeads, 
+    leads, 
     isLoading: leadsLoading, 
     error: leadsError, 
     currentUser: leadsUser, 
     fetchLeadsForDate,
     fetchLeadsForDateRange 
   } = useLeadsForDate();
-
-  // Hook para dados do ano completo (para visualizações mensais)
-  const {
-    leads: yearlyLeads,
-    isLoading: yearlyLoading
-  } = useLeadsForYear();
 
   const { 
     contracts, 
@@ -93,11 +84,13 @@ export function DashboardContent() {
     console.log("📅 DashboardContent - Aplicando filtro de período:", range);
     
     if (!range?.from) {
+      // Se não há filtro, buscar dados do mês atual
       console.log("📅 DashboardContent - Sem filtro aplicado, carregando mês atual");
       fetchCurrentMonthData();
       return;
     }
 
+    // Aplicar o novo filtro
     const rangeToApply = {
       from: range.from,
       to: range.to || range.from
@@ -113,37 +106,7 @@ export function DashboardContent() {
     fetchContractsForDate(rangeToApply.from);
   }, [fetchCurrentMonthData, fetchLeadsForDateRange, fetchContractsForDate]);
 
-  // CORREÇÃO PRINCIPAL: Função para selecionar dados baseada no período aplicado
-  const getLeadsForView = useCallback((viewType: 'weekly' | 'monthly') => {
-    console.log(`📊 DashboardContent - getLeadsForView chamada com viewType: ${viewType}`);
-    console.log(`📊 DashboardContent - appliedDateRange:`, appliedDateRange);
-    console.log(`📊 DashboardContent - filteredLeads count: ${filteredLeads?.length || 0}`);
-    console.log(`📊 DashboardContent - yearlyLeads count: ${yearlyLeads?.length || 0}`);
-    
-    // Se tem um período aplicado (não é o ano todo), sempre usar dados filtrados
-    if (appliedDateRange?.from && appliedDateRange?.to) {
-      const rangeDurationInDays = Math.floor((appliedDateRange.to.getTime() - appliedDateRange.from.getTime()) / (1000 * 60 * 60 * 24));
-      console.log(`📊 DashboardContent - Período aplicado tem ${rangeDurationInDays} dias`);
-      
-      // Se o período é menor que 300 dias (não é o ano todo), usar dados filtrados
-      if (rangeDurationInDays < 300) {
-        console.log("📊 DashboardContent - Usando dados filtrados (período específico)");
-        return filteredLeads || [];
-      }
-    }
-    
-    // Só usar dados anuais se for visualização mensal E não houver filtro específico aplicado
-    if (viewType === 'monthly' && (!appliedDateRange?.from || !appliedDateRange?.to)) {
-      console.log("📊 DashboardContent - Usando dados anuais (visualização mensal sem filtro)");
-      return yearlyLeads || [];
-    }
-    
-    console.log("📊 DashboardContent - Usando dados filtrados (padrão)");
-    return filteredLeads || [];
-  }, [yearlyLeads, filteredLeads, appliedDateRange]);
-
   // CORREÇÃO: Calcular estatísticas reais baseadas nos leads filtrados
-  const leads = filteredLeads; // Para estatísticas, sempre usar dados filtrados
   const totalLeads = leads?.length || 0;
   const proposalsAndMeetings = leads?.filter(lead => 
     lead.status === "Proposta" || lead.status === "Reunião"
@@ -165,8 +128,7 @@ export function DashboardContent() {
       to: appliedDateRange.to ? BrazilTimezone.formatDateForDisplay(appliedDateRange.to) : 'N/A'
     } : 'Nenhum',
     isInitialized,
-    leadsCount: leads?.length || 0,
-    yearlyLeadsCount: yearlyLeads?.length || 0
+    leadsCount: leads?.length || 0
   });
 
   const stats = [
@@ -220,13 +182,13 @@ export function DashboardContent() {
     return currentlyInOpportunity || passedThroughOpportunity;
   }, [hasLeadPassedThroughStatus]);
 
-  // CORREÇÃO: Gerar dados REAIS de conversão baseados nos leads selecionados
+  // CORREÇÃO: Gerar dados REAIS de conversão baseados nos leads filtrados
   const getRealConversionData = useMemo(() => {
-    const dataToUse = getLeadsForView(conversionView);
-    console.log(`📊 Calculando dados de conversão para view ${conversionView} com ${dataToUse.length} leads...`);
+    console.log("📊 Calculando dados de conversão com leads filtrados...");
+    console.log("📋 Total de leads filtrados:", leads?.length || 0);
     
-    if (!dataToUse || dataToUse.length === 0) {
-      console.log("⚠️ Nenhum lead disponível, retornando dados zerados");
+    if (!leads || leads.length === 0) {
+      console.log("⚠️ Nenhum lead filtrado disponível, retornando dados zerados");
       const weeklyData = [
         { day: "Segunda", sales: 0, conversion: 0 },
         { day: "Terça", sales: 0, conversion: 0 },
@@ -258,7 +220,7 @@ export function DashboardContent() {
     // Usar created_at para agrupamento, mas considerar status atual e histórico
     const weekDays = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
     const weeklyData = weekDays.map((day, index) => {
-      const dayLeads = dataToUse.filter(lead => lead.created_at && getDay(new Date(lead.created_at)) === index);
+      const dayLeads = leads.filter(lead => lead.created_at && getDay(new Date(lead.created_at)) === index);
       const dayOpportunities = dayLeads.filter(lead => isOpportunityLead(lead));
       const daySales = dayLeads.filter(lead => lead.status === "Contrato Fechado");
       const conversion = dayOpportunities.length > 0 ? Math.min((daySales.length / dayOpportunities.length) * 100, 100) : 0;
@@ -272,7 +234,7 @@ export function DashboardContent() {
 
     const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
     const monthlyData = months.map((month, index) => {
-      const monthLeads = dataToUse.filter(lead => lead.created_at && getMonth(new Date(lead.created_at)) === index);
+      const monthLeads = leads.filter(lead => lead.created_at && getMonth(new Date(lead.created_at)) === index);
       const monthOpportunities = monthLeads.filter(lead => isOpportunityLead(lead));
       const monthSales = monthLeads.filter(lead => lead.status === "Contrato Fechado");
       const conversion = monthOpportunities.length > 0 ? Math.min((monthSales.length / monthOpportunities.length) * 100, 100) : 0;
@@ -284,16 +246,13 @@ export function DashboardContent() {
       };
     });
 
-    console.log(`✅ Dados de conversão calculados para ${conversionView}:`, { weeklyData, monthlyData });
+    console.log("✅ Dados de conversão calculados com leads filtrados:", { weeklyData, monthlyData });
     return { weekly: weeklyData, monthly: monthlyData };
-  }, [conversionView, getLeadsForView, isOpportunityLead]);
+  }, [leads, isOpportunityLead]);
 
-  // CORREÇÃO: Gerar dados reais de leads por período baseados nos leads selecionados
+  // CORREÇÃO: Gerar dados reais de leads por período baseados nos leads filtrados
   const getRealLeadsData = useMemo(() => {
-    const dataToUse = getLeadsForView(leadsView);
-    console.log(`📊 Calculando dados de leads para view ${leadsView} com ${dataToUse.length} leads...`);
-    
-    if (!dataToUse || dataToUse.length === 0) {
+    if (!leads || leads.length === 0) {
       const weeklyData = [
         { day: "Segunda", leads: 0 },
         { day: "Terça", leads: 0 },
@@ -325,26 +284,24 @@ export function DashboardContent() {
     const weekDays = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
     const weeklyData = weekDays.map((day, index) => ({
       day,
-      leads: dataToUse.filter(lead => lead.created_at && getDay(new Date(lead.created_at)) === index).length
+      leads: leads.filter(lead => lead.created_at && getDay(new Date(lead.created_at)) === index).length
     }));
 
     const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
     const monthlyData = months.map((month, index) => ({
       month,
-      leads: dataToUse.filter(lead => lead.created_at && getMonth(new Date(lead.created_at)) === index).length
+      leads: leads.filter(lead => lead.created_at && getMonth(new Date(lead.created_at)) === index).length
     }));
 
-    console.log(`✅ Dados de leads calculados para ${leadsView}:`, { weeklyData, monthlyData });
     return { weekly: weeklyData, monthly: monthlyData };
-  }, [leadsView, getLeadsForView]);
+  }, [leads]);
 
-  // Gerar dados reais de ação baseados nos leads filtrados (sempre usar filtrados)
+  // Gerar dados reais de ação baseados nos leads filtrados
   const getActionData = useCallback(() => {
-    const dataToUse = filteredLeads || [];
-    if (dataToUse.length === 0) return [];
+    if (!leads || leads.length === 0) return [];
 
     if (actionView === 'type') {
-      const actionTypeCounts = dataToUse.reduce((acc, lead) => {
+      const actionTypeCounts = leads.reduce((acc, lead) => {
         const isOpportunityOrClosed = ['Proposta', 'Reunião', 'Contrato Fechado'].includes(lead.status);
         if (!isOpportunityOrClosed) return acc;
 
@@ -373,7 +330,7 @@ export function DashboardContent() {
         .sort((a, b) => b.opportunities - a.opportunities)
         .slice(0, 5);
     } else {
-      const actionGroupCounts = dataToUse.reduce((acc, lead) => {
+      const actionGroupCounts = leads.reduce((acc, lead) => {
         const isOpportunityOrClosed = ['Proposta', 'Reunião', 'Contrato Fechado'].includes(lead.status);
         if (!isOpportunityOrClosed) return acc;
 
@@ -402,7 +359,7 @@ export function DashboardContent() {
         .sort((a, b) => b.opportunities - a.opportunities)
         .slice(0, 5);
     }
-  }, [filteredLeads, actionView]);
+  }, [leads, actionView]);
 
   const chartConfig = {
     conversion: {
@@ -483,7 +440,7 @@ export function DashboardContent() {
   };
 
   // CORREÇÃO: Estado de carregamento melhorado
-  const isLoading = leadsLoading || contractsLoading || yearlyLoading || !isInitialized;
+  const isLoading = leadsLoading || contractsLoading || !isInitialized;
 
   if (isLoading) {
     return (
@@ -554,19 +511,22 @@ export function DashboardContent() {
         </div>
       )}
 
-      {/* Debug Info */}
+      {/* Debug Info - CORREÇÃO: Informações mais detalhadas */}
       <Card className="p-4 bg-gray-50">
         <h3 className="font-medium mb-2">Debug Info:</h3>
         <div className="text-sm text-gray-600">
           <p>Status inicialização: {isInitialized ? 'Concluída' : 'Pendente'}</p>
-          <p>Leads filtrados: {filteredLeads?.length || 0}</p>
-          <p>Leads do ano: {yearlyLeads?.length || 0}</p>
-          <p>Contratos: {contracts?.length || 0}</p>
-          <p>Visualização conversão: {conversionView} (usando {conversionView === 'monthly' ? 'dados anuais' : 'dados filtrados'})</p>
-          <p>Visualização leads: {leadsView} (usando {leadsView === 'monthly' ? 'dados anuais' : 'dados filtrados'})</p>
+          <p>Leads retornados pelo hook: {leads?.length || 0}</p>
+          <p>Contratos retornados pelo hook: {contracts?.length || 0}</p>
           <p>Período aplicado: {appliedDateRange ? 
             `${appliedDateRange.from ? BrazilTimezone.formatDateForDisplay(appliedDateRange.from) : 'N/A'} - ${appliedDateRange.to ? BrazilTimezone.formatDateForDisplay(appliedDateRange.to) : 'N/A'}` 
             : 'Nenhum'}</p>
+          <p>Hook leads carregando: {leadsLoading ? 'Sim' : 'Não'}</p>
+          <p>Hook contratos carregando: {contractsLoading ? 'Sim' : 'Não'}</p>
+          <p>Usuário leads: {leadsUser?.name || 'N/A'}</p>
+          <p>Usuário contratos: {contractsUser?.name || 'N/A'}</p>
+          <p>Erro leads: {leadsError || 'Nenhum'}</p>
+          <p>Erro contratos: {contractsError || 'Nenhum'}</p>
         </div>
       </Card>
 
@@ -579,9 +539,6 @@ export function DashboardContent() {
                 <CardTitle className="flex items-center gap-2 text-lg text-gray-900">
                   <BarChart3 className="h-5 w-5 text-blue-600" />
                   Conversão por {conversionView === 'weekly' ? 'Dia da Semana' : 'Mês'}
-                  {conversionView === 'monthly' && (
-                    <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Ano Completo</span>
-                  )}
                 </CardTitle>
                 <Select value={conversionView} onValueChange={(value: 'weekly' | 'monthly') => setConversionView(value)}>
                   <SelectTrigger className="w-[120px]">
@@ -700,9 +657,6 @@ export function DashboardContent() {
                 <CardTitle className="flex items-center gap-2 text-lg text-gray-900">
                   <Users className="h-5 w-5 text-green-600" />
                   Leads Novos por {leadsView === 'weekly' ? 'Dia da Semana' : 'Mês'}
-                  {leadsView === 'monthly' && (
-                    <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Ano Completo</span>
-                  )}
                 </CardTitle>
                 <Select value={leadsView} onValueChange={(value: 'weekly' | 'monthly') => setLeadsView(value)}>
                   <SelectTrigger className="w-[120px]">

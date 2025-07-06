@@ -7,27 +7,16 @@ import { ViewToggleDropdown } from "./ViewToggleDropdown";
 import { useState, useMemo, useEffect } from "react";
 import { format, startOfWeek, endOfWeek, getDay, getMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useLeadsForYear } from "@/hooks/useLeadsForYear";
 
 interface LeadsChartProps {
   leads: Lead[];
   title: string;
   filterFunction?: (lead: Lead) => boolean;
   viewMode?: 'weekly' | 'monthly';
-  useYearlyDataForMonthly?: boolean; // Nova prop para controlar se deve usar dados anuais
 }
 
-export function LeadsChart({ 
-  leads, 
-  title, 
-  filterFunction, 
-  viewMode: externalViewMode,
-  useYearlyDataForMonthly = false
-}: LeadsChartProps) {
+export function LeadsChart({ leads, title, filterFunction, viewMode: externalViewMode }: LeadsChartProps) {
   const [internalViewMode, setInternalViewMode] = useState<'weekly' | 'monthly'>('weekly');
-  
-  // Hook para dados anuais
-  const { leads: yearlyLeads } = useLeadsForYear();
   
   // Se receber viewMode como prop, usar ele, senão usar o estado interno
   const currentViewMode = externalViewMode || internalViewMode;
@@ -40,23 +29,11 @@ export function LeadsChart({
     }
   }, [externalViewMode, title]);
 
-  // Função para determinar quais dados usar
-  const getDataToUse = useMemo(() => {
-    if (useYearlyDataForMonthly && currentViewMode === 'monthly') {
-      console.log(`📊 LeadsChart "${title}" - Usando dados anuais para visualização mensal`);
-      const dataToUse = yearlyLeads || [];
-      return filterFunction ? dataToUse.filter(filterFunction) : dataToUse;
-    } else {
-      console.log(`📊 LeadsChart "${title}" - Usando dados filtrados para visualização ${currentViewMode}`);
-      return filterFunction ? leads.filter(filterFunction) : leads;
-    }
-  }, [leads, yearlyLeads, filterFunction, currentViewMode, useYearlyDataForMonthly, title]);
-
   const chartData = useMemo(() => {
-    const filteredLeads = getDataToUse;
+    const filteredLeads = filterFunction ? leads.filter(filterFunction) : leads;
     
     console.log(`📊 LeadsChart "${title}" - gerando dados para viewMode: ${currentViewMode}`);
-    console.log(`📋 LeadsChart "${title}" - ${filteredLeads.length} leads para processar`);
+    console.log(`📋 LeadsChart "${title}" - ${filteredLeads.length} leads filtrados`);
     
     if (currentViewMode === 'weekly') {
       const weekDays = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
@@ -92,7 +69,7 @@ export function LeadsChart({
 
       return monthlyData;
     }
-  }, [getDataToUse, currentViewMode, title]);
+  }, [leads, currentViewMode, filterFunction, title]);
 
   const totalLeads = chartData.reduce((sum, item) => sum + item.leads, 0);
   const maxPeriod = chartData.reduce((prev, current) => 
@@ -115,11 +92,8 @@ export function LeadsChart({
     <Card className="p-6">
       <CardHeader className="p-0 mb-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <CardTitle className="text-lg font-semibold text-gray-900">
             {title} - {currentViewMode === 'weekly' ? 'Por Dia da Semana' : 'Por Mês'}
-            {useYearlyDataForMonthly && currentViewMode === 'monthly' && (
-              <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Ano Completo</span>
-            )}
           </CardTitle>
           {/* Só mostrar o dropdown interno se não receber viewMode como prop */}
           {!externalViewMode && (

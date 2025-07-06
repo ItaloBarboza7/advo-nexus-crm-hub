@@ -8,7 +8,6 @@ import { Lead } from "@/types/lead";
 
 interface ChartsSectionProps {
   leads: Lead[];
-  yearlyLeads: Lead[];
   selectedCategory: string;
   shouldShowChart: boolean;
   shouldShowLossReasonsChart: boolean;
@@ -28,7 +27,6 @@ interface ChartsSectionProps {
 
 export function ChartsSection({
   leads,
-  yearlyLeads,
   selectedCategory,
   shouldShowChart,
   shouldShowLossReasonsChart,
@@ -111,7 +109,6 @@ export function ChartsSection({
               leads={leads}
               title="Todos os Leads"
               viewMode={leadsViewMode}
-              useYearlyDataForMonthly={leadsViewMode === 'monthly'}
             />
           )}
 
@@ -122,7 +119,6 @@ export function ChartsSection({
               title="Novos Contratos"
               filterFunction={(lead) => lead.status === "Contrato Fechado"}
               viewMode={contractsViewMode}
-              useYearlyDataForMonthly={contractsViewMode === 'monthly'}
             />
           )}
 
@@ -133,7 +129,6 @@ export function ChartsSection({
               title="Oportunidades"
               filterFunction={isOpportunityLead}
               viewMode={opportunitiesViewMode}
-              useYearlyDataForMonthly={opportunitiesViewMode === 'monthly'}
             />
           )}
         </>
