@@ -83,24 +83,27 @@ export function UserComparisonCard({
   const currentMonthData = generateCurrentMonthData();
   const previousMonthData = generatePreviousMonthData();
   
-  // Calcular valores do eixo Y com espaçamento correto
-  const maxDataValue = Math.max(...currentMonthData, ...previousMonthData, 100);
+  // Calcular valores do eixo Y com escala iniciando em 180
+  const maxDataValue = Math.max(...currentMonthData, ...previousMonthData, 180);
   
-  // Criar escala com espaçamento correto - removendo duplicatas
+  // Criar escala com início em 180 e espaçamento adequado
   const calculateYAxisValues = (maxValue: number) => {
-    const baseMax = Math.max(maxValue * 1.2, 540); // Garantir espaço suficiente
+    const minValue = 180; // Valor mínimo da escala
+    const range = Math.max(maxValue - minValue, 360); // Garantir range mínimo
+    const topValue = minValue + range;
     
     return [
-      Math.round(baseMax),
-      Math.round(baseMax * 0.75),
-      Math.round(baseMax * 0.5),
-      Math.round(baseMax * 0.25),
-      0
+      Math.round(topValue),
+      Math.round(topValue * 0.75 + minValue * 0.25),
+      Math.round(topValue * 0.5 + minValue * 0.5),
+      Math.round(topValue * 0.25 + minValue * 0.75),
+      minValue
     ];
   };
 
   const yAxisValues = calculateYAxisValues(maxDataValue);
   const maxValue = yAxisValues[0];
+  const minValue = yAxisValues[4]; // 180
 
   return (
     <Card className="p-6 bg-white border border-gray-200">
@@ -154,7 +157,7 @@ export function UserComparisonCard({
 
         {/* Chart Area */}
         <div className="relative h-40 bg-gray-50 rounded border border-gray-100">
-          {/* Y-axis labels com espaçamento correto */}
+          {/* Y-axis labels com escala iniciando em 180 */}
           <div className="absolute left-0 top-0 h-full flex flex-col justify-between text-xs text-gray-500 pr-2 py-2">
             {yAxisValues.map((value, index) => (
               <span key={index}>{value}</span>
@@ -168,7 +171,7 @@ export function UserComparisonCard({
               {/* Previous month line (blue) - linha completa */}
               <polyline
                 points={previousMonthData.map((value, index) => 
-                  `${(index / (previousMonthData.length - 1)) * 100},${100 - (value / maxValue) * 100}`
+                  `${(index / (previousMonthData.length - 1)) * 100},${100 - ((value - minValue) / (maxValue - minValue)) * 100}`
                 ).join(' ')}
                 fill="none"
                 stroke="#3b82f6"
@@ -180,7 +183,7 @@ export function UserComparisonCard({
               {currentMonthData.length > 1 && (
                 <polyline
                   points={currentMonthData.map((value, index) => 
-                    `${(index / 24) * 100},${100 - (value / maxValue) * 100}`
+                    `${(index / 24) * 100},${100 - ((value - minValue) / (maxValue - minValue)) * 100}`
                   ).join(' ')}
                   fill="none"
                   stroke="#22c55e"

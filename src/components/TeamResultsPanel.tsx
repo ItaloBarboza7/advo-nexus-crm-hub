@@ -10,7 +10,7 @@ const getPositionData = (index: number) => {
   if (position === 1) {
     return {
       badge: (
-        <div className="bg-gray-600 text-white px-2 py-1 rounded text-xs font-medium">
+        <div className="text-gray-600 text-sm font-bold">
           1º
         </div>
       ),
@@ -20,7 +20,7 @@ const getPositionData = (index: number) => {
   } else if (position === 2) {
     return {
       badge: (
-        <div className="bg-gray-500 text-white px-2 py-1 rounded text-xs font-medium">
+        <div className="text-gray-500 text-sm font-bold">
           2º
         </div>
       ),
@@ -30,7 +30,7 @@ const getPositionData = (index: number) => {
   } else if (position === 3) {
     return {
       badge: (
-        <div className="bg-gray-400 text-white px-2 py-1 rounded text-xs font-medium">
+        <div className="text-gray-400 text-sm font-bold">
           3º
         </div>
       ),

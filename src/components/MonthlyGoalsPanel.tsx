@@ -24,76 +24,78 @@ export function MonthlyGoalsPanel({
   const dailyTarget = daysRemaining > 0 ? Math.ceil(remainingSales / daysRemaining) : 0;
 
   return (
-    <Card className="h-fit">
-      <CardHeader className="pb-4">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Target className="h-5 w-5 text-blue-600" />
-          Meta Mensal
+    <Card className="h-fit shadow-lg border-0 bg-gradient-to-br from-blue-50 to-indigo-50">
+      <CardHeader className="pb-4 border-b border-blue-100">
+        <CardTitle className="flex items-center gap-2 text-xl font-bold">
+          <Target className="h-6 w-6 text-blue-600" />
+          <span className="text-blue-900">Sua Meta Mensal</span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Números principais */}
+      <CardContent className="space-y-6 pt-6">
+        {/* Números principais com design atualizado */}
         <div className="grid grid-cols-2 gap-6">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600 mb-1">
+          <div className="text-center bg-white rounded-xl p-4 shadow-md border border-blue-100">
+            <div className="text-3xl font-bold text-blue-600 mb-2">
               {currentSales}
             </div>
-            <p className="text-sm font-medium text-gray-600">Contratos Fechados</p>
+            <p className="text-sm font-semibold text-gray-700">Contratos Fechados</p>
           </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600 mb-1">
+          <div className="text-center bg-white rounded-xl p-4 shadow-md border border-blue-100">
+            <div className="text-3xl font-bold text-blue-600 mb-2">
               {monthlyGoal}
             </div>
-            <p className="text-sm font-medium text-gray-600">Meta do Mês</p>
+            <p className="text-sm font-semibold text-gray-700">Meta do Mês</p>
           </div>
         </div>
 
-        {/* Barra de progresso */}
-        <div className="space-y-2">
+        {/* Barra de progresso melhorada */}
+        <div className="space-y-3">
           <div className="flex justify-between items-center">
-            <span className="text-sm font-medium text-gray-700">Progresso</span>
-            <span className="text-sm font-bold text-blue-600">
+            <span className="text-sm font-semibold text-gray-800">Progresso da Meta</span>
+            <span className="text-lg font-bold text-blue-600 bg-white px-3 py-1 rounded-full shadow-sm">
               {Math.round(progressPercentage)}%
             </span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-3">
+          <div className="w-full bg-gray-200 rounded-full h-4 shadow-inner">
             <div 
-              className={`h-3 rounded-full transition-all duration-300 ${
-                isOnTrack ? 'bg-blue-600' : 'bg-blue-400'
+              className={`h-4 rounded-full transition-all duration-500 ease-out shadow-sm ${
+                isOnTrack 
+                  ? 'bg-gradient-to-r from-blue-500 to-blue-600' 
+                  : 'bg-gradient-to-r from-blue-400 to-blue-500'
               }`}
               style={{ width: `${Math.min(progressPercentage, 100)}%` }}
             ></div>
           </div>
         </div>
 
-        {/* Métricas adicionais */}
-        <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-200">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-blue-600" />
+        {/* Métricas adicionais com design melhorado */}
+        <div className="grid grid-cols-2 gap-4 pt-4 border-t border-blue-100">
+          <div className="flex items-center gap-3 bg-white rounded-lg p-4 shadow-md border border-blue-100">
+            <TrendingUp className="h-5 w-5 text-blue-600 flex-shrink-0" />
             <div>
-              <div className="text-lg font-bold text-blue-600">{dailyTarget}</div>
-              <p className="text-xs text-gray-600">Vendas/dia</p>
+              <div className="text-2xl font-bold text-blue-600">{dailyTarget}</div>
+              <p className="text-xs font-medium text-gray-600">Vendas/dia necessárias</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-blue-600" />
+          <div className="flex items-center gap-3 bg-white rounded-lg p-4 shadow-md border border-blue-100">
+            <Calendar className="h-5 w-5 text-blue-600 flex-shrink-0" />
             <div>
-              <div className="text-lg font-bold text-blue-600">{daysRemaining}</div>
-              <p className="text-xs text-gray-600">Dias restantes</p>
+              <div className="text-2xl font-bold text-blue-600">{daysRemaining}</div>
+              <p className="text-xs font-medium text-gray-600">Dias restantes</p>
             </div>
           </div>
         </div>
 
-        {/* Status */}
-        <div className={`text-center p-3 rounded-lg ${
+        {/* Status com design aprimorado */}
+        <div className={`text-center p-4 rounded-xl shadow-sm border-2 ${
           isOnTrack 
-            ? 'bg-blue-50 text-blue-800' 
-            : 'bg-gray-50 text-gray-700'
+            ? 'bg-gradient-to-r from-green-50 to-emerald-50 text-green-800 border-green-200' 
+            : 'bg-gradient-to-r from-orange-50 to-amber-50 text-orange-800 border-orange-200'
         }`}>
-          <p className="text-sm font-medium">
+          <p className="text-sm font-semibold">
             {isOnTrack 
-              ? '✅ Você está no caminho certo!' 
-              : `🎯 Faltam ${remainingSales} vendas para atingir a meta`
+              ? '🎉 Parabéns! Você está no caminho certo!' 
+              : `🎯 Foque no objetivo: faltam ${remainingSales} vendas para atingir a meta`
             }
           </p>
         </div>
