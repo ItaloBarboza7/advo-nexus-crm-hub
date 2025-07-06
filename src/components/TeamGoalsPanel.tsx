@@ -27,6 +27,9 @@ interface Lead {
   id: string;
   user_id: string;
   status: string;
+  name: string;
+  phone: string;
+  email?: string;
   created_at: string;
   updated_at: string;
 }
@@ -59,6 +62,10 @@ export function TeamGoalsPanel({
   const [showTeamMembers, setShowTeamMembers] = useState(false);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
+  const [selectedMemberLeads, setSelectedMemberLeads] = useState<Lead[]>([]);
+  const [selectedMemberName, setSelectedMemberName] = useState<string>('');
+  const [showMemberLeads, setShowMemberLeads] = useState(false);
+  const [isLoadingMemberLeads, setIsLoadingMemberLeads] = useState(false);
   const { tenantSchema } = useTenantSchema();
 
   console.log('TeamGoalsPanel props:', { teamSales, teamGoal, daysInMonth, currentDay, teamSize });
@@ -255,11 +262,56 @@ export function TeamGoalsPanel({
     }
   };
 
+  // Buscar leads fechados por um membro específico
+  const fetchMemberLeads = async (userId: string, memberName: string) => {
+    if (!tenantSchema) return;
+    
+    try {
+      setIsLoadingMemberLeads(true);
+      console.log(`🔍 Buscando leads fechados por ${memberName}...`);
+
+      const { data: leadsData, error: leadsError } = await supabase.rpc('exec_sql', {
+        sql: `
+          SELECT * FROM ${tenantSchema}.leads 
+          WHERE user_id = '${userId}' 
+          AND status = 'Contrato Fechado'
+          ORDER BY updated_at DESC
+        `
+      });
+
+      if (leadsError) {
+        console.error('❌ Erro ao buscar leads do membro:', leadsError);
+        throw leadsError;
+      }
+
+      const leads = Array.isArray(leadsData) ? (leadsData as unknown) as Lead[] : [];
+      console.log(`📊 ${leads.length} leads fechados encontrados para ${memberName}`);
+      
+      setSelectedMemberLeads(leads);
+      setSelectedMemberName(memberName);
+      setShowMemberLeads(true);
+    } catch (error) {
+      console.error("❌ Erro inesperado ao buscar leads do membro:", error);
+    } finally {
+      setIsLoadingMemberLeads(false);
+    }
+  };
+
   const handleToggleTeamMembers = async () => {
     if (!showTeamMembers && teamMembers.length === 0) {
       await fetchTeamMembers();
     }
     setShowTeamMembers(!showTeamMembers);
+  };
+
+  const handleMemberClick = (userId: string, memberName: string) => {
+    fetchMemberLeads(userId, memberName);
+  };
+
+  const handleCloseMemberLeads = () => {
+    setShowMemberLeads(false);
+    setSelectedMemberLeads([]);
+    setSelectedMemberName('');
   };
 
   return (
@@ -327,16 +379,16 @@ export function TeamGoalsPanel({
           </div>
         </div>
 
-        {/* Meta diária */}
-        <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-3 border border-gray-300">
-          <Trophy className="h-5 w-5 text-gray-700 flex-shrink-0" />
+        {/* Meta diária - card menor */}
+        <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-2 border border-gray-300">
+          <Trophy className="h-4 w-4 text-gray-700 flex-shrink-0" />
           <div className="flex-1">
-            <div className="text-xl font-bold text-gray-900">{dailyTarget}</div>
-            <p className="text-sm text-gray-700 font-medium">Meta diária necessária</p>
+            <div className="text-lg font-bold text-gray-900">{dailyTarget}</div>
+            <p className="text-xs text-gray-700 font-medium">Meta diária</p>
           </div>
         </div>
 
-        {/* Botão para membros da equipe - apenas para admin */}
+        {/* Botão para dados da equipe - apenas para admin */}
         {isAdmin && (
           <div className="space-y-3">
             <Button
@@ -345,7 +397,7 @@ export function TeamGoalsPanel({
               className="w-full border-blue-200 text-blue-700 hover:bg-blue-50"
             >
               <Users className="h-4 w-4 mr-2" />
-              {showTeamMembers ? 'Ocultar Membros da Equipe' : 'Ver Membros da Equipe'}
+              {showTeamMembers ? 'Ocultar Dados da Equipe' : 'Ver Dados da Equipe'}
               {showTeamMembers ? <ChevronUp className="h-4 w-4 ml-2" /> : <ChevronDown className="h-4 w-4 ml-2" />}
             </Button>
 
@@ -360,32 +412,25 @@ export function TeamGoalsPanel({
                 ) : teamMembers.length > 0 ? (
                   teamMembers.map((member, index) => (
                     <div key={member.user_id} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-between">
+                        <button
+                          onClick={() => handleMemberClick(member.user_id, member.name)}
+                          className="flex items-center gap-2 hover:text-blue-600 transition-colors"
+                        >
                           <div className="bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold">
                             {member.name.charAt(0).toUpperCase()}
                           </div>
-                          <h4 className="text-sm font-medium text-gray-900">{member.name}</h4>
+                          <span className="text-sm font-medium text-gray-900 hover:underline">
+                            {member.name}
+                          </span>
                           {index === 0 && (
                             <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
                               1º
                             </span>
                           )}
-                        </div>
-                        <div className="text-sm font-bold text-purple-600">{member.score} pts</div>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2 text-xs">
-                        <div className="text-center">
-                          <div className="font-bold text-blue-600">{member.leads}</div>
-                          <p className="text-gray-600">Leads</p>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-bold text-orange-600">{member.proposals}</div>
-                          <p className="text-gray-600">Propostas</p>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-bold text-green-600">{member.closed_contracts}</div>
-                          <p className="text-gray-600">Vendas</p>
+                        </button>
+                        <div className="text-sm font-bold text-green-600">
+                          {member.closed_contracts} vendas
                         </div>
                       </div>
                     </div>
@@ -396,6 +441,59 @@ export function TeamGoalsPanel({
                     <p className="text-sm">Nenhum membro encontrado</p>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Modal dos leads do membro */}
+            {showMemberLeads && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-hidden">
+                  <div className="p-4 border-b border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        Vendas de {selectedMemberName}
+                      </h3>
+                      <button
+                        onClick={handleCloseMemberLeads}
+                        className="text-gray-400 hover:text-gray-600"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                  <div className="p-4 overflow-y-auto max-h-[60vh]">
+                    {isLoadingMemberLeads ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                        <span className="ml-2 text-gray-600">Carregando leads...</span>
+                      </div>
+                    ) : selectedMemberLeads.length > 0 ? (
+                      <div className="space-y-3">
+                        {selectedMemberLeads.map((lead) => (
+                          <div key={lead.id} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                            <div className="flex items-center justify-between mb-2">
+                              <h4 className="font-medium text-gray-900">{lead.name}</h4>
+                              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                                Contrato Fechado
+                              </span>
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              <p>📱 {lead.phone}</p>
+                              {lead.email && <p>📧 {lead.email}</p>}
+                              <p className="text-xs text-gray-500 mt-1">
+                                Fechado em: {new Date(lead.updated_at).toLocaleDateString('pt-BR')}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <p>Nenhuma venda encontrada para este membro</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
           </div>

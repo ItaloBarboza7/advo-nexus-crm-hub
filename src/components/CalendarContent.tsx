@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -111,7 +110,7 @@ export function CalendarContent() {
     );
   };
 
-  // Calcular estatísticas reais usando a MESMA LÓGICA do useTeamResults
+  // Calcular estatísticas reais usando a MESMA LÓGICA do useTeamResults mas para o usuário atual
   const getContractsStats = () => {
     if (!leads || leads.length === 0 || !currentUser) {
       return {
