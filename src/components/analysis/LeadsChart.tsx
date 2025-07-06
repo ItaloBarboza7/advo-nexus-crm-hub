@@ -24,59 +24,89 @@ export function LeadsChart({ leads, title, filterFunction, viewMode: externalVie
   // Se receber viewMode como prop, usar ele, senão usar o estado interno
   const currentViewMode = externalViewMode || internalViewMode;
 
-  // LOG DETALHADO no início do componente
+  // LOGS DETALHADOS MOVIDOS PARA DENTRO DO COMPONENTE
   console.log(`📊 [LeadsChart "${title}"] === INÍCIO DO RENDER ===`);
-  console.log(`📊 [LeadsChart "${title}"] appliedDateRange recebido:`, appliedDateRange);
-  console.log(`📊 [LeadsChart "${title}"] currentViewMode: ${currentViewMode}`);
-  console.log(`📊 [LeadsChart "${title}"] leads count: ${leads.length}`);
+  console.log(`📊 [LeadsChart "${title}"] Props recebidos:`, {
+    title,
+    leadsCount: leads?.length || 0,
+    currentViewMode,
+    appliedDateRange: appliedDateRange ? {
+      from: appliedDateRange.from ? BrazilTimezone.formatDateForDisplay(appliedDateRange.from) : 'N/A',
+      to: appliedDateRange.to ? BrazilTimezone.formatDateForDisplay(appliedDateRange.to) : 'N/A'
+    } : 'Nenhum',
+    hasFilterFunction: !!filterFunction,
+    externalViewMode
+  });
 
   // Sincronizar o estado interno com o viewMode externo quando ele mudar
   useEffect(() => {
     if (externalViewMode) {
       setInternalViewMode(externalViewMode);
-      console.log(`📊 LeadsChart "${title}" - viewMode atualizado para: ${externalViewMode}`);
+      console.log(`📊 LeadsChart "${title}" - viewMode sincronizado para: ${externalViewMode}`);
     }
   }, [externalViewMode, title]);
 
+  // ERROR HANDLING: Validar props essenciais
+  if (!leads || !Array.isArray(leads)) {
+    console.error(`❌ [LeadsChart "${title}"] - leads inválido:`, leads);
+    return (
+      <Card className="p-6">
+        <CardContent>
+          <div className="text-center text-red-500">
+            Erro: Dados de leads inválidos
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const chartData = useMemo(() => {
-    const filteredLeads = filterFunction ? leads.filter(filterFunction) : leads;
-    
-    console.log(`📊 LeadsChart "${title}" - gerando dados para viewMode: ${currentViewMode}`);
-    console.log(`📋 LeadsChart "${title}" - ${filteredLeads.length} leads filtrados`);
-    
-    if (currentViewMode === 'weekly') {
-      const weekDays = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-      const weeklyData = weekDays.map((day, index) => ({
-        period: day,
-        leads: 0
-      }));
-
-      filteredLeads.forEach(lead => {
-        if (lead.created_at) {
-          const dayIndex = getDay(new Date(lead.created_at));
-          weeklyData[dayIndex].leads += 1;
-        }
+    try {
+      const filteredLeads = filterFunction ? leads.filter(filterFunction) : leads;
+      
+      console.log(`📊 LeadsChart "${title}" - Processando dados:`, {
+        totalLeads: leads.length,
+        filteredLeads: filteredLeads.length,
+        currentViewMode
       });
+      
+      if (currentViewMode === 'weekly') {
+        const weekDays = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+        const weeklyData = weekDays.map((day, index) => ({
+          period: day,
+          leads: 0
+        }));
 
-      return weeklyData;
-    } else {
-      const months = [
-        'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
-        'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
-      ];
-      const monthlyData = months.map((month, index) => ({
-        period: month,
-        leads: 0
-      }));
+        filteredLeads.forEach(lead => {
+          if (lead.created_at) {
+            const dayIndex = getDay(new Date(lead.created_at));
+            weeklyData[dayIndex].leads += 1;
+          }
+        });
 
-      filteredLeads.forEach(lead => {
-        if (lead.created_at) {
-          const monthIndex = getMonth(new Date(lead.created_at));
-          monthlyData[monthIndex].leads += 1;
-        }
-      });
+        return weeklyData;
+      } else {
+        const months = [
+          'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
+          'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
+        ];
+        const monthlyData = months.map((month, index) => ({
+          period: month,
+          leads: 0
+        }));
 
-      return monthlyData;
+        filteredLeads.forEach(lead => {
+          if (lead.created_at) {
+            const monthIndex = getMonth(new Date(lead.created_at));
+            monthlyData[monthIndex].leads += 1;
+          }
+        });
+
+        return monthlyData;
+      }
+    } catch (error) {
+      console.error(`❌ [LeadsChart "${title}"] - Erro ao processar dados:`, error);
+      return [];
     }
   }, [leads, currentViewMode, filterFunction, title]);
 
@@ -97,39 +127,53 @@ export function LeadsChart({ leads, title, filterFunction, viewMode: externalVie
     setInternalViewMode(view);
   };
 
-  // FUNÇÃO PRINCIPAL para gerar o título com período APENAS para gráficos mensais
+  // FUNÇÃO PRINCIPAL CORRIGIDA para gerar o título com período
   const getChartTitle = () => {
     const baseTitle = `${title} - ${currentViewMode === 'weekly' ? 'Por Dia da Semana' : 'Por Mês'}`;
     
-    console.log(`📊 [LeadsChart "${title}"] getChartTitle - appliedDateRange:`, appliedDateRange);
-    console.log(`📊 [LeadsChart "${title}"] getChartTitle - currentViewMode: ${currentViewMode}`);
+    console.log(`📊 [LeadsChart "${title}"] getChartTitle - Parâmetros:`, {
+      baseTitle,
+      currentViewMode,
+      appliedDateRange: appliedDateRange ? {
+        from: appliedDateRange.from ? BrazilTimezone.formatDateForDisplay(appliedDateRange.from) : 'N/A',
+        to: appliedDateRange.to ? BrazilTimezone.formatDateForDisplay(appliedDateRange.to) : 'N/A'
+      } : 'Nenhum'
+    });
     
-    // NOVA REGRA: Mostrar período APENAS para gráficos mensais
+    // REGRA CORRIGIDA: Mostrar período APENAS para gráficos mensais E quando há período aplicado
     if (currentViewMode === 'monthly' && appliedDateRange?.from) {
       console.log(`📊 [LeadsChart "${title}"] getChartTitle - Processando datas para gráfico mensal...`);
       
-      const fromDate = BrazilTimezone.formatDateForDisplay(appliedDateRange.from);
-      const toDate = appliedDateRange.to ? BrazilTimezone.formatDateForDisplay(appliedDateRange.to) : fromDate;
-      
-      console.log(`📊 [LeadsChart "${title}"] getChartTitle - fromDate: ${fromDate}, toDate: ${toDate}`);
-      
-      let finalTitle;
-      if (fromDate === toDate) {
-        finalTitle = `${baseTitle} (${fromDate})`;
-      } else {
-        finalTitle = `${baseTitle} (${fromDate} - ${toDate})`;
+      try {
+        const fromDate = BrazilTimezone.formatDateForDisplay(appliedDateRange.from);
+        const toDate = appliedDateRange.to ? BrazilTimezone.formatDateForDisplay(appliedDateRange.to) : fromDate;
+        
+        console.log(`📊 [LeadsChart "${title}"] getChartTitle - Datas formatadas:`, { fromDate, toDate });
+        
+        let finalTitle;
+        if (fromDate === toDate) {
+          finalTitle = `${baseTitle} (${fromDate})`;
+        } else {
+          finalTitle = `${baseTitle} (${fromDate} - ${toDate})`;
+        }
+        
+        console.log(`✅ [LeadsChart "${title}"] getChartTitle - TÍTULO FINAL MENSAL: ${finalTitle}`);
+        return finalTitle;
+      } catch (error) {
+        console.error(`❌ [LeadsChart "${title}"] getChartTitle - Erro ao formatar datas:`, error);
+        return baseTitle;
       }
-      
-      console.log(`📊 [LeadsChart "${title}"] getChartTitle - TÍTULO FINAL MENSAL: ${finalTitle}`);
-      return finalTitle;
     }
     
     // Para gráficos semanais ou sem período aplicado, retornar apenas o título base
-    console.log(`📊 [LeadsChart "${title}"] getChartTitle - Gráfico semanal ou sem período - TÍTULO FINAL: ${baseTitle}`);
+    console.log(`📊 [LeadsChart "${title}"] getChartTitle - Retornando título base: ${baseTitle}`);
     return baseTitle;
   };
 
   const finalTitle = getChartTitle();
+
+  console.log(`📊 [LeadsChart "${title}"] === FINALIZANDO RENDER ===`);
+  console.log(`📊 [LeadsChart "${title}"] Título final calculado: "${finalTitle}"`);
 
   return (
     <Card className="p-6">

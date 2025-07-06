@@ -45,7 +45,22 @@ export function ChartsSection({
   showOpportunitiesChart = false,
   appliedDateRange
 }: ChartsSectionProps) {
+  
+  // LOGS MOVIDOS PARA DENTRO DO COMPONENTE
+  console.log(`🎨 [ChartsSection] === INÍCIO DO RENDER ===`);
+  console.log(`🎨 [ChartsSection] Props recebidos:`, {
+    selectedCategory,
+    leadsCount: leads?.length || 0,
+    shouldShowChart,
+    appliedDateRange: appliedDateRange ? {
+      from: appliedDateRange.from ? appliedDateRange.from.toISOString() : 'N/A',
+      to: appliedDateRange.to ? appliedDateRange.to.toISOString() : 'N/A'
+    } : 'Nenhum',
+    viewModes: { leadsViewMode, contractsViewMode, opportunitiesViewMode }
+  });
+
   if (!shouldShowChart) {
+    console.log(`🎨 [ChartsSection] Não deve mostrar gráficos - shouldShowChart: false`);
     return null;
   }
 
@@ -82,12 +97,6 @@ export function ChartsSection({
     return false;
   };
 
-  // LOGS DETALHADOS para debug
-  console.log(`🎨 [ChartsSection] === INÍCIO DO RENDER ===`);
-  console.log(`🎨 [ChartsSection] selectedCategory: "${selectedCategory}"`);
-  console.log(`🎨 [ChartsSection] appliedDateRange:`, appliedDateRange);
-  console.log(`📊 [ChartsSection] viewModes:`, { leadsViewMode, contractsViewMode, opportunitiesViewMode });
-
   // SIMPLIFICADO: Usar startsWith em vez de igualdade exata para permitir subcategorias
   const isAllCategory = selectedCategory === "all";
   const isContractsCategory = selectedCategory.startsWith("contratos");
@@ -102,89 +111,102 @@ export function ChartsSection({
     selectedCategory
   });
 
-  return (
-    <>
-      {/* RENDERIZAÇÃO SIMPLIFICADA: Só mostrar gráficos se NÃO estivermos em visualização de Estados */}
-      {!isEstadosView && (
-        <>
-          {/* Gráfico de Leads Gerais - categoria "all" */}
-          {isAllCategory && (
-            <>
-              {console.log(`✅ [ChartsSection] Renderizando gráfico de Leads Gerais`)}
-              <LeadsChart 
-                leads={leads}
-                title="Todos os Leads"
-                viewMode={leadsViewMode}
-                appliedDateRange={appliedDateRange}
-              />
-            </>
-          )}
+  // RENDERIZAÇÃO SIMPLIFICADA: Usar try-catch para capturar erros
+  try {
+    return (
+      <>
+        {/* RENDERIZAÇÃO SIMPLIFICADA: Só mostrar gráficos se NÃO estivermos em visualização de Estados */}
+        {!isEstadosView && (
+          <>
+            {/* Gráfico de Leads Gerais - categoria "all" */}
+            {isAllCategory && (
+              <>
+                {console.log(`✅ [ChartsSection] Preparando para renderizar gráfico de Leads Gerais`)}
+                <LeadsChart 
+                  leads={leads}
+                  title="Todos os Leads"
+                  viewMode={leadsViewMode}
+                  appliedDateRange={appliedDateRange}
+                />
+              </>
+            )}
 
-          {/* Gráfico de Contratos - categoria "contratos" */}
-          {isContractsCategory && (
-            <>
-              {console.log(`✅ [ChartsSection] Renderizando gráfico de Contratos`)}
-              <LeadsChart 
-                leads={leads}
-                title="Novos Contratos"
-                filterFunction={(lead) => lead.status === "Contrato Fechado"}
-                viewMode={contractsViewMode}
-                appliedDateRange={appliedDateRange}
-              />
-            </>
-          )}
+            {/* Gráfico de Contratos - categoria "contratos" */}
+            {isContractsCategory && (
+              <>
+                {console.log(`✅ [ChartsSection] Preparando para renderizar gráfico de Contratos`)}
+                <LeadsChart 
+                  leads={leads}
+                  title="Novos Contratos"
+                  filterFunction={(lead) => lead.status === "Contrato Fechado"}
+                  viewMode={contractsViewMode}
+                  appliedDateRange={appliedDateRange}
+                />
+              </>
+            )}
 
-          {/* Gráfico de Oportunidades - categoria "oportunidades" */}
-          {isOpportunitiesCategory && (
-            <>
-              {console.log(`✅ [ChartsSection] Renderizando gráfico de Oportunidades`)}
-              <LeadsChart 
-                leads={leads}
-                title="Oportunidades"
-                filterFunction={isOpportunityLead}
-                viewMode={opportunitiesViewMode}
-                appliedDateRange={appliedDateRange}
-              />
-            </>
-          )}
-        </>
-      )}
+            {/* Gráfico de Oportunidades - categoria "oportunidades" */}
+            {isOpportunitiesCategory && (
+              <>
+                {console.log(`✅ [ChartsSection] Preparando para renderizar gráfico de Oportunidades`)}
+                <LeadsChart 
+                  leads={leads}
+                  title="Oportunidades"
+                  filterFunction={isOpportunityLead}
+                  viewMode={opportunitiesViewMode}
+                  appliedDateRange={appliedDateRange}
+                />
+              </>
+            )}
+          </>
+        )}
 
-      {/* Gráfico de Estados - aparece quando estamos em visualização de Estados */}
-      {isEstadosView && shouldShowStateChart && (
-        <>
-          {console.log(`✅ [ChartsSection] Renderizando gráfico de Estados`)}
-          <StateStatsChart 
-            leads={leads} 
-            selectedCategory={selectedCategory}
-            hasLeadPassedThroughStatus={hasLeadPassedThroughStatus}
-          />
-        </>
-      )}
-
-      {/* Gráficos de análise só aparecem em outras categorias */}
-      {!isAllCategory && !isContractsCategory && !isOpportunitiesCategory && !isEstadosView && (
-        <>
-          {console.log(`✅ [ChartsSection] Renderizando gráficos de análise para categoria: ${selectedCategory}`)}
-          {shouldShowLossReasonsChart && (
-            <LossReasonsChart leads={leads} />
-          )}
-          
-          {shouldShowActionTypesChart && (
-            <ActionTypesChart 
+        {/* Gráfico de Estados - aparece quando estamos em visualização de Estados */}
+        {isEstadosView && shouldShowStateChart && (
+          <>
+            {console.log(`✅ [ChartsSection] Preparando para renderizar gráfico de Estados`)}
+            <StateStatsChart 
               leads={leads} 
               selectedCategory={selectedCategory}
+              hasLeadPassedThroughStatus={hasLeadPassedThroughStatus}
             />
-          )}
+          </>
+        )}
 
-          {shouldShowActionGroupChart && (
-            <ActionGroupChart 
-              leads={leads} 
-              selectedCategory={selectedCategory}
-            />
-          )}
-        </>
-      )}
-    </>
-  );
+        {/* Gráficos de análise só aparecem em outras categorias */}
+        {!isAllCategory && !isContractsCategory && !isOpportunitiesCategory && !isEstadosView && (
+          <>
+            {console.log(`✅ [ChartsSection] Preparando para renderizar gráficos de análise para categoria: ${selectedCategory}`)}
+            {shouldShowLossReasonsChart && (
+              <LossReasonsChart leads={leads} />
+            )}
+            
+            {shouldShowActionTypesChart && (
+              <ActionTypesChart 
+                leads={leads} 
+                selectedCategory={selectedCategory}
+              />
+            )}
+
+            {shouldShowActionGroupChart && (
+              <ActionGroupChart 
+                leads={leads} 
+                selectedCategory={selectedCategory}
+              />
+            )}
+          </>
+        )}
+      </>
+    );
+  } catch (error) {
+    console.error(`❌ [ChartsSection] Erro durante renderização:`, error);
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="text-red-800">
+          <p className="font-medium">Erro ao renderizar gráficos:</p>
+          <p className="text-sm mt-1">{error instanceof Error ? error.message : 'Erro desconhecido'}</p>
+        </div>
+      </div>
+    );
+  }
 }
