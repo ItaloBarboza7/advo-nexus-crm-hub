@@ -91,14 +91,13 @@ export function Dashboard() {
     setShowActivityPanel(false);
   }, []);
 
-  // Filter data based on applied date range - sempre aplicar filtro se houver range
+  // Agora todos os cards usam a mesma lógica de filtragem por período
   const filteredLeads = appliedDateRange?.from
     ? leads.filter(lead => {
         const leadDate = new Date(lead.createdAt);
         const fromDate = appliedDateRange.from!;
-        const toDate = appliedDateRange.to || appliedDateRange.from!; // Se não tiver 'to', usar 'from'
+        const toDate = appliedDateRange.to || appliedDateRange.from!;
         
-        // Ajustar para o final do dia se for apenas um dia
         const endOfDay = new Date(toDate);
         endOfDay.setHours(23, 59, 59, 999);
         
@@ -110,9 +109,8 @@ export function Dashboard() {
     ? contracts.filter(contract => {
         const contractDate = new Date(contract.closedAt);
         const fromDate = appliedDateRange.from!;
-        const toDate = appliedDateRange.to || appliedDateRange.from!; // Se não tiver 'to', usar 'from'
+        const toDate = appliedDateRange.to || appliedDateRange.from!;
         
-        // Ajustar para o final do dia se for apenas um dia
         const endOfDay = new Date(toDate);
         endOfDay.setHours(23, 59, 59, 999);
         
@@ -131,15 +129,14 @@ export function Dashboard() {
     return `Resumo das atividades de ${BrazilTimezone.formatDateForDisplay(selectedDate)}`;
   };
 
-  console.log("🎯 Dashboard - Estado atual:", {
+  console.log("🎯 Dashboard - Comparação de dados:", {
     selectedDate: BrazilTimezone.formatDateForDisplay(selectedDate),
     appliedDateRange,
+    totalLeads: leads.length,
+    filteredLeadsCount: filteredLeads.length,
     contractsCount: filteredContracts.length,
-    leadsCount: filteredLeads.length,
     totalValue,
-    showActivityPanel,
-    leadsLoading,
-    contractsLoading
+    showActivityPanel
   });
 
   return (
