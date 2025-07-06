@@ -41,7 +41,10 @@ export function CasesContent() {
     error, 
     currentUser, 
     fetchLeadsForDate,
-    fetchLeadsForDateRange 
+    fetchLeadsForDateRange,
+    schemaLoading,
+    schemaError,
+    tenantSchema
   } = useLeadsForDate();
 
   const { lossReasons } = useLossReasonsGlobal();
@@ -100,14 +103,36 @@ export function CasesContent() {
     fetchLeadsForDateRange(currentMonthRange);
   }, [fetchLeadsForDateRange]);
 
-  // Inicialização única sem dependência circular
+  // Inicialização controlada - aguarda todas as dependências
   useEffect(() => {
-    if (!isInitialized && currentUser) {
+    const shouldInitialize = !isInitialized && 
+                           currentUser && 
+                           !schemaLoading && 
+                           !schemaError && 
+                           tenantSchema;
+
+    console.log("🚀 CasesContent - Verificando inicialização:", {
+      isInitialized,
+      currentUser: !!currentUser,
+      schemaLoading,
+      schemaError,
+      tenantSchema: !!tenantSchema,
+      shouldInitialize
+    });
+
+    if (shouldInitialize) {
       console.log("🚀 CasesContent - Inicializando análises pela primeira vez");
       fetchCurrentMonthData();
       setIsInitialized(true);
     }
-  }, [isInitialized, currentUser, fetchCurrentMonthData]);
+  }, [
+    isInitialized, 
+    currentUser, 
+    schemaLoading, 
+    schemaError, 
+    tenantSchema, 
+    fetchCurrentMonthData
+  ]);
 
   // Função para aplicar filtro de data sem recursão
   const handleDateRangeApply = useCallback((range: DateRange | undefined) => {
@@ -166,7 +191,7 @@ export function CasesContent() {
     }
   };
 
-  console.log("📊 CasesContent - Dados:", {
+  console.log("📊 CasesContent - Estado atual:", {
     totalLeads: leads?.length || 0,
     filteredLeads: filteredLeads.length,
     appliedDateRange: appliedDateRange ? {
@@ -174,7 +199,10 @@ export function CasesContent() {
       to: appliedDateRange.to ? BrazilTimezone.formatDateForDisplay(appliedDateRange.to) : 'N/A'
     } : 'Nenhum',
     selectedCategory,
-    isInitialized
+    isInitialized,
+    schemaLoading,
+    schemaError,
+    tenantSchema: !!tenantSchema
   });
 
   // Melhorar getDisplayTitle para lidar com casos onde to pode ser undefined
@@ -189,14 +217,38 @@ export function CasesContent() {
     return "Análise detalhada de leads e performance de vendas";
   };
 
-  // Estado de carregamento melhorado
-  if (isLoading || !isInitialized) {
+  // Estado de carregamento melhorado - inclui schema loading
+  if (!isInitialized || schemaLoading || isLoading) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-center py-8">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Carregando dados das análises...</p>
+            <p className="text-gray-600">
+              {schemaLoading && "Carregando configuração do tenant..."}
+              {!schemaLoading && isLoading && "Carregando dados das análises..."}
+              {!schemaLoading && !isLoading && "Inicializando análises..."}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Estado de erro melhorado
+  if (schemaError || error) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <div className="text-red-800">
+            <p className="font-medium">Erro ao carregar análises:</p>
+            <p className="text-sm mt-1">{schemaError || error}</p>
+            <button 
+              onClick={handleRefresh}
+              className="mt-3 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            >
+              Tentar Novamente
+            </button>
           </div>
         </div>
       </div>
@@ -283,31 +335,6 @@ export function CasesContent() {
         onEditLead={handleEditLead}
         onLeadUpdated={handleRefresh}
       />
-
-      {/* Error States */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="text-red-800">
-            <p className="font-medium">Erro ao carregar dados:</p>
-            <p className="text-sm mt-1">{error}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Debug Info */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-        <h3 className="font-medium mb-2">Debug Info:</h3>
-        <div className="text-sm text-gray-600">
-          <p>Status inicialização: {isInitialized ? 'Concluída' : 'Pendente'}</p>
-          <p>Leads retornados pelo hook: {leads?.length || 0}</p>
-          <p>Período aplicado: {appliedDateRange ? 
-            `${appliedDateRange.from ? BrazilTimezone.formatDateForDisplay(appliedDateRange.from) : 'N/A'} - ${appliedDateRange.to ? BrazilTimezone.formatDateForDisplay(appliedDateRange.to) : 'N/A'}` 
-            : 'Nenhum'}</p>
-          <p>Hook carregando: {isLoading ? 'Sim' : 'Não'}</p>
-          <p>Usuário: {currentUser?.name || 'N/A'}</p>
-          <p>Erro: {error || 'Nenhum'}</p>
-        </div>
-      </div>
     </div>
   );
 }

@@ -5,16 +5,20 @@ import { supabase } from '@/integrations/supabase/client';
 export function useTenantSchema() {
   const [tenantSchema, setTenantSchema] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const getTenantSchema = async () => {
       try {
         console.log("🏗️ useTenantSchema - Obtendo esquema do tenant...");
+        setIsLoading(true);
+        setError(null);
         
         const { data, error } = await supabase.rpc('get_tenant_schema');
         
         if (error) {
           console.error('❌ Erro ao obter esquema do tenant:', error);
+          setError(error.message);
           return;
         }
 
@@ -22,6 +26,7 @@ export function useTenantSchema() {
         setTenantSchema(data);
       } catch (error) {
         console.error('❌ Erro inesperado ao obter esquema do tenant:', error);
+        setError(error instanceof Error ? error.message : 'Erro desconhecido');
       } finally {
         setIsLoading(false);
       }
@@ -53,6 +58,7 @@ export function useTenantSchema() {
   return {
     tenantSchema,
     isLoading,
+    error,
     ensureTenantSchema
   };
 }

@@ -11,7 +11,7 @@ export function useLeadsForDate() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<{ id: string; name: string } | null>(null);
-  const { tenantSchema } = useTenantSchema();
+  const { tenantSchema, isLoading: schemaLoading, error: schemaError } = useTenantSchema();
 
   // Buscar usuário atual apenas uma vez
   useEffect(() => {
@@ -60,14 +60,70 @@ export function useLeadsForDate() {
     };
   }, []);
 
+  // Função auxiliar para executar SQL com retry
+  const executeWithRetry = async (sql: string, maxRetries = 3) => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`🔄 Tentativa ${attempt}/${maxRetries} - Executando SQL:`, sql);
+        
+        const { data, error } = await supabase.rpc('exec_sql', { sql });
+
+        if (error) {
+          console.error(`❌ Erro na tentativa ${attempt}:`, error);
+          if (attempt === maxRetries) {
+            throw new Error(error.message || "Erro ao executar consulta");
+          }
+          // Aguardar antes da próxima tentativa
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+          continue;
+        }
+
+        console.log(`✅ Sucesso na tentativa ${attempt}`);
+        return data;
+      } catch (error) {
+        console.error(`❌ Erro inesperado na tentativa ${attempt}:`, error);
+        if (attempt === maxRetries) {
+          throw error;
+        }
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      }
+    }
+  };
+
   const fetchLeadsForDate = useCallback(async (selectedDate: Date) => {
-    if (!selectedDate || !currentUser || !tenantSchema) {
-      console.log("🚫 Dependências faltando para buscar leads:", {
+    console.log("📅 fetchLeadsForDate chamado com:", {
+      selectedDate: selectedDate ? BrazilTimezone.formatDateForDisplay(selectedDate) : 'null',
+      currentUser: !!currentUser,
+      tenantSchema,
+      schemaLoading,
+      schemaError
+    });
+
+    // Verificar se todas as dependências estão disponíveis
+    if (!selectedDate || !currentUser) {
+      console.log("🚫 Dependências básicas faltando:", {
         selectedDate: !!selectedDate,
-        currentUser: !!currentUser,
-        tenantSchema: !!tenantSchema
+        currentUser: !!currentUser
       });
       setLeads([]);
+      return;
+    }
+
+    // Aguardar o schema estar disponível
+    if (schemaLoading) {
+      console.log("⏳ Aguardando carregamento do schema...");
+      return;
+    }
+
+    if (schemaError) {
+      console.error("❌ Erro no schema, não é possível continuar:", schemaError);
+      setError(`Erro no schema: ${schemaError}`);
+      return;
+    }
+
+    if (!tenantSchema) {
+      console.log("🚫 Schema do tenant ainda não disponível");
+      setError("Schema do tenant não disponível");
       return;
     }
 
@@ -90,18 +146,7 @@ export function useLeadsForDate() {
         ORDER BY created_at DESC
       `;
 
-      console.log("🔍 Executando SQL para leads:", sql);
-
-      const { data, error } = await supabase.rpc('exec_sql', {
-        sql: sql
-      });
-
-      console.log("🔍 Dados brutos de leads recebidos:", data);
-
-      if (error) {
-        console.error("❌ Erro na consulta exec_sql:", error);
-        throw new Error(error.message || "Erro ao executar consulta");
-      }
+      const data = await executeWithRetry(sql);
 
       let leadsData = [];
       
@@ -154,16 +199,41 @@ export function useLeadsForDate() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser, tenantSchema]);
+  }, [currentUser, tenantSchema, schemaLoading, schemaError]);
 
   const fetchLeadsForDateRange = useCallback(async (dateRange: DateRange) => {
-    if (!dateRange.from || !currentUser || !tenantSchema) {
-      console.log("🚫 Dependências faltando para buscar leads por período:", {
+    console.log("📅 fetchLeadsForDateRange chamado com:", {
+      dateRange,
+      currentUser: !!currentUser,
+      tenantSchema,
+      schemaLoading,
+      schemaError
+    });
+
+    if (!dateRange.from || !currentUser) {
+      console.log("🚫 Dependências básicas faltando para período:", {
         dateRange,
-        currentUser: !!currentUser,
-        tenantSchema: !!tenantSchema
+        currentUser: !!currentUser
       });
       setLeads([]);
+      return;
+    }
+
+    // Aguardar o schema estar disponível
+    if (schemaLoading) {
+      console.log("⏳ Aguardando carregamento do schema para período...");
+      return;
+    }
+
+    if (schemaError) {
+      console.error("❌ Erro no schema para período:", schemaError);
+      setError(`Erro no schema: ${schemaError}`);
+      return;
+    }
+
+    if (!tenantSchema) {
+      console.log("🚫 Schema do tenant não disponível para período");
+      setError("Schema do tenant não disponível");
       return;
     }
 
@@ -190,16 +260,7 @@ export function useLeadsForDate() {
         ORDER BY created_at DESC
       `;
 
-      console.log("🔍 Executando SQL para período:", sql);
-
-      const { data, error } = await supabase.rpc('exec_sql', {
-        sql: sql
-      });
-
-      if (error) {
-        console.error("❌ Erro na consulta de período:", error);
-        throw new Error(error.message || "Erro ao executar consulta");
-      }
+      const data = await executeWithRetry(sql);
 
       const leadsData = Array.isArray(data) ? data : [];
       
@@ -234,7 +295,7 @@ export function useLeadsForDate() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser, tenantSchema]);
+  }, [currentUser, tenantSchema, schemaLoading, schemaError]);
 
   return {
     leads,
@@ -242,6 +303,10 @@ export function useLeadsForDate() {
     error,
     currentUser,
     fetchLeadsForDate,
-    fetchLeadsForDateRange
+    fetchLeadsForDateRange,
+    // Expor estados do schema para controle externo
+    schemaLoading,
+    schemaError,
+    tenantSchema
   };
 }
