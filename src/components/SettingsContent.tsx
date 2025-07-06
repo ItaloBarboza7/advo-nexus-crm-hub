@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Plus, Edit, Trash2, Users, Building, Columns, UserPlus, Settings, CreditCard, X, Check, Eye, EyeOff } from "lucide-react";
+import { Plus, Edit, Trash2, Users, Building, Columns, UserPlus, Settings, X, Check, Eye, EyeOff } from "lucide-react";
 import { AddMemberModal } from "@/components/AddMemberModal";
 import { EditMemberModal } from "@/components/EditMemberModal";
 import { AddColumnDialog } from "@/components/AddColumnDialog";
@@ -22,7 +22,7 @@ import { useDashboardSettings } from "@/hooks/useDashboardSettings";
 import { useCompanyInfo } from "@/hooks/useCompanyInfo";
 import { useLossReasonsGlobal } from "@/hooks/useLossReasonsGlobal";
 import { useTenantSchema } from "@/hooks/useTenantSchema";
-import { SubscriptionAndPaymentPanel, CardInfoPanel } from "@/components/SubscriptionAndPaymentPanel";
+import { SubscriptionAndPaymentPanel } from "@/components/SubscriptionAndPaymentPanel";
 import { useKanbanColumnManager } from "@/hooks/useKanbanColumnManager";
 import { TeamGoalsSettings } from "@/components/TeamGoalsSettings";
 
@@ -43,7 +43,6 @@ export function SettingsContent() {
   const [isAddLossReasonDialogOpen, setIsAddLossReasonDialogOpen] = useState(false);
   const [isEditCompanyModalOpen, setIsEditCompanyModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
-  const [showPaymentConfig, setShowPaymentConfig] = useState(false);
   
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [isLoadingMembers, setIsLoadingMembers] = useState(true);
@@ -536,48 +535,17 @@ export function SettingsContent() {
           )}
         </Card>
 
-        {/* Subscription Plan with Payment Configuration */}
+        {/* Subscription Plan */}
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h4 className="text-md font-semibold text-gray-900">Plano de Assinatura</h4>
           </div>
           
           <div className="space-y-4">
-            {/* Plano selecionado - SEMPRE VISÍVEL FORA DO BOTÃO */}
             <div>
               <h5 className="font-bold mb-2">Plano selecionado</h5>
               <SubscriptionAndPaymentPanel />
             </div>
-
-            {/* Botão de configurar pagamento - CONTÉM APENAS CARTÃO */}
-            {!showPaymentConfig ? (
-              <div className="pt-4">
-                <Button 
-                  variant="outline"
-                  onClick={() => setShowPaymentConfig(true)}
-                  className="w-full"
-                >
-                  <CreditCard className="h-4 w-4 mr-2" />
-                  Configurar Pagamento
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-4 pt-4">
-                <div className="flex items-center justify-between mb-4 pb-2 border-b">
-                  <h5 className="font-medium text-gray-900">Configuração de Pagamento</h5>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => setShowPaymentConfig(false)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-                
-                {/* Apenas as informações de cartão aqui dentro */}
-                <CardInfoPanel />
-              </div>
-            )}
           </div>
         </Card>
       </div>
