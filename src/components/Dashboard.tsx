@@ -7,8 +7,10 @@ import { CalendarIcon, X, BarChart3, TrendingUp, Users, DollarSign } from "lucid
 import { DateRange } from "react-day-picker";
 import { BrazilTimezone } from "@/lib/timezone";
 import { ActivityPanel } from "@/components/ActivityPanel";
-import { useLeadsForDate } from "@/hooks/useLeadsForDate";
+import { useLeadsData } from "@/hooks/useLeadsData";
 import { useContractsData } from "@/hooks/useContractsData";
+import { useUserLeadsForDate } from "@/hooks/useUserLeadsForDate";
+import { useUserContractsData } from "@/hooks/useUserContractsData";
 import { DateFilter } from "@/components/DateFilter";
 
 export function Dashboard() {
@@ -18,23 +20,66 @@ export function Dashboard() {
   const [showActivityPanel, setShowActivityPanel] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
-  // Use the data hooks
+  // Use team data hooks for dashboard statistics
+  const { leads: allLeads, isLoading: leadsLoading } = useLeadsData();
+  const { contracts: allContracts, isLoading: contractsLoading } = useContractsData();
+
+  // Use user-specific hooks for Activity Panel
   const { 
-    leads, 
-    isLoading: leadsLoading, 
-    error: leadsError, 
-    currentUser: leadsUser, 
-    fetchLeadsForDate,
-    fetchLeadsForDateRange 
-  } = useLeadsForDate();
+    leads: userLeads, 
+    isLoading: userLeadsLoading, 
+    error: userLeadsError, 
+    currentUser: userLeadsUser, 
+    fetchLeadsForDate: fetchUserLeadsForDate
+  } = useUserLeadsForDate();
 
   const { 
-    contracts, 
-    isLoading: contractsLoading, 
-    error: contractsError, 
-    currentUser: contractsUser, 
-    fetchContractsForDate 
-  } = useContractsData();
+    contracts: userContracts, 
+    isLoading: userContractsLoading, 
+    error: userContractsError, 
+    currentUser: userContractsUser, 
+    fetchContractsForDate: fetchUserContractsForDate 
+  } = useUserContractsData();
+
+  // Filter team leads by date range
+  const getFilteredLeads = useCallback(() => {
+    if (!allLeads || allLeads.length === 0) return [];
+    
+    if (!appliedDateRange) return allLeads;
+
+    const fromDate = appliedDateRange.from;
+    const toDate = appliedDateRange.to || appliedDateRange.from;
+
+    return allLeads.filter(lead => {
+      const leadDate = new Date(lead.created_at);
+      const leadDateLocal = BrazilTimezone.toLocal(leadDate);
+      const leadDateOnly = new Date(leadDateLocal.getFullYear(), leadDateLocal.getMonth(), leadDateLocal.getDate());
+      const fromDateOnly = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate());
+      const toDateOnly = new Date(toDate.getFullYear(), toDate.getMonth(), toDate.getDate());
+      
+      return leadDateOnly >= fromDateOnly && leadDateOnly <= toDateOnly;
+    });
+  }, [allLeads, appliedDateRange]);
+
+  // Filter team contracts by date range
+  const getFilteredContracts = useCallback(() => {
+    if (!allContracts || allContracts.length === 0) return [];
+    
+    if (!appliedDateRange) return allContracts;
+
+    const fromDate = appliedDateRange.from;
+    const toDate = appliedDateRange.to || appliedDateRange.from;
+
+    return allContracts.filter(contract => {
+      const contractDate = new Date(contract.closedAt);
+      const contractDateLocal = BrazilTimezone.toLocal(contractDate);
+      const contractDateOnly = new Date(contractDateLocal.getFullYear(), contractDateLocal.getMonth(), contractDateLocal.getDate());
+      const fromDateOnly = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate());
+      const toDateOnly = new Date(toDate.getFullYear(), toDate.getMonth(), toDate.getDate());
+      
+      return contractDateOnly >= fromDateOnly && contractDateOnly <= toDateOnly;
+    });
+  }, [allContracts, appliedDateRange]);
 
   // Definir período padrão como mês atual na primeira carga
   useEffect(() => {
@@ -54,31 +99,6 @@ export function Dashboard() {
     
     setAppliedDateRange(currentMonthRange);
   }, []);
-
-  // Fetch data when date changes or when date range is applied
-  useEffect(() => {
-    if (appliedDateRange?.from && appliedDateRange?.to) {
-      console.log("📅 Dashboard - Buscando dados para período:", {
-        from: BrazilTimezone.formatDateForDisplay(appliedDateRange.from),
-        to: BrazilTimezone.formatDateForDisplay(appliedDateRange.to)
-      });
-      fetchLeadsForDateRange(appliedDateRange);
-      fetchContractsForDate(appliedDateRange.from);
-    } else if (appliedDateRange?.from && !appliedDateRange?.to) {
-      // Se apenas uma data foi selecionada, criar um range de um dia
-      const singleDayRange = {
-        from: appliedDateRange.from,
-        to: appliedDateRange.from
-      };
-      console.log("📅 Dashboard - Buscando dados para dia único:", BrazilTimezone.formatDateForDisplay(appliedDateRange.from));
-      fetchLeadsForDateRange(singleDayRange);
-      fetchContractsForDate(appliedDateRange.from);
-    } else if (selectedDate) {
-      console.log("📅 Dashboard - Buscando dados para data selecionada:", BrazilTimezone.formatDateForDisplay(selectedDate));
-      fetchLeadsForDate(selectedDate);
-      fetchContractsForDate(selectedDate);
-    }
-  }, [selectedDate, appliedDateRange, fetchLeadsForDate, fetchLeadsForDateRange, fetchContractsForDate]);
 
   const handleDateSelect = useCallback((date: Date | undefined) => {
     if (date) {
@@ -102,16 +122,20 @@ export function Dashboard() {
     const displayDate = appliedDateRange?.from || selectedDate;
     console.log("🎯 Dashboard - Mostrando painel de atividades para:", BrazilTimezone.formatDateForDisplay(displayDate));
     setShowActivityPanel(true);
-  }, [selectedDate, appliedDateRange]);
+    
+    // Fetch user-specific data for Activity Panel
+    fetchUserLeadsForDate(displayDate);
+    fetchUserContractsForDate(displayDate);
+  }, [selectedDate, appliedDateRange, fetchUserLeadsForDate, fetchUserContractsForDate]);
 
   const handleCloseActivity = useCallback(() => {
     console.log("❌ Dashboard - Fechando painel de atividades");
     setShowActivityPanel(false);
   }, []);
 
-  // Usar os dados diretamente dos hooks
-  const displayLeads = leads;
-  const displayContracts = contracts;
+  // Get filtered data for statistics
+  const displayLeads = getFilteredLeads();
+  const displayContracts = getFilteredContracts();
 
   // Calcular valor total dos contratos
   const totalValue = displayContracts.reduce((sum, contract) => sum + contract.value, 0);
@@ -125,7 +149,7 @@ export function Dashboard() {
   const closedDeals = displayLeads.filter(lead => lead.status === "Contrato Fechado").length;
 
   console.log("🎯 Dashboard - Dados finais:", {
-    totalLeadsFromHook: displayLeads.length,
+    totalLeadsFromFiltered: displayLeads.length,
     totalLeadsCount,
     proposalsAndMeetings,
     lostLeads,
@@ -217,11 +241,11 @@ export function Dashboard() {
       {showActivityPanel && (
         <ActivityPanel
           selectedDate={appliedDateRange?.from || selectedDate}
-          contracts={displayContracts}
-          leads={displayLeads}
-          isLoading={leadsLoading || contractsLoading}
-          error={leadsError || contractsError}
-          currentUser={leadsUser || contractsUser}
+          contracts={userContracts}
+          leads={userLeads}
+          isLoading={userLeadsLoading || userContractsLoading}
+          error={userLeadsError || userContractsError}
+          currentUser={userLeadsUser || userContractsUser}
           onClose={handleCloseActivity}
         />
       )}
@@ -285,12 +309,12 @@ export function Dashboard() {
       <Card className="p-4 bg-gray-50">
         <h3 className="font-medium mb-2">Debug Info:</h3>
         <div className="text-sm text-gray-600">
-          <p>Leads retornados pelo hook: {displayLeads.length}</p>
+          <p>Leads retornados (filtrados): {displayLeads.length}</p>
+          <p>Contratos retornados (filtrados): {displayContracts.length}</p>
           <p>Período aplicado: {appliedDateRange ? 
             `${BrazilTimezone.formatDateForDisplay(appliedDateRange.from!)} - ${BrazilTimezone.formatDateForDisplay(appliedDateRange.to!)}` 
             : 'Nenhum'}</p>
-          <p>Hook carregando: {leadsLoading ? 'Sim' : 'Não'}</p>
-          <p>Erro: {leadsError || 'Nenhum'}</p>
+          <p>Hook carregando: {leadsLoading || contractsLoading ? 'Sim' : 'Não'}</p>
         </div>
       </Card>
 
@@ -300,16 +324,6 @@ export function Dashboard() {
           <div className="flex items-center justify-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mr-4"></div>
             <span>Carregando dados...</span>
-          </div>
-        </Card>
-      )}
-
-      {/* Error States */}
-      {(leadsError || contractsError) && (
-        <Card className="p-6 border-red-200 bg-red-50">
-          <div className="text-red-800">
-            <p className="font-medium">Erro ao carregar dados:</p>
-            <p className="text-sm mt-1">{leadsError || contractsError}</p>
           </div>
         </Card>
       )}

@@ -7,7 +7,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Legend, BarChart, Bar } from "recharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDashboardSettings } from "@/hooks/useDashboardSettings";
-import { useLeadsForDate } from "@/hooks/useLeadsForDate";
+import { useLeadsData } from "@/hooks/useLeadsData";
 import { useContractsData } from "@/hooks/useContractsData";
 import { useLeadStatusHistory } from "@/hooks/useLeadStatusHistory";
 import { getDay, getMonth, format } from "date-fns";
@@ -30,38 +30,59 @@ export function DashboardContent() {
 
   const { components } = useDashboardSettings();
   
-  const { 
-    leads, 
-    isLoading: leadsLoading, 
-    error: leadsError, 
-    currentUser: leadsUser, 
-    fetchLeadsForDate,
-    fetchLeadsForDateRange,
-    schemaLoading,
-    schemaError,
-    tenantSchema
-  } = useLeadsForDate();
-
-  const { 
-    contracts, 
-    isLoading: contractsLoading, 
-    error: contractsError, 
-    currentUser: contractsUser, 
-    fetchContractsForDate 
-  } = useContractsData();
-
+  // Use team data hooks
+  const { leads: allLeads, isLoading: leadsLoading } = useLeadsData();
+  const { contracts: allContracts, isLoading: contractsLoading } = useContractsData();
   const { statusHistory, hasLeadPassedThroughStatus } = useLeadStatusHistory();
 
-  // Função para verificar se um componente deve ser exibido
+  // Filter team leads by date range
+  const getFilteredLeads = useCallback(() => {
+    if (!allLeads || allLeads.length === 0) return [];
+    
+    if (!appliedDateRange) return allLeads;
+
+    const fromDate = appliedDateRange.from;
+    const toDate = appliedDateRange.to || appliedDateRange.from;
+
+    return allLeads.filter(lead => {
+      const leadDate = new Date(lead.created_at);
+      const leadDateLocal = BrazilTimezone.toLocal(leadDate);
+      const leadDateOnly = new Date(leadDateLocal.getFullYear(), leadDateLocal.getMonth(), leadDateLocal.getDate());
+      const fromDateOnly = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate());
+      const toDateOnly = new Date(toDate.getFullYear(), toDate.getMonth(), toDate.getDate());
+      
+      return leadDateOnly >= fromDateOnly && leadDateOnly <= toDateOnly;
+    });
+  }, [allLeads, appliedDateRange]);
+
+  // Filter team contracts by date range
+  const getFilteredContracts = useCallback(() => {
+    if (!allContracts || allContracts.length === 0) return [];
+    
+    if (!appliedDateRange) return allContracts;
+
+    const fromDate = appliedDateRange.from;
+    const toDate = appliedDateRange.to || appliedDateRange.from;
+
+    return allContracts.filter(contract => {
+      const contractDate = new Date(contract.closedAt);
+      const contractDateLocal = BrazilTimezone.toLocal(contractDate);
+      const contractDateOnly = new Date(contractDateLocal.getFullYear(), contractDateLocal.getMonth(), contractDateLocal.getDate());
+      const fromDateOnly = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate());
+      const toDateOnly = new Date(toDate.getFullYear(), toDate.getMonth(), toDate.getDate());
+      
+      return contractDateOnly >= fromDateOnly && contractDateOnly <= toDateOnly;
+    });
+  }, [allContracts, appliedDateRange]);
+
+  const leads = getFilteredLeads();
+  const contracts = getFilteredContracts();
+
+  // Função para verificar se o componente deve ser exibido
   const isComponentVisible = (componentId: string) => {
     const component = components.find(comp => comp.id === componentId);
     return component ? component.visible : true;
   };
-
-  // CORREÇÃO: Aguardar todas as dependências estarem prontas
-  const allDependenciesReady = useMemo(() => {
-    return !!(leadsUser && contractsUser && tenantSchema && !schemaLoading && !schemaError);
-  }, [leadsUser, contractsUser, tenantSchema, schemaLoading, schemaError]);
 
   // CORREÇÃO: Função para verificar se um lead é oportunidade (mesma lógica das análises)
   const isOpportunityLead = useCallback((lead: any): boolean => {
@@ -98,7 +119,7 @@ export function DashboardContent() {
 
   // CORREÇÃO: Inicialização única e simplificada
   useEffect(() => {
-    if (!isInitialized && allDependenciesReady) {
+    if (!isInitialized && allLeads && allContracts) {
       console.log("🚀 DashboardContent - Inicializando dashboard pela primeira vez");
       
       const now = BrazilTimezone.now();
@@ -116,8 +137,6 @@ export function DashboardContent() {
       });
       
       setAppliedDateRange(currentMonthRange);
-      fetchLeadsForDateRange(currentMonthRange);
-      fetchContractsForDate(startOfMonth);
       
       // Simular dados do mês anterior (evitando loop infinito)
       setPreviousMonthData({
@@ -129,17 +148,11 @@ export function DashboardContent() {
       
       setIsInitialized(true);
     }
-  }, [isInitialized, allDependenciesReady, fetchLeadsForDateRange, fetchContractsForDate]);
+  }, [isInitialized, allLeads, allContracts]);
 
-  // CORREÇÃO: Função para aplicar filtro de data aguardando dependências
+  // CORREÇÃO: Função para aplicar filtro de data
   const handleDateRangeApply = useCallback((range: DateRange | undefined) => {
     console.log("📅 DashboardContent - Aplicando filtro de período:", range);
-    
-    // CORREÇÃO: Verificar se as dependências estão prontas antes de aplicar o filtro
-    if (!allDependenciesReady) {
-      console.log("⏳ DashboardContent - Aguardando dependências ficarem prontas...");
-      return;
-    }
     
     if (!range?.from) {
       // Se não há filtro, buscar dados do mês atual
@@ -154,8 +167,6 @@ export function DashboardContent() {
 
       console.log("📅 DashboardContent - Sem filtro aplicado, carregando mês atual");
       setAppliedDateRange(currentMonthRange);
-      fetchLeadsForDateRange(currentMonthRange);
-      fetchContractsForDate(startOfMonth);
       return;
     }
 
@@ -171,17 +182,7 @@ export function DashboardContent() {
     });
 
     setAppliedDateRange(rangeToApply);
-    fetchLeadsForDateRange(rangeToApply);
-    fetchContractsForDate(rangeToApply.from);
-  }, [allDependenciesReady, fetchLeadsForDateRange, fetchContractsForDate]);
-
-  // CORREÇÃO: Reagir quando as dependências ficarem prontas e houver um filtro pendente
-  useEffect(() => {
-    if (allDependenciesReady && dateRange && !appliedDateRange) {
-      console.log("📅 DashboardContent - Aplicando filtro pendente após dependências prontas");
-      handleDateRangeApply(dateRange);
-    }
-  }, [allDependenciesReady, dateRange, appliedDateRange, handleDateRangeApply]);
+  }, []);
 
   // CORREÇÃO: Calcular estatísticas reais baseadas nos leads filtrados usando a mesma lógica das análises
   const totalLeads = leads?.length || 0;
@@ -515,10 +516,10 @@ export function DashboardContent() {
     return `${value} (${conversionRate}% taxa)`;
   };
 
-  // CORREÇÃO: Estado de carregamento melhorado - aguardar todas as dependências
-  const isLoading = leadsLoading || contractsLoading || !allDependenciesReady;
+  // CORREÇÃO: Estado de carregamento melhorado
+  const isLoading = leadsLoading || contractsLoading;
 
-  if (isLoading) {
+  if (isLoading || !isInitialized) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-center py-8">

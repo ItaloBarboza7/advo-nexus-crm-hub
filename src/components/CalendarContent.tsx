@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -8,8 +9,8 @@ import { IntegratedCalendar } from "@/components/IntegratedCalendar";
 import { WeeklyFollowUpTask } from "@/components/WeeklyFollowUpTask";
 import { TeamGoalsPanel } from "@/components/TeamGoalsPanel";
 import { useLeadsData } from "@/hooks/useLeadsData";
-import { useContractsData } from "@/hooks/useContractsData";
-import { useLeadsForDate } from "@/hooks/useLeadsForDate";
+import { useUserContractsData } from "@/hooks/useUserContractsData";
+import { useUserLeadsForDate } from "@/hooks/useUserLeadsForDate";
 import { useTeamResults } from "@/hooks/useTeamResults";
 import { supabase } from "@/integrations/supabase/client";
 import { BrazilTimezone } from "@/lib/timezone";
@@ -22,20 +23,23 @@ export function CalendarContent() {
   const { leads, isLoading } = useLeadsData();
   const { tenantSchema } = useTenantSchema();
   const { teamMembers, teamStats, isLoading: teamLoading } = useTeamResults();
+  
+  // Use user-specific hooks for Activity Panel
   const { 
     contracts, 
     isLoading: contractsLoading, 
     error: contractsError, 
     currentUser: contractsUser, 
     fetchContractsForDate 
-  } = useContractsData();
+  } = useUserContractsData();
+  
   const {
     leads: leadsForDate,
     isLoading: leadsLoading,
     error: leadsError,
     currentUser: leadsCurrentUser,
     fetchLeadsForDate
-  } = useLeadsForDate();
+  } = useUserLeadsForDate();
 
   // Definir automaticamente o dia atual quando a página carrega (usando timezone brasileiro)
   useEffect(() => {

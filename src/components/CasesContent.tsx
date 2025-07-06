@@ -14,7 +14,7 @@ import { useOpportunityLogic } from "@/hooks/useOpportunityLogic";
 import { useLeadFiltering } from "@/components/analysis/useLeadFiltering";
 import { useChartStates } from "@/hooks/useChartStates";
 import { useLeadDialogs } from "@/hooks/useLeadDialogs";
-import { useLeadsForDate } from "@/hooks/useLeadsForDate";
+import { useLeadsData } from "@/hooks/useLeadsData";
 import { useLossReasonsGlobal } from "@/hooks/useLossReasonsGlobal";
 import { FilterOptions } from "@/components/AdvancedFilters";
 import { BrazilTimezone } from "@/lib/timezone";
@@ -34,20 +34,8 @@ export function CasesContent() {
   });
   const [isInitialized, setIsInitialized] = useState(false);
   
-  // Usar hooks com filtro de data que agora retorna Lead[] completo
-  const { 
-    leads, 
-    isLoading, 
-    error, 
-    currentUser, 
-    fetchLeadsForDate,
-    fetchLeadsForDateRange,
-    schemaLoading,
-    schemaError,
-    tenantSchema
-  } = useLeadsForDate();
-
-  const { lossReasons } = useLossReasonsGlobal();
+  // Use team data hook for analysis
+  const { leads: allLeads, isLoading, lossReasons } = useLeadsData();
   const { statusHistory, hasLeadPassedThroughStatus } = useLeadStatusHistory();
   const { isOpportunityLead } = useOpportunityLogic(hasLeadPassedThroughStatus);
   
@@ -73,6 +61,28 @@ export function CasesContent() {
     handleViewDetails,
     handleEditLead
   } = useLeadDialogs();
+
+  // Filter team leads by date range
+  const getFilteredLeads = useCallback(() => {
+    if (!allLeads || allLeads.length === 0) return [];
+    
+    if (!appliedDateRange) return allLeads;
+
+    const fromDate = appliedDateRange.from;
+    const toDate = appliedDateRange.to || appliedDateRange.from;
+
+    return allLeads.filter(lead => {
+      const leadDate = new Date(lead.created_at);
+      const leadDateLocal = BrazilTimezone.toLocal(leadDate);
+      const leadDateOnly = new Date(leadDateLocal.getFullYear(), leadDateLocal.getMonth(), leadDateLocal.getDate());
+      const fromDateOnly = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate());
+      const toDateOnly = new Date(toDate.getFullYear(), toDate.getMonth(), toDate.getDate());
+      
+      return leadDateOnly >= fromDateOnly && leadDateOnly <= toDateOnly;
+    });
+  }, [allLeads, appliedDateRange]);
+
+  const leads = getFilteredLeads();
   
   const {
     getLeadsForChart,
@@ -83,7 +93,7 @@ export function CasesContent() {
     shouldShowStateChart
   } = useAnalysisLogic(leads, selectedCategory, statusHistory, hasLeadPassedThroughStatus);
 
-  // Função memoizada para buscar dados do mês atual
+  // Função para aplicar filtro de período padrão (mês atual)
   const fetchCurrentMonthData = useCallback(() => {
     const now = BrazilTimezone.now();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -100,41 +110,18 @@ export function CasesContent() {
     });
     
     setAppliedDateRange(currentMonthRange);
-    fetchLeadsForDateRange(currentMonthRange);
-  }, [fetchLeadsForDateRange]);
+  }, []);
 
-  // Inicialização controlada - aguarda todas as dependências
+  // Inicialização controlada
   useEffect(() => {
-    const shouldInitialize = !isInitialized && 
-                           currentUser && 
-                           !schemaLoading && 
-                           !schemaError && 
-                           tenantSchema;
-
-    console.log("🚀 CasesContent - Verificando inicialização:", {
-      isInitialized,
-      currentUser: !!currentUser,
-      schemaLoading,
-      schemaError,
-      tenantSchema: !!tenantSchema,
-      shouldInitialize
-    });
-
-    if (shouldInitialize) {
+    if (!isInitialized && allLeads) {
       console.log("🚀 CasesContent - Inicializando análises pela primeira vez");
       fetchCurrentMonthData();
       setIsInitialized(true);
     }
-  }, [
-    isInitialized, 
-    currentUser, 
-    schemaLoading, 
-    schemaError, 
-    tenantSchema, 
-    fetchCurrentMonthData
-  ]);
+  }, [isInitialized, allLeads, fetchCurrentMonthData]);
 
-  // Função para aplicar filtro de data sem recursão
+  // Função para aplicar filtro de data
   const handleDateRangeApply = useCallback((range: DateRange | undefined) => {
     console.log("📅 CasesContent - Aplicando filtro de período:", range);
     
@@ -157,8 +144,7 @@ export function CasesContent() {
     });
 
     setAppliedDateRange(rangeToApply);
-    fetchLeadsForDateRange(rangeToApply);
-  }, [fetchCurrentMonthData, fetchLeadsForDateRange]);
+  }, [fetchCurrentMonthData]);
 
   const { filteredLeads } = useLeadFiltering(
     leads || [],
@@ -184,25 +170,19 @@ export function CasesContent() {
   };
 
   const handleRefresh = () => {
-    if (appliedDateRange) {
-      fetchLeadsForDateRange(appliedDateRange);
-    } else {
-      fetchCurrentMonthData();
-    }
+    // Refresh is handled automatically by useLeadsData
+    console.log("🔄 CasesContent - Refresh solicitado");
   };
 
   console.log("📊 CasesContent - Estado atual:", {
-    totalLeads: leads?.length || 0,
+    totalLeads: allLeads?.length || 0,
     filteredLeads: filteredLeads.length,
     appliedDateRange: appliedDateRange ? {
       from: appliedDateRange.from ? BrazilTimezone.formatDateForDisplay(appliedDateRange.from) : 'N/A',
       to: appliedDateRange.to ? BrazilTimezone.formatDateForDisplay(appliedDateRange.to) : 'N/A'
     } : 'Nenhum',
     selectedCategory,
-    isInitialized,
-    schemaLoading,
-    schemaError,
-    tenantSchema: !!tenantSchema
+    isInitialized
   });
 
   // Melhorar getDisplayTitle para lidar com casos onde to pode ser undefined
@@ -217,38 +197,14 @@ export function CasesContent() {
     return "Análise detalhada de leads e performance de vendas";
   };
 
-  // Estado de carregamento melhorado - inclui schema loading
-  if (!isInitialized || schemaLoading || isLoading) {
+  // Estado de carregamento
+  if (!isInitialized || isLoading) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-center py-8">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">
-              {schemaLoading && "Carregando configuração do tenant..."}
-              {!schemaLoading && isLoading && "Carregando dados das análises..."}
-              {!schemaLoading && !isLoading && "Inicializando análises..."}
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Estado de erro melhorado
-  if (schemaError || error) {
-    return (
-      <div className="space-y-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-          <div className="text-red-800">
-            <p className="font-medium">Erro ao carregar análises:</p>
-            <p className="text-sm mt-1">{schemaError || error}</p>
-            <button 
-              onClick={handleRefresh}
-              className="mt-3 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-            >
-              Tentar Novamente
-            </button>
+            <p className="text-gray-600">Carregando dados das análises...</p>
           </div>
         </div>
       </div>
