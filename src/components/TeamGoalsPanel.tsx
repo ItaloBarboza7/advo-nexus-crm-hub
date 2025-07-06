@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Target, TrendingUp, Calendar, Users } from "lucide-react";
+import { Target, TrendingUp, Calendar, Trophy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenantSchema } from "@/hooks/useTenantSchema";
 import { BrazilTimezone } from "@/lib/timezone";
@@ -146,12 +146,12 @@ export function TeamGoalsPanel({
           </div>
         </div>
 
-        {/* Informação da equipe */}
-        <div className="flex items-center gap-2 bg-blue-50 rounded-lg p-2 border border-blue-200">
-          <Users className="h-4 w-4 text-blue-600 flex-shrink-0" />
+        {/* Meta diária */}
+        <div className="flex items-center gap-2 bg-yellow-50 rounded-lg p-2 border border-yellow-200">
+          <Trophy className="h-4 w-4 text-yellow-600 flex-shrink-0" />
           <div>
-            <div className="text-lg font-bold text-blue-900">{teamSize}</div>
-            <p className="text-xs text-blue-600">Membros da equipe</p>
+            <div className="text-lg font-bold text-yellow-900">{dailyTarget}</div>
+            <p className="text-xs text-yellow-600">Meta diária</p>
           </div>
         </div>
 
