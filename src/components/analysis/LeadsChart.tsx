@@ -78,8 +78,6 @@ export function LeadsChart({ leads, title, filterFunction, viewMode: externalVie
       
       try {
         const fromDate = BrazilTimezone.formatDateForDisplay(appliedDateRange.from);
-        const toDate = appliedDateRange.to ? BrazilTimezone.formatDateForDisplay(appliedDateRang
-
         const toDate = appliedDateRange.to ? BrazilTimezone.formatDateForDisplay(appliedDateRange.to) : fromDate;
         
         console.log(`📊 [LeadsChart "${title}"] getChartTitle - Datas formatadas:`, { fromDate, toDate });
