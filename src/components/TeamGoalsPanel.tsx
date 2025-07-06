@@ -14,6 +14,10 @@ interface TeamGoalsPanelProps {
   teamSize: number;
 }
 
+interface ContractsQueryResult {
+  contracts_today: number;
+}
+
 export function TeamGoalsPanel({ 
   teamSales, 
   teamGoal, 
@@ -60,8 +64,12 @@ export function TeamGoalsPanel({
           return;
         }
 
-        const contractsData = Array.isArray(data) && data.length > 0 ? data[0] : { contracts_today: 0 };
-        const contractsCount = parseInt(contractsData.contracts_today) || 0;
+        // Type assertion and safe access to the data
+        const contractsData = Array.isArray(data) && data.length > 0 
+          ? (data[0] as ContractsQueryResult) 
+          : { contracts_today: 0 };
+        
+        const contractsCount = parseInt(String(contractsData.contracts_today)) || 0;
         
         console.log(`📈 TeamGoalsPanel - ${contractsCount} contratos fechados hoje`);
         setTodayContracts(contractsCount);
