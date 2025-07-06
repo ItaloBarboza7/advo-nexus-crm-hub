@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserPlus, UserX, DollarSign, TrendingUp, BarChart3 } from "lucide-react";
 import { DateRange } from "react-day-picker";
@@ -49,27 +49,57 @@ export function DashboardContent() {
     return component ? component.visible : true;
   };
 
+  // CORREÇÃO: Inicializar com dados do mês atual quando o componente for montado
+  useEffect(() => {
+    const initializeWithCurrentMonth = () => {
+      const now = BrazilTimezone.now();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      
+      const currentMonthRange = {
+        from: startOfMonth,
+        to: endOfMonth
+      };
+      
+      console.log("📅 DashboardContent - Inicializando com mês atual:", {
+        from: BrazilTimezone.formatDateForDisplay(startOfMonth),
+        to: BrazilTimezone.formatDateForDisplay(endOfMonth)
+      });
+      
+      setAppliedDateRange(currentMonthRange);
+      fetchLeadsForDateRange(currentMonthRange);
+      fetchContractsForDate(startOfMonth);
+    };
+
+    // Só inicializa se não houver filtro aplicado
+    if (!appliedDateRange) {
+      initializeWithCurrentMonth();
+    }
+  }, [appliedDateRange, fetchLeadsForDateRange, fetchContractsForDate]);
+
   // Função para aplicar filtro de data
   const handleDateRangeApply = (range: DateRange | undefined) => {
     console.log("📅 DashboardContent - Aplicando filtro de período:", range);
     setAppliedDateRange(range);
     
-    if (range?.from && range?.to) {
-      console.log("📅 DashboardContent - Buscando leads para período:", {
-        from: BrazilTimezone.formatDateForDisplay(range.from),
-        to: BrazilTimezone.formatDateForDisplay(range.to)
-      });
-      fetchLeadsForDateRange(range);
-      fetchContractsForDate(range.from);
-    } else if (range?.from && !range?.to) {
-      // Se apenas uma data foi selecionada, criar um range de um dia
-      const singleDayRange = {
-        from: range.from,
-        to: range.from
-      };
-      console.log("📅 DashboardContent - Buscando leads para dia único:", BrazilTimezone.formatDateForDisplay(range.from));
-      fetchLeadsForDateRange(singleDayRange);
-      fetchContractsForDate(range.from);
+    if (range?.from) {
+      // CORREÇÃO: Se apenas uma data foi selecionada, tratar como range de um dia
+      if (!range.to) {
+        const singleDayRange = {
+          from: range.from,
+          to: range.from
+        };
+        console.log("📅 DashboardContent - Buscando leads para dia único:", BrazilTimezone.formatDateForDisplay(range.from));
+        fetchLeadsForDateRange(singleDayRange);
+        fetchContractsForDate(range.from);
+      } else {
+        console.log("📅 DashboardContent - Buscando leads para período:", {
+          from: BrazilTimezone.formatDateForDisplay(range.from),
+          to: BrazilTimezone.formatDateForDisplay(range.to)
+        });
+        fetchLeadsForDateRange(range);
+        fetchContractsForDate(range.from);
+      }
     } else {
       // Se não há filtro, buscar dados do mês atual
       const now = BrazilTimezone.now();
@@ -91,27 +121,6 @@ export function DashboardContent() {
     }
   };
 
-  // Inicializar com dados do mês atual na primeira carga
-  useState(() => {
-    const now = BrazilTimezone.now();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    
-    const currentMonthRange = {
-      from: startOfMonth,
-      to: endOfMonth
-    };
-    
-    console.log("📅 DashboardContent - Inicializando com mês atual:", {
-      from: BrazilTimezone.formatDateForDisplay(startOfMonth),
-      to: BrazilTimezone.formatDateForDisplay(endOfMonth)
-    });
-    
-    setAppliedDateRange(currentMonthRange);
-    fetchLeadsForDateRange(currentMonthRange);
-    fetchContractsForDate(startOfMonth);
-  });
-
   // CORREÇÃO: Calcular estatísticas reais baseadas nos leads filtrados pelos hooks
   const totalLeads = leads?.length || 0;
   const proposalsAndMeetings = leads?.filter(lead => 
@@ -130,8 +139,8 @@ export function DashboardContent() {
     closedDeals,
     totalValue,
     appliedDateRange: appliedDateRange ? {
-      from: BrazilTimezone.formatDateForDisplay(appliedDateRange.from!),
-      to: BrazilTimezone.formatDateForDisplay(appliedDateRange.to!)
+      from: appliedDateRange.from ? BrazilTimezone.formatDateForDisplay(appliedDateRange.from) : 'N/A',
+      to: appliedDateRange.to ? BrazilTimezone.formatDateForDisplay(appliedDateRange.to) : 'N/A'
     } : 'Nenhum'
   });
 
@@ -483,9 +492,14 @@ export function DashboardContent() {
     );
   }
 
+  // CORREÇÃO: Melhorar getDisplayTitle para lidar com casos onde to pode ser undefined
   const getDisplayTitle = () => {
-    if (appliedDateRange?.from && appliedDateRange?.to) {
-      return `Dashboard - Período: ${BrazilTimezone.formatDateForDisplay(appliedDateRange.from)} a ${BrazilTimezone.formatDateForDisplay(appliedDateRange.to)}`;
+    if (appliedDateRange?.from) {
+      if (appliedDateRange?.to) {
+        return `Dashboard - Período: ${BrazilTimezone.formatDateForDisplay(appliedDateRange.from)} a ${BrazilTimezone.formatDateForDisplay(appliedDateRange.to)}`;
+      } else {
+        return `Dashboard - Data: ${BrazilTimezone.formatDateForDisplay(appliedDateRange.from)}`;
+      }
     }
     return "Dashboard - Dados gerais";
   };
@@ -541,7 +555,7 @@ export function DashboardContent() {
           <p>Leads retornados pelo hook: {leads?.length || 0}</p>
           <p>Contratos retornados pelo hook: {contracts?.length || 0}</p>
           <p>Período aplicado: {appliedDateRange ? 
-            `${BrazilTimezone.formatDateForDisplay(appliedDateRange.from!)} - ${BrazilTimezone.formatDateForDisplay(appliedDateRange.to!)}` 
+            `${appliedDateRange.from ? BrazilTimezone.formatDateForDisplay(appliedDateRange.from) : 'N/A'} - ${appliedDateRange.to ? BrazilTimezone.formatDateForDisplay(appliedDateRange.to) : 'N/A'}` 
             : 'Nenhum'}</p>
           <p>Hook leads carregando: {leadsLoading ? 'Sim' : 'Não'}</p>
           <p>Hook contratos carregando: {contractsLoading ? 'Sim' : 'Não'}</p>
