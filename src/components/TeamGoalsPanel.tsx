@@ -65,7 +65,7 @@ export function TeamGoalsPanel({
   const [showMemberLeads, setShowMemberLeads] = useState(false);
   const [isLoadingMemberLeads, setIsLoadingMemberLeads] = useState(false);
   
-  // Estados para as metas configuradas
+  // Estados para as metas configuradas da equipe (tenant principal)
   const [teamGoal, setTeamGoal] = useState(100); // Meta mensal padrão
   const [dailyGoal, setDailyGoal] = useState(3); // Meta diária padrão
   const [isLoadingGoals, setIsLoadingGoals] = useState(true);
@@ -81,44 +81,46 @@ export function TeamGoalsPanel({
   const daysRemaining = daysInMonth - currentDay;
   const dailyTarget = daysRemaining > 0 ? Math.ceil(remainingSales / daysRemaining) : 0;
 
-  // Carregar metas configuradas
+  // Carregar metas configuradas da equipe (tenant principal)
   useEffect(() => {
     const loadTeamGoals = async () => {
       try {
         setIsLoadingGoals(true);
-        console.log("🎯 TeamGoalsPanel - Carregando metas configuradas...");
+        console.log("🎯 TeamGoalsPanel - Carregando metas da equipe configuradas...");
         
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          console.error("❌ Usuário não autenticado para carregar metas");
+        // Obter o tenant ID (admin principal)
+        const { data: tenantId, error: tenantError } = await supabase.rpc('get_tenant_id');
+        
+        if (tenantError) {
+          console.error("❌ Erro ao obter tenant ID:", tenantError);
           return;
         }
 
-        console.log("👤 Buscando metas para user ID:", user.id);
+        console.log("👤 Buscando metas para tenant ID:", tenantId);
 
         const { data: goals, error } = await supabase
           .from('team_goals')
           .select('monthly_goal, daily_goal')
-          .eq('user_id', user.id)
+          .eq('user_id', tenantId)
           .maybeSingle();
 
-        console.log("🎯 Metas configuradas encontradas:", goals);
+        console.log("🎯 Metas da equipe configuradas encontradas:", goals);
         console.log("❓ Erro na busca de metas:", error);
 
         if (error && error.code !== 'PGRST116') {
-          console.error('❌ Erro ao carregar metas configuradas:', error);
+          console.error('❌ Erro ao carregar metas da equipe configuradas:', error);
           return;
         }
 
         if (goals) {
-          console.log("✅ Aplicando metas configuradas:", goals);
+          console.log("✅ Aplicando metas da equipe configuradas:", goals);
           setTeamGoal(goals.monthly_goal || 100);
           setDailyGoal(goals.daily_goal || 3);
         } else {
-          console.log("📝 Nenhuma meta configurada encontrada, usando valores padrão");
+          console.log("📝 Nenhuma meta da equipe configurada encontrada, usando valores padrão");
         }
       } catch (error) {
-        console.error('❌ Erro inesperado ao carregar metas configuradas:', error);
+        console.error('❌ Erro inesperado ao carregar metas da equipe configuradas:', error);
       } finally {
         setIsLoadingGoals(false);
       }
@@ -371,7 +373,7 @@ export function TeamGoalsPanel({
         <CardContent className="p-6">
           <div className="flex items-center justify-center py-4">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-            <span className="ml-2 text-gray-600">Carregando metas...</span>
+            <span className="ml-2 text-gray-600">Carregando metas da equipe...</span>
           </div>
         </CardContent>
       </Card>
@@ -443,12 +445,12 @@ export function TeamGoalsPanel({
           </div>
         </div>
 
-        {/* Meta diária - CORRIGIDO para usar a meta configurada */}
+        {/* Meta diária - CORRIGIDO para usar a meta da equipe configurada */}
         <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-2 border border-gray-300">
           <Trophy className="h-4 w-4 text-gray-700 flex-shrink-0" />
           <div className="flex-1">
             <div className="text-lg font-bold text-gray-900">{dailyGoal}</div>
-            <p className="text-xs text-gray-700 font-medium">Meta diária</p>
+            <p className="text-xs text-gray-700 font-medium">Meta diária da equipe</p>
           </div>
         </div>
 

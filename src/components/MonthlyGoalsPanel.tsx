@@ -20,40 +20,42 @@ export function MonthlyGoalsPanel({
 
   console.log('MonthlyGoalsPanel props:', { currentSales, monthlyGoal, daysInMonth, currentDay });
   
-  // Carregar meta configurada
+  // Carregar meta configurada da equipe (tenant principal)
   useEffect(() => {
     const loadMonthlyGoal = async () => {
       try {
         setIsLoadingGoal(true);
-        console.log("🎯 MonthlyGoalsPanel - Carregando meta mensal configurada...");
+        console.log("🎯 MonthlyGoalsPanel - Carregando meta mensal da equipe...");
         
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          console.error("❌ Usuário não autenticado para carregar meta");
+        // Obter o tenant ID (admin principal)
+        const { data: tenantId, error: tenantError } = await supabase.rpc('get_tenant_id');
+        
+        if (tenantError) {
+          console.error("❌ Erro ao obter tenant ID:", tenantError);
           return;
         }
 
         const { data: goals, error } = await supabase
           .from('team_goals')
           .select('monthly_goal')
-          .eq('user_id', user.id)
+          .eq('user_id', tenantId)
           .maybeSingle();
 
-        console.log("🎯 Meta mensal configurada encontrada:", goals);
+        console.log("🎯 Meta mensal da equipe encontrada:", goals);
 
         if (error && error.code !== 'PGRST116') {
-          console.error('❌ Erro ao carregar meta mensal:', error);
+          console.error('❌ Erro ao carregar meta mensal da equipe:', error);
           return;
         }
 
         if (goals) {
-          console.log("✅ Aplicando meta mensal configurada:", goals.monthly_goal);
+          console.log("✅ Aplicando meta mensal da equipe:", goals.monthly_goal);
           setMonthlyGoal(goals.monthly_goal || 100);
         } else {
-          console.log("📝 Nenhuma meta mensal configurada, usando valor padrão");
+          console.log("📝 Nenhuma meta mensal da equipe configurada, usando valor padrão");
         }
       } catch (error) {
-        console.error('❌ Erro inesperado ao carregar meta mensal:', error);
+        console.error('❌ Erro inesperado ao carregar meta mensal da equipe:', error);
       } finally {
         setIsLoadingGoal(false);
       }
@@ -75,7 +77,7 @@ export function MonthlyGoalsPanel({
         <CardContent className="p-6">
           <div className="flex items-center justify-center py-4">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-            <span className="ml-2 text-gray-600">Carregando meta...</span>
+            <span className="ml-2 text-gray-600">Carregando meta da equipe...</span>
           </div>
         </CardContent>
       </Card>
@@ -87,7 +89,7 @@ export function MonthlyGoalsPanel({
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg font-semibold text-gray-800">
           <Target className="h-5 w-5 text-gray-600" />
-          Meta Mensal
+          Meta Mensal da Equipe
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -153,8 +155,8 @@ export function MonthlyGoalsPanel({
         }`}>
           <p className="text-sm font-medium">
             {isOnTrack 
-              ? 'No caminho certo para atingir a meta!' 
-              : `Faltam ${remainingSales} vendas para a meta`
+              ? 'Equipe no caminho certo para atingir a meta!' 
+              : `Faltam ${remainingSales} vendas para a meta da equipe`
             }
           </p>
         </div>

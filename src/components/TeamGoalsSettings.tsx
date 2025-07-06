@@ -19,7 +19,7 @@ export function TeamGoalsSettings({ onGoalsUpdated }: TeamGoalsSettingsProps) {
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
-  // Carregar metas atuais
+  // Carregar metas atuais do tenant principal
   useEffect(() => {
     loadCurrentGoals();
   }, []);
@@ -27,40 +27,42 @@ export function TeamGoalsSettings({ onGoalsUpdated }: TeamGoalsSettingsProps) {
   const loadCurrentGoals = async () => {
     try {
       setIsLoading(true);
-      console.log("🔍 TeamGoalsSettings - Carregando metas atuais...");
+      console.log("🔍 TeamGoalsSettings - Carregando metas da equipe...");
       
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.error("❌ Usuário não autenticado");
+      // Obter o tenant ID (admin principal)
+      const { data: tenantId, error: tenantError } = await supabase.rpc('get_tenant_id');
+      
+      if (tenantError) {
+        console.error("❌ Erro ao obter tenant ID:", tenantError);
         return;
       }
 
-      console.log("👤 User ID:", user.id);
+      console.log("👤 Tenant ID:", tenantId);
 
-      // Buscar metas salvas na tabela team_goals
+      // Buscar metas salvas para o tenant principal
       const { data: goals, error } = await supabase
         .from('team_goals')
         .select('monthly_goal, daily_goal')
-        .eq('user_id', user.id)
+        .eq('user_id', tenantId)
         .maybeSingle();
 
-      console.log("📊 Metas encontradas:", goals);
+      console.log("📊 Metas da equipe encontradas:", goals);
       console.log("❓ Erro na busca:", error);
 
       if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-        console.error('❌ Erro ao carregar metas:', error);
+        console.error('❌ Erro ao carregar metas da equipe:', error);
         return;
       }
 
       if (goals) {
-        console.log("✅ Aplicando metas carregadas:", goals);
+        console.log("✅ Aplicando metas da equipe carregadas:", goals);
         setMonthlyGoal(goals.monthly_goal || 100);
         setDailyGoal(goals.daily_goal || 3);
       } else {
-        console.log("📝 Nenhuma meta encontrada, usando valores padrão");
+        console.log("📝 Nenhuma meta da equipe encontrada, usando valores padrão");
       }
     } catch (error) {
-      console.error('❌ Erro inesperado ao carregar metas:', error);
+      console.error('❌ Erro inesperado ao carregar metas da equipe:', error);
     } finally {
       setIsLoading(false);
     }
@@ -78,37 +80,39 @@ export function TeamGoalsSettings({ onGoalsUpdated }: TeamGoalsSettingsProps) {
 
     try {
       setIsSaving(true);
-      console.log("💾 TeamGoalsSettings - Iniciando salvamento das metas...");
+      console.log("💾 TeamGoalsSettings - Iniciando salvamento das metas da equipe...");
       
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.error("❌ Usuário não autenticado para salvamento");
+      // Obter o tenant ID (admin principal)
+      const { data: tenantId, error: tenantError } = await supabase.rpc('get_tenant_id');
+      
+      if (tenantError) {
+        console.error("❌ Erro ao obter tenant ID para salvamento:", tenantError);
         toast({
           title: "Erro",
-          description: "Usuário não autenticado.",
+          description: "Não foi possível identificar o administrador da equipe.",
           variant: "destructive"
         });
         return;
       }
 
-      console.log("👤 Salvando para user ID:", user.id);
-      console.log("📊 Metas a salvar:", { monthlyGoal, dailyGoal });
+      console.log("👤 Salvando metas para tenant ID:", tenantId);
+      console.log("📊 Metas da equipe a salvar:", { monthlyGoal, dailyGoal });
 
-      // Primeiro, verificar se já existe um registro
+      // Primeiro, verificar se já existe um registro para o tenant
       const { data: existingGoal, error: selectError } = await supabase
         .from('team_goals')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('user_id', tenantId)
         .maybeSingle();
 
-      console.log("🔍 Meta existente:", existingGoal);
+      console.log("🔍 Meta da equipe existente:", existingGoal);
       console.log("❓ Erro na verificação:", selectError);
 
       if (selectError && selectError.code !== 'PGRST116') {
-        console.error('❌ Erro ao verificar meta existente:', selectError);
+        console.error('❌ Erro ao verificar meta da equipe existente:', selectError);
         toast({
           title: "Erro",
-          description: "Não foi possível verificar as metas existentes.",
+          description: "Não foi possível verificar as metas da equipe existentes.",
           variant: "destructive"
         });
         return;
@@ -117,7 +121,7 @@ export function TeamGoalsSettings({ onGoalsUpdated }: TeamGoalsSettingsProps) {
       let result;
       if (existingGoal) {
         // Atualizar registro existente
-        console.log("🔄 Atualizando meta existente...");
+        console.log("🔄 Atualizando metas da equipe existentes...");
         result = await supabase
           .from('team_goals')
           .update({
@@ -125,35 +129,35 @@ export function TeamGoalsSettings({ onGoalsUpdated }: TeamGoalsSettingsProps) {
             daily_goal: dailyGoal,
             updated_at: new Date().toISOString()
           })
-          .eq('user_id', user.id);
+          .eq('user_id', tenantId);
       } else {
         // Criar novo registro
-        console.log("➕ Criando nova meta...");
+        console.log("➕ Criando novas metas da equipe...");
         result = await supabase
           .from('team_goals')
           .insert({
-            user_id: user.id,
+            user_id: tenantId,
             monthly_goal: monthlyGoal,
             daily_goal: dailyGoal
           });
       }
 
-      console.log("💾 Resultado do salvamento:", result);
+      console.log("💾 Resultado do salvamento das metas da equipe:", result);
 
       if (result.error) {
-        console.error('❌ Erro ao salvar metas:', result.error);
+        console.error('❌ Erro ao salvar metas da equipe:', result.error);
         toast({
           title: "Erro",
-          description: `Não foi possível salvar as metas: ${result.error.message}`,
+          description: `Não foi possível salvar as metas da equipe: ${result.error.message}`,
           variant: "destructive"
         });
         return;
       }
 
-      console.log("✅ Metas salvas com sucesso!");
+      console.log("✅ Metas da equipe salvas com sucesso!");
       toast({
-        title: "Metas atualizadas!",
-        description: "As metas da equipe foram salvas com sucesso.",
+        title: "Metas da equipe atualizadas!",
+        description: "As metas da equipe foram salvas e se aplicam a todos os membros.",
       });
 
       if (onGoalsUpdated) {
@@ -161,10 +165,10 @@ export function TeamGoalsSettings({ onGoalsUpdated }: TeamGoalsSettingsProps) {
       }
 
     } catch (error) {
-      console.error('❌ Erro inesperado ao salvar metas:', error);
+      console.error('❌ Erro inesperado ao salvar metas da equipe:', error);
       toast({
         title: "Erro",
-        description: "Ocorreu um erro inesperado ao salvar as metas.",
+        description: "Ocorreu um erro inesperado ao salvar as metas da equipe.",
         variant: "destructive"
       });
     } finally {
@@ -176,7 +180,7 @@ export function TeamGoalsSettings({ onGoalsUpdated }: TeamGoalsSettingsProps) {
     return (
       <Card className="p-6">
         <div className="text-center py-4">
-          <p className="text-gray-500">Carregando metas...</p>
+          <p className="text-gray-500">Carregando metas da equipe...</p>
         </div>
       </Card>
     );
@@ -205,7 +209,7 @@ export function TeamGoalsSettings({ onGoalsUpdated }: TeamGoalsSettingsProps) {
               placeholder="Ex: 100"
               className="w-full"
             />
-            <p className="text-xs text-gray-500">Número de contratos a serem fechados por mês</p>
+            <p className="text-xs text-gray-500">Número de contratos a serem fechados por mês pela equipe</p>
           </div>
           
           <div className="space-y-2">
@@ -221,7 +225,7 @@ export function TeamGoalsSettings({ onGoalsUpdated }: TeamGoalsSettingsProps) {
               placeholder="Ex: 3"
               className="w-full"
             />
-            <p className="text-xs text-gray-500">Meta diária baseada nos dias úteis restantes</p>
+            <p className="text-xs text-gray-500">Meta diária da equipe baseada nos dias úteis restantes</p>
           </div>
         </div>
 
@@ -232,7 +236,7 @@ export function TeamGoalsSettings({ onGoalsUpdated }: TeamGoalsSettingsProps) {
             className="bg-blue-600 hover:bg-blue-700"
           >
             <Save className="h-4 w-4 mr-2" />
-            {isSaving ? 'Salvando...' : 'Salvar Metas'}
+            {isSaving ? 'Salvando...' : 'Salvar Metas da Equipe'}
           </Button>
         </div>
       </CardContent>
