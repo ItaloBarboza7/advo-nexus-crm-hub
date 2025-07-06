@@ -107,8 +107,8 @@ export function ChartsSection({
       {/* CORREÇÃO: Só mostrar gráficos se NÃO estivermos em visualização de Estados */}
       {!isEstadosView && (
         <>
-          {/* Gráfico de Leads Gerais - só aparece na categoria "all" e quando showLeadsChart for true */}
-          {isAllCategory && showLeadsChart && (
+          {/* CORRIGIDO: Gráfico de Leads Gerais - aparece na categoria "all" por padrão */}
+          {isAllCategory && (
             <LeadsChart 
               leads={leads}
               title="Todos os Leads"
@@ -117,8 +117,8 @@ export function ChartsSection({
             />
           )}
 
-          {/* Gráfico de Contratos - CORRIGIDO: aparece em qualquer categoria que comece com "contratos" */}
-          {isContractsCategory && showContractsChart && (
+          {/* CORRIGIDO: Gráfico de Contratos - aparece em qualquer categoria que comece com "contratos" por padrão */}
+          {isContractsCategory && (
             <LeadsChart 
               leads={leads}
               title="Novos Contratos"
@@ -128,8 +128,8 @@ export function ChartsSection({
             />
           )}
 
-          {/* Gráfico de Oportunidades - CORRIGIDO: aparece em qualquer categoria que comece com "oportunidades" */}
-          {isOpportunitiesCategory && showOpportunitiesChart && (
+          {/* CORRIGIDO: Gráfico de Oportunidades - aparece em qualquer categoria que comece com "oportunidades" por padrão */}
+          {isOpportunitiesCategory && (
             <LeadsChart 
               leads={leads}
               title="Oportunidades"
@@ -150,8 +150,8 @@ export function ChartsSection({
         />
       )}
 
-      {/* Gráficos de análise só aparecem quando NÃO há gráfico de leads sendo exibido E não estamos em Estados */}
-      {!showLeadsChart && !showContractsChart && !showOpportunitiesChart && !isEstadosView && (
+      {/* CORRIGIDO: Gráficos de análise só aparecem quando NÃO há gráfico de leads sendo exibido E não estamos em Estados */}
+      {!isAllCategory && !isContractsCategory && !isOpportunitiesCategory && !isEstadosView && (
         <>
           {shouldShowLossReasonsChart && (
             <LossReasonsChart leads={leads} />

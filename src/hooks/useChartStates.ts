@@ -7,10 +7,10 @@ export function useChartStates() {
   const [contractsViewMode, setContractsViewMode] = useState<'weekly' | 'monthly'>('weekly');
   const [opportunitiesViewMode, setOpportunitiesViewMode] = useState<'weekly' | 'monthly'>('weekly');
   
-  // Estados para controlar quando mostrar os gráficos
-  const [showLeadsChart, setShowLeadsChart] = useState(false);
-  const [showContractsChart, setShowContractsChart] = useState(false);
-  const [showOpportunitiesChart, setShowOpportunitiesChart] = useState(false);
+  // CORRIGIDO: Estados para controlar quando mostrar os gráficos - iniciar como true para mostrar por padrão
+  const [showLeadsChart, setShowLeadsChart] = useState(true);
+  const [showContractsChart, setShowContractsChart] = useState(true);
+  const [showOpportunitiesChart, setShowOpportunitiesChart] = useState(true);
 
   // Handlers para mostrar gráficos quando o dropdown for usado
   const handleLeadsViewChange = (view: 'weekly' | 'monthly') => {
@@ -43,11 +43,12 @@ export function useChartStates() {
     console.log(`✅ showOpportunitiesChart ativado, outros desativados`);
   };
 
+  // CORRIGIDO: resetChartStates agora volta para o estado padrão (todos visíveis)
   const resetChartStates = () => {
-    console.log(`🔄 resetChartStates chamado - todos os gráficos serão desativados`);
-    setShowLeadsChart(false);
-    setShowContractsChart(false);
-    setShowOpportunitiesChart(false);
+    console.log(`🔄 resetChartStates chamado - todos os gráficos serão ativados para estado padrão`);
+    setShowLeadsChart(true);
+    setShowContractsChart(true);
+    setShowOpportunitiesChart(true);
   };
 
   return {
