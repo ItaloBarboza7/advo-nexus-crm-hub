@@ -1,10 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Target, TrendingUp, Calendar, Trophy } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Target, TrendingUp, Calendar, Trophy, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenantSchema } from "@/hooks/useTenantSchema";
 import { BrazilTimezone } from "@/lib/timezone";
+import { TeamMembersModal } from "@/components/TeamMembersModal";
 
 interface TeamGoalsPanelProps {
   teamSales: number;
@@ -23,6 +25,8 @@ export function TeamGoalsPanel({
 }: TeamGoalsPanelProps) {
   const [todayContracts, setTodayContracts] = useState(0);
   const [isLoadingToday, setIsLoadingToday] = useState(true);
+  const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const { tenantSchema } = useTenantSchema();
 
   console.log('TeamGoalsPanel props:', { teamSales, teamGoal, daysInMonth, currentDay, teamSize });
@@ -33,6 +37,29 @@ export function TeamGoalsPanel({
   const remainingSales = Math.max(0, teamGoal - teamSales);
   const daysRemaining = daysInMonth - currentDay;
   const dailyTarget = daysRemaining > 0 ? Math.ceil(remainingSales / daysRemaining) : 0;
+
+  // Verificar se o usuário é admin
+  useEffect(() => {
+    const checkUserRole = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('parent_user_id')
+          .eq('user_id', user.id)
+          .single();
+
+        // É admin se não tem parent_user_id (é o usuário principal)
+        setIsAdmin(!profile?.parent_user_id);
+      } catch (error) {
+        console.error("❌ Erro ao verificar role do usuário:", error);
+      }
+    };
+
+    checkUserRole();
+  }, []);
 
   // Buscar contratos fechados hoje
   useEffect(() => {
@@ -82,79 +109,98 @@ export function TeamGoalsPanel({
   }, [tenantSchema]);
 
   return (
-    <Card className="bg-white border-gray-200">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg font-semibold text-gray-800">
-          <Target className="h-5 w-5 text-gray-600" />
-          Meta da Equipe
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Números principais */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="text-center bg-gray-50 rounded-lg p-3 border border-gray-200">
-            <div className="text-2xl font-bold text-gray-900 mb-1">
-              {teamSales}
-            </div>
-            <p className="text-sm text-gray-600">Contratos Fechados</p>
-          </div>
-          <div className="text-center bg-gray-50 rounded-lg p-3 border border-gray-200">
-            <div className="text-2xl font-bold text-gray-900 mb-1">
-              {teamGoal}
-            </div>
-            <p className="text-sm text-gray-600">Meta do Mês</p>
-          </div>
-        </div>
-
-        {/* Barra de progresso */}
-        <div className="space-y-2">
-          <div className="flex justify-between items-center">
-            <span className="text-sm font-medium text-gray-700">Progresso da Equipe</span>
-            <span className="text-sm font-bold text-gray-900">
-              {Math.round(progressPercentage)}%
-            </span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-3">
-            <div 
-              className={`h-3 rounded-full transition-all duration-300 ${
-                isOnTrack 
-                  ? 'bg-green-600' 
-                  : 'bg-orange-500'
-              }`}
-              style={{ width: `${Math.min(progressPercentage, 100)}%` }}
-            ></div>
-          </div>
-        </div>
-
-        {/* Métricas adicionais */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-2 border border-gray-200">
-            <TrendingUp className="h-4 w-4 text-gray-600 flex-shrink-0" />
-            <div>
-              <div className="text-lg font-bold text-gray-900">
-                {isLoadingToday ? '...' : todayContracts}
+    <>
+      <Card className="bg-white border-gray-200">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg font-semibold text-gray-800">
+            <Target className="h-5 w-5 text-gray-600" />
+            Meta da Equipe
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Números principais */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="text-center bg-gray-50 rounded-lg p-3 border border-gray-200">
+              <div className="text-2xl font-bold text-gray-900 mb-1">
+                {teamSales}
               </div>
-              <p className="text-xs text-gray-600">Hoje</p>
+              <p className="text-sm text-gray-600">Contratos Fechados</p>
+            </div>
+            <div className="text-center bg-gray-50 rounded-lg p-3 border border-gray-200">
+              <div className="text-2xl font-bold text-gray-900 mb-1">
+                {teamGoal}
+              </div>
+              <p className="text-sm text-gray-600">Meta do Mês</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-2 border border-gray-200">
-            <Calendar className="h-4 w-4 text-gray-600 flex-shrink-0" />
-            <div>
-              <div className="text-lg font-bold text-gray-900">{daysRemaining}</div>
-              <p className="text-xs text-gray-600">Dias restantes</p>
-            </div>
-          </div>
-        </div>
 
-        {/* Meta diária - mais sério e sóbrio */}
-        <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-3 border border-gray-300">
-          <Trophy className="h-5 w-5 text-gray-700 flex-shrink-0" />
-          <div className="flex-1">
-            <div className="text-xl font-bold text-gray-900">{dailyTarget}</div>
-            <p className="text-sm text-gray-700 font-medium">Meta diária necessária</p>
+          {/* Barra de progresso */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-gray-700">Progresso da Equipe</span>
+              <span className="text-sm font-bold text-gray-900">
+                {Math.round(progressPercentage)}%
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-3">
+              <div 
+                className={`h-3 rounded-full transition-all duration-300 ${
+                  isOnTrack 
+                    ? 'bg-green-600' 
+                    : 'bg-orange-500'
+                }`}
+                style={{ width: `${Math.min(progressPercentage, 100)}%` }}
+              ></div>
+            </div>
           </div>
-        </div>
-      </CardContent>
-    </Card>
+
+          {/* Métricas adicionais */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-2 border border-gray-200">
+              <TrendingUp className="h-4 w-4 text-gray-600 flex-shrink-0" />
+              <div>
+                <div className="text-lg font-bold text-gray-900">
+                  {isLoadingToday ? '...' : todayContracts}
+                </div>
+                <p className="text-xs text-gray-600">Hoje</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-2 border border-gray-200">
+              <Calendar className="h-4 w-4 text-gray-600 flex-shrink-0" />
+              <div>
+                <div className="text-lg font-bold text-gray-900">{daysRemaining}</div>
+                <p className="text-xs text-gray-600">Dias restantes</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Meta diária - mais sério e sóbrio */}
+          <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-3 border border-gray-300">
+            <Trophy className="h-5 w-5 text-gray-700 flex-shrink-0" />
+            <div className="flex-1">
+              <div className="text-xl font-bold text-gray-900">{dailyTarget}</div>
+              <p className="text-sm text-gray-700 font-medium">Meta diária necessária</p>
+            </div>
+          </div>
+
+          {/* Botão para membros da equipe - apenas para admin */}
+          {isAdmin && (
+            <Button
+              onClick={() => setIsTeamModalOpen(true)}
+              variant="outline"
+              className="w-full mt-4 border-blue-200 text-blue-700 hover:bg-blue-50"
+            >
+              <Users className="h-4 w-4 mr-2" />
+              Ver Membros da Equipe
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+
+      <TeamMembersModal
+        open={isTeamModalOpen}
+        onOpenChange={setIsTeamModalOpen}
+      />
+    </>
   );
 }

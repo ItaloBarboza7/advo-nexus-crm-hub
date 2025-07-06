@@ -50,6 +50,7 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
   const [customSources, setCustomSources] = useState<string[]>([]);
   const [customActionGroups, setCustomActionGroups] = useState<string[]>([]);
   const [customActionTypes, setCustomActionTypes] = useState<string[]>([]);
+  const [userNames, setUserNames] = useState<{[key: string]: string}>({});
   const { toast } = useToast();
   const { actionGroupOptions, getActionTypeOptions } = useFilterOptions();
   const { tenantSchema, ensureTenantSchema } = useTenantSchema();
@@ -58,6 +59,29 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
   const validActionGroupNames = useMemo(() => {
     return actionGroupOptions.map(option => option.value);
   }, [actionGroupOptions]);
+
+  const fetchUserNames = async (userIds: string[]) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('user_id, name')
+        .in('user_id', userIds);
+
+      if (error) {
+        console.error('❌ Erro ao buscar nomes dos usuários:', error);
+        return;
+      }
+
+      const nameMap: {[key: string]: string} = {};
+      data?.forEach(profile => {
+        nameMap[profile.user_id] = profile.name;
+      });
+      
+      setUserNames(nameMap);
+    } catch (error) {
+      console.error('❌ Erro inesperado ao buscar nomes:', error);
+    }
+  };
 
   const fetchStatusHistory = async (leadId: string) => {
     try {
@@ -83,7 +107,14 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
 
       const historyData = Array.isArray(data) ? data : [];
       console.log(`✅ LeadDetailsDialog - ${historyData.length} registros de histórico encontrados:`, historyData);
+      console.log('📋 Dados do histórico:', historyData);
       setStatusHistory(historyData);
+
+      // Buscar nomes dos usuários
+      const userIds = [lead?.user_id, lead?.closed_by_user_id].filter(Boolean) as string[];
+      if (userIds.length > 0) {
+        await fetchUserNames(userIds);
+      }
     } catch (error) {
       console.error('❌ Erro inesperado ao buscar histórico:', error);
     }
@@ -669,7 +700,7 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
             <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg">
               <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
                 <Clock className="h-4 w-4" />
-                Histórico de Status ({completeHistory.length} registros)
+                Histórico
               </h3>
               <div className="space-y-3">
                 {completeHistory.map((history) => (
@@ -681,9 +712,19 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
                           <Badge className={getStatusColor(history.new_status)} variant="outline">
                             {history.new_status}
                           </Badge>
+                          {history.new_status === "Contrato Fechado" && lead.closed_by_user_id && (
+                            <span className="text-gray-500 dark:text-gray-400 ml-2">
+                              por {userNames[lead.closed_by_user_id] || "Usuário"}
+                            </span>
+                          )}
                         </>
                       ) : (
-                        <span className="text-gray-600 dark:text-gray-400">Lead criado em</span>
+                        <>
+                          <span className="text-gray-600 dark:text-gray-400">Lead criado por </span>
+                          <span className="font-medium text-gray-700 dark:text-gray-300">
+                            {userNames[lead.user_id] || "Usuário"}
+                          </span>
+                        </>
                       )}
                     </div>
                     <span className="text-gray-400 dark:text-gray-500">{formatDate(history.changed_at)}</span>
