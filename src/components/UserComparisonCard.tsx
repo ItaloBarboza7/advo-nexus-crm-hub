@@ -1,3 +1,4 @@
+
 import { Card } from "@/components/ui/card";
 import { ChevronDown } from "lucide-react";
 
@@ -82,25 +83,28 @@ export function UserComparisonCard({
   const currentMonthData = generateCurrentMonthData();
   const previousMonthData = generatePreviousMonthData();
   
-  // Calcular valores do eixo Y com escala que inclui 0 e vai até 180+
-  const maxDataValue = Math.max(...currentMonthData, ...previousMonthData, 180);
+  // Calcular valores do eixo Y com escala que inclui 0 e vai até um valor acima dos dados
+  const maxDataValue = Math.max(...currentMonthData, ...previousMonthData);
   
-  // Criar escala que inclui 0 e vai até um valor apropriado acima de 180
+  // Criar escala que inclui 0 e distribui os valores uniformemente
   const calculateYAxisValues = (maxValue: number) => {
-    const adjustedMax = Math.max(maxValue, 360); // Garantir que vai além de 180
+    // Garantir que o valor máximo seja pelo menos 200 para ter uma escala adequada
+    const adjustedMax = Math.max(maxValue, 200);
+    // Arredondar para um número mais limpo
+    const roundedMax = Math.ceil(adjustedMax / 50) * 50;
     
     return [
-      adjustedMax,
-      Math.round(adjustedMax * 0.75),
-      Math.round(adjustedMax * 0.5),
-      180,
+      roundedMax,
+      Math.round(roundedMax * 0.75),
+      Math.round(roundedMax * 0.5),
+      Math.round(roundedMax * 0.25),
       0
     ];
   };
 
   const yAxisValues = calculateYAxisValues(maxDataValue);
   const maxValue = yAxisValues[0];
-  const minValue = 0; // Manter zero como valor mínimo
+  const minValue = 0; // Sempre começar do zero
 
   return (
     <Card className="p-6 bg-white border border-gray-200">
@@ -154,7 +158,7 @@ export function UserComparisonCard({
 
         {/* Chart Area */}
         <div className="relative h-40 bg-gray-50 rounded border border-gray-100">
-          {/* Y-axis labels com escala que inclui 0 e vai até valores acima de 180 */}
+          {/* Y-axis labels com escala corrigida que vai de 0 até o valor máximo */}
           <div className="absolute left-0 top-0 h-full flex flex-col justify-between text-xs text-gray-500 pr-2 py-2">
             {yAxisValues.map((value, index) => (
               <span key={index}>{value}</span>
@@ -203,7 +207,7 @@ export function UserComparisonCard({
         
         {/* Chart Values Summary */}
         <div className="mt-2 text-xs text-gray-600 flex justify-between">
-          <span>Mês atual: {currentMonth.points} pts ({currentMonth.completed} contratos) - Dia {currentDay}</span>
+          <span>Mês atual: {currentMonth.points} pts ({currentMonth.completed} contratos) - Dia {today.getDate()}</span>
           <span>Mês anterior: {previousMonth.points} pts ({previousMonth.completed} contratos)</span>
         </div>
       </div>
