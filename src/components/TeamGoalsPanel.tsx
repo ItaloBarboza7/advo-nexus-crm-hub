@@ -1,7 +1,10 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Target, TrendingUp, Calendar, Users } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useTenantSchema } from "@/hooks/useTenantSchema";
+import { BrazilTimezone } from "@/lib/timezone";
 
 interface TeamGoalsPanelProps {
   teamSales: number;
@@ -18,6 +21,10 @@ export function TeamGoalsPanel({
   currentDay,
   teamSize
 }: TeamGoalsPanelProps) {
+  const [todayContracts, setTodayContracts] = useState(0);
+  const [isLoadingToday, setIsLoadingToday] = useState(true);
+  const { tenantSchema } = useTenantSchema();
+
   console.log('TeamGoalsPanel props:', { teamSales, teamGoal, daysInMonth, currentDay, teamSize });
   
   const progressPercentage = (teamSales / teamGoal) * 100;
@@ -26,6 +33,47 @@ export function TeamGoalsPanel({
   const remainingSales = Math.max(0, teamGoal - teamSales);
   const daysRemaining = daysInMonth - currentDay;
   const dailyTarget = daysRemaining > 0 ? Math.ceil(remainingSales / daysRemaining) : 0;
+
+  // Buscar contratos fechados hoje
+  useEffect(() => {
+    const fetchTodayContracts = async () => {
+      if (!tenantSchema) return;
+      
+      try {
+        setIsLoadingToday(true);
+        console.log("📊 TeamGoalsPanel - Buscando contratos fechados hoje...");
+
+        const today = BrazilTimezone.now();
+        const todayStr = BrazilTimezone.formatDateForQuery(today);
+        
+        const { data, error } = await supabase.rpc('exec_sql', {
+          sql: `
+            SELECT COUNT(*) as contracts_today
+            FROM ${tenantSchema}.leads
+            WHERE status = 'Contrato Fechado'
+              AND DATE(updated_at AT TIME ZONE 'America/Sao_Paulo') = '${todayStr}'
+          `
+        });
+
+        if (error) {
+          console.error("❌ Erro ao buscar contratos de hoje:", error);
+          return;
+        }
+
+        const contractsData = Array.isArray(data) && data.length > 0 ? data[0] : { contracts_today: 0 };
+        const contractsCount = parseInt(contractsData.contracts_today) || 0;
+        
+        console.log(`📈 TeamGoalsPanel - ${contractsCount} contratos fechados hoje`);
+        setTodayContracts(contractsCount);
+      } catch (error) {
+        console.error("❌ Erro inesperado ao buscar contratos de hoje:", error);
+      } finally {
+        setIsLoadingToday(false);
+      }
+    };
+
+    fetchTodayContracts();
+  }, [tenantSchema]);
 
   return (
     <Card className="bg-white border-gray-200">
@@ -77,8 +125,10 @@ export function TeamGoalsPanel({
           <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-2 border border-gray-200">
             <TrendingUp className="h-4 w-4 text-gray-600 flex-shrink-0" />
             <div>
-              <div className="text-lg font-bold text-gray-900">{dailyTarget}</div>
-              <p className="text-xs text-gray-600">Por dia</p>
+              <div className="text-lg font-bold text-gray-900">
+                {isLoadingToday ? '...' : todayContracts}
+              </div>
+              <p className="text-xs text-gray-600">Hoje</p>
             </div>
           </div>
           <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-2 border border-gray-200">
