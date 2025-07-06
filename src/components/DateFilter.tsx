@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
@@ -18,10 +19,30 @@ interface DateFilterProps {
 }
 
 export function DateFilter({ date, setDate }: DateFilterProps) {
+  const [tempDate, setTempDate] = useState<DateRange | undefined>(date);
+  const [isOpen, setIsOpen] = useState(false);
+
+  const handleApply = () => {
+    setDate(tempDate);
+    setIsOpen(false);
+  };
+
+  const handleCancel = () => {
+    setTempDate(date);
+    setIsOpen(false);
+  };
+
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open);
+    if (open) {
+      setTempDate(date);
+    }
+  };
+
   return (
     <div className="flex items-center gap-2">
       <span className="text-sm text-gray-600">Filtrar por período:</span>
-      <Popover>
+      <Popover open={isOpen} onOpenChange={handleOpenChange}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
@@ -34,11 +55,11 @@ export function DateFilter({ date, setDate }: DateFilterProps) {
             {date?.from ? (
               date.to ? (
                 <>
-                  {format(date.from, "dd/MM/yyyy")} -{" "}
-                  {format(date.to, "dd/MM/yyyy")}
+                  {format(date.from, "dd/MM/yyyy", { locale: ptBR })} -{" "}
+                  {format(date.to, "dd/MM/yyyy", { locale: ptBR })}
                 </>
               ) : (
-                format(date.from, "dd/MM/yyyy")
+                format(date.from, "dd/MM/yyyy", { locale: ptBR })
               )
             ) : (
               <span>Selecionar período</span>
@@ -46,15 +67,33 @@ export function DateFilter({ date, setDate }: DateFilterProps) {
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
-          <Calendar
-            initialFocus
-            mode="range"
-            defaultMonth={date?.from}
-            selected={date}
-            onSelect={setDate}
-            numberOfMonths={2}
-            className={cn("p-3 pointer-events-auto")}
-          />
+          <div className="space-y-4">
+            <Calendar
+              initialFocus
+              mode="range"
+              defaultMonth={tempDate?.from}
+              selected={tempDate}
+              onSelect={setTempDate}
+              numberOfMonths={2}
+              locale={ptBR}
+              className={cn("p-3 pointer-events-auto")}
+            />
+            <div className="flex justify-end gap-2 p-3 pt-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCancel}
+              >
+                Cancelar
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleApply}
+              >
+                Aplicar
+              </Button>
+            </div>
+          </div>
         </PopoverContent>
       </Popover>
     </div>

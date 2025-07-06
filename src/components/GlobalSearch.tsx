@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Search, X } from "lucide-react";
@@ -10,19 +11,23 @@ interface GlobalSearchProps {
 }
 
 export function GlobalSearch({ onLeadSelect }: GlobalSearchProps) {
-  const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [leads, setLeads] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showResults, setShowResults] = useState(false);
   const { tenantSchema } = useTenantSchema();
 
-  // Função para buscar leads - apenas quando necessário
-  const fetchLeads = async () => {
-    if (!tenantSchema || isLoading) return;
+  // Função para buscar leads quando o usuário digita
+  const fetchLeads = async (term: string) => {
+    if (!tenantSchema || !term.trim()) {
+      setLeads([]);
+      setShowResults(false);
+      return;
+    }
     
     try {
       setIsLoading(true);
-      console.log("🔍 GlobalSearch - Buscando leads do tenant...");
+      console.log("🔍 GlobalSearch - Buscando leads...");
       
       const { data, error } = await supabase.rpc('exec_sql' as any, {
         sql: `SELECT id, name, email, phone, status, user_id FROM ${tenantSchema}.leads ORDER BY created_at DESC LIMIT 100`
@@ -35,7 +40,8 @@ export function GlobalSearch({ onLeadSelect }: GlobalSearchProps) {
 
       const leadsData = Array.isArray(data) ? data : [];
       setLeads(leadsData);
-      console.log(`✅ GlobalSearch - ${leadsData.length} leads carregados do tenant`);
+      setShowResults(true);
+      console.log(`✅ GlobalSearch - ${leadsData.length} leads carregados`);
     } catch (error) {
       console.error('❌ Erro inesperado ao buscar leads:', error);
     } finally {
@@ -43,16 +49,23 @@ export function GlobalSearch({ onLeadSelect }: GlobalSearchProps) {
     }
   };
 
-  // Buscar leads apenas quando o modal é aberto e temos o schema
+  // Debounce para buscar leads enquanto digita
   useEffect(() => {
-    if (isOpen && tenantSchema && !leads.length) {
-      fetchLeads();
-    }
-  }, [isOpen, tenantSchema]);
+    const timeoutId = setTimeout(() => {
+      if (searchTerm.trim()) {
+        fetchLeads(searchTerm);
+      } else {
+        setLeads([]);
+        setShowResults(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, tenantSchema]);
 
   // Filtrar leads baseado no termo de busca
   const filteredLeads = useMemo(() => {
-    if (!searchTerm.trim()) return leads.slice(0, 10);
+    if (!searchTerm.trim()) return [];
     
     return leads.filter(lead =>
       lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -62,10 +75,10 @@ export function GlobalSearch({ onLeadSelect }: GlobalSearchProps) {
   }, [leads, searchTerm]);
 
   const handleLeadClick = (lead: any) => {
-    setIsOpen(false);
     setSearchTerm("");
+    setShowResults(false);
     
-    // Convert the lead data to match the Lead type from types/lead.ts
+    // Convert the lead data to match the Lead type
     const fullLead: Lead = {
       id: lead.id,
       name: lead.name,
@@ -94,42 +107,37 @@ export function GlobalSearch({ onLeadSelect }: GlobalSearchProps) {
     }
   };
 
-  if (!isOpen) {
-    return (
-      <button
-        onClick={() => setIsOpen(true)}
-        className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
-      >
-        <Search className="h-4 w-4" />
-        Buscar leads...
-      </button>
-    );
-  }
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+
+  const clearSearch = () => {
+    setSearchTerm("");
+    setShowResults(false);
+  };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center pt-20">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-        <div className="flex items-center gap-3 p-4 border-b">
-          <Search className="h-4 w-4 text-gray-400" />
-          <Input
-            placeholder="Buscar por nome, email ou telefone..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="border-0 focus-visible:ring-0 p-0"
-            autoFocus
-          />
+    <div className="relative w-full max-w-md">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+        <Input
+          placeholder="Buscar leads..."
+          value={searchTerm}
+          onChange={handleInputChange}
+          className="pl-10 pr-8"
+        />
+        {searchTerm && (
           <button
-            onClick={() => {
-              setIsOpen(false);
-              setSearchTerm("");
-            }}
-            className="p-1 hover:bg-gray-100 rounded"
+            onClick={clearSearch}
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-100 rounded"
           >
-            <X className="h-4 w-4" />
+            <X className="h-4 w-4 text-gray-400" />
           </button>
-        </div>
-        
-        <div className="max-h-96 overflow-y-auto">
+        )}
+      </div>
+      
+      {showResults && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 max-h-96 overflow-y-auto z-50">
           {isLoading ? (
             <div className="p-4 text-center text-gray-500">
               Carregando...
@@ -155,11 +163,11 @@ export function GlobalSearch({ onLeadSelect }: GlobalSearchProps) {
             </div>
           ) : (
             <div className="p-4 text-center text-gray-500">
-              {searchTerm ? "Nenhum lead encontrado" : "Digite para buscar"}
+              Nenhum lead encontrado
             </div>
           )}
         </div>
-      </div>
+      )}
     </div>
   );
 }
