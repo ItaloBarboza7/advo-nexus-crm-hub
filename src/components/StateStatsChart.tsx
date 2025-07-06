@@ -1,7 +1,8 @@
+
 import { useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Users, UserCheck, Trophy } from "lucide-react";
+import { MapPin, Users, UserCheck } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Lead } from "@/types/lead";
 
@@ -142,7 +143,6 @@ export function StateStatsChart({ leads, selectedCategory = "all", hasLeadPassed
 
   const totalLeads = leads?.length || 0;
   const totalMetrica = stateStats.reduce((acc, state) => acc + state.metrica, 0);
-  const top3Estados = stateStats.slice(0, 3);
 
   if (totalLeads === 0) {
     return (
@@ -179,53 +179,7 @@ export function StateStatsChart({ leads, selectedCategory = "all", hasLeadPassed
         </div>
       </div>
 
-      <div className="mb-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Trophy className="h-5 w-5 text-yellow-500" />
-          <h4 className="font-semibold text-gray-800">Top 3 Estados</h4>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {top3Estados.map((estado, index) => (
-            <div key={estado.state} className={`p-4 rounded-lg border-2 ${
-              index === 0 ? 'bg-yellow-50 border-yellow-200' :
-              index === 1 ? 'bg-gray-50 border-gray-200' :
-              'bg-orange-50 border-orange-200'
-            }`}>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${
-                    index === 0 ? 'bg-yellow-500' :
-                    index === 1 ? 'bg-gray-500' :
-                    'bg-orange-500'
-                  }`}>
-                    {index + 1}
-                  </div>
-                  <span className="font-semibold text-gray-800">{estado.state}</span>
-                </div>
-                <Badge className={
-                  index === 0 ? 'bg-yellow-100 text-yellow-800' :
-                  index === 1 ? 'bg-gray-100 text-gray-800' :
-                  'bg-orange-100 text-orange-800'
-                }>
-                  {estado.metrica}
-                </Badge>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="text-center">
-                  <div className="font-bold text-gray-900">{estado.total}</div>
-                  <div className="text-gray-600 text-xs">Total</div>
-                </div>
-                <div className="text-center">
-                  <div className="font-bold text-green-700">{estado.metrica}</div>
-                  <div className="text-gray-600 text-xs">{getMetricaLabel()}</div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* REMOÇÃO: Seção "Top 3 Estados" com trofeu foi removida completamente */}
 
       <div className="space-y-3">
         <h4 className="font-semibold text-gray-800 mb-4">Todos os Estados</h4>
