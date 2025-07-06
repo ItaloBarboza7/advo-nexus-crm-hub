@@ -16,19 +16,33 @@ import {
 interface DateFilterProps {
   date: DateRange | undefined;
   setDate: (date: DateRange | undefined) => void;
+  onApply?: (dateRange: DateRange | undefined) => void;
 }
 
-export function DateFilter({ date, setDate }: DateFilterProps) {
+export function DateFilter({ date, setDate, onApply }: DateFilterProps) {
   const [tempDate, setTempDate] = useState<DateRange | undefined>(date);
   const [isOpen, setIsOpen] = useState(false);
 
   const handleApply = () => {
     setDate(tempDate);
+    if (onApply) {
+      onApply(tempDate);
+    }
     setIsOpen(false);
   };
 
   const handleCancel = () => {
     setTempDate(date);
+    setIsOpen(false);
+  };
+
+  const handleClear = () => {
+    const clearedDate = undefined;
+    setTempDate(clearedDate);
+    setDate(clearedDate);
+    if (onApply) {
+      onApply(clearedDate);
+    }
     setIsOpen(false);
   };
 
@@ -78,20 +92,30 @@ export function DateFilter({ date, setDate }: DateFilterProps) {
               locale={ptBR}
               className={cn("p-3 pointer-events-auto")}
             />
-            <div className="flex justify-end gap-2 p-3 pt-0">
+            <div className="flex justify-between gap-2 p-3 pt-0">
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                onClick={handleCancel}
+                onClick={handleClear}
+                className="text-red-600 hover:text-red-700"
               >
-                Cancelar
+                Limpar
               </Button>
-              <Button
-                size="sm"
-                onClick={handleApply}
-              >
-                Aplicar
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCancel}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleApply}
+                >
+                  Aplicar
+                </Button>
+              </div>
             </div>
           </div>
         </PopoverContent>

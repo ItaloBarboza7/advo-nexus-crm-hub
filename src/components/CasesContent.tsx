@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DateRange } from "react-day-picker";
 import { DateFilter } from "@/components/DateFilter";
 import { AnalysisStats } from "@/components/analysis/AnalysisStats";
@@ -20,6 +20,7 @@ import { FilterOptions } from "@/components/AdvancedFilters";
 export function CasesContent() {
   const [searchTerm, setSearchTerm] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [appliedDateRange, setAppliedDateRange] = useState<DateRange | undefined>();
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [advancedFilters, setAdvancedFilters] = useState<FilterOptions>({
     status: [],
@@ -65,8 +66,16 @@ export function CasesContent() {
     shouldShowStateChart
   } = useAnalysisLogic(leads, selectedCategory, statusHistory, hasLeadPassedThroughStatus);
   
+  // Filter leads by date range
+  const dateFilteredLeads = appliedDateRange?.from && appliedDateRange?.to
+    ? leads.filter(lead => {
+        const leadDate = new Date(lead.created_at);
+        return leadDate >= appliedDateRange.from! && leadDate <= appliedDateRange.to!;
+      })
+    : leads;
+
   const { filteredLeads } = useLeadFiltering(
-    leads,
+    dateFilteredLeads, // Use date-filtered leads instead of all leads
     searchTerm,
     selectedCategory,
     advancedFilters,
@@ -88,18 +97,50 @@ export function CasesContent() {
     });
   };
 
+  const handleDateRangeApply = (range: DateRange | undefined) => {
+    console.log("📅 CasesContent - Período aplicado:", range);
+    setAppliedDateRange(range);
+  };
+
+  // Update analysis logic to use date-filtered leads
+  const {
+    getLeadsForChart: getDateFilteredLeadsForChart,
+    shouldShowChart: shouldShowChartForFiltered,
+    shouldShowLossReasonsChart: shouldShowLossReasonsChartForFiltered,
+    shouldShowActionTypesChart: shouldShowActionTypesChartForFiltered,
+    shouldShowActionGroupChart: shouldShowActionGroupChartForFiltered,
+    shouldShowStateChart: shouldShowStateChartForFiltered
+  } = useAnalysisLogic(dateFilteredLeads, selectedCategory, statusHistory, hasLeadPassedThroughStatus);
+
+  console.log("📊 CasesContent - Dados filtrados:", {
+    totalLeads: leads.length,
+    dateFilteredLeads: dateFilteredLeads.length,
+    filteredLeads: filteredLeads.length,
+    appliedDateRange,
+    selectedCategory
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Análises</h1>
-          <p className="text-gray-600">Análise detalhada de leads e performance de vendas</p>
+          <p className="text-gray-600">
+            {appliedDateRange?.from && appliedDateRange?.to
+              ? `Análise detalhada - Período: ${appliedDateRange.from.toLocaleDateString('pt-BR')} a ${appliedDateRange.to.toLocaleDateString('pt-BR')}`
+              : "Análise detalhada de leads e performance de vendas"
+            }
+          </p>
         </div>
-        <DateFilter date={dateRange} setDate={setDateRange} />
+        <DateFilter 
+          date={dateRange} 
+          setDate={setDateRange}
+          onApply={handleDateRangeApply}
+        />
       </div>
 
       <AnalysisStats 
-        leads={leads} 
+        leads={dateFilteredLeads} 
         onCategoryChange={handleCategoryChange}
         statusHistory={statusHistory}
         hasLeadPassedThroughStatus={hasLeadPassedThroughStatus}
@@ -127,13 +168,13 @@ export function CasesContent() {
       />
 
       <ChartsSection
-        leads={getLeadsForChart}
+        leads={getDateFilteredLeadsForChart}
         selectedCategory={selectedCategory}
-        shouldShowChart={shouldShowChart()}
-        shouldShowLossReasonsChart={shouldShowLossReasonsChart()}
-        shouldShowActionTypesChart={shouldShowActionTypesChart()}
-        shouldShowActionGroupChart={shouldShowActionGroupChart()}
-        shouldShowStateChart={shouldShowStateChart()}
+        shouldShowChart={shouldShowChartForFiltered()}
+        shouldShowLossReasonsChart={shouldShowLossReasonsChartForFiltered()}
+        shouldShowActionTypesChart={shouldShowActionTypesChartForFiltered()}
+        shouldShowActionGroupChart={shouldShowActionGroupChartForFiltered()}
+        shouldShowStateChart={shouldShowStateChartForFiltered()}
         hasLeadPassedThroughStatus={hasLeadPassedThroughStatus}
         leadsViewMode={leadsViewMode}
         contractsViewMode={contractsViewMode}
@@ -147,7 +188,7 @@ export function CasesContent() {
         filteredLeads={filteredLeads}
         selectedCategory={selectedCategory}
         isLoading={isLoading}
-        shouldShowStateChart={shouldShowStateChart()}
+        shouldShowStateChart={shouldShowStateChartForFiltered()}
         onViewDetails={handleViewDetails}
         onEditLead={handleEditLead}
       />

@@ -4,14 +4,18 @@ import { Card } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { CalendarIcon, X, BarChart3, TrendingUp, Users, DollarSign } from "lucide-react";
+import { DateRange } from "react-day-picker";
 import { BrazilTimezone } from "@/lib/timezone";
 import { ActivityPanel } from "@/components/ActivityPanel";
 import { useLeadsForDate } from "@/hooks/useLeadsForDate";
 import { useContractsData } from "@/hooks/useContractsData";
+import { DateFilter } from "@/components/DateFilter";
 import { cn } from "@/lib/utils";
 
 export function Dashboard() {
   const [selectedDate, setSelectedDate] = useState<Date>(BrazilTimezone.now());
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [appliedDateRange, setAppliedDateRange] = useState<DateRange | undefined>();
   const [showActivityPanel, setShowActivityPanel] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
@@ -32,39 +36,81 @@ export function Dashboard() {
     fetchContractsForDate 
   } = useContractsData();
 
-  // Fetch data when date changes
+  // Fetch data when date changes or when date range is applied
   useEffect(() => {
-    if (selectedDate) {
-      console.log("📅 Dashboard - Data selecionada mudou:", BrazilTimezone.formatDateForDisplay(selectedDate));
+    if (appliedDateRange?.from && appliedDateRange?.to) {
+      console.log("📅 Dashboard - Filtrando por período:", {
+        from: BrazilTimezone.formatDateForDisplay(appliedDateRange.from),
+        to: BrazilTimezone.formatDateForDisplay(appliedDateRange.to)
+      });
+      // Para período, usar a data inicial do range
+      fetchLeadsForDate(appliedDateRange.from);
+      fetchContractsForDate(appliedDateRange.from);
+    } else if (selectedDate) {
+      console.log("📅 Dashboard - Data selecionada:", BrazilTimezone.formatDateForDisplay(selectedDate));
       fetchLeadsForDate(selectedDate);
       fetchContractsForDate(selectedDate);
     }
-  }, [selectedDate, fetchLeadsForDate, fetchContractsForDate]);
+  }, [selectedDate, appliedDateRange, fetchLeadsForDate, fetchContractsForDate]);
 
   const handleDateSelect = useCallback((date: Date | undefined) => {
     if (date) {
       console.log("📅 Dashboard - Nova data selecionada:", BrazilTimezone.formatDateForDisplay(date));
       setSelectedDate(date);
+      setAppliedDateRange(undefined); // Limpar filtro de período quando selecionar data específica
       setIsCalendarOpen(false);
     }
   }, []);
 
+  const handleDateRangeApply = useCallback((range: DateRange | undefined) => {
+    console.log("📅 Dashboard - Período aplicado:", range);
+    setAppliedDateRange(range);
+    if (range) {
+      // Limpar seleção de data individual quando aplicar período
+      setSelectedDate(range.from || BrazilTimezone.now());
+    }
+  }, []);
+
   const handleShowActivity = useCallback(() => {
-    console.log("🎯 Dashboard - Mostrando painel de atividades para:", BrazilTimezone.formatDateForDisplay(selectedDate));
+    const displayDate = appliedDateRange?.from || selectedDate;
+    console.log("🎯 Dashboard - Mostrando painel de atividades para:", BrazilTimezone.formatDateForDisplay(displayDate));
     setShowActivityPanel(true);
-  }, [selectedDate]);
+  }, [selectedDate, appliedDateRange]);
 
   const handleCloseActivity = useCallback(() => {
     console.log("❌ Dashboard - Fechando painel de atividades");
     setShowActivityPanel(false);
   }, []);
 
-  const totalValue = contracts.reduce((sum, contract) => sum + contract.value, 0);
+  // Filter data based on applied date range
+  const filteredLeads = appliedDateRange?.from && appliedDateRange?.to
+    ? leads.filter(lead => {
+        const leadDate = new Date(lead.createdAt);
+        return leadDate >= appliedDateRange.from! && leadDate <= appliedDateRange.to!;
+      })
+    : leads;
+
+  const filteredContracts = appliedDateRange?.from && appliedDateRange?.to
+    ? contracts.filter(contract => {
+        const contractDate = new Date(contract.date);
+        return contractDate >= appliedDateRange.from! && contractDate <= appliedDateRange.to!;
+      })
+    : contracts;
+
+  const totalValue = filteredContracts.reduce((sum, contract) => sum + contract.value, 0);
+
+  const getDisplayTitle = () => {
+    if (appliedDateRange?.from && appliedDateRange?.to) {
+      return `Período de ${BrazilTimezone.formatDateForDisplay(appliedDateRange.from)} a ${BrazilTimezone.formatDateForDisplay(appliedDateRange.to)}`;
+    }
+    return `Resumo das atividades de ${BrazilTimezone.formatDateForDisplay(selectedDate)}`;
+  };
 
   console.log("🎯 Dashboard - Estado atual:", {
     selectedDate: BrazilTimezone.formatDateForDisplay(selectedDate),
-    contractsCount: contracts.length,
-    leadsCount: leads.length,
+    appliedDateRange,
+    contractsCount: filteredContracts.length,
+    leadsCount: filteredLeads.length,
     totalValue,
     showActivityPanel,
     leadsLoading,
@@ -77,11 +123,17 @@ export function Dashboard() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
           <p className="text-gray-600">
-            Resumo das atividades de {BrazilTimezone.formatDateForDisplay(selectedDate)}
+            {getDisplayTitle()}
           </p>
         </div>
         
         <div className="flex items-center gap-4">
+          <DateFilter 
+            date={dateRange} 
+            setDate={setDateRange}
+            onApply={handleDateRangeApply}
+          />
+          
           <div className="relative">
             <Button
               variant="outline"
@@ -126,9 +178,9 @@ export function Dashboard() {
       {/* Activity Panel */}
       {showActivityPanel && (
         <ActivityPanel
-          selectedDate={selectedDate}
-          contracts={contracts}
-          leads={leads}
+          selectedDate={appliedDateRange?.from || selectedDate}
+          contracts={filteredContracts}
+          leads={filteredLeads}
           isLoading={leadsLoading || contractsLoading}
           error={leadsError || contractsError}
           currentUser={leadsUser || contractsUser}
@@ -145,7 +197,7 @@ export function Dashboard() {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Contratos Fechados</p>
-              <p className="text-2xl font-bold text-gray-900">{contracts.length}</p>
+              <p className="text-2xl font-bold text-gray-900">{filteredContracts.length}</p>
             </div>
           </div>
         </Card>
@@ -172,7 +224,7 @@ export function Dashboard() {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Ticket Médio</p>
               <p className="text-2xl font-bold text-gray-900">
-                R$ {contracts.length > 0 ? Math.round(totalValue / contracts.length).toLocaleString('pt-BR') : '0'}
+                R$ {filteredContracts.length > 0 ? Math.round(totalValue / filteredContracts.length).toLocaleString('pt-BR') : '0'}
               </p>
             </div>
           </div>
@@ -185,7 +237,7 @@ export function Dashboard() {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Leads Cadastrados</p>
-              <p className="text-2xl font-bold text-gray-900">{leads.length}</p>
+              <p className="text-2xl font-bold text-gray-900">{filteredLeads.length}</p>
             </div>
           </div>
         </Card>
