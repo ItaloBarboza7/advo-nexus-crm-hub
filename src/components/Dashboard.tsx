@@ -109,13 +109,29 @@ export function Dashboard() {
     setShowActivityPanel(false);
   }, []);
 
-  // CORREÇÃO: Usar os dados diretamente dos hooks sem filtrar novamente
-  // Os hooks já fazem a filtragem correta baseada no período selecionado
+  // Usar os dados diretamente dos hooks
   const displayLeads = leads;
   const displayContracts = contracts;
 
   // Calcular valor total dos contratos
   const totalValue = displayContracts.reduce((sum, contract) => sum + contract.value, 0);
+
+  // Calcular estatísticas baseadas nos leads filtrados
+  const totalLeadsCount = displayLeads.length;
+  const proposalsAndMeetings = displayLeads.filter(lead => 
+    lead.status === "Proposta" || lead.status === "Reunião"
+  ).length;
+  const lostLeads = displayLeads.filter(lead => lead.status === "Perdido").length;
+  const closedDeals = displayLeads.filter(lead => lead.status === "Contrato Fechado").length;
+
+  console.log("🎯 Dashboard - Dados finais:", {
+    totalLeadsFromHook: displayLeads.length,
+    totalLeadsCount,
+    proposalsAndMeetings,
+    lostLeads,
+    closedDeals,
+    appliedDateRange
+  });
 
   const getDisplayTitle = () => {
     if (appliedDateRange?.from && appliedDateRange?.to) {
@@ -138,15 +154,6 @@ export function Dashboard() {
     }
     return `Resumo das atividades de ${BrazilTimezone.formatDateForDisplay(selectedDate)}`;
   };
-
-  console.log("🎯 Dashboard - Estado atual dos dados:", {
-    selectedDate: BrazilTimezone.formatDateForDisplay(selectedDate),
-    appliedDateRange,
-    totalLeads: displayLeads.length,
-    contractsCount: displayContracts.length,
-    totalValue,
-    showActivityPanel
-  });
 
   return (
     <div className="space-y-6">
@@ -228,7 +235,7 @@ export function Dashboard() {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Contratos Fechados</p>
-              <p className="text-2xl font-bold text-gray-900">{displayContracts.length}</p>
+              <p className="text-2xl font-bold text-gray-900">{closedDeals}</p>
             </div>
           </div>
         </Card>
@@ -255,7 +262,7 @@ export function Dashboard() {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Ticket Médio</p>
               <p className="text-2xl font-bold text-gray-900">
-                R$ {displayContracts.length > 0 ? Math.round(totalValue / displayContracts.length).toLocaleString('pt-BR') : '0'}
+                R$ {closedDeals > 0 ? Math.round(totalValue / closedDeals).toLocaleString('pt-BR') : '0'}
               </p>
             </div>
           </div>
@@ -268,11 +275,24 @@ export function Dashboard() {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Leads Cadastrados</p>
-              <p className="text-2xl font-bold text-gray-900">{displayLeads.length}</p>
+              <p className="text-2xl font-bold text-gray-900">{totalLeadsCount}</p>
             </div>
           </div>
         </Card>
       </div>
+
+      {/* Debug Info */}
+      <Card className="p-4 bg-gray-50">
+        <h3 className="font-medium mb-2">Debug Info:</h3>
+        <div className="text-sm text-gray-600">
+          <p>Leads retornados pelo hook: {displayLeads.length}</p>
+          <p>Período aplicado: {appliedDateRange ? 
+            `${BrazilTimezone.formatDateForDisplay(appliedDateRange.from!)} - ${BrazilTimezone.formatDateForDisplay(appliedDateRange.to!)}` 
+            : 'Nenhum'}</p>
+          <p>Hook carregando: {leadsLoading ? 'Sim' : 'Não'}</p>
+          <p>Erro: {leadsError || 'Nenhum'}</p>
+        </div>
+      </Card>
 
       {/* Loading States */}
       {(leadsLoading || contractsLoading) && (
