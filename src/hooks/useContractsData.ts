@@ -84,12 +84,12 @@ export function useContractsData() {
       setError(null);
       
       console.log("📅 Buscando contratos fechados em:", BrazilTimezone.formatDateForDisplay(selectedDate));
-      console.log("🏢 Para todos os usuários do tenant");
+      console.log("👤 Filtrado para o usuário:", currentUser.name);
 
       const dateString = BrazilTimezone.formatDateForQuery(selectedDate);
       console.log("📅 Data formatada para query:", dateString);
       
-      // Removido filtro de closed_by_user_id para buscar todos os contratos do tenant
+      // Filtrar contratos apenas do usuário atual
       const sql = `
         SELECT 
           l.id, l.name, l.email, l.phone, l.value, l.status, l.updated_at, l.closed_by_user_id,
@@ -98,10 +98,11 @@ export function useContractsData() {
         LEFT JOIN public.user_profiles up ON l.closed_by_user_id = up.user_id
         WHERE l.status = 'Contrato Fechado'
           AND DATE(l.updated_at AT TIME ZONE 'America/Sao_Paulo') = '${dateString}'
+          AND l.closed_by_user_id = '${currentUser.id}'
         ORDER BY l.updated_at DESC
       `;
 
-      console.log("🔍 Executando SQL para contratos:", sql);
+      console.log("🔍 Executando SQL para contratos do usuário:", sql);
 
       const { data, error } = await supabase.rpc('exec_sql', {
         sql: sql
@@ -147,7 +148,7 @@ export function useContractsData() {
           };
         });
 
-      console.log(`✅ ${transformedContracts.length} contratos processados de todos os usuários:`, transformedContracts);
+      console.log(`✅ ${transformedContracts.length} contratos processados do usuário ${currentUser.name}:`, transformedContracts);
       setContracts(transformedContracts);
       
     } catch (error: any) {
