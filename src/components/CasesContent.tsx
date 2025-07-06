@@ -34,7 +34,7 @@ export function CasesContent() {
   });
   const [isInitialized, setIsInitialized] = useState(false);
   
-  // CORREÇÃO: Usar hooks com filtro de data
+  // Usar hooks com filtro de data que agora retorna Lead[] completo
   const { 
     leads, 
     isLoading, 
@@ -80,7 +80,7 @@ export function CasesContent() {
     shouldShowStateChart
   } = useAnalysisLogic(leads, selectedCategory, statusHistory, hasLeadPassedThroughStatus);
 
-  // CORREÇÃO: Função memoizada para buscar dados do mês atual
+  // Função memoizada para buscar dados do mês atual
   const fetchCurrentMonthData = useCallback(() => {
     const now = BrazilTimezone.now();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -100,7 +100,7 @@ export function CasesContent() {
     fetchLeadsForDateRange(currentMonthRange);
   }, [fetchLeadsForDateRange]);
 
-  // CORREÇÃO: Inicialização única sem dependência circular
+  // Inicialização única sem dependência circular
   useEffect(() => {
     if (!isInitialized && currentUser) {
       console.log("🚀 CasesContent - Inicializando análises pela primeira vez");
@@ -109,7 +109,7 @@ export function CasesContent() {
     }
   }, [isInitialized, currentUser, fetchCurrentMonthData]);
 
-  // CORREÇÃO: Função para aplicar filtro de data sem recursão
+  // Função para aplicar filtro de data sem recursão
   const handleDateRangeApply = useCallback((range: DateRange | undefined) => {
     console.log("📅 CasesContent - Aplicando filtro de período:", range);
     
@@ -177,7 +177,7 @@ export function CasesContent() {
     isInitialized
   });
 
-  // CORREÇÃO: Melhorar getDisplayTitle para lidar com casos onde to pode ser undefined
+  // Melhorar getDisplayTitle para lidar com casos onde to pode ser undefined
   const getDisplayTitle = () => {
     if (appliedDateRange?.from) {
       if (appliedDateRange?.to) {
@@ -189,7 +189,7 @@ export function CasesContent() {
     return "Análise detalhada de leads e performance de vendas";
   };
 
-  // CORREÇÃO: Estado de carregamento melhorado
+  // Estado de carregamento melhorado
   if (isLoading || !isInitialized) {
     return (
       <div className="space-y-6">
@@ -219,7 +219,7 @@ export function CasesContent() {
         />
       </div>
 
-      {/* CORREÇÃO: Usar dados filtrados por data para as estatísticas */}
+      {/* Usar dados filtrados por data para as estatísticas */}
       <AnalysisStats 
         leads={leads || []} 
         onCategoryChange={handleCategoryChange}

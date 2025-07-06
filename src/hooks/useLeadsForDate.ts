@@ -4,23 +4,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useTenantSchema } from '@/hooks/useTenantSchema';
 import { BrazilTimezone } from '@/lib/timezone';
 import { DateRange } from 'react-day-picker';
-
-export interface LeadForDate {
-  id: string;
-  name: string;
-  phone: string;
-  email?: string;
-  source?: string;
-  status: string;
-  createdAt: Date;
-  value?: number;
-  user_id?: string;
-  action_type?: string;
-  action_group?: string;
-}
+import { Lead } from '@/types/lead';
 
 export function useLeadsForDate() {
-  const [leads, setLeads] = useState<LeadForDate[]>([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<{ id: string; name: string } | null>(null);
@@ -96,7 +83,8 @@ export function useLeadsForDate() {
       
       const sql = `
         SELECT 
-          id, name, phone, email, source, status, created_at, value, user_id, action_type, action_group
+          id, name, phone, email, source, status, created_at, updated_at, value, user_id, 
+          action_type, action_group, description, state, loss_reason, closed_by_user_id
         FROM ${tenantSchema}.leads
         WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = '${dateString}'
         ORDER BY created_at DESC
@@ -125,7 +113,7 @@ export function useLeadsForDate() {
         leadsData = [];
       }
       
-      const transformedLeads: LeadForDate[] = leadsData
+      const transformedLeads: Lead[] = leadsData
         .filter((item: any) => {
           if (!item || typeof item !== 'object') {
             console.log("🚫 Item inválido ignorado:", item);
@@ -135,21 +123,25 @@ export function useLeadsForDate() {
         })
         .map((lead: any) => {
           console.log("🔄 Processando lead:", lead);
-          const leadDate = new Date(lead.created_at);
           
           return {
             id: lead.id || 'unknown',
             name: lead.name || 'Nome não informado',
             phone: lead.phone || '',
-            email: lead.email || undefined,
-            source: lead.source || undefined,
+            email: lead.email || null,
+            source: lead.source || null,
             status: lead.status || 'Novo',
-            createdAt: leadDate,
-            value: lead.value ? Number(lead.value) : undefined,
-            user_id: lead.user_id,
-            action_type: lead.action_type || undefined,
-            action_group: lead.action_group || undefined
-          };
+            created_at: lead.created_at || new Date().toISOString(),
+            updated_at: lead.updated_at || new Date().toISOString(),
+            value: lead.value ? Number(lead.value) : null,
+            user_id: lead.user_id || currentUser.id,
+            action_type: lead.action_type || null,
+            action_group: lead.action_group || null,
+            description: lead.description || null,
+            state: lead.state || null,
+            loss_reason: lead.loss_reason || null,
+            closed_by_user_id: lead.closed_by_user_id || null
+          } as Lead;
         });
 
       console.log(`✅ ${transformedLeads.length} leads processados de todos os usuários:`, transformedLeads);
@@ -191,7 +183,8 @@ export function useLeadsForDate() {
 
       const sql = `
         SELECT 
-          id, name, phone, email, source, status, created_at, value, user_id, action_type, action_group
+          id, name, phone, email, source, status, created_at, updated_at, value, user_id, 
+          action_type, action_group, description, state, loss_reason, closed_by_user_id
         FROM ${tenantSchema}.leads
         WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') BETWEEN '${fromDate}' AND '${toDate}'
         ORDER BY created_at DESC
@@ -210,21 +203,26 @@ export function useLeadsForDate() {
 
       const leadsData = Array.isArray(data) ? data : [];
       
-      const transformedLeads: LeadForDate[] = leadsData
+      const transformedLeads: Lead[] = leadsData
         .filter((item: any) => item && typeof item === 'object')
         .map((lead: any) => ({
           id: lead.id || 'unknown',
           name: lead.name || 'Nome não informado',
           phone: lead.phone || '',
-          email: lead.email || undefined,
-          source: lead.source || undefined,
+          email: lead.email || null,
+          source: lead.source || null,
           status: lead.status || 'Novo',
-          createdAt: new Date(lead.created_at),
-          value: lead.value ? Number(lead.value) : undefined,
-          user_id: lead.user_id,
-          action_type: lead.action_type || undefined,
-          action_group: lead.action_group || undefined
-        }));
+          created_at: lead.created_at || new Date().toISOString(),
+          updated_at: lead.updated_at || new Date().toISOString(),
+          value: lead.value ? Number(lead.value) : null,
+          user_id: lead.user_id || currentUser.id,
+          action_type: lead.action_type || null,
+          action_group: lead.action_group || null,
+          description: lead.description || null,
+          state: lead.state || null,
+          loss_reason: lead.loss_reason || null,
+          closed_by_user_id: lead.closed_by_user_id || null
+        } as Lead));
 
       console.log(`✅ ${transformedLeads.length} leads encontrados no período de todos os usuários`);
       setLeads(transformedLeads);
