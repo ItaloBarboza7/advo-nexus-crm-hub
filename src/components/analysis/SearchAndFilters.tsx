@@ -47,10 +47,25 @@ export function SearchAndFilters({
   });
 
   const mainCategory = selectedCategory.split('-')[0];
+  
+  // CORREÇÃO: Função revisada para mostrar botões de visualização corretamente
   const shouldShowViewToggle = (category: string) => {
-    return category === "all" || 
-           (category === "contratos" && (selectedCategory === "contratos" || selectedCategory.startsWith("contratos-"))) ||
-           (category === "oportunidades" && (selectedCategory === "oportunidades" || selectedCategory.startsWith("oportunidades-")));
+    // Sempre mostrar para "all" (incluindo quando está em "estados")
+    if (category === "all") {
+      return selectedCategory === "all" || selectedCategory === "estados";
+    }
+    
+    // Para contratos: mostrar quando categoria é "contratos" ou suas subcategorias
+    if (category === "contratos") {
+      return selectedCategory === "contratos" || selectedCategory.startsWith("contratos-");
+    }
+    
+    // Para oportunidades: mostrar quando categoria é "oportunidades" ou suas subcategorias  
+    if (category === "oportunidades") {
+      return selectedCategory === "oportunidades" || selectedCategory.startsWith("oportunidades-");
+    }
+    
+    return false;
   };
 
   return (
@@ -67,29 +82,28 @@ export function SearchAndFilters({
         </div>
         
         <div className="flex items-center gap-2">
-          {selectedCategory !== "estados" && (
-            <AdvancedFilters 
-              onFiltersChange={setAdvancedFilters}
-              activeFilters={advancedFilters}
-              selectedCategory={selectedCategory}
-              lossReasons={lossReasons}
-            />
-          )}
+          {/* CORREÇÃO: Sempre mostrar filtros avançados, exceto para perdas onde há lógica específica */}
+          <AdvancedFilters 
+            onFiltersChange={setAdvancedFilters}
+            activeFilters={advancedFilters}
+            selectedCategory={selectedCategory}
+            lossReasons={lossReasons}
+          />
           
-          {/* Dropdown para visualização de leads quando categoria for "all" */}
-          {shouldShowViewToggle("all") && selectedCategory === "all" && onLeadsViewChange && (
+          {/* Dropdown para visualização de leads quando categoria for "all" ou "estados" */}
+          {shouldShowViewToggle("all") && onLeadsViewChange && (
             <ViewToggleDropdown
               currentView={leadsViewMode}
               onViewChange={(view) => {
-                console.log(`🎯 ViewToggleDropdown (all) - view: ${view}`);
+                console.log(`🎯 ViewToggleDropdown (all/estados) - view: ${view}`);
                 onLeadsViewChange(view);
               }}
               label="Leads"
             />
           )}
 
-          {/* Dropdown para visualização de contratos - SEMPRE mostrar quando categoria for "contratos" ou subcategorias */}
-          {shouldShowViewToggle("contratos") && mainCategory === "contratos" && onContractsViewChange && (
+          {/* Dropdown para visualização de contratos */}
+          {shouldShowViewToggle("contratos") && onContractsViewChange && (
             <ViewToggleDropdown
               currentView={contractsViewMode}
               onViewChange={(view) => {
@@ -100,8 +114,8 @@ export function SearchAndFilters({
             />
           )}
 
-          {/* Dropdown para visualização de oportunidades - SEMPRE mostrar quando categoria for "oportunidades" ou subcategorias */}
-          {shouldShowViewToggle("oportunidades") && mainCategory === "oportunidades" && onOpportunitiesViewChange && (
+          {/* Dropdown para visualização de oportunidades */}
+          {shouldShowViewToggle("oportunidades") && onOpportunitiesViewChange && (
             <ViewToggleDropdown
               currentView={opportunitiesViewMode}
               onViewChange={(view) => {
