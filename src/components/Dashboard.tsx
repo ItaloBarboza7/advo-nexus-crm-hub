@@ -58,7 +58,7 @@ export function Dashboard() {
   // Fetch data when date changes or when date range is applied
   useEffect(() => {
     if (appliedDateRange?.from && appliedDateRange?.to) {
-      console.log("📅 Dashboard - Filtrando por período:", {
+      console.log("📅 Dashboard - Buscando dados para período:", {
         from: BrazilTimezone.formatDateForDisplay(appliedDateRange.from),
         to: BrazilTimezone.formatDateForDisplay(appliedDateRange.to)
       });
@@ -70,11 +70,11 @@ export function Dashboard() {
         from: appliedDateRange.from,
         to: appliedDateRange.from
       };
-      console.log("📅 Dashboard - Filtrando por dia único:", BrazilTimezone.formatDateForDisplay(appliedDateRange.from));
+      console.log("📅 Dashboard - Buscando dados para dia único:", BrazilTimezone.formatDateForDisplay(appliedDateRange.from));
       fetchLeadsForDateRange(singleDayRange);
       fetchContractsForDate(appliedDateRange.from);
     } else if (selectedDate) {
-      console.log("📅 Dashboard - Data selecionada:", BrazilTimezone.formatDateForDisplay(selectedDate));
+      console.log("📅 Dashboard - Buscando dados para data selecionada:", BrazilTimezone.formatDateForDisplay(selectedDate));
       fetchLeadsForDate(selectedDate);
       fetchContractsForDate(selectedDate);
     }
@@ -109,34 +109,13 @@ export function Dashboard() {
     setShowActivityPanel(false);
   }, []);
 
-  // Todos os cards usam a mesma lógica de filtragem por período
-  const filteredLeads = appliedDateRange?.from
-    ? leads.filter(lead => {
-        const leadDate = new Date(lead.createdAt);
-        const fromDate = appliedDateRange.from!;
-        const toDate = appliedDateRange.to || appliedDateRange.from!;
-        
-        const endOfDay = new Date(toDate);
-        endOfDay.setHours(23, 59, 59, 999);
-        
-        return leadDate >= fromDate && leadDate <= endOfDay;
-      })
-    : leads;
+  // CORREÇÃO: Usar os dados diretamente dos hooks sem filtrar novamente
+  // Os hooks já fazem a filtragem correta baseada no período selecionado
+  const displayLeads = leads;
+  const displayContracts = contracts;
 
-  const filteredContracts = appliedDateRange?.from
-    ? contracts.filter(contract => {
-        const contractDate = new Date(contract.closedAt);
-        const fromDate = appliedDateRange.from!;
-        const toDate = appliedDateRange.to || appliedDateRange.from!;
-        
-        const endOfDay = new Date(toDate);
-        endOfDay.setHours(23, 59, 59, 999);
-        
-        return contractDate >= fromDate && contractDate <= endOfDay;
-      })
-    : contracts;
-
-  const totalValue = filteredContracts.reduce((sum, contract) => sum + contract.value, 0);
+  // Calcular valor total dos contratos
+  const totalValue = displayContracts.reduce((sum, contract) => sum + contract.value, 0);
 
   const getDisplayTitle = () => {
     if (appliedDateRange?.from && appliedDateRange?.to) {
@@ -160,12 +139,11 @@ export function Dashboard() {
     return `Resumo das atividades de ${BrazilTimezone.formatDateForDisplay(selectedDate)}`;
   };
 
-  console.log("🎯 Dashboard - Comparação de dados:", {
+  console.log("🎯 Dashboard - Estado atual dos dados:", {
     selectedDate: BrazilTimezone.formatDateForDisplay(selectedDate),
     appliedDateRange,
-    totalLeads: leads.length,
-    filteredLeadsCount: filteredLeads.length,
-    contractsCount: filteredContracts.length,
+    totalLeads: displayLeads.length,
+    contractsCount: displayContracts.length,
     totalValue,
     showActivityPanel
   });
@@ -232,8 +210,8 @@ export function Dashboard() {
       {showActivityPanel && (
         <ActivityPanel
           selectedDate={appliedDateRange?.from || selectedDate}
-          contracts={filteredContracts}
-          leads={filteredLeads}
+          contracts={displayContracts}
+          leads={displayLeads}
           isLoading={leadsLoading || contractsLoading}
           error={leadsError || contractsError}
           currentUser={leadsUser || contractsUser}
@@ -250,7 +228,7 @@ export function Dashboard() {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Contratos Fechados</p>
-              <p className="text-2xl font-bold text-gray-900">{filteredContracts.length}</p>
+              <p className="text-2xl font-bold text-gray-900">{displayContracts.length}</p>
             </div>
           </div>
         </Card>
@@ -277,7 +255,7 @@ export function Dashboard() {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Ticket Médio</p>
               <p className="text-2xl font-bold text-gray-900">
-                R$ {filteredContracts.length > 0 ? Math.round(totalValue / filteredContracts.length).toLocaleString('pt-BR') : '0'}
+                R$ {displayContracts.length > 0 ? Math.round(totalValue / displayContracts.length).toLocaleString('pt-BR') : '0'}
               </p>
             </div>
           </div>
@@ -290,7 +268,7 @@ export function Dashboard() {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Leads Cadastrados</p>
-              <p className="text-2xl font-bold text-gray-900">{filteredLeads.length}</p>
+              <p className="text-2xl font-bold text-gray-900">{displayLeads.length}</p>
             </div>
           </div>
         </Card>

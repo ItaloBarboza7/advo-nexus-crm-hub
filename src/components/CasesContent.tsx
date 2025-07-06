@@ -66,23 +66,12 @@ export function CasesContent() {
     shouldShowStateChart
   } = useAnalysisLogic(leads, selectedCategory, statusHistory, hasLeadPassedThroughStatus);
   
-  // Filter leads by date range - corrigir para funcionar com um dia único
-  const dateFilteredLeads = appliedDateRange?.from
-    ? leads.filter(lead => {
-        const leadDate = new Date(lead.created_at);
-        const fromDate = appliedDateRange.from!;
-        const toDate = appliedDateRange.to || appliedDateRange.from!; // Se não tiver 'to', usar 'from'
-        
-        // Ajustar para o final do dia se for apenas um dia
-        const endOfDay = new Date(toDate);
-        endOfDay.setHours(23, 59, 59, 999);
-        
-        return leadDate >= fromDate && leadDate <= endOfDay;
-      })
-    : leads;
+  // CORREÇÃO: Não aplicar filtro de data adicional aqui, usar todos os leads
+  // Os filtros de data serão aplicados pelos hooks específicos quando necessário
+  const dateFilteredLeads = leads;
 
   const { filteredLeads } = useLeadFiltering(
-    dateFilteredLeads, // Use date-filtered leads instead of all leads
+    dateFilteredLeads,
     searchTerm,
     selectedCategory,
     advancedFilters,
@@ -109,19 +98,18 @@ export function CasesContent() {
     setAppliedDateRange(range);
   };
 
-  // Update analysis logic to use date-filtered leads
+  // Use the original leads for analysis without date filtering
   const {
-    getLeadsForChart: getDateFilteredLeadsForChart,
-    shouldShowChart: shouldShowChartForFiltered,
-    shouldShowLossReasonsChart: shouldShowLossReasonsChartForFiltered,
-    shouldShowActionTypesChart: shouldShowActionTypesChartForFiltered,
-    shouldShowActionGroupChart: shouldShowActionGroupChartForFiltered,
-    shouldShowStateChart: shouldShowStateChartForFiltered
-  } = useAnalysisLogic(dateFilteredLeads, selectedCategory, statusHistory, hasLeadPassedThroughStatus);
+    getLeadsForChart: getAnalysisLeadsForChart,
+    shouldShowChart: shouldShowAnalysisChart,
+    shouldShowLossReasonsChart: shouldShowAnalysisLossReasonsChart,
+    shouldShowActionTypesChart: shouldShowAnalysisActionTypesChart,
+    shouldShowActionGroupChart: shouldShowAnalysisActionGroupChart,
+    shouldShowStateChart: shouldShowAnalysisStateChart
+  } = useAnalysisLogic(leads, selectedCategory, statusHistory, hasLeadPassedThroughStatus);
 
-  console.log("📊 CasesContent - Dados filtrados:", {
+  console.log("📊 CasesContent - Dados:", {
     totalLeads: leads.length,
-    dateFilteredLeads: dateFilteredLeads.length,
     filteredLeads: filteredLeads.length,
     appliedDateRange,
     selectedCategory
@@ -153,7 +141,7 @@ export function CasesContent() {
       </div>
 
       <AnalysisStats 
-        leads={dateFilteredLeads} 
+        leads={leads} 
         onCategoryChange={handleCategoryChange}
         statusHistory={statusHistory}
         hasLeadPassedThroughStatus={hasLeadPassedThroughStatus}
@@ -181,13 +169,13 @@ export function CasesContent() {
       />
 
       <ChartsSection
-        leads={getDateFilteredLeadsForChart}
+        leads={getAnalysisLeadsForChart}
         selectedCategory={selectedCategory}
-        shouldShowChart={shouldShowChartForFiltered()}
-        shouldShowLossReasonsChart={shouldShowLossReasonsChartForFiltered()}
-        shouldShowActionTypesChart={shouldShowActionTypesChartForFiltered()}
-        shouldShowActionGroupChart={shouldShowActionGroupChartForFiltered()}
-        shouldShowStateChart={shouldShowStateChartForFiltered()}
+        shouldShowChart={shouldShowAnalysisChart()}
+        shouldShowLossReasonsChart={shouldShowAnalysisLossReasonsChart()}
+        shouldShowActionTypesChart={shouldShowAnalysisActionTypesChart()}
+        shouldShowActionGroupChart={shouldShowAnalysisActionGroupChart()}
+        shouldShowStateChart={shouldShowAnalysisStateChart()}
         hasLeadPassedThroughStatus={hasLeadPassedThroughStatus}
         leadsViewMode={leadsViewMode}
         contractsViewMode={contractsViewMode}
@@ -201,7 +189,7 @@ export function CasesContent() {
         filteredLeads={filteredLeads}
         selectedCategory={selectedCategory}
         isLoading={isLoading}
-        shouldShowStateChart={shouldShowStateChartForFiltered()}
+        shouldShowStateChart={shouldShowAnalysisStateChart()}
         onViewDetails={handleViewDetails}
         onEditLead={handleEditLead}
       />

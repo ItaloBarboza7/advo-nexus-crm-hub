@@ -92,7 +92,6 @@ export function useLeadsForDate() {
       const dateString = BrazilTimezone.formatDateForQuery(selectedDate);
       console.log("📅 Data formatada para query:", dateString);
       
-      // Removido filtro de user_id para buscar todos os leads do tenant
       const sql = `
         SELECT 
           id, name, phone, email, source, status, created_at, value, user_id
@@ -162,8 +161,12 @@ export function useLeadsForDate() {
   }, [currentUser, tenantSchema]);
 
   const fetchLeadsForDateRange = useCallback(async (dateRange: DateRange) => {
-    if (!dateRange.from || !dateRange.to || !currentUser || !tenantSchema) {
-      console.log("🚫 Dependências faltando para buscar leads por período");
+    if (!dateRange.from || !currentUser || !tenantSchema) {
+      console.log("🚫 Dependências faltando para buscar leads por período:", {
+        dateRange,
+        currentUser: !!currentUser,
+        tenantSchema: !!tenantSchema
+      });
       setLeads([]);
       return;
     }
@@ -172,15 +175,16 @@ export function useLeadsForDate() {
       setIsLoading(true);
       setError(null);
       
+      const fromDate = BrazilTimezone.formatDateForQuery(dateRange.from);
+      const toDate = dateRange.to ? BrazilTimezone.formatDateForQuery(dateRange.to) : fromDate;
+      
       console.log("📅 Buscando leads para período:", {
         from: BrazilTimezone.formatDateForDisplay(dateRange.from),
-        to: BrazilTimezone.formatDateForDisplay(dateRange.to)
+        to: dateRange.to ? BrazilTimezone.formatDateForDisplay(dateRange.to) : BrazilTimezone.formatDateForDisplay(dateRange.from),
+        fromDate,
+        toDate
       });
 
-      const fromDate = BrazilTimezone.formatDateForQuery(dateRange.from);
-      const toDate = BrazilTimezone.formatDateForQuery(dateRange.to);
-      
-      // Removido filtro de user_id para buscar todos os leads do tenant
       const sql = `
         SELECT 
           id, name, phone, email, source, status, created_at, value, user_id
