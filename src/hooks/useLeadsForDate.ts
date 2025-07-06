@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenantSchema } from '@/hooks/useTenantSchema';
 import { BrazilTimezone } from '@/lib/timezone';
@@ -12,6 +12,11 @@ export function useLeadsForDate() {
   const [error, setError] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<{ id: string; name: string } | null>(null);
   const { tenantSchema } = useTenantSchema();
+  
+  // Refs para controle de estado e prevenção de condições de corrida
+  const isMountedRef = useRef(true);
+  const currentRequestRef = useRef<string | null>(null);
+  const lastSuccessfulDataRef = useRef<Lead[]>([]);
 
   // Buscar usuário atual apenas uma vez
   useEffect(() => {
@@ -60,6 +65,13 @@ export function useLeadsForDate() {
     };
   }, []);
 
+  // Limpar referências quando componente for desmontado
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   const fetchLeadsForDate = useCallback(async (selectedDate: Date) => {
     if (!selectedDate || !currentUser || !tenantSchema) {
       console.log("🚫 Dependências faltando para buscar leads:", {
@@ -67,19 +79,25 @@ export function useLeadsForDate() {
         currentUser: !!currentUser,
         tenantSchema: !!tenantSchema
       });
-      setLeads([]);
+      // Manter dados anteriores se disponíveis
+      if (lastSuccessfulDataRef.current.length === 0) {
+        setLeads([]);
+      }
       return;
     }
 
+    const requestId = `date_${selectedDate.getTime()}_${Date.now()}`;
+    currentRequestRef.current = requestId;
+
     try {
+      if (!isMountedRef.current) return;
+      
       setIsLoading(true);
       setError(null);
       
       console.log("📅 Buscando leads cadastrados em:", BrazilTimezone.formatDateForDisplay(selectedDate));
-      console.log("🏢 Para todos os usuários do tenant");
 
       const dateString = BrazilTimezone.formatDateForQuery(selectedDate);
-      console.log("📅 Data formatada para query:", dateString);
       
       const sql = `
         SELECT 
@@ -90,96 +108,92 @@ export function useLeadsForDate() {
         ORDER BY created_at DESC
       `;
 
-      console.log("🔍 Executando SQL para leads:", sql);
-
       const { data, error } = await supabase.rpc('exec_sql', {
         sql: sql
       });
 
-      console.log("🔍 Dados brutos de leads recebidos:", data);
+      // Verificar se esta requisição ainda é válida
+      if (!isMountedRef.current || currentRequestRef.current !== requestId) {
+        console.log("🚫 Requisição cancelada ou substituída");
+        return;
+      }
 
       if (error) {
-        console.error("❌ Erro na consulta exec_sql:", error);
+        console.error("❌ Erro na consulta:", error);
         throw new Error(error.message || "Erro ao executar consulta");
       }
 
-      let leadsData = [];
-      
-      if (Array.isArray(data)) {
-        leadsData = data;
-        console.log("✅ Query retornou array com", data.length, "itens");
-      } else {
-        console.log("⚠️ Query não retornou um array:", typeof data, data);
-        leadsData = [];
-      }
+      const leadsData = Array.isArray(data) ? data : [];
       
       const transformedLeads: Lead[] = leadsData
-        .filter((item: any) => {
-          if (!item || typeof item !== 'object') {
-            console.log("🚫 Item inválido ignorado:", item);
-            return false;
-          }
-          return true;
-        })
-        .map((lead: any) => {
-          console.log("🔄 Processando lead:", lead);
-          
-          return {
-            id: lead.id || 'unknown',
-            name: lead.name || 'Nome não informado',
-            phone: lead.phone || '',
-            email: lead.email || null,
-            source: lead.source || null,
-            status: lead.status || 'Novo',
-            created_at: lead.created_at || new Date().toISOString(),
-            updated_at: lead.updated_at || new Date().toISOString(),
-            value: lead.value ? Number(lead.value) : null,
-            user_id: lead.user_id || currentUser.id,
-            action_type: lead.action_type || null,
-            action_group: lead.action_group || null,
-            description: lead.description || null,
-            state: lead.state || null,
-            loss_reason: lead.loss_reason || null,
-            closed_by_user_id: lead.closed_by_user_id || null
-          } as Lead;
-        });
+        .filter((item: any) => item && typeof item === 'object')
+        .map((lead: any) => ({
+          id: lead.id || 'unknown',
+          name: lead.name || 'Nome não informado',
+          phone: lead.phone || '',
+          email: lead.email || null,
+          source: lead.source || null,
+          status: lead.status || 'Novo',
+          created_at: lead.created_at || new Date().toISOString(),
+          updated_at: lead.updated_at || new Date().toISOString(),
+          value: lead.value ? Number(lead.value) : null,
+          user_id: lead.user_id || currentUser.id,
+          action_type: lead.action_type || null,
+          action_group: lead.action_group || null,
+          description: lead.description || null,
+          state: lead.state || null,
+          loss_reason: lead.loss_reason || null,
+          closed_by_user_id: lead.closed_by_user_id || null
+        } as Lead));
 
-      console.log(`✅ ${transformedLeads.length} leads processados de todos os usuários:`, transformedLeads);
-      setLeads(transformedLeads);
+      console.log(`✅ ${transformedLeads.length} leads processados`);
+      
+      if (isMountedRef.current && currentRequestRef.current === requestId) {
+        setLeads(transformedLeads);
+        lastSuccessfulDataRef.current = transformedLeads;
+      }
       
     } catch (error: any) {
       console.error('❌ Erro ao buscar leads:', error);
-      setError(error.message || "Erro ao carregar leads");
-      setLeads([]);
+      if (isMountedRef.current && currentRequestRef.current === requestId) {
+        setError(error.message || "Erro ao carregar leads");
+        // Manter dados anteriores em caso de erro
+        if (lastSuccessfulDataRef.current.length > 0) {
+          setLeads(lastSuccessfulDataRef.current);
+        } else {
+          setLeads([]);
+        }
+      }
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current && currentRequestRef.current === requestId) {
+        setIsLoading(false);
+      }
     }
   }, [currentUser, tenantSchema]);
 
   const fetchLeadsForDateRange = useCallback(async (dateRange: DateRange) => {
     if (!dateRange.from || !currentUser || !tenantSchema) {
-      console.log("🚫 Dependências faltando para buscar leads por período:", {
-        dateRange,
-        currentUser: !!currentUser,
-        tenantSchema: !!tenantSchema
-      });
-      setLeads([]);
+      console.log("🚫 Dependências faltando para buscar leads por período");
+      // Manter dados anteriores se disponíveis
+      if (lastSuccessfulDataRef.current.length === 0) {
+        setLeads([]);
+      }
       return;
     }
 
+    const requestId = `range_${dateRange.from.getTime()}_${dateRange.to?.getTime() || 0}_${Date.now()}`;
+    currentRequestRef.current = requestId;
+
     try {
+      if (!isMountedRef.current) return;
+      
       setIsLoading(true);
       setError(null);
       
       const fromDate = BrazilTimezone.formatDateForQuery(dateRange.from);
       const toDate = dateRange.to ? BrazilTimezone.formatDateForQuery(dateRange.to) : fromDate;
       
-      console.log("📅 Buscando leads para período:", {
-        from: BrazilTimezone.formatDateForDisplay(dateRange.from),
-        to: dateRange.to ? BrazilTimezone.formatDateForDisplay(dateRange.to) : BrazilTimezone.formatDateForDisplay(dateRange.from),
-        fromDate,
-        toDate
-      });
+      console.log("📅 Buscando leads para período:", { fromDate, toDate });
 
       const sql = `
         SELECT 
@@ -190,11 +204,15 @@ export function useLeadsForDate() {
         ORDER BY created_at DESC
       `;
 
-      console.log("🔍 Executando SQL para período:", sql);
-
       const { data, error } = await supabase.rpc('exec_sql', {
         sql: sql
       });
+
+      // Verificar se esta requisição ainda é válida
+      if (!isMountedRef.current || currentRequestRef.current !== requestId) {
+        console.log("🚫 Requisição de período cancelada ou substituída");
+        return;
+      }
 
       if (error) {
         console.error("❌ Erro na consulta de período:", error);
@@ -224,15 +242,28 @@ export function useLeadsForDate() {
           closed_by_user_id: lead.closed_by_user_id || null
         } as Lead));
 
-      console.log(`✅ ${transformedLeads.length} leads encontrados no período de todos os usuários`);
-      setLeads(transformedLeads);
+      console.log(`✅ ${transformedLeads.length} leads encontrados no período`);
+      
+      if (isMountedRef.current && currentRequestRef.current === requestId) {
+        setLeads(transformedLeads);
+        lastSuccessfulDataRef.current = transformedLeads;
+      }
       
     } catch (error: any) {
       console.error('❌ Erro ao buscar leads por período:', error);
-      setError(error.message || "Erro ao carregar leads");
-      setLeads([]);
+      if (isMountedRef.current && currentRequestRef.current === requestId) {
+        setError(error.message || "Erro ao carregar leads");
+        // Manter dados anteriores em caso de erro
+        if (lastSuccessfulDataRef.current.length > 0) {
+          setLeads(lastSuccessfulDataRef.current);
+        } else {
+          setLeads([]);
+        }
+      }
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current && currentRequestRef.current === requestId) {
+        setIsLoading(false);
+      }
     }
   }, [currentUser, tenantSchema]);
 
