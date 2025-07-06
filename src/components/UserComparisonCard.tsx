@@ -49,9 +49,9 @@ export function UserComparisonCard({
       
       // Menos variação que o mês atual
       const variation = Math.sin(day * 0.3) * (totalPoints * 0.05);
-      const dayPoints = Math.max(180, Math.round(basePoints + variation)); // Mínimo 180
+      const dayPoints = Math.max(0, Math.round(basePoints + variation));
       
-      data.push(Math.min(dayPoints, Math.max(totalPoints, 180)));
+      data.push(Math.min(dayPoints, totalPoints));
     }
     
     return data;
@@ -72,9 +72,9 @@ export function UserComparisonCard({
       
       // Adicionar variação para tornar mais realístico
       const variation = Math.sin(day * 0.5) * (totalPoints * 0.1);
-      const dayPoints = Math.max(180, Math.round(basePoints + variation)); // Mínimo 180
+      const dayPoints = Math.max(0, Math.round(basePoints + variation));
       
-      data.push(Math.min(dayPoints, Math.max(totalPoints, 180)));
+      data.push(Math.min(dayPoints, totalPoints));
     }
     
     return data;
@@ -83,28 +83,24 @@ export function UserComparisonCard({
   const currentMonthData = generateCurrentMonthData();
   const previousMonthData = generatePreviousMonthData();
   
-  // Calcular valores do eixo Y com espaçamento correto - COMEÇANDO EM 180
-  const maxDataValue = Math.max(...currentMonthData, ...previousMonthData, 180);
+  // Calcular valores do eixo Y com espaçamento correto
+  const maxDataValue = Math.max(...currentMonthData, ...previousMonthData, 100);
   
-  // Criar escala com espaçamento correto começando em 180
+  // Criar escala com espaçamento correto - removendo duplicatas
   const calculateYAxisValues = (maxValue: number) => {
     const baseMax = Math.max(maxValue * 1.2, 540); // Garantir espaço suficiente
-    const baseMin = 180; // Começar em 180
-    
-    const range = baseMax - baseMin;
     
     return [
       Math.round(baseMax),
-      Math.round(baseMax - range * 0.25),
-      Math.round(baseMax - range * 0.5),
-      Math.round(baseMax - range * 0.75),
-      baseMin // 180
+      Math.round(baseMax * 0.75),
+      Math.round(baseMax * 0.5),
+      Math.round(baseMax * 0.25),
+      0
     ];
   };
 
   const yAxisValues = calculateYAxisValues(maxDataValue);
   const maxValue = yAxisValues[0];
-  const minValue = 180;
 
   return (
     <Card className="p-6 bg-white border border-gray-200">
@@ -158,7 +154,7 @@ export function UserComparisonCard({
 
         {/* Chart Area */}
         <div className="relative h-40 bg-gray-50 rounded border border-gray-100">
-          {/* Y-axis labels com espaçamento correto começando em 180 */}
+          {/* Y-axis labels com espaçamento correto */}
           <div className="absolute left-0 top-0 h-full flex flex-col justify-between text-xs text-gray-500 pr-2 py-2">
             {yAxisValues.map((value, index) => (
               <span key={index}>{value}</span>
@@ -172,7 +168,7 @@ export function UserComparisonCard({
               {/* Previous month line (blue) - linha completa */}
               <polyline
                 points={previousMonthData.map((value, index) => 
-                  `${(index / (previousMonthData.length - 1)) * 100},${100 - ((value - minValue) / (maxValue - minValue)) * 100}`
+                  `${(index / (previousMonthData.length - 1)) * 100},${100 - (value / maxValue) * 100}`
                 ).join(' ')}
                 fill="none"
                 stroke="#3b82f6"
@@ -184,7 +180,7 @@ export function UserComparisonCard({
               {currentMonthData.length > 1 && (
                 <polyline
                   points={currentMonthData.map((value, index) => 
-                    `${(index / 24) * 100},${100 - ((value - minValue) / (maxValue - minValue)) * 100}`
+                    `${(index / 24) * 100},${100 - (value / maxValue) * 100}`
                   ).join(' ')}
                   fill="none"
                   stroke="#22c55e"
