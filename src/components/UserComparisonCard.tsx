@@ -1,4 +1,3 @@
-
 import { Card } from "@/components/ui/card";
 import { ChevronDown } from "lucide-react";
 
@@ -38,7 +37,6 @@ export function UserComparisonCard({
   const currentDay = today.getDate();
   const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
 
-  // Gerar dados do gráfico baseados nos pontos REAIS - MÊS ANTERIOR (linha azul completa)
   const generatePreviousMonthData = () => {
     const totalPoints = previousMonth.points;
     const data = [];
@@ -58,7 +56,6 @@ export function UserComparisonCard({
     return data;
   };
 
-  // Gerar dados do gráfico baseados nos pontos REAIS - MÊS ATUAL (linha verde até o dia atual)
   const generateCurrentMonthData = () => {
     const totalPoints = currentMonth.points;
     const data = [];
@@ -148,15 +145,15 @@ export function UserComparisonCard({
       <div className="mb-4">
         <h4 className="text-sm text-gray-600 mb-4">Taskscore</h4>
         
-        {/* Legend */}
+        {/* Legend - TEXTOS SIMPLIFICADOS */}
         <div className="flex items-center gap-6 mb-4 text-xs">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-green-500"></div>
-            <span className="text-gray-700">MÊS ATUAL ({currentMonth.completed} contratos, {currentMonth.points} pts)</span>
+            <span className="text-gray-700">MÊS ATUAL</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-            <span className="text-gray-700">MÊS PASSADO ({previousMonth.completed} contratos, {previousMonth.points} pts)</span>
+            <span className="text-gray-700">MÊS PASSADO</span>
           </div>
         </div>
 
@@ -209,10 +206,10 @@ export function UserComparisonCard({
           </div>
         </div>
         
-        {/* Chart Values Summary */}
+        {/* Chart Values Summary - TEXTOS SIMPLIFICADOS */}
         <div className="mt-2 text-xs text-gray-600 flex justify-between">
-          <span>Mês atual: {currentMonth.points} pts ({currentMonth.completed} contratos) - Dia {today.getDate()}</span>
-          <span>Mês anterior: {previousMonth.points} pts ({previousMonth.completed} contratos)</span>
+          <span>Mês atual: {currentMonth.points} pontos</span>
+          <span>Mês anterior: {previousMonth.points} pontos</span>
         </div>
       </div>
     </Card>
