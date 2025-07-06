@@ -7,19 +7,40 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Legend, BarChart, Bar } from "recharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDashboardSettings } from "@/hooks/useDashboardSettings";
-import { useLeadsData } from "@/hooks/useLeadsData";
+import { useLeadsForDate } from "@/hooks/useLeadsForDate";
+import { useContractsData } from "@/hooks/useContractsData";
 import { useLeadStatusHistory } from "@/hooks/useLeadStatusHistory";
 import { getDay, getMonth, format } from "date-fns";
 import { TeamResultsPanel } from "@/components/TeamResultsPanel";
+import { BrazilTimezone } from "@/lib/timezone";
 
 export function DashboardContent() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [appliedDateRange, setAppliedDateRange] = useState<DateRange | undefined>();
   const [conversionView, setConversionView] = useState<'weekly' | 'monthly'>('weekly');
   const [leadsView, setLeadsView] = useState<'weekly' | 'monthly'>('weekly');
   const [actionView, setActionView] = useState<'type' | 'group'>('type');
-  
+
   const { components } = useDashboardSettings();
-  const { leads, isLoading } = useLeadsData();
+  
+  // CORREÇÃO: Usar os hooks com filtragem de data
+  const { 
+    leads, 
+    isLoading: leadsLoading, 
+    error: leadsError, 
+    currentUser: leadsUser, 
+    fetchLeadsForDate,
+    fetchLeadsForDateRange 
+  } = useLeadsForDate();
+
+  const { 
+    contracts, 
+    isLoading: contractsLoading, 
+    error: contractsError, 
+    currentUser: contractsUser, 
+    fetchContractsForDate 
+  } = useContractsData();
+
   const { statusHistory, hasLeadPassedThroughStatus } = useLeadStatusHistory();
 
   // Função para verificar se um componente deve ser exibido
@@ -28,13 +49,91 @@ export function DashboardContent() {
     return component ? component.visible : true;
   };
 
-  // Calcular estatísticas reais baseadas nos leads
+  // Função para aplicar filtro de data
+  const handleDateRangeApply = (range: DateRange | undefined) => {
+    console.log("📅 DashboardContent - Aplicando filtro de período:", range);
+    setAppliedDateRange(range);
+    
+    if (range?.from && range?.to) {
+      console.log("📅 DashboardContent - Buscando leads para período:", {
+        from: BrazilTimezone.formatDateForDisplay(range.from),
+        to: BrazilTimezone.formatDateForDisplay(range.to)
+      });
+      fetchLeadsForDateRange(range);
+      fetchContractsForDate(range.from);
+    } else if (range?.from && !range?.to) {
+      // Se apenas uma data foi selecionada, criar um range de um dia
+      const singleDayRange = {
+        from: range.from,
+        to: range.from
+      };
+      console.log("📅 DashboardContent - Buscando leads para dia único:", BrazilTimezone.formatDateForDisplay(range.from));
+      fetchLeadsForDateRange(singleDayRange);
+      fetchContractsForDate(range.from);
+    } else {
+      // Se não há filtro, buscar dados do mês atual
+      const now = BrazilTimezone.now();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      
+      const currentMonthRange = {
+        from: startOfMonth,
+        to: endOfMonth
+      };
+      
+      console.log("📅 DashboardContent - Buscando dados do mês atual:", {
+        from: BrazilTimezone.formatDateForDisplay(startOfMonth),
+        to: BrazilTimezone.formatDateForDisplay(endOfMonth)
+      });
+      
+      fetchLeadsForDateRange(currentMonthRange);
+      fetchContractsForDate(startOfMonth);
+    }
+  };
+
+  // Inicializar com dados do mês atual na primeira carga
+  useState(() => {
+    const now = BrazilTimezone.now();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    
+    const currentMonthRange = {
+      from: startOfMonth,
+      to: endOfMonth
+    };
+    
+    console.log("📅 DashboardContent - Inicializando com mês atual:", {
+      from: BrazilTimezone.formatDateForDisplay(startOfMonth),
+      to: BrazilTimezone.formatDateForDisplay(endOfMonth)
+    });
+    
+    setAppliedDateRange(currentMonthRange);
+    fetchLeadsForDateRange(currentMonthRange);
+    fetchContractsForDate(startOfMonth);
+  });
+
+  // CORREÇÃO: Calcular estatísticas reais baseadas nos leads filtrados pelos hooks
   const totalLeads = leads?.length || 0;
   const proposalsAndMeetings = leads?.filter(lead => 
     lead.status === "Proposta" || lead.status === "Reunião"
   ).length || 0;
   const lostLeads = leads?.filter(lead => lead.status === "Perdido").length || 0;
   const closedDeals = leads?.filter(lead => lead.status === "Contrato Fechado").length || 0;
+
+  // Calcular valor total dos contratos
+  const totalValue = contracts?.reduce((sum, contract) => sum + contract.value, 0) || 0;
+
+  console.log("📊 DashboardContent - Estatísticas calculadas:", {
+    totalLeads,
+    proposalsAndMeetings,
+    lostLeads,
+    closedDeals,
+    totalValue,
+    appliedDateRange: appliedDateRange ? {
+      from: BrazilTimezone.formatDateForDisplay(appliedDateRange.from!),
+      to: BrazilTimezone.formatDateForDisplay(appliedDateRange.to!)
+    } : 'Nenhum'
+  });
 
   const stats = [
     {
@@ -94,7 +193,7 @@ export function DashboardContent() {
     },
   ];
 
-  // CORREÇÃO: Taxa de conversão geral corrigida
+  // CORREÇÃO: Taxa de conversão baseada nos dados reais filtrados
   const conversionData = [
     {
       totalLeads: totalLeads,
@@ -106,25 +205,21 @@ export function DashboardContent() {
     },
   ];
 
-  // CORREÇÃO PRINCIPAL: Função para verificar se um lead é oportunidade
+  // CORREÇÃO: Função para verificar se um lead é oportunidade baseada nos dados reais
   const isOpportunityLead = (lead: any): boolean => {
-    // Lead é oportunidade se:
-    // 1. Está atualmente em Proposta/Reunião OU
-    // 2. Passou por Proposta/Reunião (incluindo os que fecharam contrato)
     const currentlyInOpportunity = lead.status === "Proposta" || lead.status === "Reunião";
     const passedThroughOpportunity = hasLeadPassedThroughStatus(lead.id, ["Proposta", "Reunião"]);
     
     return currentlyInOpportunity || passedThroughOpportunity;
   };
 
-  // CORREÇÃO: Gerar dados REAIS de conversão baseados nos leads e histórico
+  // CORREÇÃO: Gerar dados REAIS de conversão baseados nos leads filtrados
   const getRealConversionData = useMemo(() => {
-    console.log("📊 Calculando dados de conversão...");
-    console.log("📋 Total de leads:", leads?.length || 0);
-    console.log("📊 Status history length:", statusHistory?.length || 0);
+    console.log("📊 Calculando dados de conversão com leads filtrados...");
+    console.log("📋 Total de leads filtrados:", leads?.length || 0);
     
     if (!leads || leads.length === 0) {
-      console.log("⚠️ Nenhum lead disponível, retornando dados zerados");
+      console.log("⚠️ Nenhum lead filtrado disponível, retornando dados zerados");
       const weeklyData = [
         { day: "Segunda", sales: 0, conversion: 0 },
         { day: "Terça", sales: 0, conversion: 0 },
@@ -153,22 +248,13 @@ export function DashboardContent() {
       return { weekly: weeklyData, monthly: monthlyData };
     }
 
-    // NOVA LÓGICA: Usar created_at para agrupamento, mas considerar status atual e histórico
+    // Usar created_at para agrupamento, mas considerar status atual e histórico
     const weekDays = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
     const weeklyData = weekDays.map((day, index) => {
-      // Leads criados neste dia da semana
-      const dayLeads = leads.filter(lead => lead.created_at && getDay(new Date(lead.created_at)) === index);
-      
-      // Oportunidades: leads que são ou foram oportunidades
+      const dayLeads = leads.filter(lead => lead.createdAt && getDay(new Date(lead.createdAt)) === index);
       const dayOpportunities = dayLeads.filter(lead => isOpportunityLead(lead));
-      
-      // Vendas: leads que estão com status "Contrato Fechado"
       const daySales = dayLeads.filter(lead => lead.status === "Contrato Fechado");
-      
-      // Taxa de conversão: vendas / oportunidades
       const conversion = dayOpportunities.length > 0 ? Math.min((daySales.length / dayOpportunities.length) * 100, 100) : 0;
-      
-      console.log(`📊 ${day}: ${dayLeads.length} leads, ${dayOpportunities.length} oportunidades, ${daySales.length} vendas, ${conversion.toFixed(1)}% conversão`);
       
       return {
         day,
@@ -177,10 +263,9 @@ export function DashboardContent() {
       };
     });
 
-    // Dados mensais com a mesma lógica
     const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
     const monthlyData = months.map((month, index) => {
-      const monthLeads = leads.filter(lead => lead.created_at && getMonth(new Date(lead.created_at)) === index);
+      const monthLeads = leads.filter(lead => lead.createdAt && getMonth(new Date(lead.createdAt)) === index);
       const monthOpportunities = monthLeads.filter(lead => isOpportunityLead(lead));
       const monthSales = monthLeads.filter(lead => lead.status === "Contrato Fechado");
       const conversion = monthOpportunities.length > 0 ? Math.min((monthSales.length / monthOpportunities.length) * 100, 100) : 0;
@@ -192,14 +277,13 @@ export function DashboardContent() {
       };
     });
 
-    console.log("✅ Dados de conversão calculados:", { weeklyData, monthlyData });
+    console.log("✅ Dados de conversão calculados com leads filtrados:", { weeklyData, monthlyData });
     return { weekly: weeklyData, monthly: monthlyData };
   }, [leads, statusHistory, hasLeadPassedThroughStatus]);
 
-  // CORREÇÃO: Gerar dados reais de leads por período
+  // CORREÇÃO: Gerar dados reais de leads por período baseados nos leads filtrados
   const getRealLeadsData = useMemo(() => {
     if (!leads || leads.length === 0) {
-      // Dados de fallback se não houver leads
       const weeklyData = [
         { day: "Segunda", leads: 0 },
         { day: "Terça", leads: 0 },
@@ -228,31 +312,27 @@ export function DashboardContent() {
       return { weekly: weeklyData, monthly: monthlyData };
     }
 
-    // Dados reais semanais de leads
     const weekDays = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
     const weeklyData = weekDays.map((day, index) => ({
       day,
-      leads: leads.filter(lead => lead.created_at && getDay(new Date(lead.created_at)) === index).length
+      leads: leads.filter(lead => lead.createdAt && getDay(new Date(lead.createdAt)) === index).length
     }));
 
-    // Dados reais mensais de leads
     const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
     const monthlyData = months.map((month, index) => ({
       month,
-      leads: leads.filter(lead => lead.created_at && getMonth(new Date(lead.created_at)) === index).length
+      leads: leads.filter(lead => lead.createdAt && getMonth(new Date(lead.createdAt)) === index).length
     }));
 
     return { weekly: weeklyData, monthly: monthlyData };
   }, [leads]);
 
-  // Gerar dados reais de ação baseados nos leads
+  // Gerar dados reais de ação baseados nos leads filtrados
   const getActionData = () => {
     if (!leads || leads.length === 0) return [];
 
     if (actionView === 'type') {
-      // Agrupar por action_type
       const actionTypeCounts = leads.reduce((acc, lead) => {
-        // Considerar leads que são oportunidades (Proposta, Reunião) ou que fecharam (Contrato Fechado)
         const isOpportunityOrClosed = ['Proposta', 'Reunião', 'Contrato Fechado'].includes(lead.status);
         if (!isOpportunityOrClosed) return acc;
 
@@ -266,7 +346,7 @@ export function DashboardContent() {
         }
         if (lead.status === 'Contrato Fechado') {
           acc[actionType].closures++;
-          acc[actionType].opportunities++; // Contrato fechado também conta como oportunidade
+          acc[actionType].opportunities++;
         }
         
         return acc;
@@ -279,11 +359,9 @@ export function DashboardContent() {
           closures: data.closures
         }))
         .sort((a, b) => b.opportunities - a.opportunities)
-        .slice(0, 5); // Limitar a 5 tipos principais
+        .slice(0, 5);
     } else {
-      // Agrupar por action_group
       const actionGroupCounts = leads.reduce((acc, lead) => {
-        // Considerar leads que são oportunidades (Proposta, Reunião) ou que fecharam (Contrato Fechado)
         const isOpportunityOrClosed = ['Proposta', 'Reunião', 'Contrato Fechado'].includes(lead.status);
         if (!isOpportunityOrClosed) return acc;
 
@@ -297,7 +375,7 @@ export function DashboardContent() {
         }
         if (lead.status === 'Contrato Fechado') {
           acc[actionGroup].closures++;
-          acc[actionGroup].opportunities++; // Contrato fechado também conta como oportunidade
+          acc[actionGroup].opportunities++;
         }
         
         return acc;
@@ -310,7 +388,7 @@ export function DashboardContent() {
           closures: data.closures
         }))
         .sort((a, b) => b.opportunities - a.opportunities)
-        .slice(0, 5); // Limitar a 5 grupos principais
+        .slice(0, 5);
     }
   };
 
@@ -392,7 +470,7 @@ export function DashboardContent() {
     return `${value} (${conversionRate}% taxa)`;
   };
 
-  if (isLoading) {
+  if (leadsLoading || contractsLoading) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-center py-8">
@@ -405,13 +483,25 @@ export function DashboardContent() {
     );
   }
 
+  const getDisplayTitle = () => {
+    if (appliedDateRange?.from && appliedDateRange?.to) {
+      return `Dashboard - Período: ${BrazilTimezone.formatDateForDisplay(appliedDateRange.from)} a ${BrazilTimezone.formatDateForDisplay(appliedDateRange.to)}`;
+    }
+    return "Dashboard - Dados gerais";
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
+          <p className="text-gray-600">{getDisplayTitle()}</p>
         </div>
-        <DateFilter date={dateRange} setDate={setDateRange} />
+        <DateFilter 
+          date={dateRange} 
+          setDate={setDateRange}
+          onApply={handleDateRangeApply}
+        />
       </div>
 
       {/* Stats Cards */}
@@ -443,6 +533,22 @@ export function DashboardContent() {
           ))}
         </div>
       )}
+
+      {/* Debug Info */}
+      <Card className="p-4 bg-gray-50">
+        <h3 className="font-medium mb-2">Debug Info:</h3>
+        <div className="text-sm text-gray-600">
+          <p>Leads retornados pelo hook: {leads?.length || 0}</p>
+          <p>Contratos retornados pelo hook: {contracts?.length || 0}</p>
+          <p>Período aplicado: {appliedDateRange ? 
+            `${BrazilTimezone.formatDateForDisplay(appliedDateRange.from!)} - ${BrazilTimezone.formatDateForDisplay(appliedDateRange.to!)}` 
+            : 'Nenhum'}</p>
+          <p>Hook leads carregando: {leadsLoading ? 'Sim' : 'Não'}</p>
+          <p>Hook contratos carregando: {contractsLoading ? 'Sim' : 'Não'}</p>
+          <p>Erro leads: {leadsError || 'Nenhum'}</p>
+          <p>Erro contratos: {contractsError || 'Nenhum'}</p>
+        </div>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Conversion Chart */}
@@ -632,14 +738,11 @@ export function DashboardContent() {
 
       {/* Bottom Row - Team Results and Action Chart */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Team Results */}
         {isComponentVisible('team-results') && (
           <div className="lg:col-span-2">
             <TeamResultsPanel />
           </div>
         )}
-
-        {/* Action Chart */}
         {isComponentVisible('action-chart') && (
           <Card className="p-6 flex flex-col">
             <CardHeader className="p-0 mb-3">
@@ -715,6 +818,16 @@ export function DashboardContent() {
           </Card>
         )}
       </div>
+
+      {/* Error States */}
+      {(leadsError || contractsError) && (
+        <Card className="p-6 border-red-200 bg-red-50">
+          <div className="text-red-800">
+            <p className="font-medium">Erro ao carregar dados:</p>
+            <p className="text-sm mt-1">{leadsError || contractsError}</p>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
