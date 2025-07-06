@@ -65,7 +65,7 @@ export function TeamGoalsPanel({
   const [showMemberLeads, setShowMemberLeads] = useState(false);
   const [isLoadingMemberLeads, setIsLoadingMemberLeads] = useState(false);
   
-  // NOVO: Estados para as metas configuradas
+  // Estados para as metas configuradas
   const [teamGoal, setTeamGoal] = useState(100); // Meta mensal padrão
   const [dailyGoal, setDailyGoal] = useState(3); // Meta diária padrão
   const [isLoadingGoals, setIsLoadingGoals] = useState(true);
@@ -81,7 +81,7 @@ export function TeamGoalsPanel({
   const daysRemaining = daysInMonth - currentDay;
   const dailyTarget = daysRemaining > 0 ? Math.ceil(remainingSales / daysRemaining) : 0;
 
-  // NOVO: Carregar metas configuradas
+  // Carregar metas configuradas
   useEffect(() => {
     const loadTeamGoals = async () => {
       try {
@@ -443,12 +443,12 @@ export function TeamGoalsPanel({
           </div>
         </div>
 
-        {/* Meta diária - ATUALIZADO para usar o valor configurado */}
+        {/* Meta diária - CORRIGIDO para usar a meta configurada */}
         <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-2 border border-gray-300">
           <Trophy className="h-4 w-4 text-gray-700 flex-shrink-0" />
           <div className="flex-1">
-            <div className="text-lg font-bold text-gray-900">{dailyTarget}</div>
-            <p className="text-xs text-gray-700 font-medium">Meta diária (baseada na meta configurada: {dailyGoal})</p>
+            <div className="text-lg font-bold text-gray-900">{dailyGoal}</div>
+            <p className="text-xs text-gray-700 font-medium">Meta diária</p>
           </div>
         </div>
 
