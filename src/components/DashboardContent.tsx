@@ -21,6 +21,12 @@ export function DashboardContent() {
   const [leadsView, setLeadsView] = useState<'weekly' | 'monthly'>('weekly');
   const [actionView, setActionView] = useState<'type' | 'group'>('type');
   const [isInitialized, setIsInitialized] = useState(false);
+  const [previousMonthData, setPreviousMonthData] = useState<{
+    leads: number;
+    proposals: number;
+    losses: number;
+    closedDeals: number;
+  }>({ leads: 0, proposals: 0, losses: 0, closedDeals: 0 });
 
   const { components } = useDashboardSettings();
   
@@ -48,6 +54,57 @@ export function DashboardContent() {
     const component = components.find(comp => comp.id === componentId);
     return component ? component.visible : true;
   };
+
+  // Função para buscar dados do mês anterior
+  const fetchPreviousMonthData = useCallback(async () => {
+    if (!leadsUser) return;
+
+    try {
+      const now = BrazilTimezone.now();
+      const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+      
+      const previousMonthRange = {
+        from: previousMonth,
+        to: previousMonthEnd
+      };
+
+      console.log("📅 Buscando dados do mês anterior:", {
+        from: BrazilTimezone.formatDateForDisplay(previousMonth),
+        to: BrazilTimezone.formatDateForDisplay(previousMonthEnd)
+      });
+
+      // Buscar leads do mês anterior usando o mesmo hook
+      await fetchLeadsForDateRange(previousMonthRange);
+      
+      // Aguardar um pouco para garantir que os dados sejam carregados
+      setTimeout(() => {
+        const previousLeads = leads || [];
+        const previousProposals = previousLeads.filter(lead => 
+          lead.status === "Proposta" || lead.status === "Reunião"
+        ).length;
+        const previousLosses = previousLeads.filter(lead => lead.status === "Perdido").length;
+        const previousClosedDeals = previousLeads.filter(lead => lead.status === "Contrato Fechado").length;
+
+        setPreviousMonthData({
+          leads: previousLeads.length,
+          proposals: previousProposals,
+          losses: previousLosses,
+          closedDeals: previousClosedDeals
+        });
+
+        console.log("📊 Dados do mês anterior carregados:", {
+          leads: previousLeads.length,
+          proposals: previousProposals,
+          losses: previousLosses,
+          closedDeals: previousClosedDeals
+        });
+      }, 1000);
+
+    } catch (error) {
+      console.error("❌ Erro ao buscar dados do mês anterior:", error);
+    }
+  }, [leadsUser, fetchLeadsForDateRange, leads]);
 
   // CORREÇÃO: Função memoizada para buscar dados do mês atual
   const fetchCurrentMonthData = useCallback(() => {
@@ -78,6 +135,13 @@ export function DashboardContent() {
       setIsInitialized(true);
     }
   }, [isInitialized, leadsUser, contractsUser, fetchCurrentMonthData]);
+
+  // Buscar dados do mês anterior após inicialização
+  useEffect(() => {
+    if (isInitialized && leadsUser) {
+      fetchPreviousMonthData();
+    }
+  }, [isInitialized, leadsUser, fetchPreviousMonthData]);
 
   // CORREÇÃO: Função para aplicar filtro de data sem recursão
   const handleDateRangeApply = useCallback((range: DateRange | undefined) => {
@@ -117,18 +181,30 @@ export function DashboardContent() {
   // Calcular valor total dos contratos
   const totalValue = contracts?.reduce((sum, contract) => sum + contract.value, 0) || 0;
 
-  console.log("📊 DashboardContent - Estatísticas calculadas:", {
-    totalLeads,
-    proposalsAndMeetings,
-    lostLeads,
-    closedDeals,
-    totalValue,
-    appliedDateRange: appliedDateRange ? {
-      from: appliedDateRange.from ? BrazilTimezone.formatDateForDisplay(appliedDateRange.from) : 'N/A',
-      to: appliedDateRange.to ? BrazilTimezone.formatDateForDisplay(appliedDateRange.to) : 'N/A'
-    } : 'Nenhum',
-    isInitialized,
-    leadsCount: leads?.length || 0
+  // Função para calcular porcentagem de mudança
+  const calculatePercentageChange = (current: number, previous: number): { value: string; type: 'positive' | 'negative' } => {
+    if (previous === 0) {
+      return current > 0 ? { value: `+${current * 100}%`, type: 'positive' } : { value: '0%', type: 'positive' };
+    }
+    
+    const change = ((current - previous) / previous) * 100;
+    const isPositive = change >= 0;
+    
+    return {
+      value: `${isPositive ? '+' : ''}${Math.round(change)}%`,
+      type: isPositive ? 'positive' : 'negative'
+    };
+  };
+
+  const leadsChange = calculatePercentageChange(totalLeads, previousMonthData.leads);
+  const proposalsChange = calculatePercentageChange(proposalsAndMeetings, previousMonthData.proposals);
+  const lossesChange = calculatePercentageChange(lostLeads, previousMonthData.losses);
+  const closedDealsChange = calculatePercentageChange(closedDeals, previousMonthData.closedDeals);
+
+  console.log("📊 DashboardContent - Cálculos de porcentagem:", {
+    current: { totalLeads, proposalsAndMeetings, lostLeads, closedDeals },
+    previous: previousMonthData,
+    changes: { leadsChange, proposalsChange, lossesChange, closedDealsChange }
   });
 
   const stats = [
@@ -136,29 +212,29 @@ export function DashboardContent() {
       title: "Leads",
       value: totalLeads.toString(),
       icon: Users,
-      change: "+12%",
-      changeType: "positive" as const,
+      change: leadsChange.value,
+      changeType: leadsChange.type,
     },
     {
       title: "Propostas/Reuniões",
       value: proposalsAndMeetings.toString(),
       icon: UserPlus,
-      change: "+8%",
-      changeType: "positive" as const,
+      change: proposalsChange.value,
+      changeType: proposalsChange.type,
     },
     {
       title: "Perdas",
       value: lostLeads.toString(),
       icon: UserX,
-      change: "-15%",
-      changeType: "positive" as const,
+      change: lossesChange.value,
+      changeType: lossesChange.type === 'positive' ? 'negative' : 'positive', // Invertido para perdas
     },
     {
       title: "Vendas",
       value: closedDeals.toString(),
       icon: DollarSign,
-      change: "+22%",
-      changeType: "positive" as const,
+      change: closedDealsChange.value,
+      changeType: closedDealsChange.type,
     },
   ];
 
@@ -510,25 +586,6 @@ export function DashboardContent() {
           ))}
         </div>
       )}
-
-      {/* Debug Info - CORREÇÃO: Informações mais detalhadas */}
-      <Card className="p-4 bg-gray-50">
-        <h3 className="font-medium mb-2">Debug Info:</h3>
-        <div className="text-sm text-gray-600">
-          <p>Status inicialização: {isInitialized ? 'Concluída' : 'Pendente'}</p>
-          <p>Leads retornados pelo hook: {leads?.length || 0}</p>
-          <p>Contratos retornados pelo hook: {contracts?.length || 0}</p>
-          <p>Período aplicado: {appliedDateRange ? 
-            `${appliedDateRange.from ? BrazilTimezone.formatDateForDisplay(appliedDateRange.from) : 'N/A'} - ${appliedDateRange.to ? BrazilTimezone.formatDateForDisplay(appliedDateRange.to) : 'N/A'}` 
-            : 'Nenhum'}</p>
-          <p>Hook leads carregando: {leadsLoading ? 'Sim' : 'Não'}</p>
-          <p>Hook contratos carregando: {contractsLoading ? 'Sim' : 'Não'}</p>
-          <p>Usuário leads: {leadsUser?.name || 'N/A'}</p>
-          <p>Usuário contratos: {contractsUser?.name || 'N/A'}</p>
-          <p>Erro leads: {leadsError || 'Nenhum'}</p>
-          <p>Erro contratos: {contractsError || 'Nenhum'}</p>
-        </div>
-      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Conversion Chart */}
