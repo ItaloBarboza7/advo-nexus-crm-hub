@@ -42,7 +42,7 @@ serve(async (req) => {
       throw new Error("Usuário não autenticado");
     }
 
-    logStep("User authenticated successfully", { userId: user.id, email: user.email });
+    logStep("User authenticated successfully", { userId: user.id, email: user.email, metadata: user.user_metadata });
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) {
@@ -60,7 +60,30 @@ serve(async (req) => {
     if (!customers.data.length) {
       logStep("No Stripe customer found", { email: user.email, totalCustomers: customers.data.length });
       
-      // Para novos usuários, isso é normal - não é um erro
+      // Check if user has plan info in metadata (newly created user)
+      const userPlanType = user.user_metadata?.plan_type;
+      const isPaymentConfirmed = user.user_metadata?.payment_confirmed;
+      
+      logStep("Checking user metadata for plan info", { userPlanType, isPaymentConfirmed });
+      
+      if (userPlanType && isPaymentConfirmed) {
+        // User was recently created after payment but Stripe customer not found yet
+        // This might be a timing issue - return pending state
+        return new Response(JSON.stringify({
+          success: true,
+          hasSubscription: false,
+          isPending: true,
+          message: "Processando assinatura, aguarde alguns instantes...",
+          plan_name: userPlanType === 'monthly' ? "Plano Mensal (Processando)" : "Plano Anual (Processando)",
+          amount: userPlanType === 'monthly' ? 15700 : 9900,
+          status: "processing"
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+      
+      // For users without any plan info
       return new Response(JSON.stringify({
         success: true,
         hasSubscription: false,
@@ -88,7 +111,7 @@ serve(async (req) => {
     if (!subscriptions.data.length) {
       logStep("No active subscription found", { customerId, totalSubscriptions: subscriptions.data.length });
       
-      // Verificar se há assinaturas canceladas ou expiradas
+      // Check for incomplete or past_due subscriptions
       const allSubscriptions = await stripe.subscriptions.list({ 
         customer: customerId, 
         limit: 5 
@@ -98,6 +121,29 @@ serve(async (req) => {
         total: allSubscriptions.data.length,
         statuses: allSubscriptions.data.map(sub => ({ id: sub.id, status: sub.status }))
       });
+
+      // Check for incomplete subscription (payment processing)
+      const incompleteSubscription = allSubscriptions.data.find(sub => sub.status === 'incomplete');
+      if (incompleteSubscription) {
+        logStep("Found incomplete subscription", { subscriptionId: incompleteSubscription.id });
+        
+        const item = incompleteSubscription.items.data[0];
+        const plan = item.price;
+        
+        return new Response(JSON.stringify({
+          success: true,
+          hasSubscription: false,
+          isPending: true,
+          message: "Pagamento sendo processado...",
+          plan_name: getPlanName(plan.unit_amount || 0, plan.nickname),
+          amount: plan.unit_amount || 0,
+          status: "processing",
+          subscription_id: incompleteSubscription.id
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
       
       return new Response(JSON.stringify({
         success: true,
@@ -186,7 +232,7 @@ serve(async (req) => {
     const responseData = {
       success: true,
       hasSubscription: true,
-      plan_name: plan.nickname || `Plano ${plan.unit_amount ? (plan.unit_amount/100).toFixed(2) : 'Desconhecido'}`,
+      plan_name: getPlanName(plan.unit_amount || 0, plan.nickname),
       amount: plan.unit_amount || 0,
       card_brand: cardBrand,
       card_last4: cardLast4,
@@ -221,3 +267,13 @@ serve(async (req) => {
     });
   }
 });
+
+// Helper function to determine plan name based on amount and nickname
+function getPlanName(amount: number, nickname?: string | null): string {
+  if (nickname) return nickname;
+  
+  if (amount === 15700) return "CRM Profissional - Mensal";
+  if (amount === 9900) return "CRM Profissional - Anual";
+  
+  return `Plano ${amount ? (amount/100).toFixed(2) : 'Desconhecido'}`;
+}

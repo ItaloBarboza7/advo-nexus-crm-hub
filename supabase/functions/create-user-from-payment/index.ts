@@ -7,6 +7,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const logStep = (step: string, details?: any) => {
+  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
+  console.log(`[CREATE-USER-FROM-PAYMENT] ${step}${detailsStr}`);
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -14,11 +19,15 @@ serve(async (req) => {
   }
 
   try {
+    logStep("Function started");
+    
     const { sessionId } = await req.json();
 
     if (!sessionId) {
       throw new Error("Session ID é obrigatório");
     }
+
+    logStep("Processing session", { sessionId });
 
     // Initialize Supabase with service role key for admin operations
     const supabase = createClient(
@@ -40,9 +49,11 @@ serve(async (req) => {
       .single();
 
     if (fetchError || !pendingPurchase) {
-      console.error('Error fetching pending purchase:', fetchError);
+      logStep('Error fetching pending purchase', { error: fetchError });
       throw new Error('Dados da compra não encontrados');
     }
+
+    logStep("Pending purchase found", { purchaseId: pendingPurchase.id, planType: pendingPurchase.plan_type });
 
     const customerData = pendingPurchase.customer_data;
 
@@ -51,6 +62,22 @@ serve(async (req) => {
     const userExists = existingUser.users.some(user => user.email === customerData.email);
 
     if (userExists) {
+      logStep("User already exists", { email: customerData.email });
+      
+      // Update existing user metadata with payment confirmation
+      const existingUserData = existingUser.users.find(user => user.email === customerData.email);
+      if (existingUserData) {
+        await supabase.auth.admin.updateUserById(existingUserData.id, {
+          user_metadata: {
+            ...existingUserData.user_metadata,
+            plan_type: pendingPurchase.plan_type,
+            payment_confirmed: true,
+            updated_at: new Date().toISOString()
+          }
+        });
+        logStep("Updated existing user metadata");
+      }
+
       // Clean up pending purchase
       await supabase
         .from('pending_purchases')
@@ -66,7 +93,9 @@ serve(async (req) => {
       });
     }
 
-    // Create new user
+    logStep("Creating new user", { email: customerData.email, name: customerData.name });
+
+    // Create new user with enhanced metadata
     const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
       email: customerData.email,
       password: customerData.password,
@@ -77,30 +106,35 @@ serve(async (req) => {
         cpf: customerData.cpf,
         plan_type: pendingPurchase.plan_type,
         payment_confirmed: true,
-        is_first_login: true, // Marcar como primeiro login
+        is_first_login: true,
+        subscription_created_at: new Date().toISOString(),
+        stripe_session_id: sessionId
       }
     });
 
     if (createError) {
-      console.error('Error creating user:', createError);
+      logStep('Error creating user', { error: createError });
       throw new Error(`Erro ao criar usuário: ${createError.message}`);
     }
+
+    logStep('User created successfully', { userId: newUser.user?.id, email: newUser.user?.email });
 
     // Create user profile with the purchase data
     const { error: profileError } = await supabase
       .from('user_profiles')
       .insert({
+        user_id: newUser.user!.id,
         name: customerData.name,
         email: customerData.email,
         phone: customerData.phone,
       });
 
     if (profileError) {
-      console.error('Error creating user profile:', profileError);
+      logStep('Error creating user profile', { error: profileError });
       // Don't throw error here as user was created successfully
+    } else {
+      logStep('User profile created successfully');
     }
-
-    console.log('User profile created for:', customerData.name);
 
     // Clean up pending purchase after successful user creation
     const { error: deleteError } = await supabase
@@ -109,25 +143,30 @@ serve(async (req) => {
       .eq('session_id', sessionId);
 
     if (deleteError) {
-      console.error('Error deleting pending purchase:', deleteError);
+      logStep('Error deleting pending purchase', { error: deleteError });
       // Don't throw error here as user was created successfully
+    } else {
+      logStep('Pending purchase cleaned up');
     }
 
-    console.log('User created successfully:', newUser.user?.email);
+    logStep('User creation process completed successfully');
 
     return new Response(JSON.stringify({ 
       success: true,
       userId: newUser.user?.id,
-      message: "Usuário criado com sucesso"
+      message: "Usuário criado com sucesso",
+      planType: pendingPurchase.plan_type
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
 
   } catch (error) {
-    console.error('Error creating user from payment:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logStep('Error in create-user-from-payment', { error: errorMessage });
+    
     return new Response(JSON.stringify({ 
-      error: error.message || "Erro ao criar usuário" 
+      error: errorMessage
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,

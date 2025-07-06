@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface SubscriptionDetails {
@@ -12,6 +12,7 @@ interface SubscriptionDetails {
   isLoading: boolean;
   error?: string;
   subscriptionId?: string;
+  isPending?: boolean;
 }
 
 export function useSubscriptionDetails() {
@@ -25,17 +26,14 @@ export function useSubscriptionDetails() {
     isLoading: true,
   });
 
-  useEffect(() => {
-    getSubDetails();
-    // eslint-disable-next-line
-  }, []);
+  const [refreshCount, setRefreshCount] = useState(0);
 
-  async function getSubDetails() {
+  const getSubDetails = useCallback(async () => {
+    console.log("💳 useSubscriptionDetails - Iniciando busca de detalhes da assinatura...");
+    
     setDetails(d => ({ ...d, isLoading: true, error: undefined }));
 
     try {
-      console.log("💳 useSubscriptionDetails - Iniciando busca de detalhes da assinatura...");
-      
       // Verificar se o usuário está autenticado
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       
@@ -60,6 +58,7 @@ export function useSubscriptionDetails() {
       }
 
       console.log("👤 Usuário autenticado:", user.email);
+      console.log("📊 Metadados do usuário:", user.user_metadata);
 
       // Chamar função edge melhorada 'get-stripe-details'
       const { data, error } = await supabase.functions.invoke('get-stripe-details');
@@ -86,6 +85,24 @@ export function useSubscriptionDetails() {
           cardExp: "",
           status: "inactive",
           isLoading: false,
+          error: undefined
+        });
+        return;
+      }
+
+      // Handle pending/processing state
+      if (data.isPending) {
+        console.log("⏳ Assinatura sendo processada:", data);
+        setDetails({
+          plan: data.plan_name || "Processando...",
+          amount: data.amount || 0,
+          cardBrand: data.card_brand || "",
+          cardLast4: data.card_last4 || "",
+          cardExp: data.exp_month && data.exp_year ? `${data.exp_month}/${data.exp_year}` : "",
+          status: data.status || "processing",
+          isLoading: false,
+          subscriptionId: data.subscription_id,
+          isPending: true,
           error: undefined
         });
         return;
@@ -118,6 +135,7 @@ export function useSubscriptionDetails() {
         status: data.status || "unknown",
         isLoading: false,
         subscriptionId: data.subscription_id,
+        isPending: false,
         error: undefined
       });
       
@@ -135,7 +153,37 @@ export function useSubscriptionDetails() {
         error: "Erro de conexão. Tente novamente."
       });
     }
-  }
+  }, []);
 
-  return details;
+  // Manual refresh function
+  const refreshSubscription = useCallback(() => {
+    console.log("🔄 Manual refresh triggered");
+    setRefreshCount(prev => prev + 1);
+    getSubDetails();
+  }, [getSubDetails]);
+
+  useEffect(() => {
+    getSubDetails();
+  }, [getSubDetails, refreshCount]);
+
+  // Auto-refresh for pending subscriptions
+  useEffect(() => {
+    if (details.isPending || details.status === 'processing') {
+      console.log("⏰ Setting up auto-refresh for pending subscription");
+      const interval = setInterval(() => {
+        console.log("🔄 Auto-refresh triggered for pending subscription");
+        getSubDetails();
+      }, 10000); // Refresh every 10 seconds for pending subscriptions
+
+      return () => {
+        console.log("🛑 Clearing auto-refresh interval");
+        clearInterval(interval);
+      };
+    }
+  }, [details.isPending, details.status, getSubDetails]);
+
+  return {
+    ...details,
+    refreshSubscription
+  };
 }

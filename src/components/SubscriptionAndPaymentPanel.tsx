@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
-import { AlertCircle, CheckCircle, XCircle } from "lucide-react";
+import { AlertCircle, CheckCircle, XCircle, Clock, RefreshCw } from "lucide-react";
 
 export function SubscriptionAndPaymentPanel() {
   const {
@@ -16,10 +16,13 @@ export function SubscriptionAndPaymentPanel() {
     status,
     isLoading,
     error,
-    subscriptionId
+    subscriptionId,
+    isPending,
+    refreshSubscription
   } = useSubscriptionDetails();
   const { toast } = useToast();
   const [showCardInfo, setShowCardInfo] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   async function handleChangeCard() {
     console.log("🔄 handleChangeCard: Iniciando chamada à customer-portal Edge Function...");
@@ -45,6 +48,25 @@ export function SubscriptionAndPaymentPanel() {
     }
   }
 
+  async function handleRefresh() {
+    setIsRefreshing(true);
+    try {
+      await refreshSubscription();
+      toast({
+        title: "Atualizado",
+        description: "Status da assinatura atualizado com sucesso.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao atualizar",
+        description: "Não foi possível atualizar o status da assinatura.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="text-muted-foreground py-4 flex items-center justify-center">
@@ -59,6 +81,8 @@ export function SubscriptionAndPaymentPanel() {
     switch (status) {
       case "active":
         return { icon: CheckCircle, color: "text-green-600", bgColor: "bg-green-50", text: "Ativo" };
+      case "processing":
+        return { icon: Clock, color: "text-blue-600", bgColor: "bg-blue-50", text: "Processando" };
       case "inactive":
         return { icon: AlertCircle, color: "text-yellow-600", bgColor: "bg-yellow-50", text: "Inativo" };
       case "error":
@@ -74,10 +98,47 @@ export function SubscriptionAndPaymentPanel() {
       <div className="py-4 px-4 bg-red-50 border border-red-200 rounded-md">
         <div className="flex items-center gap-2 text-center">
           <XCircle className="h-4 w-4 text-red-600" />
-          <div>
+          <div className="flex-1">
             <p className="text-sm text-red-800 mb-1">Erro ao carregar dados da assinatura</p>
             <p className="text-xs text-red-600">{error}</p>
           </div>
+          <Button 
+            size="sm" 
+            variant="outline" 
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+          >
+            {isRefreshing ? <RefreshCw className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Para assinatura sendo processada
+  if (isPending || status === "processing") {
+    return (
+      <div className="py-4 px-4 bg-blue-50 border border-blue-200 rounded-md">
+        <div className="flex items-center gap-2">
+          <Clock className="h-4 w-4 text-blue-600" />
+          <div className="flex-1">
+            <p className="text-sm text-blue-800 mb-1">Processando sua assinatura</p>
+            <p className="text-xs text-blue-600">
+              Seu pagamento está sendo processado. Isso pode levar alguns minutos.
+            </p>
+            <div className="mt-2 text-xs text-blue-600">
+              <strong>{plan}</strong> - R$ {(amount/100).toFixed(2)}
+            </div>
+          </div>
+          <Button 
+            size="sm" 
+            variant="outline" 
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+          >
+            {isRefreshing ? <RefreshCw className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+            Atualizar
+          </Button>
         </div>
       </div>
     );
@@ -87,12 +148,20 @@ export function SubscriptionAndPaymentPanel() {
   if (status === "inactive" || !plan || plan === "Nenhum plano ativo") {
     return (
       <div className="py-4 px-4 bg-yellow-50 border border-yellow-200 rounded-md">
-        <div className="flex items-center gap-2 text-center">
+        <div className="flex items-center gap-2">
           <AlertCircle className="h-4 w-4 text-yellow-600" />
-          <div>
+          <div className="flex-1">
             <p className="text-sm text-yellow-800 mb-1">Nenhum plano ativo encontrado</p>
             <p className="text-xs text-yellow-600">Entre em contato para ativar sua assinatura</p>
           </div>
+          <Button 
+            size="sm" 
+            variant="outline" 
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+          >
+            {isRefreshing ? <RefreshCw className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+          </Button>
         </div>
       </div>
     );
@@ -124,13 +193,23 @@ export function SubscriptionAndPaymentPanel() {
                 </span>
               )}
             </div>
-            <Button 
-              size="sm" 
-              onClick={() => setShowCardInfo(true)}
-              className="ml-4"
-            >
-              Configurar Pagamento
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+              >
+                {isRefreshing ? <RefreshCw className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+              </Button>
+              <Button 
+                size="sm" 
+                onClick={() => setShowCardInfo(true)}
+                className="ml-2"
+              >
+                Configurar Pagamento
+              </Button>
+            </div>
           </div>
         </div>
       ) : (
