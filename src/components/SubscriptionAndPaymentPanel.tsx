@@ -96,7 +96,6 @@ export function SubscriptionAndPaymentPanel() {
             ) : (
               <div className="py-3">
                 <p className="text-sm text-muted-foreground mb-3">Não há cartão cadastrado.</p>
-                <Button size="sm" onClick={handleChangeCard}>Adicionar pagamento</Button>
               </div>
             )}
           </div>
