@@ -1,3 +1,4 @@
+
 import { useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -144,6 +145,9 @@ export function StateStatsChart({ leads, selectedCategory = "all", hasLeadPassed
   const totalMetrica = stateStats.reduce((acc, state) => acc + state.metrica, 0);
   const top3Estados = stateStats.slice(0, 3);
 
+  // Verificar se estamos na visualização de Estados
+  const isEstadosView = selectedCategory === "estados" || selectedCategory.endsWith("-estados");
+
   if (totalLeads === 0) {
     return (
       <Card className="p-6">
@@ -180,10 +184,13 @@ export function StateStatsChart({ leads, selectedCategory = "all", hasLeadPassed
       </div>
 
       <div className="mb-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Trophy className="h-5 w-5 text-yellow-500" />
-          <h4 className="font-semibold text-gray-800">Top 3 Estados</h4>
-        </div>
+        {/* Só mostrar o título "Top 3 Estados" e o ícone do troféu se NÃO estivermos na visualização de Estados */}
+        {!isEstadosView && (
+          <div className="flex items-center gap-2 mb-4">
+            <Trophy className="h-5 w-5 text-yellow-500" />
+            <h4 className="font-semibold text-gray-800">Top 3 Estados</h4>
+          </div>
+        )}
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {top3Estados.map((estado, index) => (
