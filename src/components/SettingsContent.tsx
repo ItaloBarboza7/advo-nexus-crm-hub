@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,7 +22,7 @@ import { useDashboardSettings } from "@/hooks/useDashboardSettings";
 import { useCompanyInfo } from "@/hooks/useCompanyInfo";
 import { useLossReasonsGlobal } from "@/hooks/useLossReasonsGlobal";
 import { useTenantSchema } from "@/hooks/useTenantSchema";
-import { SubscriptionAndPaymentPanel } from "@/components/SubscriptionAndPaymentPanel";
+import { SubscriptionAndPaymentPanel, CardInfoPanel } from "@/components/SubscriptionAndPaymentPanel";
 import { useKanbanColumnManager } from "@/hooks/useKanbanColumnManager";
 import { TeamGoalsSettings } from "@/components/TeamGoalsSettings";
 
@@ -576,17 +575,7 @@ export function SettingsContent() {
                 </div>
                 
                 {/* Apenas as informações de cartão aqui dentro */}
-                <div>
-                  <h6 className="font-medium mb-2">Cartão cadastrado</h6>
-                  <div className="py-2 px-3 bg-muted rounded-md flex items-center gap-5">
-                    <span className="mr-2 uppercase">VISA</span>
-                    <span>•••• 1234</span>
-                    <span className="text-xs text-muted-foreground ml-2">Venc: 12/25</span>
-                    <Button size="sm" className="ml-auto">
-                      Alterar forma de pagamento
-                    </Button>
-                  </div>
-                </div>
+                <CardInfoPanel />
               </div>
             )}
           </div>
