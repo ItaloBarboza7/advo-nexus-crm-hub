@@ -1,3 +1,4 @@
+
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserPlus, UserX, DollarSign, TrendingUp, BarChart3 } from "lucide-react";
@@ -30,8 +31,8 @@ export function DashboardContent() {
 
   const { components } = useDashboardSettings();
   
-  // Use team data hooks - properly destructure error states
-  const { leads: allLeads, isLoading: leadsLoading, error: leadsError } = useLeadsData();
+  // Use team data hooks - useLeadsData doesn't return error, useContractsData does
+  const { leads: allLeads, isLoading: leadsLoading } = useLeadsData();
   const { contracts: allContracts, isLoading: contractsLoading, error: contractsError } = useContractsData();
   const { statusHistory, hasLeadPassedThroughStatus } = useLeadStatusHistory();
 
@@ -858,12 +859,12 @@ export function DashboardContent() {
         )}
       </div>
 
-      {/* Error States */}
-      {(leadsError || contractsError) && (
+      {/* Error States - Only show contractsError since useLeadsData doesn't return error */}
+      {contractsError && (
         <Card className="p-6 border-red-200 bg-red-50">
           <div className="text-red-800">
             <p className="font-medium">Erro ao carregar dados:</p>
-            <p className="text-sm mt-1">{leadsError || contractsError}</p>
+            <p className="text-sm mt-1">{contractsError}</p>
           </div>
         </Card>
       )}
