@@ -1,3 +1,4 @@
+
 import { Card } from "@/components/ui/card";
 import { ChevronDown } from "lucide-react";
 
@@ -85,7 +86,7 @@ export function UserComparisonCard({
   // Calcular valores do eixo Y com escala que inclui 0 e vai até um valor acima dos dados
   const maxDataValue = Math.max(...currentMonthData, ...previousMonthData);
   
-  // Criar escala que SEMPRE inicia com 0, depois 180, depois incrementa
+  // Criar escala que SEMPRE inicia com 0, depois 180, depois 360
   const calculateYAxisValues = (maxValue: number) => {
     // Garantir que o valor máximo seja pelo menos 360 para ter uma escala adequada
     const adjustedMax = Math.max(maxValue, 360);
@@ -94,7 +95,7 @@ export function UserComparisonCard({
     
     return [
       roundedMax,
-      roundedMax - 180,
+      360,
       180,
       0
     ];
