@@ -33,6 +33,7 @@ export function CasesContent() {
     valueRange: { min: null, max: null }
   });
   const [isInitialized, setIsInitialized] = useState(false);
+  const [initializationAttempted, setInitializationAttempted] = useState(false);
   
   // Refs para controle de estado
   const isMountedRef = useRef(true);
@@ -44,7 +45,9 @@ export function CasesContent() {
     error, 
     currentUser, 
     fetchLeadsForDate,
-    fetchLeadsForDateRange 
+    fetchLeadsForDateRange,
+    schemaResolved,
+    canFetchData
   } = useLeadsForDate();
 
   const { lossReasons } = useLossReasonsGlobal();
@@ -93,7 +96,13 @@ export function CasesContent() {
 
   // Função para buscar dados do mês atual
   const fetchCurrentMonthData = useCallback(() => {
-    if (!isMountedRef.current) return;
+    if (!isMountedRef.current || !canFetchData) {
+      console.log("🚫 CasesContent - Não é possível buscar dados do mês atual:", {
+        isMounted: isMountedRef.current,
+        canFetchData
+      });
+      return;
+    }
     
     const now = BrazilTimezone.now();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -113,17 +122,32 @@ export function CasesContent() {
       setAppliedDateRange(currentMonthRange);
       fetchLeadsForDateRange(currentMonthRange);
     }
-  }, [fetchLeadsForDateRange]);
+  }, [fetchLeadsForDateRange, canFetchData]);
 
-  // Inicialização controlada - APENAS uma vez por montagem
+  // Inicialização controlada - aguardar schema estar resolvido
   useEffect(() => {
-    if (!initializationRef.current && currentUser && isMountedRef.current) {
-      console.log("🚀 CasesContent - Inicializando análises pela primeira vez");
+    if (!schemaResolved || initializationRef.current || initializationAttempted) {
+      return;
+    }
+
+    // Marcar que tentativa de inicialização foi feita
+    setInitializationAttempted(true);
+
+    // Aguardar que todas as dependências estejam prontas
+    if (canFetchData && currentUser && isMountedRef.current) {
+      console.log("🚀 CasesContent - Inicializando análises com schema resolvido");
       initializationRef.current = true;
       fetchCurrentMonthData();
       setIsInitialized(true);
+    } else {
+      console.log("🔍 CasesContent - Aguardando dependências:", {
+        schemaResolved,
+        canFetchData,
+        hasCurrentUser: !!currentUser,
+        isMounted: isMountedRef.current
+      });
     }
-  }, [currentUser, fetchCurrentMonthData]);
+  }, [schemaResolved, canFetchData, currentUser, fetchCurrentMonthData, initializationAttempted]);
 
   // Reset quando componente for remontado
   useEffect(() => {
@@ -131,11 +155,18 @@ export function CasesContent() {
       // Limpar estado de inicialização quando componente for desmontado
       initializationRef.current = false;
       setIsInitialized(false);
+      setInitializationAttempted(false);
     };
   }, []);
 
   const handleDateRangeApply = useCallback((range: DateRange | undefined) => {
-    if (!isMountedRef.current) return;
+    if (!isMountedRef.current || !canFetchData) {
+      console.log("🚫 CasesContent - Não é possível aplicar filtro de período:", {
+        isMounted: isMountedRef.current,
+        canFetchData
+      });
+      return;
+    }
     
     console.log("📅 CasesContent - Aplicando filtro de período:", range);
     
@@ -159,7 +190,7 @@ export function CasesContent() {
       setAppliedDateRange(rangeToApply);
       fetchLeadsForDateRange(rangeToApply);
     }
-  }, [fetchCurrentMonthData, fetchLeadsForDateRange]);
+  }, [fetchCurrentMonthData, fetchLeadsForDateRange, canFetchData]);
 
   const { filteredLeads } = useLeadFiltering(
     leads || [],
@@ -185,14 +216,20 @@ export function CasesContent() {
   }, [resetChartStates]);
 
   const handleRefresh = useCallback(() => {
-    if (!isMountedRef.current) return;
+    if (!isMountedRef.current || !canFetchData) {
+      console.log("🚫 CasesContent - Não é possível atualizar dados:", {
+        isMounted: isMountedRef.current,
+        canFetchData
+      });
+      return;
+    }
     
     if (appliedDateRange) {
       fetchLeadsForDateRange(appliedDateRange);
     } else {
       fetchCurrentMonthData();
     }
-  }, [appliedDateRange, fetchLeadsForDateRange, fetchCurrentMonthData]);
+  }, [appliedDateRange, fetchLeadsForDateRange, fetchCurrentMonthData, canFetchData]);
 
   const getDisplayTitle = useCallback(() => {
     if (appliedDateRange?.from) {
@@ -214,17 +251,41 @@ export function CasesContent() {
     } : 'Nenhum',
     selectedCategory,
     isInitialized,
+    schemaResolved,
+    canFetchData,
     isMounted: isMountedRef.current
   });
 
   // Estado de carregamento melhorado
-  if (isLoading && !isInitialized) {
+  if (!schemaResolved || (isLoading && !isInitialized)) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-center py-8">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Carregando dados das análises...</p>
+            <p className="text-gray-600">
+              {!schemaResolved ? 'Carregando configuração...' : 'Carregando dados das análises...'}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Estado de erro do schema
+  if (schemaResolved && !canFetchData && initializationAttempted) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center py-8">
+          <div className="text-center">
+            <div className="text-red-600 mb-4">⚠️</div>
+            <p className="text-gray-600 mb-4">Não foi possível carregar a configuração necessária</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Tentar novamente
+            </button>
           </div>
         </div>
       </div>
