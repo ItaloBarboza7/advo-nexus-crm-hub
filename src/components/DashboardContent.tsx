@@ -63,6 +63,39 @@ export function DashboardContent() {
     return !!(leadsUser && contractsUser && tenantSchema && !schemaLoading && !schemaError);
   }, [leadsUser, contractsUser, tenantSchema, schemaLoading, schemaError]);
 
+  // CORREÇÃO: Função para verificar se um lead é oportunidade (mesma lógica das análises)
+  const isOpportunityLead = useCallback((lead: any): boolean => {
+    console.log(`🔍 [DashboardContent] Verificando se ${lead.name} (${lead.status}) é oportunidade`);
+    
+    // NOVA REGRA: Oportunidades são leads que:
+    // 1. NÃO estão em "Novo" (independente do histórico)
+    // 2. Estão atualmente em "Proposta" ou "Reunião" OU passaram por eles (histórico)
+    
+    // PRIMEIRO: Excluir completamente leads com status "Novo"
+    if (lead.status === "Novo") {
+      console.log(`❌ [DashboardContent] Lead ${lead.name} está em Novo - SEMPRE EXCLUÍDO`);
+      return false;
+    }
+    
+    // SEGUNDO: Se está em Proposta ou Reunião atualmente, incluir automaticamente
+    if (lead.status === "Proposta" || lead.status === "Reunião") {
+      console.log(`✅ [DashboardContent] Lead ${lead.name} está atualmente em ${lead.status} - INCLUÍDO`);
+      return true;
+    }
+    
+    // TERCEIRO: Verificar se passou por Proposta/Reunião no histórico (incluindo finalizados)
+    const hasPassedThroughTargetStatuses = hasLeadPassedThroughStatus(lead.id, ["Proposta", "Reunião"]);
+    console.log(`📊 [DashboardContent] Lead ${lead.name} (${lead.status}) passou por Proposta/Reunião: ${hasPassedThroughTargetStatuses}`);
+    
+    if (hasPassedThroughTargetStatuses) {
+      console.log(`✅ [DashboardContent] Lead ${lead.name} passou por Proposta/Reunião - INCLUÍDO mesmo estando em ${lead.status}`);
+      return true;
+    }
+    
+    console.log(`❌ [DashboardContent] Lead ${lead.name} não passou por Proposta/Reunião - EXCLUÍDO`);
+    return false;
+  }, [hasLeadPassedThroughStatus]);
+
   // CORREÇÃO: Inicialização única e simplificada
   useEffect(() => {
     if (!isInitialized && allDependenciesReady) {
@@ -150,13 +183,20 @@ export function DashboardContent() {
     }
   }, [allDependenciesReady, dateRange, appliedDateRange, handleDateRangeApply]);
 
-  // CORREÇÃO: Calcular estatísticas reais baseadas nos leads filtrados
+  // CORREÇÃO: Calcular estatísticas reais baseadas nos leads filtrados usando a mesma lógica das análises
   const totalLeads = leads?.length || 0;
-  const proposalsAndMeetings = leads?.filter(lead => 
-    lead.status === "Proposta" || lead.status === "Reunião"
-  ).length || 0;
+  const proposalsAndMeetings = leads?.filter(lead => isOpportunityLead(lead)).length || 0;
   const lostLeads = leads?.filter(lead => lead.status === "Perdido").length || 0;
   const closedDeals = leads?.filter(lead => lead.status === "Contrato Fechado").length || 0;
+
+  // Log para debug da contagem de oportunidades
+  console.log("📊 DashboardContent - Contagem de oportunidades:", {
+    totalLeads,
+    proposalsAndMeetings,
+    lostLeads,
+    closedDeals,
+    leadsProcessados: leads?.map(l => `${l.name} (${l.status}) - É oportunidade: ${isOpportunityLead(l)}`).join(', ')
+  });
 
   // Calcular valor total dos contratos
   const totalValue = contracts?.reduce((sum, contract) => sum + contract.value, 0) || 0;
@@ -223,14 +263,6 @@ export function DashboardContent() {
       overallConversion: proposalsAndMeetings > 0 ? `${Math.min(((closedDeals / proposalsAndMeetings) * 100), 100).toFixed(1)}%` : "0%",
     },
   ];
-
-  // CORREÇÃO: Função para verificar se um lead é oportunidade baseada nos dados reais
-  const isOpportunityLead = useCallback((lead: any): boolean => {
-    const currentlyInOpportunity = lead.status === "Proposta" || lead.status === "Reunião";
-    const passedThroughOpportunity = hasLeadPassedThroughStatus(lead.id, ["Proposta", "Reunião"]);
-    
-    return currentlyInOpportunity || passedThroughOpportunity;
-  }, [hasLeadPassedThroughStatus]);
 
   // CORREÇÃO: Gerar dados REAIS de conversão baseados nos leads filtrados
   const getRealConversionData = useMemo(() => {
