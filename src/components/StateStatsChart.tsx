@@ -205,13 +205,9 @@ export function StateStatsChart({ leads, selectedCategory = "all", hasLeadPassed
                     index === 1 ? 'bg-gray-100 border-gray-600 text-gray-600' :
                     'bg-gray-100 border-gray-400 text-gray-400'
                   }`}>
-                    {index + 1}
+                    {index + 1}°
                   </div>
                   <span className="font-semibold">{estado.state}</span>
-                </div>
-                <div className="text-right">
-                  <div className="text-lg font-bold">{estado.metrica}</div>
-                  <div className="text-xs text-gray-500">{getMetricaLabel()}</div>
                 </div>
               </div>
               
@@ -243,10 +239,13 @@ export function StateStatsChart({ leads, selectedCategory = "all", hasLeadPassed
               </div>
               
               <div className="flex items-center gap-4">
-                <div className="text-center">
-                  <div className="text-sm font-semibold text-gray-900">{estado.total}</div>
-                  <div className="text-xs text-gray-600">total</div>
-                </div>
+                {/* Mostrar "total" apenas se não for a categoria "all" */}
+                {selectedCategory !== "all" && (
+                  <div className="text-center">
+                    <div className="text-sm font-semibold text-gray-900">{estado.total}</div>
+                    <div className="text-xs text-gray-600">total</div>
+                  </div>
+                )}
                 <div className="text-center">
                   <div className="text-sm font-semibold text-purple-700">{estado.metrica}</div>
                   <div className="text-xs text-gray-600">{getMetricaLabel()}</div>
