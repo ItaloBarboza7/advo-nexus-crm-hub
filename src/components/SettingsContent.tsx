@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -542,45 +543,53 @@ export function SettingsContent() {
             <h4 className="text-md font-semibold text-gray-900">Plano de Assinatura</h4>
           </div>
           
-          {!showPaymentConfig ? (
-            <div className="space-y-4">
-              <div className="py-2 px-3 bg-muted rounded-md flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex-1">
-                    <span className="block font-medium">Plano Premium</span>
-                    <div className="flex items-center gap-2">
-                      <span className="block text-sm text-muted-foreground">R$ 79,90</span>
-                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
-                        anual
-                      </span>
-                    </div>
-                  </div>
-                </div>
+          <div className="space-y-4">
+            {/* Plano selecionado - SEMPRE VISÍVEL FORA DO BOTÃO */}
+            <div>
+              <h5 className="font-bold mb-2">Plano selecionado</h5>
+              <SubscriptionAndPaymentPanel />
+            </div>
+
+            {/* Botão de configurar pagamento - CONTÉM APENAS CARTÃO */}
+            {!showPaymentConfig ? (
+              <div className="pt-4">
                 <Button 
                   variant="outline"
                   onClick={() => setShowPaymentConfig(true)}
-                  className="ml-4"
+                  className="w-full"
                 >
                   <CreditCard className="h-4 w-4 mr-2" />
                   Configurar Pagamento
                 </Button>
               </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between mb-4 pb-2 border-b">
-                <h5 className="font-medium text-gray-900">Configuração de Pagamento</h5>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => setShowPaymentConfig(false)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+            ) : (
+              <div className="space-y-4 pt-4">
+                <div className="flex items-center justify-between mb-4 pb-2 border-b">
+                  <h5 className="font-medium text-gray-900">Configuração de Pagamento</h5>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => setShowPaymentConfig(false)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                
+                {/* Apenas as informações de cartão aqui dentro */}
+                <div>
+                  <h6 className="font-medium mb-2">Cartão cadastrado</h6>
+                  <div className="py-2 px-3 bg-muted rounded-md flex items-center gap-5">
+                    <span className="mr-2 uppercase">VISA</span>
+                    <span>•••• 1234</span>
+                    <span className="text-xs text-muted-foreground ml-2">Venc: 12/25</span>
+                    <Button size="sm" className="ml-auto">
+                      Alterar forma de pagamento
+                    </Button>
+                  </div>
+                </div>
               </div>
-              <SubscriptionAndPaymentPanel />
-            </div>
-          )}
+            )}
+          </div>
         </Card>
       </div>
     );
