@@ -25,7 +25,8 @@ export function Dashboard() {
     isLoading: leadsLoading, 
     error: leadsError, 
     currentUser: leadsUser, 
-    fetchLeadsForDate 
+    fetchLeadsForDate,
+    fetchLeadsForDateRange 
   } = useLeadsForDate();
 
   const { 
@@ -43,15 +44,23 @@ export function Dashboard() {
         from: BrazilTimezone.formatDateForDisplay(appliedDateRange.from),
         to: BrazilTimezone.formatDateForDisplay(appliedDateRange.to)
       });
-      // Para período, usar a data inicial do range
-      fetchLeadsForDate(appliedDateRange.from);
+      fetchLeadsForDateRange(appliedDateRange);
+      fetchContractsForDate(appliedDateRange.from);
+    } else if (appliedDateRange?.from && !appliedDateRange?.to) {
+      // Se apenas uma data foi selecionada, criar um range de um dia
+      const singleDayRange = {
+        from: appliedDateRange.from,
+        to: appliedDateRange.from
+      };
+      console.log("📅 Dashboard - Filtrando por dia único:", BrazilTimezone.formatDateForDisplay(appliedDateRange.from));
+      fetchLeadsForDateRange(singleDayRange);
       fetchContractsForDate(appliedDateRange.from);
     } else if (selectedDate) {
       console.log("📅 Dashboard - Data selecionada:", BrazilTimezone.formatDateForDisplay(selectedDate));
       fetchLeadsForDate(selectedDate);
       fetchContractsForDate(selectedDate);
     }
-  }, [selectedDate, appliedDateRange, fetchLeadsForDate, fetchContractsForDate]);
+  }, [selectedDate, appliedDateRange, fetchLeadsForDate, fetchLeadsForDateRange, fetchContractsForDate]);
 
   const handleDateSelect = useCallback((date: Date | undefined) => {
     if (date) {
@@ -65,9 +74,9 @@ export function Dashboard() {
   const handleDateRangeApply = useCallback((range: DateRange | undefined) => {
     console.log("📅 Dashboard - Período aplicado:", range);
     setAppliedDateRange(range);
-    if (range) {
+    if (range?.from) {
       // Limpar seleção de data individual quando aplicar período
-      setSelectedDate(range.from || BrazilTimezone.now());
+      setSelectedDate(range.from);
     }
   }, []);
 
@@ -82,18 +91,32 @@ export function Dashboard() {
     setShowActivityPanel(false);
   }, []);
 
-  // Filter data based on applied date range
-  const filteredLeads = appliedDateRange?.from && appliedDateRange?.to
+  // Filter data based on applied date range - sempre aplicar filtro se houver range
+  const filteredLeads = appliedDateRange?.from
     ? leads.filter(lead => {
         const leadDate = new Date(lead.createdAt);
-        return leadDate >= appliedDateRange.from! && leadDate <= appliedDateRange.to!;
+        const fromDate = appliedDateRange.from!;
+        const toDate = appliedDateRange.to || appliedDateRange.from!; // Se não tiver 'to', usar 'from'
+        
+        // Ajustar para o final do dia se for apenas um dia
+        const endOfDay = new Date(toDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        
+        return leadDate >= fromDate && leadDate <= endOfDay;
       })
     : leads;
 
-  const filteredContracts = appliedDateRange?.from && appliedDateRange?.to
+  const filteredContracts = appliedDateRange?.from
     ? contracts.filter(contract => {
         const contractDate = new Date(contract.closedAt);
-        return contractDate >= appliedDateRange.from! && contractDate <= appliedDateRange.to!;
+        const fromDate = appliedDateRange.from!;
+        const toDate = appliedDateRange.to || appliedDateRange.from!; // Se não tiver 'to', usar 'from'
+        
+        // Ajustar para o final do dia se for apenas um dia
+        const endOfDay = new Date(toDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        
+        return contractDate >= fromDate && contractDate <= endOfDay;
       })
     : contracts;
 
@@ -102,6 +125,8 @@ export function Dashboard() {
   const getDisplayTitle = () => {
     if (appliedDateRange?.from && appliedDateRange?.to) {
       return `Período de ${BrazilTimezone.formatDateForDisplay(appliedDateRange.from)} a ${BrazilTimezone.formatDateForDisplay(appliedDateRange.to)}`;
+    } else if (appliedDateRange?.from) {
+      return `Resumo das atividades de ${BrazilTimezone.formatDateForDisplay(appliedDateRange.from)}`;
     }
     return `Resumo das atividades de ${BrazilTimezone.formatDateForDisplay(selectedDate)}`;
   };

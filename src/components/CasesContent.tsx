@@ -66,11 +66,18 @@ export function CasesContent() {
     shouldShowStateChart
   } = useAnalysisLogic(leads, selectedCategory, statusHistory, hasLeadPassedThroughStatus);
   
-  // Filter leads by date range
-  const dateFilteredLeads = appliedDateRange?.from && appliedDateRange?.to
+  // Filter leads by date range - corrigir para funcionar com um dia único
+  const dateFilteredLeads = appliedDateRange?.from
     ? leads.filter(lead => {
         const leadDate = new Date(lead.created_at);
-        return leadDate >= appliedDateRange.from! && leadDate <= appliedDateRange.to!;
+        const fromDate = appliedDateRange.from!;
+        const toDate = appliedDateRange.to || appliedDateRange.from!; // Se não tiver 'to', usar 'from'
+        
+        // Ajustar para o final do dia se for apenas um dia
+        const endOfDay = new Date(toDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        
+        return leadDate >= fromDate && leadDate <= endOfDay;
       })
     : leads;
 
@@ -120,16 +127,22 @@ export function CasesContent() {
     selectedCategory
   });
 
+  const getDisplayTitle = () => {
+    if (appliedDateRange?.from && appliedDateRange?.to) {
+      return `Análise detalhada - Período: ${appliedDateRange.from.toLocaleDateString('pt-BR')} a ${appliedDateRange.to.toLocaleDateString('pt-BR')}`;
+    } else if (appliedDateRange?.from) {
+      return `Análise detalhada - ${appliedDateRange.from.toLocaleDateString('pt-BR')}`;
+    }
+    return "Análise detalhada de leads e performance de vendas";
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Análises</h1>
           <p className="text-gray-600">
-            {appliedDateRange?.from && appliedDateRange?.to
-              ? `Análise detalhada - Período: ${appliedDateRange.from.toLocaleDateString('pt-BR')} a ${appliedDateRange.to.toLocaleDateString('pt-BR')}`
-              : "Análise detalhada de leads e performance de vendas"
-            }
+            {getDisplayTitle()}
           </p>
         </div>
         <DateFilter 
