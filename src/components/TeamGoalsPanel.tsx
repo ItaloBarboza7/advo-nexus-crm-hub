@@ -69,6 +69,7 @@ export function TeamGoalsPanel({
   const [teamGoal, setTeamGoal] = useState(100); // Meta mensal padrão
   const [dailyGoal, setDailyGoal] = useState(3); // Meta diária padrão
   const [isLoadingGoals, setIsLoadingGoals] = useState(true);
+  const [hasTeamGoalsError, setHasTeamGoalsError] = useState(false);
   
   const { tenantSchema } = useTenantSchema();
 
@@ -86,13 +87,19 @@ export function TeamGoalsPanel({
     const loadTeamGoals = async () => {
       try {
         setIsLoadingGoals(true);
-        console.log("🎯 TeamGoalsPanel - Carregando metas da equipe configuradas...");
+        setHasTeamGoalsError(false);
+        console.log("🎯 TeamGoalsPanel - Tentando carregar metas da equipe...");
         
         // Obter o tenant ID (admin principal)
         const { data: tenantId, error: tenantError } = await supabase.rpc('get_tenant_id');
         
         if (tenantError) {
           console.error("❌ Erro ao obter tenant ID:", tenantError);
+          // Para novos usuários, isso é normal - não mostrar erro
+          console.log("📝 Usando valores padrão para novo usuário");
+          setTeamGoal(100);
+          setDailyGoal(3);
+          setIsLoadingGoals(false);
           return;
         }
 
@@ -109,6 +116,11 @@ export function TeamGoalsPanel({
 
         if (error && error.code !== 'PGRST116') {
           console.error('❌ Erro ao carregar metas da equipe configuradas:', error);
+          // Para novos usuários, usar valores padrão sem mostrar erro
+          console.log("📝 Usando valores padrão devido ao erro");
+          setTeamGoal(100);
+          setDailyGoal(3);
+          setIsLoadingGoals(false);
           return;
         }
 
@@ -118,9 +130,16 @@ export function TeamGoalsPanel({
           setDailyGoal(goals.daily_goal || 3);
         } else {
           console.log("📝 Nenhuma meta da equipe configurada encontrada, usando valores padrão");
+          setTeamGoal(100);
+          setDailyGoal(3);
         }
       } catch (error) {
         console.error('❌ Erro inesperado ao carregar metas da equipe configuradas:', error);
+        // Para novos usuários, isso é esperado - usar valores padrão
+        console.log("📝 Usando valores padrão devido ao erro inesperado");
+        setTeamGoal(100);
+        setDailyGoal(3);
+        setHasTeamGoalsError(false); // Não mostrar erro para novos usuários
       } finally {
         setIsLoadingGoals(false);
       }
@@ -140,12 +159,14 @@ export function TeamGoalsPanel({
           .from('user_profiles')
           .select('parent_user_id')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
         // É admin se não tem parent_user_id (é o usuário principal)
         setIsAdmin(!profile?.parent_user_id);
       } catch (error) {
         console.error("❌ Erro ao verificar role do usuário:", error);
+        // Em caso de erro, assumir que não é admin
+        setIsAdmin(false);
       }
     };
 
@@ -155,7 +176,12 @@ export function TeamGoalsPanel({
   // Buscar contratos fechados hoje
   useEffect(() => {
     const fetchTodayContracts = async () => {
-      if (!tenantSchema) return;
+      if (!tenantSchema) {
+        console.log("📊 TeamGoalsPanel - Esquema do tenant não disponível, usando valor padrão");
+        setTodayContracts(0);
+        setIsLoadingToday(false);
+        return;
+      }
       
       try {
         setIsLoadingToday(true);
@@ -175,6 +201,8 @@ export function TeamGoalsPanel({
 
         if (error) {
           console.error("❌ Erro ao buscar contratos de hoje:", error);
+          setTodayContracts(0);
+          setIsLoadingToday(false);
           return;
         }
 
@@ -191,6 +219,7 @@ export function TeamGoalsPanel({
         setTodayContracts(contractsCount);
       } catch (error) {
         console.error("❌ Erro inesperado ao buscar contratos de hoje:", error);
+        setTodayContracts(0);
       } finally {
         setIsLoadingToday(false);
       }
@@ -314,7 +343,6 @@ export function TeamGoalsPanel({
     }
   };
 
-  // Buscar leads fechados por um membro específico
   const fetchMemberLeads = async (userId: string, memberName: string) => {
     if (!tenantSchema) return;
     
@@ -325,8 +353,7 @@ export function TeamGoalsPanel({
       const { data: leadsData, error: leadsError } = await supabase.rpc('exec_sql', {
         sql: `
           SELECT * FROM ${tenantSchema}.leads 
-          WHERE user_id = '${userId}' 
-          AND status = 'Contrato Fechado'
+          WHERE status = 'Contrato Fechado'
           ORDER BY updated_at DESC
         `
       });
@@ -337,9 +364,10 @@ export function TeamGoalsPanel({
       }
 
       const leads = Array.isArray(leadsData) ? (leadsData as unknown) as Lead[] : [];
-      console.log(`📊 ${leads.length} leads fechados encontrados para ${memberName}`);
+      const memberLeads = leads.filter(lead => lead.user_id === userId);
+      console.log(`📊 ${memberLeads.length} leads fechados encontrados para ${memberName}`);
       
-      setSelectedMemberLeads(leads);
+      setSelectedMemberLeads(memberLeads);
       setSelectedMemberName(memberName);
       setShowMemberLeads(true);
     } catch (error) {

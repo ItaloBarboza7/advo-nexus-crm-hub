@@ -52,18 +52,27 @@ export function CalendarContent() {
   // Buscar informações do usuário atual
   useEffect(() => {
     const getCurrentUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        // Buscar o perfil do usuário para obter o nome
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('name')
-          .eq('user_id', user.id)
-          .maybeSingle();
-        
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // Buscar o perfil do usuário para obter o nome
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('name')
+            .eq('user_id', user.id)
+            .maybeSingle();
+          
+          setCurrentUser({
+            id: user.id,
+            name: profile?.name || user.email || 'Usuário'
+          });
+        }
+      } catch (error) {
+        console.error("❌ Erro ao obter usuário atual:", error);
+        // Se houver erro, definir um usuário padrão para evitar crashes
         setCurrentUser({
-          id: user.id,
-          name: profile?.name || user.email || 'Usuário'
+          id: 'default',
+          name: 'Usuário'
         });
       }
     };
@@ -74,15 +83,52 @@ export function CalendarContent() {
   // Buscar histórico de status quando o tenant schema estiver disponível
   useEffect(() => {
     const fetchStatusHistory = async () => {
-      if (!tenantSchema) return;
+      if (!tenantSchema) {
+        console.log("📈 CalendarContent - Esquema do tenant não disponível, usando array vazio para histórico");
+        setStatusHistory([]);
+        return;
+      }
       
       try {
+        // Verificar se a tabela lead_status_history existe no esquema do tenant
+        const { data: tableExists, error: tableError } = await supabase.rpc('exec_sql', {
+          sql: `
+            SELECT EXISTS (
+              SELECT FROM information_schema.tables 
+              WHERE table_schema = '${tenantSchema}' 
+              AND table_name = 'lead_status_history'
+            ) as table_exists
+          `
+        });
+
+        if (tableError) {
+          console.error("❌ Erro ao verificar tabela de histórico:", tableError);
+          setStatusHistory([]);
+          return;
+        }
+
+        // Safe type handling
+        let exists = false;
+        if (Array.isArray(tableExists) && tableExists.length > 0) {
+          const firstRow = tableExists[0] as unknown;
+          if (firstRow && typeof firstRow === 'object' && 'table_exists' in firstRow) {
+            exists = Boolean((firstRow as any).table_exists);
+          }
+        }
+
+        if (!exists) {
+          console.log("📈 CalendarContent - Tabela de histórico não existe ainda, usando array vazio");
+          setStatusHistory([]);
+          return;
+        }
+
         const { data, error } = await supabase.rpc('exec_sql', {
           sql: `SELECT * FROM ${tenantSchema}.lead_status_history ORDER BY changed_at DESC`
         });
 
         if (error) {
           console.error("❌ Erro ao buscar histórico de status:", error);
+          setStatusHistory([]);
           return;
         }
 
@@ -91,6 +137,7 @@ export function CalendarContent() {
         setStatusHistory(historyData);
       } catch (error) {
         console.error("❌ Erro inesperado ao buscar histórico:", error);
+        setStatusHistory([]);
       }
     };
 

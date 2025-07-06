@@ -44,8 +44,38 @@ export function SubscriptionAndPaymentPanel() {
     }
   }
 
-  if (isLoading) return <div className="text-muted-foreground py-4">Carregando assinatura...</div>;
-  if (error) return <div className="text-red-500 py-4">Erro: {error}</div>;
+  if (isLoading) {
+    return (
+      <div className="text-muted-foreground py-4 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+        Carregando assinatura...
+      </div>
+    );
+  }
+
+  // Se há erro, mostrar uma mensagem mais amigável
+  if (error) {
+    return (
+      <div className="py-4 px-4 bg-yellow-50 border border-yellow-200 rounded-md">
+        <div className="text-center">
+          <p className="text-sm text-yellow-800 mb-2">Não foi possível carregar os dados da assinatura</p>
+          <p className="text-xs text-yellow-600">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Para usuários sem plano ativo
+  if (status === "inactive" || !plan || plan === "Nenhum plano ativo") {
+    return (
+      <div className="py-4 px-4 bg-gray-50 border border-gray-200 rounded-md">
+        <div className="text-center">
+          <p className="text-sm text-gray-600 mb-2">Nenhum plano ativo encontrado</p>
+          <p className="text-xs text-gray-500">Entre em contato para ativar sua assinatura</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -140,8 +170,23 @@ export function CardInfoPanel() {
     }
   }
 
-  if (isLoading) return <div className="text-muted-foreground py-4">Carregando informações do cartão...</div>;
-  if (error) return <div className="text-red-500 py-4">Erro: {error}</div>;
+  if (isLoading) {
+    return (
+      <div className="text-muted-foreground py-4 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+        Carregando informações do cartão...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-yellow-600 py-4 text-center">
+        <p className="text-sm">Não foi possível carregar informações do cartão</p>
+        <p className="text-xs">{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div>
