@@ -1,4 +1,3 @@
-
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserPlus, UserX, DollarSign, TrendingUp, BarChart3 } from "lucide-react";
@@ -37,7 +36,10 @@ export function DashboardContent() {
     error: leadsError, 
     currentUser: leadsUser, 
     fetchLeadsForDate,
-    fetchLeadsForDateRange 
+    fetchLeadsForDateRange,
+    schemaLoading,
+    schemaError,
+    tenantSchema
   } = useLeadsForDate();
 
   const { 
@@ -56,9 +58,14 @@ export function DashboardContent() {
     return component ? component.visible : true;
   };
 
+  // CORREÇÃO: Aguardar todas as dependências estarem prontas
+  const allDependenciesReady = useMemo(() => {
+    return !!(leadsUser && contractsUser && tenantSchema && !schemaLoading && !schemaError);
+  }, [leadsUser, contractsUser, tenantSchema, schemaLoading, schemaError]);
+
   // CORREÇÃO: Inicialização única e simplificada
   useEffect(() => {
-    if (!isInitialized && leadsUser && contractsUser) {
+    if (!isInitialized && allDependenciesReady) {
       console.log("🚀 DashboardContent - Inicializando dashboard pela primeira vez");
       
       const now = BrazilTimezone.now();
@@ -89,11 +96,17 @@ export function DashboardContent() {
       
       setIsInitialized(true);
     }
-  }, [isInitialized, leadsUser, contractsUser]); // Dependências mínimas
+  }, [isInitialized, allDependenciesReady, fetchLeadsForDateRange, fetchContractsForDate]);
 
-  // CORREÇÃO: Função para aplicar filtro de data sem dependências circulares
+  // CORREÇÃO: Função para aplicar filtro de data aguardando dependências
   const handleDateRangeApply = useCallback((range: DateRange | undefined) => {
     console.log("📅 DashboardContent - Aplicando filtro de período:", range);
+    
+    // CORREÇÃO: Verificar se as dependências estão prontas antes de aplicar o filtro
+    if (!allDependenciesReady) {
+      console.log("⏳ DashboardContent - Aguardando dependências ficarem prontas...");
+      return;
+    }
     
     if (!range?.from) {
       // Se não há filtro, buscar dados do mês atual
@@ -127,7 +140,15 @@ export function DashboardContent() {
     setAppliedDateRange(rangeToApply);
     fetchLeadsForDateRange(rangeToApply);
     fetchContractsForDate(rangeToApply.from);
-  }, []); // Sem dependências para evitar loops
+  }, [allDependenciesReady, fetchLeadsForDateRange, fetchContractsForDate]);
+
+  // CORREÇÃO: Reagir quando as dependências ficarem prontas e houver um filtro pendente
+  useEffect(() => {
+    if (allDependenciesReady && dateRange && !appliedDateRange) {
+      console.log("📅 DashboardContent - Aplicando filtro pendente após dependências prontas");
+      handleDateRangeApply(dateRange);
+    }
+  }, [allDependenciesReady, dateRange, appliedDateRange, handleDateRangeApply]);
 
   // CORREÇÃO: Calcular estatísticas reais baseadas nos leads filtrados
   const totalLeads = leads?.length || 0;
@@ -462,8 +483,8 @@ export function DashboardContent() {
     return `${value} (${conversionRate}% taxa)`;
   };
 
-  // CORREÇÃO: Estado de carregamento melhorado
-  const isLoading = leadsLoading || contractsLoading || !isInitialized;
+  // CORREÇÃO: Estado de carregamento melhorado - aguardar todas as dependências
+  const isLoading = leadsLoading || contractsLoading || !allDependenciesReady;
 
   if (isLoading) {
     return (
