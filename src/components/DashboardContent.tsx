@@ -30,9 +30,9 @@ export function DashboardContent() {
 
   const { components } = useDashboardSettings();
   
-  // Use team data hooks
-  const { leads: allLeads, isLoading: leadsLoading } = useLeadsData();
-  const { contracts: allContracts, isLoading: contractsLoading } = useContractsData();
+  // Use team data hooks - properly destructure error states
+  const { leads: allLeads, isLoading: leadsLoading, error: leadsError } = useLeadsData();
+  const { contracts: allContracts, isLoading: contractsLoading, error: contractsError } = useContractsData();
   const { statusHistory, hasLeadPassedThroughStatus } = useLeadStatusHistory();
 
   // Filter team leads by date range
