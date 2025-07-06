@@ -1,4 +1,3 @@
-
 import { useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -194,12 +193,12 @@ export function StateStatsChart({ leads, selectedCategory = "all", hasLeadPassed
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {top3Estados.map((estado, index) => (
-            <div key={estado.state} className={`p-6 rounded-lg border-2 min-h-[140px] ${
+            <div key={estado.state} className={`p-5 rounded-lg border-2 min-h-[120px] ${
               index === 0 ? 'bg-gray-100 border-gray-800 text-gray-800' :
               index === 1 ? 'bg-gray-100 border-gray-600 text-gray-700' :
               'bg-gray-100 border-gray-400 text-gray-600'
             }`}>
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold border ${
                     index === 0 ? 'bg-gray-100 border-gray-800 text-gray-800' :
@@ -212,9 +211,15 @@ export function StateStatsChart({ leads, selectedCategory = "all", hasLeadPassed
                 </div>
               </div>
               
-              <div className="text-center">
-                <div className="text-2xl font-bold mb-1">{estado.metrica}</div>
-                <div className="text-sm text-gray-500">{getMetricaLabel()}</div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="text-center">
+                  <div className="text-lg font-bold">{estado.total}</div>
+                  <div className="text-xs text-gray-500">Total</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold">{estado.metrica}</div>
+                  <div className="text-xs text-gray-500">{getMetricaLabel()}</div>
+                </div>
               </div>
             </div>
           ))}
@@ -228,7 +233,7 @@ export function StateStatsChart({ leads, selectedCategory = "all", hasLeadPassed
             <div key={estado.state} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <div className="flex items-center gap-3">
                 <div className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center">
-                  <span className="text-xs font-semibold text-purple-600">{index + 1}</span>
+                  <span className="text-xs font-semibold text-purple-600">{index + 1}°</span>
                 </div>
                 <span className="font-medium text-gray-800">{estado.state}</span>
               </div>
