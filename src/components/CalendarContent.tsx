@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -169,7 +170,7 @@ export function CalendarContent() {
     const currentMonthPoints = (currentMonthLeads.length * 5) + (currentMonthProposals.length * 10) + (currentMonthSales.length * 100);
     const previousMonthPoints = (previousMonthLeads.length * 5) + (previousMonthProposals.length * 10) + (previousMonthSales.length * 100);
 
-    console.log(`📊 CalendarContent - Estatísticas calculadas:`, {
+    console.log(`📊 CalendarContent - Estatísticas calculadas para ${currentUser.name}:`, {
       currentMonth: {
         leads: currentMonthLeads.length,
         proposals: currentMonthProposals.length,
