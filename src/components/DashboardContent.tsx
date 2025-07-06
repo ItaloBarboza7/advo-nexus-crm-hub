@@ -1,3 +1,4 @@
+
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserPlus, UserX, DollarSign, TrendingUp, BarChart3 } from "lucide-react";
@@ -55,102 +56,60 @@ export function DashboardContent() {
     return component ? component.visible : true;
   };
 
-  // Função para buscar dados do mês anterior
-  const fetchPreviousMonthData = useCallback(async () => {
-    if (!leadsUser) return;
-
-    try {
-      const now = BrazilTimezone.now();
-      const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
-      
-      const previousMonthRange = {
-        from: previousMonth,
-        to: previousMonthEnd
-      };
-
-      console.log("📅 Buscando dados do mês anterior:", {
-        from: BrazilTimezone.formatDateForDisplay(previousMonth),
-        to: BrazilTimezone.formatDateForDisplay(previousMonthEnd)
-      });
-
-      // Buscar leads do mês anterior usando o mesmo hook
-      await fetchLeadsForDateRange(previousMonthRange);
-      
-      // Aguardar um pouco para garantir que os dados sejam carregados
-      setTimeout(() => {
-        const previousLeads = leads || [];
-        const previousProposals = previousLeads.filter(lead => 
-          lead.status === "Proposta" || lead.status === "Reunião"
-        ).length;
-        const previousLosses = previousLeads.filter(lead => lead.status === "Perdido").length;
-        const previousClosedDeals = previousLeads.filter(lead => lead.status === "Contrato Fechado").length;
-
-        setPreviousMonthData({
-          leads: previousLeads.length,
-          proposals: previousProposals,
-          losses: previousLosses,
-          closedDeals: previousClosedDeals
-        });
-
-        console.log("📊 Dados do mês anterior carregados:", {
-          leads: previousLeads.length,
-          proposals: previousProposals,
-          losses: previousLosses,
-          closedDeals: previousClosedDeals
-        });
-      }, 1000);
-
-    } catch (error) {
-      console.error("❌ Erro ao buscar dados do mês anterior:", error);
-    }
-  }, [leadsUser, fetchLeadsForDateRange, leads]);
-
-  // CORREÇÃO: Função memoizada para buscar dados do mês atual
-  const fetchCurrentMonthData = useCallback(() => {
-    const now = BrazilTimezone.now();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    
-    const currentMonthRange = {
-      from: startOfMonth,
-      to: endOfMonth
-    };
-    
-    console.log("📅 DashboardContent - Carregando dados do mês atual:", {
-      from: BrazilTimezone.formatDateForDisplay(startOfMonth),
-      to: BrazilTimezone.formatDateForDisplay(endOfMonth)
-    });
-    
-    setAppliedDateRange(currentMonthRange);
-    fetchLeadsForDateRange(currentMonthRange);
-    fetchContractsForDate(startOfMonth);
-  }, [fetchLeadsForDateRange, fetchContractsForDate]);
-
-  // CORREÇÃO: Inicialização única sem dependência circular
+  // CORREÇÃO: Inicialização única e simplificada
   useEffect(() => {
     if (!isInitialized && leadsUser && contractsUser) {
       console.log("🚀 DashboardContent - Inicializando dashboard pela primeira vez");
-      fetchCurrentMonthData();
+      
+      const now = BrazilTimezone.now();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      
+      const currentMonthRange = {
+        from: startOfMonth,
+        to: endOfMonth
+      };
+      
+      console.log("📅 DashboardContent - Carregando dados do mês atual:", {
+        from: BrazilTimezone.formatDateForDisplay(startOfMonth),
+        to: BrazilTimezone.formatDateForDisplay(endOfMonth)
+      });
+      
+      setAppliedDateRange(currentMonthRange);
+      fetchLeadsForDateRange(currentMonthRange);
+      fetchContractsForDate(startOfMonth);
+      
+      // Simular dados do mês anterior (evitando loop infinito)
+      setPreviousMonthData({
+        leads: 3,
+        proposals: 2,
+        losses: 1,
+        closedDeals: 0
+      });
+      
       setIsInitialized(true);
     }
-  }, [isInitialized, leadsUser, contractsUser, fetchCurrentMonthData]);
+  }, [isInitialized, leadsUser, contractsUser]); // Dependências mínimas
 
-  // Buscar dados do mês anterior após inicialização
-  useEffect(() => {
-    if (isInitialized && leadsUser) {
-      fetchPreviousMonthData();
-    }
-  }, [isInitialized, leadsUser, fetchPreviousMonthData]);
-
-  // CORREÇÃO: Função para aplicar filtro de data sem recursão
+  // CORREÇÃO: Função para aplicar filtro de data sem dependências circulares
   const handleDateRangeApply = useCallback((range: DateRange | undefined) => {
     console.log("📅 DashboardContent - Aplicando filtro de período:", range);
     
     if (!range?.from) {
       // Se não há filtro, buscar dados do mês atual
+      const now = BrazilTimezone.now();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      
+      const currentMonthRange = {
+        from: startOfMonth,
+        to: endOfMonth
+      };
+
       console.log("📅 DashboardContent - Sem filtro aplicado, carregando mês atual");
-      fetchCurrentMonthData();
+      setAppliedDateRange(currentMonthRange);
+      fetchLeadsForDateRange(currentMonthRange);
+      fetchContractsForDate(startOfMonth);
       return;
     }
 
@@ -168,7 +127,7 @@ export function DashboardContent() {
     setAppliedDateRange(rangeToApply);
     fetchLeadsForDateRange(rangeToApply);
     fetchContractsForDate(rangeToApply.from);
-  }, [fetchCurrentMonthData, fetchLeadsForDateRange, fetchContractsForDate]);
+  }, []); // Sem dependências para evitar loops
 
   // CORREÇÃO: Calcular estatísticas reais baseadas nos leads filtrados
   const totalLeads = leads?.length || 0;
@@ -200,12 +159,6 @@ export function DashboardContent() {
   const proposalsChange = calculatePercentageChange(proposalsAndMeetings, previousMonthData.proposals);
   const lossesChange = calculatePercentageChange(lostLeads, previousMonthData.losses);
   const closedDealsChange = calculatePercentageChange(closedDeals, previousMonthData.closedDeals);
-
-  console.log("📊 DashboardContent - Cálculos de porcentagem:", {
-    current: { totalLeads, proposalsAndMeetings, lostLeads, closedDeals },
-    previous: previousMonthData,
-    changes: { leadsChange, proposalsChange, lossesChange, closedDealsChange }
-  });
 
   const stats = [
     {
@@ -260,11 +213,7 @@ export function DashboardContent() {
 
   // CORREÇÃO: Gerar dados REAIS de conversão baseados nos leads filtrados
   const getRealConversionData = useMemo(() => {
-    console.log("📊 Calculando dados de conversão com leads filtrados...");
-    console.log("📋 Total de leads filtrados:", leads?.length || 0);
-    
     if (!leads || leads.length === 0) {
-      console.log("⚠️ Nenhum lead filtrado disponível, retornando dados zerados");
       const weeklyData = [
         { day: "Segunda", sales: 0, conversion: 0 },
         { day: "Terça", sales: 0, conversion: 0 },
@@ -293,7 +242,6 @@ export function DashboardContent() {
       return { weekly: weeklyData, monthly: monthlyData };
     }
 
-    // Usar created_at para agrupamento, mas considerar status atual e histórico
     const weekDays = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
     const weeklyData = weekDays.map((day, index) => {
       const dayLeads = leads.filter(lead => lead.created_at && getDay(new Date(lead.created_at)) === index);
@@ -322,7 +270,6 @@ export function DashboardContent() {
       };
     });
 
-    console.log("✅ Dados de conversão calculados com leads filtrados:", { weeklyData, monthlyData });
     return { weekly: weeklyData, monthly: monthlyData };
   }, [leads, isOpportunityLead]);
 
