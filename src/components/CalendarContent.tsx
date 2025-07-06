@@ -250,7 +250,6 @@ export function CalendarContent() {
   const now = BrazilTimezone.now();
   const teamGoalData = {
     teamSales: teamStats?.totalSales || 0,
-    teamGoal: 100, // Meta de 100 contratos por mês para a equipe
     daysInMonth: new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(),
     currentDay: now.getDate(),
     teamSize: teamStats?.teamSize || 1
@@ -326,7 +325,6 @@ export function CalendarContent() {
       {/* Team Goals Panel - Novo painel da equipe */}
       <TeamGoalsPanel 
         teamSales={teamGoalData.teamSales}
-        teamGoal={teamGoalData.teamGoal}
         daysInMonth={teamGoalData.daysInMonth}
         currentDay={teamGoalData.currentDay}
         teamSize={teamGoalData.teamSize}

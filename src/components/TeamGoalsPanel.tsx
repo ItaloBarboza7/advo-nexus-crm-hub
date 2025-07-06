@@ -8,7 +8,6 @@ import { BrazilTimezone } from "@/lib/timezone";
 
 interface TeamGoalsPanelProps {
   teamSales: number;
-  teamGoal: number;
   daysInMonth: number;
   currentDay: number;
   teamSize: number;
@@ -51,7 +50,6 @@ interface UserProfile {
 
 export function TeamGoalsPanel({ 
   teamSales, 
-  teamGoal, 
   daysInMonth, 
   currentDay,
   teamSize
@@ -66,6 +64,12 @@ export function TeamGoalsPanel({
   const [selectedMemberName, setSelectedMemberName] = useState<string>('');
   const [showMemberLeads, setShowMemberLeads] = useState(false);
   const [isLoadingMemberLeads, setIsLoadingMemberLeads] = useState(false);
+  
+  // NOVO: Estados para as metas configuradas
+  const [teamGoal, setTeamGoal] = useState(100); // Meta mensal padrão
+  const [dailyGoal, setDailyGoal] = useState(3); // Meta diária padrão
+  const [isLoadingGoals, setIsLoadingGoals] = useState(true);
+  
   const { tenantSchema } = useTenantSchema();
 
   console.log('TeamGoalsPanel props:', { teamSales, teamGoal, daysInMonth, currentDay, teamSize });
@@ -76,6 +80,52 @@ export function TeamGoalsPanel({
   const remainingSales = Math.max(0, teamGoal - teamSales);
   const daysRemaining = daysInMonth - currentDay;
   const dailyTarget = daysRemaining > 0 ? Math.ceil(remainingSales / daysRemaining) : 0;
+
+  // NOVO: Carregar metas configuradas
+  useEffect(() => {
+    const loadTeamGoals = async () => {
+      try {
+        setIsLoadingGoals(true);
+        console.log("🎯 TeamGoalsPanel - Carregando metas configuradas...");
+        
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          console.error("❌ Usuário não autenticado para carregar metas");
+          return;
+        }
+
+        console.log("👤 Buscando metas para user ID:", user.id);
+
+        const { data: goals, error } = await supabase
+          .from('team_goals')
+          .select('monthly_goal, daily_goal')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        console.log("🎯 Metas configuradas encontradas:", goals);
+        console.log("❓ Erro na busca de metas:", error);
+
+        if (error && error.code !== 'PGRST116') {
+          console.error('❌ Erro ao carregar metas configuradas:', error);
+          return;
+        }
+
+        if (goals) {
+          console.log("✅ Aplicando metas configuradas:", goals);
+          setTeamGoal(goals.monthly_goal || 100);
+          setDailyGoal(goals.daily_goal || 3);
+        } else {
+          console.log("📝 Nenhuma meta configurada encontrada, usando valores padrão");
+        }
+      } catch (error) {
+        console.error('❌ Erro inesperado ao carregar metas configuradas:', error);
+      } finally {
+        setIsLoadingGoals(false);
+      }
+    };
+
+    loadTeamGoals();
+  }, []);
 
   // Verificar se o usuário é admin
   useEffect(() => {
@@ -314,6 +364,20 @@ export function TeamGoalsPanel({
     setSelectedMemberName('');
   };
 
+  // Mostrar loading se ainda estiver carregando as metas
+  if (isLoadingGoals) {
+    return (
+      <Card className="bg-white border-gray-200">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-center py-4">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <span className="ml-2 text-gray-600">Carregando metas...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="bg-white border-gray-200">
       <CardHeader className="pb-3">
@@ -379,12 +443,12 @@ export function TeamGoalsPanel({
           </div>
         </div>
 
-        {/* Meta diária - card menor */}
+        {/* Meta diária - ATUALIZADO para usar o valor configurado */}
         <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-2 border border-gray-300">
           <Trophy className="h-4 w-4 text-gray-700 flex-shrink-0" />
           <div className="flex-1">
             <div className="text-lg font-bold text-gray-900">{dailyTarget}</div>
-            <p className="text-xs text-gray-700 font-medium">Meta diária</p>
+            <p className="text-xs text-gray-700 font-medium">Meta diária (baseada na meta configurada: {dailyGoal})</p>
           </div>
         </div>
 

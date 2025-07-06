@@ -1,29 +1,86 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Target, TrendingUp, Calendar } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface MonthlyGoalsPanelProps {
   currentSales: number;
-  monthlyGoal: number;
   daysInMonth: number;
   currentDay: number;
 }
 
 export function MonthlyGoalsPanel({ 
   currentSales, 
-  monthlyGoal, 
   daysInMonth, 
   currentDay 
 }: MonthlyGoalsPanelProps) {
+  const [monthlyGoal, setMonthlyGoal] = useState(100); // Valor padrão
+  const [isLoadingGoal, setIsLoadingGoal] = useState(true);
+
   console.log('MonthlyGoalsPanel props:', { currentSales, monthlyGoal, daysInMonth, currentDay });
   
+  // Carregar meta configurada
+  useEffect(() => {
+    const loadMonthlyGoal = async () => {
+      try {
+        setIsLoadingGoal(true);
+        console.log("🎯 MonthlyGoalsPanel - Carregando meta mensal configurada...");
+        
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          console.error("❌ Usuário não autenticado para carregar meta");
+          return;
+        }
+
+        const { data: goals, error } = await supabase
+          .from('team_goals')
+          .select('monthly_goal')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        console.log("🎯 Meta mensal configurada encontrada:", goals);
+
+        if (error && error.code !== 'PGRST116') {
+          console.error('❌ Erro ao carregar meta mensal:', error);
+          return;
+        }
+
+        if (goals) {
+          console.log("✅ Aplicando meta mensal configurada:", goals.monthly_goal);
+          setMonthlyGoal(goals.monthly_goal || 100);
+        } else {
+          console.log("📝 Nenhuma meta mensal configurada, usando valor padrão");
+        }
+      } catch (error) {
+        console.error('❌ Erro inesperado ao carregar meta mensal:', error);
+      } finally {
+        setIsLoadingGoal(false);
+      }
+    };
+
+    loadMonthlyGoal();
+  }, []);
+
   const progressPercentage = (currentSales / monthlyGoal) * 100;
   const expectedProgress = (currentDay / daysInMonth) * 100;
   const isOnTrack = progressPercentage >= expectedProgress;
   const remainingSales = Math.max(0, monthlyGoal - currentSales);
   const daysRemaining = daysInMonth - currentDay;
   const dailyTarget = daysRemaining > 0 ? Math.ceil(remainingSales / daysRemaining) : 0;
+
+  if (isLoadingGoal) {
+    return (
+      <Card className="bg-white border-gray-200">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-center py-4">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <span className="ml-2 text-gray-600">Carregando meta...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="bg-white border-gray-200">
