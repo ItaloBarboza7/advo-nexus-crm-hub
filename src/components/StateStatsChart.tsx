@@ -194,25 +194,25 @@ export function StateStatsChart({ leads, selectedCategory = "all", hasLeadPassed
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {top3Estados.map((estado, index) => (
             <div key={estado.state} className={`p-4 rounded-lg border-2 ${
-              index === 0 ? 'bg-slate-800 border-slate-700 text-white' :
-              index === 1 ? 'bg-slate-600 border-slate-500 text-white' :
-              'bg-slate-100 border-slate-200 text-slate-800'
+              index === 0 ? 'bg-gray-50/30 border-gray-800 text-gray-800' :
+              index === 1 ? 'bg-gray-50/20 border-gray-600 text-gray-700' :
+              'bg-gray-50/10 border-gray-400 text-gray-600'
             }`}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
-                    index === 0 ? 'bg-white bg-opacity-20 text-white' :
-                    index === 1 ? 'bg-white bg-opacity-20 text-white' :
-                    'bg-slate-700 text-white'
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold border ${
+                    index === 0 ? 'bg-gray-100 border-gray-800 text-gray-800' :
+                    index === 1 ? 'bg-gray-100 border-gray-600 text-gray-600' :
+                    'bg-gray-100 border-gray-400 text-gray-400'
                   }`}>
                     {index + 1}
                   </div>
                   <span className="font-semibold">{estado.state}</span>
                 </div>
                 <Badge className={
-                  index === 0 ? 'bg-white bg-opacity-20 text-white border-white border-opacity-30' :
-                  index === 1 ? 'bg-white bg-opacity-20 text-white border-white border-opacity-30' :
-                  'bg-slate-700 text-white border-slate-600'
+                  index === 0 ? 'bg-gray-100 text-gray-800 border-gray-800' :
+                  index === 1 ? 'bg-gray-100 text-gray-600 border-gray-600' :
+                  'bg-gray-100 text-gray-400 border-gray-400'
                 }>
                   {estado.metrica}
                 </Badge>
@@ -221,15 +221,11 @@ export function StateStatsChart({ leads, selectedCategory = "all", hasLeadPassed
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div className="text-center">
                   <div className="font-bold">{estado.total}</div>
-                  <div className={`text-xs ${
-                    index === 2 ? 'text-slate-600' : 'text-white text-opacity-80'
-                  }`}>Total</div>
+                  <div className="text-xs text-gray-500">Total</div>
                 </div>
                 <div className="text-center">
                   <div className="font-bold">{estado.metrica}</div>
-                  <div className={`text-xs ${
-                    index === 2 ? 'text-slate-600' : 'text-white text-opacity-80'
-                  }`}>{getMetricaLabel()}</div>
+                  <div className="text-xs text-gray-500">{getMetricaLabel()}</div>
                 </div>
               </div>
             </div>
