@@ -1,3 +1,4 @@
+
 import { useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -194,25 +195,18 @@ export function StateStatsChart({ leads, selectedCategory = "all", hasLeadPassed
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {top3Estados.map((estado, index) => (
             <div key={estado.state} className={`p-4 rounded-lg border-2 ${
-              index === 0 ? 'bg-gray-50/30 border-gray-800 text-gray-800' :
-              index === 1 ? 'bg-gray-50/20 border-gray-600 text-gray-700' :
-              'bg-gray-50/10 border-gray-400 text-gray-600'
+              index === 0 ? 'bg-gray-100 border-gray-800 text-gray-800' :
+              index === 1 ? 'bg-gray-100 border-gray-600 text-gray-700' :
+              'bg-gray-100 border-gray-400 text-gray-600'
             }`}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold border ${
-                    index === 0 ? 'bg-gray-100 border-gray-800 text-gray-800' :
-                    index === 1 ? 'bg-gray-100 border-gray-600 text-gray-600' :
-                    'bg-gray-100 border-gray-400 text-gray-400'
-                  }`}>
-                    {index + 1}
-                  </div>
                   <span className="font-semibold">{estado.state}</span>
                 </div>
                 <Badge className={
-                  index === 0 ? 'bg-gray-100 text-gray-800 border-gray-800' :
-                  index === 1 ? 'bg-gray-100 text-gray-600 border-gray-600' :
-                  'bg-gray-100 text-gray-400 border-gray-400'
+                  index === 0 ? 'bg-gray-200 text-gray-800 border-gray-800' :
+                  index === 1 ? 'bg-gray-200 text-gray-600 border-gray-600' :
+                  'bg-gray-200 text-gray-400 border-gray-400'
                 }>
                   {estado.metrica}
                 </Badge>
