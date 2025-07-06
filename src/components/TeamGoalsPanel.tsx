@@ -146,27 +146,13 @@ export function TeamGoalsPanel({
           </div>
         </div>
 
-        {/* Meta diária */}
-        <div className="flex items-center gap-2 bg-yellow-50 rounded-lg p-2 border border-yellow-200">
-          <Trophy className="h-4 w-4 text-yellow-600 flex-shrink-0" />
-          <div>
-            <div className="text-lg font-bold text-yellow-900">{dailyTarget}</div>
-            <p className="text-xs text-yellow-600">Meta diária</p>
+        {/* Meta diária - mais sério e sóbrio */}
+        <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-3 border border-gray-300">
+          <Trophy className="h-5 w-5 text-gray-700 flex-shrink-0" />
+          <div className="flex-1">
+            <div className="text-xl font-bold text-gray-900">{dailyTarget}</div>
+            <p className="text-sm text-gray-700 font-medium">Meta diária necessária</p>
           </div>
-        </div>
-
-        {/* Status */}
-        <div className={`text-center p-2 rounded-lg border ${
-          isOnTrack 
-            ? 'bg-green-50 text-green-800 border-green-200' 
-            : 'bg-orange-50 text-orange-800 border-orange-200'
-        }`}>
-          <p className="text-sm font-medium">
-            {isOnTrack 
-              ? 'Equipe no caminho certo para atingir a meta!' 
-              : `Faltam ${remainingSales} vendas para a meta da equipe`
-            }
-          </p>
         </div>
       </CardContent>
     </Card>
