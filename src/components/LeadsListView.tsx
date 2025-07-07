@@ -1,3 +1,4 @@
+
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -32,17 +33,6 @@ export function LeadsListView({
   const validActionGroupNames = useMemo(() => {
     return actionGroupOptions.map(option => option.value);
   }, [actionGroupOptions]);
-
-  if (leads.length === 0) {
-    return (
-      <Card className="p-12 text-center">
-        <div className="text-gray-500">
-          <h3 className="text-lg font-medium mb-2">Nenhum lead encontrado</h3>
-          <p>Comece criando seu primeiro lead ou ajuste os filtros de busca.</p>
-        </div>
-      </Card>
-    );
-  }
 
   // Função para mostrar corretamente "Outros" caso o grupo não exista mais (ou seja nulo/vazio)
   const getActionGroupLabel = (actionGroup: string | null) => {
