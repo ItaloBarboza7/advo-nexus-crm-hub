@@ -24,12 +24,12 @@ serve(async (req: Request) => {
 
     // Validate environment variables
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
 
     logStep("Environment check", {
       supabaseUrlExists: !!supabaseUrl,
-      supabaseServiceKeyExists: !!supabaseServiceKey,
+      supabaseAnonKeyExists: !!supabaseAnonKey,
       stripeKeyExists: !!stripeKey,
       stripeKeyPrefix: stripeKey?.substring(0, 7)
     });
@@ -38,9 +38,9 @@ serve(async (req: Request) => {
       logStep("ERROR: SUPABASE_URL is not set");
       throw new Error("SUPABASE_URL is not set");
     }
-    if (!supabaseServiceKey) {
-      logStep("ERROR: SUPABASE_SERVICE_ROLE_KEY is not set");
-      throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set");
+    if (!supabaseAnonKey) {
+      logStep("ERROR: SUPABASE_ANON_KEY is not set");
+      throw new Error("SUPABASE_ANON_KEY is not set");
     }
     if (!stripeKey) {
       logStep("ERROR: STRIPE_SECRET_KEY is not set");
@@ -51,11 +51,9 @@ serve(async (req: Request) => {
       throw new Error("Invalid STRIPE_SECRET_KEY format");
     }
 
-    // Initialize Supabase client with service role key for admin operations
-    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: { persistSession: false }
-    });
-    logStep("Supabase client initialized with service role");
+    // Initialize Supabase client with anon key (aligned with get-stripe-details)
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+    logStep("Supabase client initialized with anon key");
 
     // Validate and extract auth token
     const authHeader = req.headers.get("Authorization");
