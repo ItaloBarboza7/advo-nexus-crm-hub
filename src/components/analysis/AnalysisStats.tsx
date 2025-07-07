@@ -1,9 +1,12 @@
+
 import { Card } from "@/components/ui/card";
 import { TrendingUp, Users, UserCheck, Target, UserX } from "lucide-react";
 import { Lead } from "@/types/lead";
 import { useState, useEffect, useCallback } from "react";
 import { useLeadsForDate } from "@/hooks/useLeadsForDate";
 import { BrazilTimezone } from "@/lib/timezone";
+import { supabase } from "@/integrations/supabase/client";
+import { useTenantSchema } from "@/hooks/useTenantSchema";
 
 interface AnalysisStatsProps {
   leads: Lead[];
@@ -21,6 +24,7 @@ export function AnalysisStats({ leads, onCategoryChange, statusHistory, hasLeadP
   }>({ total: 0, contratos: 0, oportunidades: 0, perdas: 0 });
 
   const { fetchLeadsForDateRange } = useLeadsForDate();
+  const { tenantSchema, ensureTenantSchema } = useTenantSchema();
   
   // Função corrigida para verificar se um lead é uma oportunidade (NOVA REGRA)
   const isOpportunityLead = (lead: Lead): boolean => {
@@ -55,56 +59,127 @@ export function AnalysisStats({ leads, onCategoryChange, statusHistory, hasLeadP
     return false;
   };
 
-  // Buscar dados do mês anterior para comparação
-  const fetchPreviousMonthData = useCallback(async () => {
+  // CORREÇÃO: Função para verificar se existe dados históricos reais
+  const checkForHistoricalData = useCallback(async () => {
     try {
+      const schema = tenantSchema || await ensureTenantSchema();
+      if (!schema) {
+        console.log("❌ AnalysisStats - Não foi possível obter esquema do tenant");
+        return false;
+      }
+
       const now = BrazilTimezone.now();
       const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
-      
-      const previousMonthRange = {
-        from: previousMonth,
-        to: previousMonthEnd
-      };
 
-      console.log("📅 AnalysisStats - Buscando dados do mês anterior:", {
+      console.log("🔍 AnalysisStats - Verificando dados históricos do mês anterior:", {
         from: BrazilTimezone.formatDateForDisplay(previousMonth),
         to: BrazilTimezone.formatDateForDisplay(previousMonthEnd)
       });
 
-      // Buscar leads do mês anterior
-      await fetchLeadsForDateRange(previousMonthRange);
-      
-      // Simular dados do mês anterior (em um cenário real, você salvaria esses dados)
-      // Para demonstração, vou usar valores baseados nos logs que vi
-      const previousData = {
-        total: 3, // junho teve 3 leads conforme mencionado
-        contratos: 1,
-        oportunidades: 2,
-        perdas: 0
-      };
+      // Buscar leads do mês anterior no esquema do tenant
+      const { data: historicalLeads, error } = await supabase.rpc('exec_sql' as any, {
+        sql: `
+          SELECT COUNT(*) as total FROM ${schema}.leads
+          WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') 
+          BETWEEN '${previousMonth.toISOString().split('T')[0]}' 
+          AND '${previousMonthEnd.toISOString().split('T')[0]}'
+        `
+      });
 
+      if (error) {
+        console.error("❌ Erro ao buscar dados históricos:", error);
+        return false;
+      }
+
+      const hasHistoricalData = Array.isArray(historicalLeads) && historicalLeads.length > 0 && historicalLeads[0].total > 0;
+      console.log("📊 AnalysisStats - Dados históricos encontrados:", hasHistoricalData ? "SIM" : "NÃO");
+
+      return hasHistoricalData;
+    } catch (error) {
+      console.error("❌ Erro ao verificar dados históricos:", error);
+      return false;
+    }
+  }, [tenantSchema, ensureTenantSchema]);
+
+  // CORREÇÃO: Buscar dados reais do mês anterior
+  const fetchPreviousMonthData = useCallback(async () => {
+    try {
+      const hasHistorical = await checkForHistoricalData();
+      
+      if (!hasHistorical) {
+        console.log("📊 AnalysisStats - Conta nova detectada, definindo dados anteriores como 0");
+        setPreviousMonthData({
+          total: 0,
+          contratos: 0,
+          oportunidades: 0,
+          perdas: 0
+        });
+        return;
+      }
+
+      const schema = tenantSchema || await ensureTenantSchema();
+      if (!schema) return;
+
+      const now = BrazilTimezone.now();
+      const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+
+      console.log("📅 AnalysisStats - Buscando dados reais do mês anterior");
+
+      // Buscar leads do mês anterior
+      const { data: previousLeads, error } = await supabase.rpc('exec_sql' as any, {
+        sql: `
+          SELECT * FROM ${schema}.leads
+          WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') 
+          BETWEEN '${previousMonth.toISOString().split('T')[0]}' 
+          AND '${previousMonthEnd.toISOString().split('T')[0]}'
+        `
+      });
+
+      if (error) {
+        console.error("❌ Erro ao buscar leads do mês anterior:", error);
+        setPreviousMonthData({ total: 0, contratos: 0, oportunidades: 0, perdas: 0 });
+        return;
+      }
+
+      const previousLeadsData = Array.isArray(previousLeads) ? previousLeads : [];
+      
+      // Calcular estatísticas do mês anterior
+      const total = previousLeadsData.length;
+      const contratos = previousLeadsData.filter(lead => lead.status === "Contrato Fechado").length;
+      const oportunidades = previousLeadsData.filter(lead => isOpportunityLead(lead)).length;
+      const perdas = previousLeadsData.filter(lead => lead.status === "Perdido").length;
+
+      const previousData = { total, contratos, oportunidades, perdas };
       setPreviousMonthData(previousData);
-      console.log("📊 AnalysisStats - Dados do mês anterior definidos:", previousData);
+      
+      console.log("📊 AnalysisStats - Dados reais do mês anterior:", previousData);
 
     } catch (error) {
       console.error("❌ Erro ao buscar dados do mês anterior:", error);
+      setPreviousMonthData({ total: 0, contratos: 0, oportunidades: 0, perdas: 0 });
     }
-  }, [fetchLeadsForDateRange]);
+  }, [checkForHistoricalData, tenantSchema, ensureTenantSchema, isOpportunityLead]);
 
   useEffect(() => {
-    fetchPreviousMonthData();
-  }, [fetchPreviousMonthData]);
+    if (tenantSchema) {
+      fetchPreviousMonthData();
+    }
+  }, [fetchPreviousMonthData, tenantSchema]);
 
-  // CORREÇÃO: Função para calcular porcentagem de mudança para contas novas
+  // CORREÇÃO: Função para calcular porcentagem de mudança corrigida para contas novas
   const calculatePercentageChange = (current: number, previous: number): { value: string; type: 'positive' | 'negative' } => {
-    // Se é uma conta nova (não há dados anteriores), retornar 0%
+    // Se não há dados anteriores (conta nova), mostrar 0%
     if (previous === 0) {
+      console.log(`📊 Conta nova detectada: atual=${current}, anterior=${previous} -> 0%`);
       return { value: '0%', type: 'positive' };
     }
     
     const change = ((current - previous) / previous) * 100;
     const isPositive = change >= 0;
+    
+    console.log(`📊 Cálculo de porcentagem: atual=${current}, anterior=${previous}, mudança=${change.toFixed(1)}%`);
     
     return {
       value: `${isPositive ? '+' : ''}${Math.round(change)}%`,
@@ -124,7 +199,7 @@ export function AnalysisStats({ leads, onCategoryChange, statusHistory, hasLeadP
   const oportunidadesChange = calculatePercentageChange(currentOportunidades, previousMonthData.oportunidades);
   const perdasChange = calculatePercentageChange(currentPerdas, previousMonthData.perdas);
 
-  console.log("📊 AnalysisStats - Cálculos de porcentagem:", {
+  console.log("📊 AnalysisStats - Cálculos finais de porcentagem:", {
     current: { currentTotal, currentContratos, currentOportunidades, currentPerdas },
     previous: previousMonthData,
     changes: { totalChange, contratosChange, oportunidadesChange, perdasChange }

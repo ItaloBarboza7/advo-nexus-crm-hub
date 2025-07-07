@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -346,12 +347,17 @@ export function ClientsContent() {
         />
       )}
 
-      {/* Mensagem única e simplificada quando não há leads */}
+      {/* CORREÇÃO: Mensagem única para quando não há leads - removendo duplicação */}
       {filteredLeads.length === 0 && !isLoading && !kanbanLoading && (
         <Card className="p-12 text-center">
           <div className="text-gray-500">
             <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <h3 className="text-lg font-medium mb-2">Crie seu primeiro lead</h3>
+            <h3 className="text-lg font-medium mb-2">
+              {searchTerm || filters.status.length > 0 || filters.source.length > 0 || filters.state.length > 0 || filters.actionType.length > 0 || filters.valueRange.min !== null || filters.valueRange.max !== null
+                ? "Nenhum lead encontrado" 
+                : "Crie seu primeiro lead"
+              }
+            </h3>
             <p>
               {searchTerm || filters.status.length > 0 || filters.source.length > 0 || filters.state.length > 0 || filters.actionType.length > 0 || filters.valueRange.min !== null || filters.valueRange.max !== null
                 ? "Tente ajustar os filtros de busca." 

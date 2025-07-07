@@ -145,6 +145,26 @@ export function useTeamResults() {
         );
       };
 
+      // CORREÇÃO: Função para verificar se um lead é oportunidade (mesma lógica das análises)
+      const isOpportunityLead = (lead: any): boolean => {
+        // NOVA REGRA: Oportunidades são leads que:
+        // 1. NÃO estão em "Novo" (independente do histórico)
+        // 2. Estão atualmente em "Proposta" ou "Reunião" OU passaram por eles (histórico)
+        
+        // PRIMEIRO: Excluir completamente leads com status "Novo"
+        if (lead.status === "Novo") {
+          return false;
+        }
+        
+        // SEGUNDO: Se está em Proposta ou Reunião atualmente, incluir automaticamente
+        if (lead.status === "Proposta" || lead.status === "Reunião") {
+          return true;
+        }
+        
+        // TERCEIRO: Verificar se passou por Proposta/Reunião no histórico (incluindo finalizados)
+        return hasLeadPassedThroughStatus(lead.id, ["Proposta", "Reunião"]);
+      };
+
       // Calcular apenas do mês atual
       const now = BrazilTimezone.now();
       const currentMonth = now.getMonth();
@@ -170,13 +190,8 @@ export function useTeamResults() {
           return leadDateLocal.getMonth() === currentMonth && leadDateLocal.getFullYear() === currentYear;
         });
         
-        // Contar propostas considerando leads que passaram por Proposta/Reunião
-        const userProposals = userLeads.filter(lead => {
-          if (['Proposta', 'Reunião'].includes(lead.status)) {
-            return true;
-          }
-          return hasLeadPassedThroughStatus(lead.id, ['Proposta', 'Reunião']);
-        });
+        // CORREÇÃO: Contar propostas considerando leads que passaram por Proposta/Reunião usando nova lógica
+        const userProposals = userLeads.filter(lead => isOpportunityLead(lead));
         
         const userSales = userLeads.filter(lead => 
           lead.status === 'Contrato Fechado'

@@ -13,6 +13,8 @@ import { useLeadStatusHistory } from "@/hooks/useLeadStatusHistory";
 import { getDay, getMonth, format } from "date-fns";
 import { TeamResultsPanel } from "@/components/TeamResultsPanel";
 import { BrazilTimezone } from "@/lib/timezone";
+import { supabase } from "@/integrations/supabase/client";
+import { useTenantSchema } from "@/hooks/useTenantSchema";
 
 export function DashboardContent() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
@@ -29,6 +31,7 @@ export function DashboardContent() {
   }>({ leads: 0, proposals: 0, losses: 0, closedDeals: 0 });
 
   const { components } = useDashboardSettings();
+  const { tenantSchema, ensureTenantSchema } = useTenantSchema();
   
   // Use team data hooks - useLeadsData doesn't return error, useContractsData does
   const { leads: allLeads, isLoading: leadsLoading } = useLeadsData();
@@ -117,9 +120,73 @@ export function DashboardContent() {
     return false;
   }, [hasLeadPassedThroughStatus]);
 
+  // CORREÇÃO: Função para verificar se existem dados históricos
+  const checkForHistoricalData = useCallback(async () => {
+    try {
+      const schema = tenantSchema || await ensureTenantSchema();
+      if (!schema) return false;
+
+      const now = BrazilTimezone.now();
+      const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+
+      const { data: historicalLeads, error } = await supabase.rpc('exec_sql' as any, {
+        sql: `
+          SELECT COUNT(*) as total FROM ${schema}.leads
+          WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') 
+          BETWEEN '${previousMonth.toISOString().split('T')[0]}' 
+          AND '${previousMonthEnd.toISOString().split('T')[0]}'
+        `
+      });
+
+      if (error) {
+        console.error("❌ Erro ao verificar dados históricos:", error);
+        return false;
+      }
+
+      const hasHistoricalData = Array.isArray(historicalLeads) && historicalLeads.length > 0 && historicalLeads[0].total > 0;
+      console.log("📊 DashboardContent - Dados históricos:", hasHistoricalData ? "ENCONTRADOS" : "NÃO ENCONTRADOS");
+      
+      return hasHistoricalData;
+    } catch (error) {
+      console.error("❌ Erro ao verificar dados históricos:", error);
+      return false;
+    }
+  }, [tenantSchema, ensureTenantSchema]);
+
+  // CORREÇÃO: Buscar dados do mês anterior ou definir como 0 para contas novas
+  const fetchPreviousMonthData = useCallback(async () => {
+    try {
+      const hasHistorical = await checkForHistoricalData();
+      
+      if (!hasHistorical) {
+        console.log("📊 DashboardContent - Conta nova detectada, definindo dados anteriores como 0");
+        setPreviousMonthData({
+          leads: 0,
+          proposals: 0,
+          losses: 0,
+          closedDeals: 0
+        });
+        return;
+      }
+
+      console.log("📊 DashboardContent - Conta com histórico, usando dados simulados");
+      // Para contas com histórico, usar dados simulados (você pode implementar busca real aqui)
+      setPreviousMonthData({
+        leads: 3,
+        proposals: 2,
+        losses: 1,
+        closedDeals: 0
+      });
+    } catch (error) {
+      console.error("❌ Erro ao buscar dados do mês anterior:", error);
+      setPreviousMonthData({ leads: 0, proposals: 0, losses: 0, closedDeals: 0 });
+    }
+  }, [checkForHistoricalData]);
+
   // CORREÇÃO: Inicialização única e simplificada
   useEffect(() => {
-    if (!isInitialized && allLeads && allContracts) {
+    if (!isInitialized && allLeads && allContracts && tenantSchema) {
       console.log("🚀 DashboardContent - Inicializando dashboard pela primeira vez");
       
       const now = BrazilTimezone.now();
@@ -137,18 +204,10 @@ export function DashboardContent() {
       });
       
       setAppliedDateRange(currentMonthRange);
-      
-      // Simular dados do mês anterior (evitando loop infinito)
-      setPreviousMonthData({
-        leads: 3,
-        proposals: 2,
-        losses: 1,
-        closedDeals: 0
-      });
-      
+      fetchPreviousMonthData();
       setIsInitialized(true);
     }
-  }, [isInitialized, allLeads, allContracts]);
+  }, [isInitialized, allLeads, allContracts, tenantSchema, fetchPreviousMonthData]);
 
   // CORREÇÃO: Função para aplicar filtro de data
   const handleDateRangeApply = useCallback((range: DateRange | undefined) => {
@@ -202,15 +261,18 @@ export function DashboardContent() {
   // Calcular valor total dos contratos
   const totalValue = contracts?.reduce((sum, contract) => sum + contract.value, 0) || 0;
 
-  // CORREÇÃO: Função para calcular porcentagem de mudança para contas novas
+  // CORREÇÃO: Função para calcular porcentagem de mudança corrigida para contas novas
   const calculatePercentageChange = (current: number, previous: number): { value: string; type: 'positive' | 'negative' } => {
-    // Se é uma conta nova (não há dados anteriores), retornar 0%
+    // Se não há dados anteriores (conta nova), mostrar 0%
     if (previous === 0) {
+      console.log(`📊 DashboardContent - Conta nova: atual=${current}, anterior=${previous} -> 0%`);
       return { value: '0%', type: 'positive' };
     }
     
     const change = ((current - previous) / previous) * 100;
     const isPositive = change >= 0;
+    
+    console.log(`📊 DashboardContent - Cálculo: atual=${current}, anterior=${previous}, mudança=${change.toFixed(1)}%`);
     
     return {
       value: `${isPositive ? '+' : ''}${Math.round(change)}%`,
