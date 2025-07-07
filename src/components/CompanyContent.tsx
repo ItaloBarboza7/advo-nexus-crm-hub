@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,6 +22,7 @@ export function CompanyContent() {
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
   const { tenantSchema, ensureTenantSchema } = useTenantSchema();
 
@@ -63,9 +63,82 @@ export function CompanyContent() {
     }
   }, [tenantSchema]);
 
-  const handleCompanyUpdated = () => {
-    console.log("✅ CompanyContent - Empresa atualizada, recarregando dados");
-    fetchCompanyInfo();
+  const handleSaveCompany = async (info: Omit<CompanyInfo, 'id'>) => {
+    try {
+      setIsSaving(true);
+      console.log("💾 CompanyContent - Salvando informações da empresa:", info);
+
+      const schema = tenantSchema || await ensureTenantSchema();
+      if (!schema) {
+        console.error('❌ Não foi possível obter o esquema do tenant');
+        return false;
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('❌ Usuário não autenticado');
+        return false;
+      }
+
+      let sql: string;
+      if (companyInfo) {
+        // Update existing company
+        sql = `
+          UPDATE ${schema}.company_info 
+          SET 
+            company_name = '${info.company_name.replace(/'/g, "''")}',
+            cnpj = '${info.cnpj}',
+            phone = '${info.phone}',
+            email = '${info.email.replace(/'/g, "''")}',
+            address = '${info.address.replace(/'/g, "''")}',
+            updated_at = NOW()
+          WHERE id = '${companyInfo.id}'
+        `;
+      } else {
+        // Insert new company
+        sql = `
+          INSERT INTO ${schema}.company_info (
+            company_name, cnpj, phone, email, address, user_id
+          ) VALUES (
+            '${info.company_name.replace(/'/g, "''")}',
+            '${info.cnpj}',
+            '${info.phone}',
+            '${info.email.replace(/'/g, "''")}',
+            '${info.address.replace(/'/g, "''")}',
+            '${user.id}'
+          )
+        `;
+      }
+
+      const { error } = await supabase.rpc('exec_sql' as any, { sql });
+
+      if (error) {
+        console.error('❌ Erro ao salvar informações da empresa:', error);
+        toast({
+          title: "Erro ao salvar",
+          description: "Não foi possível salvar as informações da empresa.",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      console.log("✅ CompanyContent - Informações da empresa salvas com sucesso");
+      
+      // Refresh the company info
+      await fetchCompanyInfo();
+      
+      return true;
+    } catch (error) {
+      console.error('❌ Erro inesperado ao salvar empresa:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado ao salvar as informações.",
+        variant: "destructive",
+      });
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (isLoading) {
@@ -174,8 +247,9 @@ export function CompanyContent() {
       <EditCompanyModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
-        onCompanyUpdated={handleCompanyUpdated}
+        onSave={handleSaveCompany}
         companyInfo={companyInfo}
+        isLoading={isSaving}
       />
     </div>
   );

@@ -1,4 +1,3 @@
-
 import { useSubscriptionDetails } from "@/hooks/useSubscriptionDetails";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -329,7 +328,6 @@ export function SubscriptionAndPaymentPanel() {
   );
 }
 
-// Manter o componente CardInfoPanel separado caso seja usado em outro lugar
 export function CardInfoPanel() {
   const {
     cardBrand,
