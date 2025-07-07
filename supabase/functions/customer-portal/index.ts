@@ -8,9 +8,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Helper logging function for debugging
+// Enhanced logging function for debugging
 const logStep = (step: string, details?: any) => {
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
+  const detailsStr = details ? ` - ${JSON.stringify(details, null, 2)}` : '';
   console.log(`[CUSTOMER-PORTAL] ${step}${detailsStr}`);
 };
 
@@ -20,14 +20,14 @@ serve(async (req: Request) => {
   }
 
   try {
-    logStep("Function started");
+    logStep("=== CUSTOMER PORTAL SESSION STARTED ===");
 
     // Validate environment variables
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
 
-    logStep("Environment check", {
+    logStep("Environment validation", {
       supabaseUrlExists: !!supabaseUrl,
       supabaseAnonKeyExists: !!supabaseAnonKey,
       stripeKeyExists: !!stripeKey,
@@ -35,153 +35,233 @@ serve(async (req: Request) => {
     });
 
     if (!supabaseUrl) {
-      logStep("ERROR: SUPABASE_URL is not set");
-      throw new Error("SUPABASE_URL is not set");
+      logStep("FATAL ERROR: SUPABASE_URL missing");
+      throw new Error("SUPABASE_URL is not configured");
     }
     if (!supabaseAnonKey) {
-      logStep("ERROR: SUPABASE_ANON_KEY is not set");
-      throw new Error("SUPABASE_ANON_KEY is not set");
+      logStep("FATAL ERROR: SUPABASE_ANON_KEY missing");
+      throw new Error("SUPABASE_ANON_KEY is not configured");
     }
     if (!stripeKey) {
-      logStep("ERROR: STRIPE_SECRET_KEY is not set");
-      throw new Error("STRIPE_SECRET_KEY is not set");
+      logStep("FATAL ERROR: STRIPE_SECRET_KEY missing");
+      throw new Error("STRIPE_SECRET_KEY is not configured");
     }
     if (!stripeKey.startsWith('sk_')) {
-      logStep("ERROR: Invalid STRIPE_SECRET_KEY format", { keyPrefix: stripeKey.substring(0, 3) });
-      throw new Error("Invalid STRIPE_SECRET_KEY format");
+      logStep("FATAL ERROR: Invalid Stripe key format", { keyPrefix: stripeKey.substring(0, 3) });
+      throw new Error("Invalid STRIPE_SECRET_KEY format - must start with 'sk_'");
     }
 
-    // Initialize Supabase client with anon key (aligned with get-stripe-details)
+    // Initialize Supabase client
     const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
-    logStep("Supabase client initialized with anon key");
+    logStep("Supabase client initialized successfully");
 
-    // Validate and extract auth token
+    // Extract and validate auth token
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      logStep("ERROR: No authorization header provided");
-      throw new Error("No authorization header provided");
+      logStep("ERROR: Missing authorization header");
+      throw new Error("Authorization header is required");
     }
     if (!authHeader.startsWith("Bearer ")) {
       logStep("ERROR: Invalid authorization header format");
       throw new Error("Invalid authorization header format");
     }
-    logStep("Authorization header found");
 
-    // Authenticate user using the token
     const token = authHeader.replace("Bearer ", "");
-    logStep("Authenticating user with token", { tokenLength: token.length });
-    
+    logStep("Extracting user from token", { tokenLength: token.length });
+
+    // Authenticate user
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
     if (userError) {
-      logStep("ERROR: Authentication error", { error: userError.message });
-      throw new Error(`Authentication error: ${userError.message}`);
+      logStep("ERROR: User authentication failed", { 
+        error: userError.message, 
+        code: userError.status 
+      });
+      throw new Error(`Authentication failed: ${userError.message}`);
     }
+    
     const user = userData.user;
     if (!user?.email) {
-      logStep("ERROR: User not authenticated or email not available");
+      logStep("ERROR: User data incomplete", { 
+        hasUser: !!user, 
+        hasEmail: !!user?.email 
+      });
       throw new Error("User not authenticated or email not available");
     }
-    logStep("User authenticated", { userId: user.id, email: user.email });
+
+    logStep("User authenticated successfully", { 
+      userId: user.id, 
+      email: user.email,
+      emailVerified: user.email_confirmed_at 
+    });
 
     // Initialize Stripe client
     logStep("Initializing Stripe client");
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
 
-    // Find the Stripe customer by email
-    logStep("Searching for Stripe customer", { email: user.email });
-    let customers;
-    try {
-      customers = await stripe.customers.list({ email: user.email, limit: 10 });
-      logStep("Customer search completed", { 
-        customersFound: customers.data.length,
-        customers: customers.data.map(c => ({ id: c.id, email: c.email }))
-      });
-    } catch (stripeError: any) {
-      logStep("ERROR: Stripe customer search failed", { 
-        error: stripeError.message, 
-        type: stripeError.type,
-        code: stripeError.code
-      });
-      throw new Error(`Stripe customer search failed: ${stripeError.message}`);
-    }
+    // ENHANCED CUSTOMER SEARCH with multiple strategies
+    logStep("=== CUSTOMER SEARCH PHASE ===");
     
-    if (customers.data.length === 0) {
-      logStep("ERROR: No Stripe customer found", { email: user.email });
-      throw new Error("No Stripe customer found for this user");
-    }
+    // Strategy 1: Direct email search
+    logStep("Strategy 1: Searching by email", { email: user.email });
+    let customers = await stripe.customers.list({ 
+      email: user.email, 
+      limit: 10 
+    });
     
-    const stripeCustomer = customers.data[0];
-    const stripeCustomerId = stripeCustomer.id;
-    logStep("Found Stripe customer", { 
-      stripeCustomerId,
-      customerEmail: stripeCustomer.email,
-      customerCreated: stripeCustomer.created
+    logStep("Email search results", { 
+      found: customers.data.length,
+      customers: customers.data.map(c => ({ 
+        id: c.id, 
+        email: c.email, 
+        created: c.created 
+      }))
     });
 
-    // Determine return URL more robustly
+    // Strategy 2: If no exact match, try case-insensitive search
+    if (customers.data.length === 0) {
+      logStep("Strategy 2: Trying case-insensitive search");
+      const allCustomers = await stripe.customers.list({ limit: 100 });
+      const matchingCustomers = allCustomers.data.filter(c => 
+        c.email?.toLowerCase() === user.email.toLowerCase()
+      );
+      
+      logStep("Case-insensitive search results", { 
+        totalSearched: allCustomers.data.length,
+        matches: matchingCustomers.length,
+        matchingCustomers: matchingCustomers.map(c => ({ 
+          id: c.id, 
+          email: c.email 
+        }))
+      });
+      
+      if (matchingCustomers.length > 0) {
+        customers = { 
+          data: matchingCustomers, 
+          has_more: false, 
+          object: 'list', 
+          url: '' 
+        };
+      }
+    }
+
+    // Strategy 3: If still no customer, create one
+    let customerId: string;
+    if (customers.data.length === 0) {
+      logStep("Strategy 3: Creating new customer", { email: user.email });
+      try {
+        const newCustomer = await stripe.customers.create({
+          email: user.email,
+          name: user.user_metadata?.name || user.email,
+          metadata: {
+            supabase_user_id: user.id,
+            created_by: 'customer-portal-function'
+          }
+        });
+        customerId = newCustomer.id;
+        logStep("New customer created successfully", { 
+          customerId, 
+          email: newCustomer.email 
+        });
+      } catch (stripeError: any) {
+        logStep("ERROR: Failed to create customer", { 
+          error: stripeError.message,
+          type: stripeError.type,
+          code: stripeError.code
+        });
+        throw new Error(`Failed to create Stripe customer: ${stripeError.message}`);
+      }
+    } else {
+      customerId = customers.data[0].id;
+      logStep("Using existing customer", { 
+        customerId,
+        customerEmail: customers.data[0].email,
+        customerCreated: customers.data[0].created
+      });
+    }
+
+    // Determine return URL with enhanced logic
     const requestOrigin = req.headers.get("origin");
     const requestReferer = req.headers.get("referer");
     let returnUrl = "https://8d643525-09c5-4070-808b-e5e82c799712.lovableproject.com";
     
     if (requestOrigin) {
       returnUrl = requestOrigin;
+      logStep("Using origin as return URL", { returnUrl });
     } else if (requestReferer) {
       try {
         const refererUrl = new URL(requestReferer);
         returnUrl = refererUrl.origin;
+        logStep("Using referer origin as return URL", { returnUrl });
       } catch (e) {
-        logStep("WARNING: Invalid referer URL", { referer: requestReferer });
+        logStep("WARNING: Invalid referer URL, using default", { 
+          referer: requestReferer,
+          error: e.message 
+        });
       }
+    } else {
+      logStep("Using default return URL", { returnUrl });
     }
-    
-    logStep("Determined return URL", { 
-      returnUrl, 
-      requestOrigin, 
-      requestReferer: requestReferer?.substring(0, 100) 
-    });
 
-    // Create billing portal session with enhanced error handling
-    logStep("Creating billing portal session");
+    // Create billing portal session
+    logStep("Creating billing portal session", { 
+      customerId, 
+      returnUrl 
+    });
+    
     let portalSession;
     try {
       portalSession = await stripe.billingPortal.sessions.create({
-        customer: stripeCustomerId,
+        customer: customerId,
         return_url: `${returnUrl}/`,
       });
-      logStep("Customer portal session created successfully", { 
+      
+      logStep("Portal session created successfully", { 
         sessionId: portalSession.id, 
         url: portalSession.url,
-        created: portalSession.created,
-        returnUrl: portalSession.return_url
+        expires: portalSession.return_url,
+        customerId: portalSession.customer
       });
     } catch (stripeError: any) {
-      logStep("ERROR: Failed to create billing portal session", { 
+      logStep("ERROR: Failed to create portal session", { 
         error: stripeError.message,
         type: stripeError.type,
         code: stripeError.code,
-        customerId: stripeCustomerId,
+        customerId,
         returnUrl
       });
       throw new Error(`Failed to create billing portal session: ${stripeError.message}`);
     }
 
-    return new Response(JSON.stringify({ url: portalSession.url }), {
+    logStep("=== SUCCESS: RETURNING PORTAL URL ===", { 
+      url: portalSession.url 
+    });
+
+    return new Response(JSON.stringify({ 
+      url: portalSession.url,
+      success: true 
+    }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
-  } catch (e: any) {
-    logStep("ERROR in customer-portal", { 
-      message: e?.message ?? String(e), 
-      stack: e?.stack,
-      name: e?.name,
-      type: typeof e,
-      cause: e?.cause
+  } catch (error: any) {
+    const errorMessage = error?.message ?? String(error);
+    const errorStack = error?.stack;
+    
+    logStep("=== CRITICAL ERROR IN CUSTOMER PORTAL ===", { 
+      message: errorMessage,
+      stack: errorStack,
+      name: error?.name,
+      type: typeof error,
+      cause: error?.cause,
+      timestamp: new Date().toISOString()
     });
     
     return new Response(JSON.stringify({ 
-      error: e?.message ?? String(e),
-      details: "Verifique os logs da função para mais detalhes"
+      error: errorMessage,
+      success: false,
+      details: "Check function logs for detailed error information",
+      timestamp: new Date().toISOString()
     }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

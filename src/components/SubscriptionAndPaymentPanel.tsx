@@ -1,3 +1,4 @@
+
 import { useSubscriptionDetails } from "@/hooks/useSubscriptionDetails";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -41,9 +42,9 @@ export function SubscriptionAndPaymentPanel() {
       if (error) {
         console.error("❌ Erro da função customer-portal:", error);
         
-        // Handle FunctionsHttpError and other error types
         let errorMessage = "Erro ao acessar portal do Stripe";
         
+        // Handle different error types
         if (error.name === 'FunctionsHttpError') {
           errorMessage = "Erro na função customer-portal. Verifique os logs.";
         } else if (error.message) {
@@ -72,19 +73,24 @@ export function SubscriptionAndPaymentPanel() {
         return;
       }
 
-      if (!data.url) {
-        console.error("❌ URL não retornada:", data);
-        let errorMessage = "Não foi possível obter a URL do portal de pagamentos";
-        
-        if (data.error) {
-          errorMessage = `Erro: ${data.error}`;
-        } else if (data.details) {
-          errorMessage = `${errorMessage}. ${data.details}`;
-        }
+      // Check for function-level errors in the response
+      if (!data.success) {
+        console.error("❌ Função retornou erro:", data);
+        const errorMessage = data.error || "Erro desconhecido do portal de pagamentos";
         
         toast({
           title: "Erro ao acessar portal do Stripe",
           description: errorMessage,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!data.url) {
+        console.error("❌ URL não retornada:", data);
+        toast({
+          title: "Erro ao acessar portal do Stripe",
+          description: "Não foi possível obter a URL do portal de pagamentos",
           variant: "destructive",
         });
         return;
@@ -183,7 +189,7 @@ export function SubscriptionAndPaymentPanel() {
     );
   }
 
-  // Para assinatura sendo processada - IMPROVED MESSAGING
+  // Para assinatura sendo processada
   if (isPending || status === "processing") {
     return (
       <>
