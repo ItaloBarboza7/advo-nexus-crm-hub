@@ -46,16 +46,9 @@ export function useTenantLeadOperations() {
         return false;
       }
 
-      // Construir a query de insert
+      // Construir a query de insert (sem user_id no esquema do tenant)
       const fields = [];
       const values = [];
-      
-      // Sempre incluir user_id para tracking
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        fields.push('user_id');
-        values.push(`'${user.id}'`);
-      }
       
       fields.push('name', 'phone');
       values.push(`'${leadData.name.replace(/'/g, "''")}'`, `'${leadData.phone.replace(/'/g, "''")}'`);
