@@ -1,3 +1,4 @@
+
 import { useSubscriptionDetails } from "@/hooks/useSubscriptionDetails";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -16,7 +17,6 @@ export function SubscriptionAndPaymentPanel() {
     status,
     isLoading,
     error,
-    subscriptionId,
     isPending,
     refreshSubscription
   } = useSubscriptionDetails();
@@ -106,14 +106,6 @@ export function SubscriptionAndPaymentPanel() {
               <p className="text-sm text-red-800 mb-1">Erro ao carregar dados da assinatura</p>
               <p className="text-xs text-red-600">{error}</p>
             </div>
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-            >
-              {isRefreshing ? <RefreshCw className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-            </Button>
           </div>
         </div>
         <SubscriptionDebugPanel />
@@ -137,18 +129,9 @@ export function SubscriptionAndPaymentPanel() {
                 <strong>{plan}</strong> - R$ {(amount/100).toFixed(2)}
               </div>
               <div className="mt-1 text-xs text-blue-500">
-                ⏱️ Aguarde ou clique em "Atualizar" para verificar novamente
+                ⏱️ Aguarde alguns instantes
               </div>
             </div>
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-            >
-              {isRefreshing ? <RefreshCw className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-              Atualizar
-            </Button>
           </div>
         </div>
         <SubscriptionDebugPanel />
@@ -167,14 +150,6 @@ export function SubscriptionAndPaymentPanel() {
               <p className="text-sm text-yellow-800 mb-1">Nenhum plano ativo encontrado</p>
               <p className="text-xs text-yellow-600">Entre em contato para ativar sua assinatura</p>
             </div>
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-            >
-              {isRefreshing ? <RefreshCw className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-            </Button>
           </div>
         </div>
         <SubscriptionDebugPanel />
@@ -203,25 +178,11 @@ export function SubscriptionAndPaymentPanel() {
                 <span className="block text-sm text-muted-foreground">
                   R$ {(amount/100).toFixed(2)} / mês
                 </span>
-                {subscriptionId && (
-                  <span className="block text-xs text-muted-foreground mt-1">
-                    ID: {subscriptionId}
-                  </span>
-                )}
               </div>
               <div className="flex gap-2">
                 <Button 
                   size="sm" 
-                  variant="outline"
-                  onClick={handleRefresh}
-                  disabled={isRefreshing}
-                >
-                  {isRefreshing ? <RefreshCw className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                </Button>
-                <Button 
-                  size="sm" 
                   onClick={() => setShowCardInfo(true)}
-                  className="ml-2"
                 >
                   Configurar Pagamento
                 </Button>
