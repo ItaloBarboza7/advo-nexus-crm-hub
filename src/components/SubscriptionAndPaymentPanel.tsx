@@ -1,4 +1,3 @@
-
 import { useSubscriptionDetails } from "@/hooks/useSubscriptionDetails";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -43,8 +42,11 @@ export function SubscriptionAndPaymentPanel() {
         console.error("❌ Erro da função customer-portal:", error);
         let errorMessage = "Erro desconhecido na função customer-portal";
         
+        // Handle different error types
         if (error.message) {
           errorMessage = `Erro na função: ${error.message}`;
+        } else if (typeof error === 'object' && error.context) {
+          errorMessage = `Erro: ${JSON.stringify(error.context)}`;
         } else if (typeof error === 'string') {
           errorMessage = `Erro: ${error}`;
         }
@@ -57,13 +59,23 @@ export function SubscriptionAndPaymentPanel() {
         return;
       }
 
-      if (!data?.url) {
+      if (!data) {
+        console.error("❌ Nenhum dado retornado:", data);
+        toast({
+          title: "Erro ao acessar portal do Stripe",
+          description: "A função não retornou dados válidos",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!data.url) {
         console.error("❌ URL não retornada:", data);
         let errorMessage = "Não foi possível obter a URL do portal de pagamentos";
         
-        if (data?.error) {
+        if (data.error) {
           errorMessage = `Erro: ${data.error}`;
-        } else if (data?.details) {
+        } else if (data.details) {
           errorMessage = `${errorMessage}. ${data.details}`;
         }
         

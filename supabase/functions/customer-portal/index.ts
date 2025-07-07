@@ -22,8 +22,26 @@ serve(async (req: Request) => {
   try {
     logStep("Function started");
 
-    // Validate Stripe key
+    // Validate environment variables first
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+
+    logStep("Environment check", {
+      supabaseUrlExists: !!supabaseUrl,
+      supabaseAnonKeyExists: !!supabaseAnonKey,
+      stripeKeyExists: !!stripeKey,
+      stripeKeyPrefix: stripeKey?.substring(0, 7)
+    });
+
+    if (!supabaseUrl) {
+      logStep("ERROR: SUPABASE_URL is not set");
+      throw new Error("SUPABASE_URL is not set");
+    }
+    if (!supabaseAnonKey) {
+      logStep("ERROR: SUPABASE_ANON_KEY is not set");
+      throw new Error("SUPABASE_ANON_KEY is not set");
+    }
     if (!stripeKey) {
       logStep("ERROR: STRIPE_SECRET_KEY is not set");
       throw new Error("STRIPE_SECRET_KEY is not set");
@@ -32,13 +50,10 @@ serve(async (req: Request) => {
       logStep("ERROR: Invalid STRIPE_SECRET_KEY format", { keyPrefix: stripeKey.substring(0, 3) });
       throw new Error("Invalid STRIPE_SECRET_KEY format");
     }
-    logStep("Stripe key verified", { keyPrefix: stripeKey.substring(0, 7) });
 
     // Initialize Supabase client with anon key for auth
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? ""
-    );
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+    logStep("Supabase client initialized");
 
     // Validate and extract auth token
     const authHeader = req.headers.get("Authorization");
@@ -106,7 +121,7 @@ serve(async (req: Request) => {
     // Determine return URL more robustly
     const requestOrigin = req.headers.get("origin");
     const requestReferer = req.headers.get("referer");
-    let returnUrl = "https://xltugqmjbcowsuwzkkni.supabase.co";
+    let returnUrl = "https://8d643525-09c5-4070-808b-e5e82c799712.lovableproject.com";
     
     if (requestOrigin) {
       returnUrl = requestOrigin;
