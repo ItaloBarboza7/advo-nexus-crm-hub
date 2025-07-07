@@ -1,4 +1,3 @@
-
 import { useSubscriptionDetails } from "@/hooks/useSubscriptionDetails";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -27,22 +26,43 @@ export function SubscriptionAndPaymentPanel() {
   async function handleChangeCard() {
     console.log("🔄 handleChangeCard: Iniciando chamada à customer-portal Edge Function...");
     try {
-      const { data, error } = await supabase.functions.invoke('customer-portal', { body: {} });
+      const { data, error } = await supabase.functions.invoke('customer-portal', { 
+        body: {},
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
       console.log("🔄 handleChangeCard: Resposta da função", { data, error });
-      if (error || !data?.url) {
+      
+      if (error) {
+        console.error("❌ Erro da função customer-portal:", error);
         toast({
           title: "Erro ao acessar Stripe",
-          description: error?.message || data?.error || "Não foi possível abrir o portal de pagamentos.",
+          description: `Erro na função: ${error.message}`,
           variant: "destructive",
         });
         return;
       }
+
+      if (!data?.url) {
+        console.error("❌ URL não retornada:", data);
+        toast({
+          title: "Erro ao acessar Stripe",
+          description: data?.error || "Não foi possível obter a URL do portal de pagamentos.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log("✅ Abrindo portal do Stripe:", data.url);
       window.open(data.url, "_blank");
+      
     } catch (err: any) {
       console.error("❗ Erro inesperado no handleChangeCard", err);
       toast({
         title: "Erro de conexão",
-        description: err?.message || String(err),
+        description: `Erro: ${err?.message || String(err)}`,
         variant: "destructive",
       });
     }

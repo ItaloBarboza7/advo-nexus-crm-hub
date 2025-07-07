@@ -23,40 +23,52 @@ serve(async (req: Request) => {
     logStep("Function started");
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
+    if (!stripeKey) {
+      logStep("ERROR: STRIPE_SECRET_KEY is not set");
+      throw new Error("STRIPE_SECRET_KEY is not set");
+    }
     logStep("Stripe key verified");
 
-    // Use service role so you can securely look up users;
+    // Use anon key first to authenticate the user
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { persistSession: false } }
+      Deno.env.get("SUPABASE_ANON_KEY") ?? ""
     );
 
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header provided");
+    if (!authHeader) {
+      logStep("ERROR: No authorization header provided");
+      throw new Error("No authorization header provided");
+    }
     logStep("Authorization header found");
 
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
+    if (userError) {
+      logStep("ERROR: Authentication error", { error: userError });
+      throw new Error(`Authentication error: ${userError.message}`);
+    }
     const user = userData.user;
-    if (!user?.email) throw new Error("User not authenticated or email not available");
+    if (!user?.email) {
+      logStep("ERROR: User not authenticated or email not available");
+      throw new Error("User not authenticated or email not available");
+    }
     logStep("User authenticated", { userId: user.id, email: user.email });
 
     // Prepare Stripe client
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
 
-    // Encontre o customer do Stripe pelo email
+    // Find the Stripe customer by email
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     if (customers.data.length === 0) {
+      logStep("ERROR: No Stripe customer found", { email: user.email });
       throw new Error("No Stripe customer found for this user");
     }
     const stripeCustomerId = customers.data[0].id;
     logStep("Found Stripe customer", { stripeCustomerId });
 
-    // Pick return_url from origin or supabase url (fallback)
-    const origin = req.headers.get("origin") || Deno.env.get("SUPABASE_URL") || "http://localhost:3000";
+    // Get origin from header or use fallback
+    const origin = req.headers.get("origin") || req.headers.get("referer")?.replace(/\/$/, '') || Deno.env.get("SUPABASE_URL") || "http://localhost:3000";
     logStep("Using origin for return_url", { origin });
 
     // Create billing portal session
@@ -72,7 +84,7 @@ serve(async (req: Request) => {
     });
 
   } catch (e: any) {
-    logStep("ERROR in customer-portal", { message: e?.message ?? String(e) });
+    logStep("ERROR in customer-portal", { message: e?.message ?? String(e), stack: e?.stack });
     return new Response(JSON.stringify({ error: e?.message ?? String(e) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
