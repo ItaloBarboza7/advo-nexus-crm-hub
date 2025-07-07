@@ -22,27 +22,40 @@ serve(async (req: Request) => {
   try {
     logStep("Function started");
 
+    // Validate Stripe key
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) {
       logStep("ERROR: STRIPE_SECRET_KEY is not set");
       throw new Error("STRIPE_SECRET_KEY is not set");
     }
-    logStep("Stripe key verified");
+    if (!stripeKey.startsWith('sk_')) {
+      logStep("ERROR: Invalid STRIPE_SECRET_KEY format", { keyPrefix: stripeKey.substring(0, 3) });
+      throw new Error("Invalid STRIPE_SECRET_KEY format");
+    }
+    logStep("Stripe key verified", { keyPrefix: stripeKey.substring(0, 7) });
 
-    // Use anon key first to authenticate the user
+    // Initialize Supabase client with anon key for auth
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? ""
     );
 
+    // Validate and extract auth token
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       logStep("ERROR: No authorization header provided");
       throw new Error("No authorization header provided");
     }
+    if (!authHeader.startsWith("Bearer ")) {
+      logStep("ERROR: Invalid authorization header format");
+      throw new Error("Invalid authorization header format");
+    }
     logStep("Authorization header found");
 
+    // Authenticate user
     const token = authHeader.replace("Bearer ", "");
+    logStep("Authenticating user with token", { tokenLength: token.length });
+    
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
     if (userError) {
       logStep("ERROR: Authentication error", { error: userError });
@@ -55,30 +68,87 @@ serve(async (req: Request) => {
     }
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    // Prepare Stripe client
+    // Initialize Stripe client
+    logStep("Initializing Stripe client");
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
 
     // Find the Stripe customer by email
     logStep("Searching for Stripe customer", { email: user.email });
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+    let customers;
+    try {
+      customers = await stripe.customers.list({ email: user.email, limit: 10 });
+      logStep("Customer search completed", { 
+        customersFound: customers.data.length,
+        customers: customers.data.map(c => ({ id: c.id, email: c.email }))
+      });
+    } catch (stripeError: any) {
+      logStep("ERROR: Stripe customer search failed", { 
+        error: stripeError.message, 
+        type: stripeError.type,
+        code: stripeError.code
+      });
+      throw new Error(`Stripe customer search failed: ${stripeError.message}`);
+    }
+    
     if (customers.data.length === 0) {
       logStep("ERROR: No Stripe customer found", { email: user.email });
       throw new Error("No Stripe customer found for this user");
     }
-    const stripeCustomerId = customers.data[0].id;
-    logStep("Found Stripe customer", { stripeCustomerId });
-
-    // Get origin from header or use fallback
-    const origin = req.headers.get("origin") || req.headers.get("referer")?.replace(/\/$/, '') || "https://xltugqmjbcowsuwzkkni.supabase.co";
-    logStep("Using origin for return_url", { origin });
-
-    // Create billing portal session
-    logStep("Creating billing portal session");
-    const portalSession = await stripe.billingPortal.sessions.create({
-      customer: stripeCustomerId,
-      return_url: `${origin}/`,
+    
+    const stripeCustomer = customers.data[0];
+    const stripeCustomerId = stripeCustomer.id;
+    logStep("Found Stripe customer", { 
+      stripeCustomerId,
+      customerEmail: stripeCustomer.email,
+      customerCreated: stripeCustomer.created
     });
-    logStep("Customer portal session created", { sessionId: portalSession.id, url: portalSession.url });
+
+    // Determine return URL more robustly
+    const requestOrigin = req.headers.get("origin");
+    const requestReferer = req.headers.get("referer");
+    let returnUrl = "https://xltugqmjbcowsuwzkkni.supabase.co";
+    
+    if (requestOrigin) {
+      returnUrl = requestOrigin;
+    } else if (requestReferer) {
+      try {
+        const refererUrl = new URL(requestReferer);
+        returnUrl = refererUrl.origin;
+      } catch (e) {
+        logStep("WARNING: Invalid referer URL", { referer: requestReferer });
+      }
+    }
+    
+    logStep("Determined return URL", { 
+      returnUrl, 
+      requestOrigin, 
+      requestReferer: requestReferer?.substring(0, 100) 
+    });
+
+    // Create billing portal session with enhanced error handling
+    logStep("Creating billing portal session");
+    let portalSession;
+    try {
+      portalSession = await stripe.billingPortal.sessions.create({
+        customer: stripeCustomerId,
+        return_url: `${returnUrl}/`,
+      });
+      logStep("Customer portal session created successfully", { 
+        sessionId: portalSession.id, 
+        url: portalSession.url,
+        created: portalSession.created,
+        returnUrl: portalSession.return_url
+      });
+    } catch (stripeError: any) {
+      logStep("ERROR: Failed to create billing portal session", { 
+        error: stripeError.message,
+        type: stripeError.type,
+        code: stripeError.code,
+        customerId: stripeCustomerId,
+        returnUrl
+      });
+      throw new Error(`Failed to create billing portal session: ${stripeError.message}`);
+    }
 
     return new Response(JSON.stringify({ url: portalSession.url }), {
       status: 200,
@@ -90,7 +160,8 @@ serve(async (req: Request) => {
       message: e?.message ?? String(e), 
       stack: e?.stack,
       name: e?.name,
-      type: typeof e
+      type: typeof e,
+      cause: e?.cause
     });
     
     return new Response(JSON.stringify({ 

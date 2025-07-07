@@ -1,3 +1,4 @@
+
 import { useSubscriptionDetails } from "@/hooks/useSubscriptionDetails";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -22,9 +23,12 @@ export function SubscriptionAndPaymentPanel() {
   const { toast } = useToast();
   const [showCardInfo, setShowCardInfo] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isOpeningPortal, setIsOpeningPortal] = useState(false);
 
   async function handleChangeCard() {
     console.log("🔄 handleChangeCard: Iniciando chamada à customer-portal Edge Function...");
+    setIsOpeningPortal(true);
+    
     try {
       const { data, error } = await supabase.functions.invoke('customer-portal', { 
         body: {},
@@ -37,9 +41,17 @@ export function SubscriptionAndPaymentPanel() {
       
       if (error) {
         console.error("❌ Erro da função customer-portal:", error);
+        let errorMessage = "Erro desconhecido na função customer-portal";
+        
+        if (error.message) {
+          errorMessage = `Erro na função: ${error.message}`;
+        } else if (typeof error === 'string') {
+          errorMessage = `Erro: ${error}`;
+        }
+        
         toast({
-          title: "Erro ao acessar Stripe",
-          description: `Erro na função: ${error.message}`,
+          title: "Erro ao acessar portal do Stripe",
+          description: errorMessage,
           variant: "destructive",
         });
         return;
@@ -47,9 +59,17 @@ export function SubscriptionAndPaymentPanel() {
 
       if (!data?.url) {
         console.error("❌ URL não retornada:", data);
+        let errorMessage = "Não foi possível obter a URL do portal de pagamentos";
+        
+        if (data?.error) {
+          errorMessage = `Erro: ${data.error}`;
+        } else if (data?.details) {
+          errorMessage = `${errorMessage}. ${data.details}`;
+        }
+        
         toast({
-          title: "Erro ao acessar Stripe",
-          description: data?.error || "Não foi possível obter a URL do portal de pagamentos.",
+          title: "Erro ao acessar portal do Stripe",
+          description: errorMessage,
           variant: "destructive",
         });
         return;
@@ -58,13 +78,28 @@ export function SubscriptionAndPaymentPanel() {
       console.log("✅ Abrindo portal do Stripe:", data.url);
       window.open(data.url, "_blank");
       
+      toast({
+        title: "Portal aberto",
+        description: "O portal de pagamentos do Stripe foi aberto em uma nova aba.",
+      });
+      
     } catch (err: any) {
       console.error("❗ Erro inesperado no handleChangeCard", err);
+      
+      let errorMessage = "Erro de conexão desconhecido";
+      if (err?.message) {
+        errorMessage = `Erro de conexão: ${err.message}`;
+      } else if (typeof err === 'string') {
+        errorMessage = `Erro: ${err}`;
+      }
+      
       toast({
         title: "Erro de conexão",
-        description: `Erro: ${err?.message || String(err)}`,
+        description: errorMessage,
         variant: "destructive",
       });
+    } finally {
+      setIsOpeningPortal(false);
     }
   }
 
@@ -229,15 +264,38 @@ export function SubscriptionAndPaymentPanel() {
                   <span className="mr-2 uppercase font-medium">{cardBrand}</span>
                   <span>•••• {cardLast4}</span>
                   <span className="text-xs text-muted-foreground ml-2">Venc: {cardExp}</span>
-                  <Button size="sm" className="ml-auto" onClick={handleChangeCard}>
-                    Alterar forma de pagamento
+                  <Button 
+                    size="sm" 
+                    className="ml-auto" 
+                    onClick={handleChangeCard}
+                    disabled={isOpeningPortal}
+                  >
+                    {isOpeningPortal ? (
+                      <>
+                        <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                        Abrindo...
+                      </>
+                    ) : (
+                      "Alterar forma de pagamento"
+                    )}
                   </Button>
                 </div>
               ) : (
                 <div className="py-3">
                   <p className="text-sm text-muted-foreground mb-2">Não há cartão cadastrado.</p>
-                  <Button size="sm" onClick={handleChangeCard}>
-                    Adicionar pagamento
+                  <Button 
+                    size="sm" 
+                    onClick={handleChangeCard}
+                    disabled={isOpeningPortal}
+                  >
+                    {isOpeningPortal ? (
+                      <>
+                        <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                        Abrindo...
+                      </>
+                    ) : (
+                      "Adicionar pagamento"
+                    )}
                   </Button>
                 </div>
               )}
