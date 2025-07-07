@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -60,6 +59,7 @@ export const useFilterOptions = () => {
           const newGroups = groupsResult.data || [];
           setActionGroups(prev => {
             if (JSON.stringify(prev) !== JSON.stringify(newGroups)) {
+              console.log('✅ useFilterOptions - Action groups updated:', newGroups.length);
               return newGroups;
             }
             return prev;
@@ -72,6 +72,7 @@ export const useFilterOptions = () => {
           const newTypes = typesResult.data || [];
           setActionTypes(prev => {
             if (JSON.stringify(prev) !== JSON.stringify(newTypes)) {
+              console.log('✅ useFilterOptions - Action types updated:', newTypes.length);
               return newTypes;
             }
             return prev;
@@ -84,6 +85,7 @@ export const useFilterOptions = () => {
           const newSources = sourcesResult.data || [];
           setLeadSources(prev => {
             if (JSON.stringify(prev) !== JSON.stringify(newSources)) {
+              console.log('✅ useFilterOptions - Lead sources updated:', newSources.length);
               return newSources;
             }
             return prev;
@@ -100,14 +102,16 @@ export const useFilterOptions = () => {
     }
   }, []);
 
-  // Memoize refresh function to prevent recreation
-  const refreshData = useMemo(() => {
-    return () => {
-      fetchAllData();
-    };
+  // Force refresh data function
+  const refreshData = useCallback(() => {
+    console.log('🔄 useFilterOptions - Force refreshing data...');
+    lastFetchTimeRef.current = 0; // Reset debounce timer
+    fetchingRef.current = false; // Reset fetching flag
+    fetchAllData();
   }, [fetchAllData]);
 
   useEffect(() => {
+    console.log('🚀 useFilterOptions - Initial data fetch');
     if (!fetchingRef.current) {
       fetchAllData();
     }
@@ -171,14 +175,12 @@ export const useFilterOptions = () => {
       label: group.description || group.name
     })), [actionGroups]);
 
-  // Memoize functions to prevent recreation
+  // Enhanced action type options with better formatting
   const getAllActionTypeOptions = useMemo(() => {
     return () => {
       return actionTypes.map(type => ({
         value: type.name,
-        label: type.name.split('-').map(word =>
-          word.charAt(0).toUpperCase() + word.slice(1)
-        ).join(' ')
+        label: formatActionTypeName(type.name)
       }));
     };
   }, [actionTypes]);
@@ -192,12 +194,18 @@ export const useFilterOptions = () => {
         .filter(type => type.action_group_id === actionGroup.id)
         .map(type => ({
           value: type.name,
-          label: type.name.split('-').map(word =>
-            word.charAt(0).toUpperCase() + word.slice(1)
-          ).join(' ')
+          label: formatActionTypeName(type.name)
         }));
     };
   }, [actionGroups, actionTypes]);
+
+  // Helper function to format action type names for better display
+  const formatActionTypeName = (name: string) => {
+    return name
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
 
   // Memoize the return object to prevent recreation
   return useMemo(() => ({
