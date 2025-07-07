@@ -101,13 +101,6 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
   };
 
   const handleDeleteGroup = async (groupId: string, groupDescription: string) => {
-    toast({
-      title: "Atenção",
-      description: `Ao excluir o grupo "${groupDescription}", todos os tipos de ação vinculados a ele também serão excluídos.`,
-      variant: "default",
-      duration: 4000,
-    });
-
     try {
       const { error } = await supabase
         .from('action_groups')

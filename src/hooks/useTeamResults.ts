@@ -32,7 +32,11 @@ export function useTeamResults() {
 
       // Obter dados do usuário atual para determinar o tenant
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        console.log("❌ useTeamResults - Usuário não autenticado");
+        setTeamMembers([]);
+        return;
+      }
 
       // Buscar o perfil do usuário atual para determinar se é admin ou membro
       const { data: currentProfile, error: currentProfileError } = await supabase
@@ -43,7 +47,19 @@ export function useTeamResults() {
 
       if (currentProfileError) {
         console.error('❌ Erro ao buscar perfil atual:', currentProfileError);
-        throw currentProfileError;
+        // Se não encontrar perfil, criar um membro básico
+        setTeamMembers([{
+          id: user.id,
+          name: user.email?.split('@')[0] || 'Usuário',
+          email: user.email || '',
+          isAdmin: true,
+          leads: 0,
+          proposals: 0,
+          sales: 0,
+          score: 0,
+          conversion_rate: 0
+        }]);
+        return;
       }
 
       // Determinar o tenant_id (admin principal)
@@ -68,6 +84,22 @@ export function useTeamResults() {
 
       console.log(`👥 useTeamResults - ${profiles?.length || 0} perfis encontrados`);
 
+      // Se não encontrar perfis, criar pelo menos o usuário atual
+      if (!profiles || profiles.length === 0) {
+        setTeamMembers([{
+          id: user.id,
+          name: user.email?.split('@')[0] || 'Usuário',
+          email: user.email || '',
+          isAdmin: true,
+          leads: 0,
+          proposals: 0,
+          sales: 0,
+          score: 0,
+          conversion_rate: 0
+        }]);
+        return;
+      }
+
       // Buscar roles dos usuários
       const userIds = profiles?.map(p => p.user_id) || [];
       const { data: roles, error: rolesError } = await supabase
@@ -77,7 +109,7 @@ export function useTeamResults() {
 
       if (rolesError) {
         console.error('❌ Erro ao buscar roles:', rolesError);
-        throw rolesError;
+        // Continuar sem roles se houver erro
       }
 
       // Buscar leads do esquema do tenant
@@ -87,7 +119,7 @@ export function useTeamResults() {
 
       if (leadsError) {
         console.error('❌ Erro ao buscar leads:', leadsError);
-        throw leadsError;
+        // Se houver erro ao buscar leads, continuar com dados zerados
       }
 
       const leadsData = Array.isArray(leads) ? leads : [];
@@ -100,7 +132,7 @@ export function useTeamResults() {
 
       if (historyError) {
         console.error('❌ Erro ao buscar histórico de status:', historyError);
-        throw historyError;
+        // Continuar sem histórico se houver erro
       }
 
       const historyData = Array.isArray(statusHistory) ? statusHistory : [];
@@ -113,7 +145,7 @@ export function useTeamResults() {
         );
       };
 
-      // *** NOVA LÓGICA: CALCULAR APENAS DO MÊS ATUAL ***
+      // Calcular apenas do mês atual
       const now = BrazilTimezone.now();
       const currentMonth = now.getMonth();
       const currentYear = now.getFullYear();
@@ -128,9 +160,9 @@ export function useTeamResults() {
       for (const profile of profiles || []) {
         const userId = profile.user_id;
         const role = roleMap.get(userId);
-        const isAdmin = role === 'admin';
+        const isAdmin = role === 'admin' || userId === tenantId;
         
-        // *** FILTRAR LEADS APENAS DO MÊS ATUAL ***
+        // Filtrar leads apenas do mês atual
         const allUserLeads = leadsData.filter(lead => lead.user_id === userId);
         const userLeads = allUserLeads.filter(lead => {
           const leadDate = new Date(lead.created_at);
@@ -138,14 +170,11 @@ export function useTeamResults() {
           return leadDateLocal.getMonth() === currentMonth && leadDateLocal.getFullYear() === currentYear;
         });
         
-        // CORREÇÃO: Contar propostas considerando leads que passaram por Proposta/Reunião
-        // mas APENAS para leads do mês atual
+        // Contar propostas considerando leads que passaram por Proposta/Reunião
         const userProposals = userLeads.filter(lead => {
-          // Se está atualmente em Proposta ou Reunião, conta
           if (['Proposta', 'Reunião'].includes(lead.status)) {
             return true;
           }
-          // Se passou por Proposta ou Reunião no histórico, também conta
           return hasLeadPassedThroughStatus(lead.id, ['Proposta', 'Reunião']);
         });
         
@@ -157,13 +186,12 @@ export function useTeamResults() {
         const conversionRate = userProposals.length > 0 ? 
           (userSales.length / userProposals.length) * 100 : 0;
         
-        // SISTEMA DE PONTUAÇÃO: Leads = 5pts, Propostas = 10pts, Vendas = 100pts
-        // *** AGORA CALCULADO APENAS PARA O MÊS ATUAL ***
+        // Sistema de pontuação: Leads = 5pts, Propostas = 10pts, Vendas = 100pts
         const score = (userLeads.length * 5) + (userProposals.length * 10) + (userSales.length * 100);
 
         teamMembersData.push({
           id: userId,
-          name: profile.name || 'Usuário',
+          name: profile.name || profile.email?.split('@')[0] || 'Usuário',
           email: profile.email || '',
           isAdmin,
           leads: userLeads.length,
@@ -184,11 +212,24 @@ export function useTeamResults() {
 
     } catch (error: any) {
       console.error('❌ Erro ao buscar dados da equipe:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar os dados da equipe.",
-        variant: "destructive"
-      });
+      // Em caso de erro, não mostrar toast para evitar spam
+      // Apenas definir dados vazios ou dados básicos do usuário atual
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setTeamMembers([{
+          id: user.id,
+          name: user.email?.split('@')[0] || 'Usuário',
+          email: user.email || '',
+          isAdmin: true,
+          leads: 0,
+          proposals: 0,
+          sales: 0,
+          score: 0,
+          conversion_rate: 0
+        }]);
+      } else {
+        setTeamMembers([]);
+      }
     } finally {
       setIsLoading(false);
     }
