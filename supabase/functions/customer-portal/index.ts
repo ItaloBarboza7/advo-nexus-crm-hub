@@ -22,14 +22,14 @@ serve(async (req: Request) => {
   try {
     logStep("Function started");
 
-    // Validate environment variables first
+    // Validate environment variables
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
 
     logStep("Environment check", {
       supabaseUrlExists: !!supabaseUrl,
-      supabaseAnonKeyExists: !!supabaseAnonKey,
+      supabaseServiceKeyExists: !!supabaseServiceKey,
       stripeKeyExists: !!stripeKey,
       stripeKeyPrefix: stripeKey?.substring(0, 7)
     });
@@ -38,9 +38,9 @@ serve(async (req: Request) => {
       logStep("ERROR: SUPABASE_URL is not set");
       throw new Error("SUPABASE_URL is not set");
     }
-    if (!supabaseAnonKey) {
-      logStep("ERROR: SUPABASE_ANON_KEY is not set");
-      throw new Error("SUPABASE_ANON_KEY is not set");
+    if (!supabaseServiceKey) {
+      logStep("ERROR: SUPABASE_SERVICE_ROLE_KEY is not set");
+      throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set");
     }
     if (!stripeKey) {
       logStep("ERROR: STRIPE_SECRET_KEY is not set");
@@ -51,9 +51,11 @@ serve(async (req: Request) => {
       throw new Error("Invalid STRIPE_SECRET_KEY format");
     }
 
-    // Initialize Supabase client with anon key for auth
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
-    logStep("Supabase client initialized");
+    // Initialize Supabase client with service role key for admin operations
+    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { persistSession: false }
+    });
+    logStep("Supabase client initialized with service role");
 
     // Validate and extract auth token
     const authHeader = req.headers.get("Authorization");
@@ -67,13 +69,13 @@ serve(async (req: Request) => {
     }
     logStep("Authorization header found");
 
-    // Authenticate user
+    // Authenticate user using the token
     const token = authHeader.replace("Bearer ", "");
     logStep("Authenticating user with token", { tokenLength: token.length });
     
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
     if (userError) {
-      logStep("ERROR: Authentication error", { error: userError });
+      logStep("ERROR: Authentication error", { error: userError.message });
       throw new Error(`Authentication error: ${userError.message}`);
     }
     const user = userData.user;

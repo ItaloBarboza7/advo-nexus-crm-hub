@@ -40,11 +40,14 @@ export function SubscriptionAndPaymentPanel() {
       
       if (error) {
         console.error("❌ Erro da função customer-portal:", error);
-        let errorMessage = "Erro desconhecido na função customer-portal";
         
-        // Handle different error types
-        if (error.message) {
-          errorMessage = `Erro na função: ${error.message}`;
+        // Handle FunctionsHttpError and other error types
+        let errorMessage = "Erro ao acessar portal do Stripe";
+        
+        if (error.name === 'FunctionsHttpError') {
+          errorMessage = "Erro na função customer-portal. Verifique os logs.";
+        } else if (error.message) {
+          errorMessage = `Erro: ${error.message}`;
         } else if (typeof error === 'object' && error.context) {
           errorMessage = `Erro: ${JSON.stringify(error.context)}`;
         } else if (typeof error === 'string') {
