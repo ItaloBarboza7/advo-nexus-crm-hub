@@ -8,10 +8,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Helper logging function for detailed debugging
+// Enhanced logging function for detailed debugging
 const logStep = (step: string, details?: any) => {
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
-  console.log(`[GET-STRIPE-DETAILS] ${step}${detailsStr}`);
+  const timestamp = new Date().toISOString();
+  const detailsStr = details ? ` - ${JSON.stringify(details, null, 2)}` : '';
+  console.log(`[${timestamp}] [GET-STRIPE-DETAILS] ${step}${detailsStr}`);
 };
 
 serve(async (req) => {
@@ -20,7 +21,7 @@ serve(async (req) => {
   }
 
   try {
-    logStep("Function started");
+    logStep("=== STRIPE DETAILS DIAGNOSTIC STARTED ===");
 
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -34,7 +35,7 @@ serve(async (req) => {
     }
     
     const token = authHeader.replace("Bearer ", "");
-    logStep("Authorization header found, extracting user");
+    logStep("Extracting user from token");
 
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
     if (userError || !user?.email) {
@@ -42,7 +43,12 @@ serve(async (req) => {
       throw new Error("Usuário não autenticado");
     }
 
-    logStep("User authenticated successfully", { userId: user.id, email: user.email, metadata: user.user_metadata });
+    logStep("User authenticated successfully", { 
+      userId: user.id, 
+      email: user.email, 
+      metadata: user.user_metadata,
+      emailVerified: user.email_confirmed_at 
+    });
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) {
@@ -51,114 +57,252 @@ serve(async (req) => {
     }
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
-    logStep("Stripe client initialized");
+    logStep("Stripe client initialized successfully");
 
-    // Buscar customer no stripe pelo email
-    logStep("Searching for Stripe customer", { email: user.email });
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+    // ENHANCED CUSTOMER SEARCH - Multiple strategies
+    logStep("=== CUSTOMER SEARCH PHASE ===");
     
-    if (!customers.data.length) {
-      logStep("No Stripe customer found", { email: user.email, totalCustomers: customers.data.length });
+    // Strategy 1: Exact email match
+    logStep("Strategy 1: Searching by exact email", { email: user.email });
+    let customers = await stripe.customers.list({ email: user.email, limit: 10 });
+    logStep("Exact email search results", { 
+      found: customers.data.length,
+      customers: customers.data.map(c => ({ id: c.id, email: c.email, created: c.created }))
+    });
+
+    // Strategy 2: If no exact match, search all customers and filter (for edge cases)
+    if (customers.data.length === 0) {
+      logStep("Strategy 2: Searching all recent customers");
+      const allRecentCustomers = await stripe.customers.list({ limit: 100 });
+      const matchingCustomers = allRecentCustomers.data.filter(c => 
+        c.email?.toLowerCase() === user.email.toLowerCase()
+      );
+      logStep("Fuzzy search results", { 
+        totalSearched: allRecentCustomers.data.length,
+        matches: matchingCustomers.length,
+        matchingCustomers: matchingCustomers.map(c => ({ id: c.id, email: c.email }))
+      });
       
-      // Check if user has plan info in metadata (newly created user)
+      if (matchingCustomers.length > 0) {
+        customers = { data: matchingCustomers, has_more: false, object: 'list', url: '' };
+      }
+    }
+
+    // If no customer found, check user metadata for recent payment
+    if (customers.data.length === 0) {
+      logStep("=== NO CUSTOMER FOUND - CHECKING USER METADATA ===");
+      
       const userPlanType = user.user_metadata?.plan_type;
       const isPaymentConfirmed = user.user_metadata?.payment_confirmed;
+      const subscriptionCreatedAt = user.user_metadata?.subscription_created_at;
+      const stripeSessionId = user.user_metadata?.stripe_session_id;
       
-      logStep("Checking user metadata for plan info", { userPlanType, isPaymentConfirmed });
+      logStep("User metadata analysis", { 
+        userPlanType, 
+        isPaymentConfirmed, 
+        subscriptionCreatedAt,
+        stripeSessionId
+      });
       
       if (userPlanType && isPaymentConfirmed) {
-        // User was recently created after payment but Stripe customer not found yet
-        // This might be a timing issue - return pending state
+        // Check if this is a very recent payment (within last hour)
+        const isRecentPayment = subscriptionCreatedAt && 
+          (new Date().getTime() - new Date(subscriptionCreatedAt).getTime()) < 3600000; // 1 hour
+        
+        logStep("Recent payment analysis", { 
+          isRecentPayment,
+          timeSincePayment: subscriptionCreatedAt ? 
+            `${Math.round((new Date().getTime() - new Date(subscriptionCreatedAt).getTime()) / 60000)} minutes` : 
+            'unknown'
+        });
+
+        // ENHANCED RECOVERY: Try to find the customer by session ID or other means
+        if (stripeSessionId) {
+          try {
+            logStep("Attempting recovery via Stripe session ID", { stripeSessionId });
+            const session = await stripe.checkout.sessions.retrieve(stripeSessionId);
+            logStep("Session retrieved", { 
+              sessionId: session.id,
+              customerId: session.customer,
+              paymentStatus: session.payment_status,
+              subscriptionId: session.subscription
+            });
+
+            if (session.customer) {
+              const recoveredCustomer = await stripe.customers.retrieve(session.customer as string);
+              logStep("Customer recovered via session", { 
+                customerId: recoveredCustomer.id,
+                email: (recoveredCustomer as any).email 
+              });
+              
+              customers = { 
+                data: [recoveredCustomer as any], 
+                has_more: false, 
+                object: 'list', 
+                url: '' 
+              };
+            }
+          } catch (sessionError) {
+            logStep("Session recovery failed", { error: sessionError });
+          }
+        }
+
+        // If still no customer but payment confirmed, return processing state
+        if (customers.data.length === 0) {
+          logStep("Payment confirmed but no customer found - returning processing state");
+          return new Response(JSON.stringify({
+            success: true,
+            hasSubscription: false,
+            isPending: true,
+            message: "Processando assinatura, aguarde alguns instantes...",
+            plan_name: userPlanType === 'monthly' ? "Plano Mensal (Processando)" : "Plano Anual (Processando)",
+            amount: userPlanType === 'monthly' ? 15700 : 9900,
+            status: "processing",
+            debug: {
+              reason: "payment_confirmed_no_customer",
+              userPlanType,
+              isPaymentConfirmed,
+              subscriptionCreatedAt
+            }
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          });
+        }
+      } else {
+        // No payment confirmation in metadata
+        logStep("No payment confirmation found in user metadata");
         return new Response(JSON.stringify({
           success: true,
           hasSubscription: false,
-          isPending: true,
-          message: "Processando assinatura, aguarde alguns instantes...",
-          plan_name: userPlanType === 'monthly' ? "Plano Mensal (Processando)" : "Plano Anual (Processando)",
-          amount: userPlanType === 'monthly' ? 15700 : 9900,
-          status: "processing"
+          message: "Usuário ainda não possui assinatura ativa",
+          plan_name: "Nenhum plano ativo",
+          amount: 0,
+          status: "inactive"
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 200,
         });
       }
-      
-      // For users without any plan info
-      return new Response(JSON.stringify({
-        success: true,
-        hasSubscription: false,
-        message: "Usuário ainda não possui assinatura ativa",
-        plan_name: "Nenhum plano ativo",
-        amount: 0,
-        status: "inactive"
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
     }
 
     const customerId = customers.data[0].id;
-    logStep("Stripe customer found", { customerId, customerEmail: customers.data[0].email });
+    logStep("=== CUSTOMER FOUND - ANALYZING SUBSCRIPTIONS ===", { 
+      customerId, 
+      customerEmail: customers.data[0].email,
+      customerCreated: customers.data[0].created
+    });
 
-    // Buscar todas as assinaturas (não apenas ativas) para melhor diagnóstico
-    logStep("Searching for all subscriptions");
+    // COMPREHENSIVE SUBSCRIPTION SEARCH
+    logStep("Fetching ALL subscriptions for customer");
     const allSubscriptions = await stripe.subscriptions.list({ 
       customer: customerId, 
-      limit: 10 
+      limit: 20 // Increased limit
     });
     
-    logStep("All customer subscriptions", { 
+    logStep("All subscriptions analysis", { 
       total: allSubscriptions.data.length,
-      statuses: allSubscriptions.data.map(sub => ({ 
+      subscriptions: allSubscriptions.data.map(sub => ({ 
         id: sub.id, 
         status: sub.status,
         current_period_end: sub.current_period_end,
-        cancel_at_period_end: sub.cancel_at_period_end
+        current_period_start: sub.current_period_start,
+        cancel_at_period_end: sub.cancel_at_period_end,
+        canceled_at: sub.canceled_at,
+        created: sub.created,
+        priceId: sub.items.data[0]?.price?.id,
+        amount: sub.items.data[0]?.price?.unit_amount
       }))
     });
 
-    // Buscar assinatura ativa primeiro
+    // ENHANCED SUBSCRIPTION STATUS DETECTION
     const activeSubscriptions = allSubscriptions.data.filter(sub => sub.status === "active");
-    
+    const trialingSubscriptions = allSubscriptions.data.filter(sub => sub.status === "trialing");
+    const pastDueSubscriptions = allSubscriptions.data.filter(sub => sub.status === "past_due");
+    const canceledButActiveSubscriptions = allSubscriptions.data.filter(sub => 
+      sub.status === "canceled" && 
+      sub.cancel_at_period_end && 
+      new Date(sub.current_period_end * 1000) > new Date()
+    );
+    const incompleteSubscriptions = allSubscriptions.data.filter(sub => sub.status === "incomplete");
+    const incompleteExpiredSubscriptions = allSubscriptions.data.filter(sub => sub.status === "incomplete_expired");
+
+    logStep("Subscription categorization", {
+      active: activeSubscriptions.length,
+      trialing: trialingSubscriptions.length,
+      pastDue: pastDueSubscriptions.length,
+      canceledButActive: canceledButActiveSubscriptions.length,
+      incomplete: incompleteSubscriptions.length,
+      incompleteExpired: incompleteExpiredSubscriptions.length
+    });
+
+    // Priority order: active > trialing > past_due > canceled_but_active
+    let selectedSubscription = null;
+    let subscriptionCategory = "";
+
     if (activeSubscriptions.length > 0) {
-      const subscription = activeSubscriptions[0];
-      logStep("Active subscription found", { 
-        subscriptionId: subscription.id, 
-        status: subscription.status,
-        currentPeriodEnd: subscription.current_period_end
+      selectedSubscription = activeSubscriptions[0];
+      subscriptionCategory = "active";
+    } else if (trialingSubscriptions.length > 0) {
+      selectedSubscription = trialingSubscriptions[0];
+      subscriptionCategory = "trialing";
+    } else if (pastDueSubscriptions.length > 0) {
+      selectedSubscription = pastDueSubscriptions[0];
+      subscriptionCategory = "past_due";
+    } else if (canceledButActiveSubscriptions.length > 0) {
+      selectedSubscription = canceledButActiveSubscriptions[0];
+      subscriptionCategory = "canceled_but_active";
+    }
+
+    if (selectedSubscription) {
+      logStep("=== ACTIVE/VALID SUBSCRIPTION FOUND ===", { 
+        subscriptionId: selectedSubscription.id, 
+        status: selectedSubscription.status,
+        category: subscriptionCategory,
+        currentPeriodEnd: selectedSubscription.current_period_end,
+        currentPeriodStart: selectedSubscription.current_period_start
       });
 
-      const item = subscription.items.data[0];
+      const item = selectedSubscription.items.data[0];
       const plan = item.price;
       logStep("Subscription plan details", { 
         priceId: plan.id, 
         amount: plan.unit_amount, 
         currency: plan.currency,
-        nickname: plan.nickname
+        nickname: plan.nickname,
+        interval: plan.recurring?.interval
       });
 
-      // Buscar payment method
+      // ENHANCED PAYMENT METHOD RETRIEVAL
       let cardBrand = "";
       let cardLast4 = "";
       let cardExpMonth = "";
       let cardExpYear = "";
 
       try {
+        logStep("=== PAYMENT METHOD RETRIEVAL ===");
         let paymentMethodId = null;
         
-        if (subscription.default_payment_method) {
-          paymentMethodId = subscription.default_payment_method as string;
-          logStep("Using subscription payment method", { paymentMethodId });
+        // Multiple strategies to find payment method
+        if (selectedSubscription.default_payment_method) {
+          paymentMethodId = selectedSubscription.default_payment_method as string;
+          logStep("Using subscription default payment method", { paymentMethodId });
         } 
         else if (customers.data[0].invoice_settings?.default_payment_method) {
           paymentMethodId = customers.data[0].invoice_settings.default_payment_method as string;
           logStep("Using customer default payment method", { paymentMethodId });
         }
         else {
+          logStep("Searching for attached payment methods");
           const paymentMethods = await stripe.paymentMethods.list({
             customer: customerId,
             type: 'card',
-            limit: 1,
+            limit: 5,
+          });
+          
+          logStep("Found payment methods", { 
+            count: paymentMethods.data.length,
+            methods: paymentMethods.data.map(pm => ({ id: pm.id, type: pm.type, created: pm.created }))
           });
           
           if (paymentMethods.data.length > 0) {
@@ -174,7 +318,7 @@ serve(async (req) => {
             cardLast4 = pmethod.card.last4;
             cardExpMonth = pmethod.card.exp_month.toString();
             cardExpYear = pmethod.card.exp_year.toString();
-            logStep("Payment method details retrieved", { cardBrand, cardLast4 });
+            logStep("Payment method details retrieved", { cardBrand, cardLast4, expMonth: cardExpMonth, expYear: cardExpYear });
           }
         } else {
           logStep("No payment method found for customer");
@@ -192,12 +336,18 @@ serve(async (req) => {
         card_last4: cardLast4,
         exp_month: cardExpMonth,
         exp_year: cardExpYear,
-        status: subscription.status,
-        subscription_id: subscription.id,
-        current_period_end: subscription.current_period_end
+        status: selectedSubscription.status,
+        subscription_id: selectedSubscription.id,
+        current_period_end: selectedSubscription.current_period_end,
+        debug: {
+          subscriptionCategory,
+          customerId,
+          totalSubscriptionsFound: allSubscriptions.data.length,
+          searchStrategiesUsed: customers.data.length > 0 ? ["exact_email"] : ["session_recovery"]
+        }
       };
 
-      logStep("Sending successful response", responseData);
+      logStep("=== SUCCESS RESPONSE PREPARED ===", responseData);
 
       return new Response(JSON.stringify(responseData), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -205,42 +355,32 @@ serve(async (req) => {
       });
     }
 
-    // Se não há assinatura ativa, verificar outras possibilidades
-    const paidSubscriptions = allSubscriptions.data.filter(sub => 
-      sub.status === "trialing" || 
-      sub.status === "past_due" || 
-      (sub.status === "canceled" && sub.cancel_at_period_end && new Date(sub.current_period_end * 1000) > new Date())
-    );
-
-    if (paidSubscriptions.length > 0) {
-      const subscription = paidSubscriptions[0];
-      logStep("Found paid/trialing subscription", { subscriptionId: subscription.id, status: subscription.status });
-      
-      const item = subscription.items.data[0];
-      const plan = item.price;
-      
-      return new Response(JSON.stringify({
-        success: true,
-        hasSubscription: true,
-        plan_name: getPlanName(plan.unit_amount || 0, plan.nickname),
-        amount: plan.unit_amount || 0,
-        status: subscription.status,
-        subscription_id: subscription.id,
-        current_period_end: subscription.current_period_end
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
-    }
-
-    // Verificar assinaturas incompletas apenas como último recurso
-    const incompleteSubscriptions = allSubscriptions.data.filter(sub => sub.status === "incomplete");
-    
+    // HANDLE INCOMPLETE SUBSCRIPTIONS
     if (incompleteSubscriptions.length > 0) {
-      const subscription = incompleteSubscriptions[0];
-      logStep("Found incomplete subscription", { subscriptionId: subscription.id });
+      const incompleteSubscription = incompleteSubscriptions[0];
+      logStep("=== INCOMPLETE SUBSCRIPTION FOUND ===", { 
+        subscriptionId: incompleteSubscription.id,
+        status: incompleteSubscription.status,
+        latestInvoice: incompleteSubscription.latest_invoice
+      });
       
-      const item = subscription.items.data[0];
+      // Try to get more details about why it's incomplete
+      if (incompleteSubscription.latest_invoice) {
+        try {
+          const invoice = await stripe.invoices.retrieve(incompleteSubscription.latest_invoice as string);
+          logStep("Latest invoice details", {
+            invoiceId: invoice.id,
+            status: invoice.status,
+            paymentIntent: invoice.payment_intent,
+            amountPaid: invoice.amount_paid,
+            amountDue: invoice.amount_due
+          });
+        } catch (invoiceError) {
+          logStep("Error retrieving invoice details", { error: invoiceError });
+        }
+      }
+      
+      const item = incompleteSubscription.items.data[0];
       const plan = item.price;
       
       return new Response(JSON.stringify({
@@ -251,14 +391,20 @@ serve(async (req) => {
         plan_name: getPlanName(plan.unit_amount || 0, plan.nickname),
         amount: plan.unit_amount || 0,
         status: "processing",
-        subscription_id: subscription.id
+        subscription_id: incompleteSubscription.id,
+        debug: {
+          reason: "incomplete_subscription",
+          subscriptionId: incompleteSubscription.id,
+          customerId
+        }
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
     }
 
-    logStep("No subscription found");
+    // FINAL FALLBACK - NO VALID SUBSCRIPTIONS FOUND
+    logStep("=== NO VALID SUBSCRIPTIONS FOUND ===");
     
     return new Response(JSON.stringify({
       success: true,
@@ -268,9 +414,14 @@ serve(async (req) => {
       amount: 0,
       status: "inactive",
       debug: {
+        reason: "no_valid_subscriptions",
         customerId,
         totalSubscriptions: allSubscriptions.data.length,
-        subscriptionStatuses: allSubscriptions.data.map(sub => sub.status)
+        subscriptionStatuses: allSubscriptions.data.map(sub => ({
+          id: sub.id,
+          status: sub.status,
+          created: sub.created
+        }))
       }
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -279,7 +430,12 @@ serve(async (req) => {
     
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    logStep("ERROR in get-stripe-details", { message: errorMessage, stack: err instanceof Error ? err.stack : undefined });
+    const errorStack = err instanceof Error ? err.stack : undefined;
+    logStep("=== CRITICAL ERROR ===", { 
+      message: errorMessage, 
+      stack: errorStack,
+      timestamp: new Date().toISOString()
+    });
     
     return new Response(JSON.stringify({
       success: false,
@@ -287,7 +443,11 @@ serve(async (req) => {
       hasSubscription: false,
       plan_name: "Erro ao carregar",
       amount: 0,
-      status: "error"
+      status: "error",
+      debug: {
+        error: errorMessage,
+        timestamp: new Date().toISOString()
+      }
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 400,

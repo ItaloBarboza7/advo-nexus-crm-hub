@@ -13,6 +13,7 @@ interface SubscriptionDetails {
   error?: string;
   subscriptionId?: string;
   isPending?: boolean;
+  debugInfo?: any;
 }
 
 export function useSubscriptionDetails() {
@@ -70,7 +71,8 @@ export function useSubscriptionDetails() {
         setDetails(d => ({ 
           ...d, 
           isLoading: false, 
-          error: `Erro ao carregar dados da assinatura: ${error.message}` 
+          error: `Erro ao carregar dados da assinatura: ${error.message}`,
+          debugInfo: { error, timestamp: new Date().toISOString() }
         }));
         return;
       }
@@ -85,10 +87,18 @@ export function useSubscriptionDetails() {
           cardExp: "",
           status: "inactive",
           isLoading: false,
-          error: undefined
+          error: undefined,
+          debugInfo: { noData: true, timestamp: new Date().toISOString() }
         });
         return;
       }
+
+      // Store debug information
+      const debugInfo = {
+        rawResponse: data,
+        timestamp: new Date().toISOString(),
+        userMetadata: user.user_metadata
+      };
 
       // Handle pending/processing state
       if (data.isPending) {
@@ -103,7 +113,8 @@ export function useSubscriptionDetails() {
           isLoading: false,
           subscriptionId: data.subscription_id,
           isPending: true,
-          error: undefined
+          error: undefined,
+          debugInfo
         });
         return;
       }
@@ -119,7 +130,8 @@ export function useSubscriptionDetails() {
           cardExp: data.exp_month && data.exp_year ? `${data.exp_month}/${data.exp_year}` : "",
           status: data.status || "inactive",
           isLoading: false,
-          error: undefined
+          error: undefined,
+          debugInfo
         });
         return;
       }
@@ -136,7 +148,8 @@ export function useSubscriptionDetails() {
         isLoading: false,
         subscriptionId: data.subscription_id,
         isPending: false,
-        error: undefined
+        error: undefined,
+        debugInfo
       });
       
     } catch (error) {
@@ -150,7 +163,11 @@ export function useSubscriptionDetails() {
         cardExp: "",
         status: "error",
         isLoading: false,
-        error: "Erro de conexão. Tente novamente."
+        error: "Erro de conexão. Tente novamente.",
+        debugInfo: { 
+          error: error instanceof Error ? error.message : String(error),
+          timestamp: new Date().toISOString()
+        }
       });
     }
   }, []);
@@ -166,14 +183,14 @@ export function useSubscriptionDetails() {
     getSubDetails();
   }, [getSubDetails, refreshCount]);
 
-  // Auto-refresh for pending subscriptions
+  // Auto-refresh for pending subscriptions - IMPROVED TIMING
   useEffect(() => {
     if (details.isPending || details.status === 'processing') {
       console.log("⏰ Setting up auto-refresh for pending subscription");
       const interval = setInterval(() => {
         console.log("🔄 Auto-refresh triggered for pending subscription");
         getSubDetails();
-      }, 10000); // Refresh every 10 seconds for pending subscriptions
+      }, 15000); // Increased to 15 seconds to reduce API calls
 
       return () => {
         console.log("🛑 Clearing auto-refresh interval");
