@@ -1,4 +1,3 @@
-
 import { Card } from "@/components/ui/card";
 import { TrendingUp, Users, UserCheck, Target, UserX } from "lucide-react";
 import { Lead } from "@/types/lead";
@@ -97,10 +96,11 @@ export function AnalysisStats({ leads, onCategoryChange, statusHistory, hasLeadP
     fetchPreviousMonthData();
   }, [fetchPreviousMonthData]);
 
-  // Função para calcular porcentagem de mudança
+  // CORREÇÃO: Função para calcular porcentagem de mudança para contas novas
   const calculatePercentageChange = (current: number, previous: number): { value: string; type: 'positive' | 'negative' } => {
+    // Se é uma conta nova (não há dados anteriores), retornar 0%
     if (previous === 0) {
-      return current > 0 ? { value: `+${current * 100}%`, type: 'positive' } : { value: '0%', type: 'positive' };
+      return { value: '0%', type: 'positive' };
     }
     
     const change = ((current - previous) / previous) * 100;

@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -347,6 +346,7 @@ export function ClientsContent() {
         />
       )}
 
+      {/* Mensagem única e simplificada quando não há leads */}
       {filteredLeads.length === 0 && !isLoading && !kanbanLoading && (
         <Card className="p-12 text-center">
           <div className="text-gray-500">

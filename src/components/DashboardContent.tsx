@@ -1,4 +1,3 @@
-
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserPlus, UserX, DollarSign, TrendingUp, BarChart3 } from "lucide-react";
@@ -203,10 +202,11 @@ export function DashboardContent() {
   // Calcular valor total dos contratos
   const totalValue = contracts?.reduce((sum, contract) => sum + contract.value, 0) || 0;
 
-  // Função para calcular porcentagem de mudança
+  // CORREÇÃO: Função para calcular porcentagem de mudança para contas novas
   const calculatePercentageChange = (current: number, previous: number): { value: string; type: 'positive' | 'negative' } => {
+    // Se é uma conta nova (não há dados anteriores), retornar 0%
     if (previous === 0) {
-      return current > 0 ? { value: `+${current * 100}%`, type: 'positive' } : { value: '0%', type: 'positive' };
+      return { value: '0%', type: 'positive' };
     }
     
     const change = ((current - previous) / previous) * 100;
