@@ -59,6 +59,7 @@ serve(async (req: Request) => {
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
 
     // Find the Stripe customer by email
+    logStep("Searching for Stripe customer", { email: user.email });
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     if (customers.data.length === 0) {
       logStep("ERROR: No Stripe customer found", { email: user.email });
@@ -68,10 +69,11 @@ serve(async (req: Request) => {
     logStep("Found Stripe customer", { stripeCustomerId });
 
     // Get origin from header or use fallback
-    const origin = req.headers.get("origin") || req.headers.get("referer")?.replace(/\/$/, '') || Deno.env.get("SUPABASE_URL") || "http://localhost:3000";
+    const origin = req.headers.get("origin") || req.headers.get("referer")?.replace(/\/$/, '') || "https://xltugqmjbcowsuwzkkni.supabase.co";
     logStep("Using origin for return_url", { origin });
 
     // Create billing portal session
+    logStep("Creating billing portal session");
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: stripeCustomerId,
       return_url: `${origin}/`,
@@ -84,8 +86,17 @@ serve(async (req: Request) => {
     });
 
   } catch (e: any) {
-    logStep("ERROR in customer-portal", { message: e?.message ?? String(e), stack: e?.stack });
-    return new Response(JSON.stringify({ error: e?.message ?? String(e) }), {
+    logStep("ERROR in customer-portal", { 
+      message: e?.message ?? String(e), 
+      stack: e?.stack,
+      name: e?.name,
+      type: typeof e
+    });
+    
+    return new Response(JSON.stringify({ 
+      error: e?.message ?? String(e),
+      details: "Verifique os logs da função para mais detalhes"
+    }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
