@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, ArrowLeft, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -41,6 +41,7 @@ export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps)
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [retryCount, setRetryCount] = useState(0);
   const { toast } = useToast();
 
   const planPrice = planType === 'monthly' ? 'R$ 157' : 'R$ 99';
@@ -109,38 +110,66 @@ export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps)
 
   const handlePayment = async () => {
     setIsLoading(true);
+    
     try {
-      console.log('Iniciando processo de pagamento...', { planType });
+      console.log('🚀 Iniciando processo de pagamento...');
+      console.log('Plan type:', planType);
+      console.log('Customer data:', {
+        name: customerData.name,
+        email: customerData.email,
+        phone: customerData.phone,
+        cpf: customerData.cpf ? 'presente' : 'ausente',
+        password: customerData.password ? 'presente' : 'ausente'
+      });
       
+      const requestData = {
+        customerData,
+        planType,
+      };
+
+      console.log('Request data prepared:', requestData);
+
       const { data, error } = await supabase.functions.invoke('create-payment', {
-        body: {
-          customerData,
-          planType,
-        },
+        body: requestData,
       });
 
-      console.log('Resposta da função:', { data, error });
+      console.log('Supabase function response:', { data, error });
 
       if (error) {
-        console.error('Erro da função:', error);
-        throw error;
+        console.error('❌ Supabase function error:', error);
+        throw new Error(error.message || 'Erro na função de pagamento');
+      }
+
+      if (data?.error) {
+        console.error('❌ Function returned error:', data.error);
+        throw new Error(data.error);
       }
 
       if (data?.url) {
-        console.log('Redirecionando para Stripe:', data.url);
-        // Redirecionar para o Stripe Checkout
-        window.open(data.url, '_blank');
-        onClose();
-        toast({
-          title: "Redirecionamento",
-          description: "Você será redirecionado para completar o pagamento.",
-        });
+        console.log('✅ Payment URL received:', data.url);
+        
+        // Open Stripe checkout in a new tab
+        const newWindow = window.open(data.url, '_blank');
+        
+        if (newWindow) {
+          onClose();
+          toast({
+            title: "Redirecionamento para Pagamento",
+            description: "Uma nova aba foi aberta para completar seu pagamento de forma segura.",
+          });
+        } else {
+          // Fallback if popup blocked
+          window.location.href = data.url;
+        }
       } else {
-        console.error('URL de pagamento não recebida:', data);
+        console.error('❌ No URL received in response:', data);
         throw new Error('URL de pagamento não recebida');
       }
     } catch (error) {
-      console.error('Erro completo no pagamento:', error);
+      console.error('❌ Payment error:', error);
+      
+      // Increment retry count
+      setRetryCount(prev => prev + 1);
       
       let errorMessage = 'Erro ao processar pagamento. Tente novamente.';
       
@@ -148,6 +177,11 @@ export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps)
         errorMessage = error.message;
       } else if (typeof error === 'string') {
         errorMessage = error;
+      }
+
+      // Show retry suggestion after multiple failures
+      if (retryCount >= 2) {
+        errorMessage += ' Se o problema persistir, tente recarregar a página.';
       }
       
       toast({
@@ -171,6 +205,7 @@ export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps)
     });
     setShowPassword(false);
     setErrors({});
+    setRetryCount(0);
   };
 
   const handleClose = () => {
@@ -346,6 +381,14 @@ export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps)
               </p>
             </div>
 
+            {retryCount > 0 && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
+                <p className="text-xs text-yellow-800">
+                  Tentativa {retryCount + 1} - Se houver problemas, nossa equipe será notificada
+                </p>
+              </div>
+            )}
+
             <div className="flex gap-2">
               <Button 
                 variant="outline" 
@@ -361,6 +404,7 @@ export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps)
                 disabled={isLoading}
                 className="flex-1"
               >
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isLoading ? 'Processando...' : 'Pagar Agora'}
               </Button>
             </div>
