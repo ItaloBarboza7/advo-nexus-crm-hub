@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface PurchaseModalProps {
   isOpen: boolean;
@@ -22,6 +23,12 @@ interface CustomerData {
   password: string;
 }
 
+// Email validation function
+function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
 export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps) {
   const [step, setStep] = useState<'customer-data' | 'payment'>('customer-data');
   const [customerData, setCustomerData] = useState<CustomerData>({
@@ -33,17 +40,55 @@ export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps)
   });
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const { toast } = useToast();
 
   const planPrice = planType === 'monthly' ? 'R$ 157' : 'R$ 99';
   const planDescription = planType === 'monthly' ? 'por mês' : 'por mês (cobrado anualmente)';
 
   const handleInputChange = (field: keyof CustomerData, value: string) => {
     setCustomerData(prev => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  const validateCustomerData = () => {
+    const newErrors: Record<string, string> = {};
+    
+    if (!customerData.name.trim()) {
+      newErrors.name = 'Nome é obrigatório';
+    }
+    
+    if (!customerData.email.trim()) {
+      newErrors.email = 'Email é obrigatório';
+    } else if (!isValidEmail(customerData.email)) {
+      newErrors.email = 'Email inválido';
+    }
+    
+    if (!customerData.phone.trim()) {
+      newErrors.phone = 'Telefone é obrigatório';
+    }
+    
+    if (!customerData.cpf.trim()) {
+      newErrors.cpf = 'CPF é obrigatório';
+    }
+    
+    if (!customerData.password) {
+      newErrors.password = 'Senha é obrigatória';
+    } else if (customerData.password.length < 6) {
+      newErrors.password = 'Senha deve ter pelo menos 6 caracteres';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const isCustomerDataValid = () => {
     return customerData.name && 
            customerData.email && 
+           isValidEmail(customerData.email) &&
            customerData.phone && 
            customerData.cpf &&
            customerData.password &&
@@ -51,7 +96,7 @@ export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps)
   };
 
   const handleAdvance = () => {
-    if (step === 'customer-data' && isCustomerDataValid()) {
+    if (step === 'customer-data' && validateCustomerData()) {
       setStep('payment');
     }
   };
@@ -65,7 +110,7 @@ export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps)
   const handlePayment = async () => {
     setIsLoading(true);
     try {
-      console.log('Processando pagamento...', { customerData, planType });
+      console.log('Iniciando processo de pagamento...', { planType });
       
       const { data, error } = await supabase.functions.invoke('create-payment', {
         body: {
@@ -74,20 +119,42 @@ export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps)
         },
       });
 
+      console.log('Resposta da função:', { data, error });
+
       if (error) {
+        console.error('Erro da função:', error);
         throw error;
       }
 
       if (data?.url) {
+        console.log('Redirecionando para Stripe:', data.url);
         // Redirecionar para o Stripe Checkout
         window.open(data.url, '_blank');
         onClose();
+        toast({
+          title: "Redirecionamento",
+          description: "Você será redirecionado para completar o pagamento.",
+        });
       } else {
+        console.error('URL de pagamento não recebida:', data);
         throw new Error('URL de pagamento não recebida');
       }
     } catch (error) {
-      console.error('Erro no pagamento:', error);
-      alert('Erro ao processar pagamento. Tente novamente.');
+      console.error('Erro completo no pagamento:', error);
+      
+      let errorMessage = 'Erro ao processar pagamento. Tente novamente.';
+      
+      if (error?.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      toast({
+        title: "Erro no Pagamento",
+        description: errorMessage,
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -103,6 +170,7 @@ export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps)
       password: ''
     });
     setShowPassword(false);
+    setErrors({});
   };
 
   const handleClose = () => {
@@ -128,7 +196,14 @@ export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps)
                 value={customerData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
                 placeholder="Digite seu nome completo"
+                className={errors.name ? 'border-red-500' : ''}
               />
+              {errors.name && (
+                <div className="flex items-center gap-1 text-sm text-red-500">
+                  <AlertCircle className="h-4 w-4" />
+                  {errors.name}
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -139,7 +214,14 @@ export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps)
                 value={customerData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
                 placeholder="Digite seu email"
+                className={errors.email ? 'border-red-500' : ''}
               />
+              {errors.email && (
+                <div className="flex items-center gap-1 text-sm text-red-500">
+                  <AlertCircle className="h-4 w-4" />
+                  {errors.email}
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -149,7 +231,14 @@ export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps)
                 value={customerData.phone}
                 onChange={(e) => handleInputChange('phone', e.target.value)}
                 placeholder="(11) 99999-9999"
+                className={errors.phone ? 'border-red-500' : ''}
               />
+              {errors.phone && (
+                <div className="flex items-center gap-1 text-sm text-red-500">
+                  <AlertCircle className="h-4 w-4" />
+                  {errors.phone}
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -159,7 +248,14 @@ export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps)
                 value={customerData.cpf}
                 onChange={(e) => handleInputChange('cpf', e.target.value)}
                 placeholder="000.000.000-00"
+                className={errors.cpf ? 'border-red-500' : ''}
               />
+              {errors.cpf && (
+                <div className="flex items-center gap-1 text-sm text-red-500">
+                  <AlertCircle className="h-4 w-4" />
+                  {errors.cpf}
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -171,6 +267,7 @@ export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps)
                   value={customerData.password}
                   onChange={(e) => handleInputChange('password', e.target.value)}
                   placeholder="Mínimo 6 caracteres"
+                  className={errors.password ? 'border-red-500' : ''}
                 />
                 <Button
                   type="button"
@@ -186,8 +283,11 @@ export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps)
                   )}
                 </Button>
               </div>
-              {customerData.password && customerData.password.length < 6 && (
-                <p className="text-sm text-red-500">A senha deve ter pelo menos 6 caracteres</p>
+              {errors.password && (
+                <div className="flex items-center gap-1 text-sm text-red-500">
+                  <AlertCircle className="h-4 w-4" />
+                  {errors.password}
+                </div>
               )}
             </div>
 
@@ -251,6 +351,7 @@ export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps)
                 variant="outline" 
                 onClick={handleBack}
                 className="flex-1"
+                disabled={isLoading}
               >
                 <ArrowLeft className="mr-2 w-4 h-4" />
                 Voltar
