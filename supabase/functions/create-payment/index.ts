@@ -22,10 +22,10 @@ serve(async (req) => {
       apiVersion: "2023-10-16",
     });
 
-    // Use real Stripe price IDs
+    // Use updated Stripe price IDs
     const priceIds = {
-      monthly: "price_1RZ0zXC8OCBSCVdT4Ckd9XJa",
-      annual: "price_1RZ12OC8OCBSCVdTXx3SbN4j",
+      monthly: "price_1R6sLeBOsL29JKGmVYCqplxA",
+      annual: "price_1R6sNwBOsL29JKGm5GpJZQ5W",
     };
 
     const priceId = priceIds[planType as keyof typeof priceIds];
@@ -56,7 +56,7 @@ serve(async (req) => {
       customerId = customer.id;
     }
 
-    // Create checkout session using the real price IDs
+    // Create checkout session using the updated price IDs
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       line_items: [
