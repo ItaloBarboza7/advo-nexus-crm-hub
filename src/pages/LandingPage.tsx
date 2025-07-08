@@ -34,10 +34,11 @@ const LandingPage = () => {
       <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
-              <BarChart3 className="w-5 h-5 text-white" />
-            </div>
-            <span className="font-bold text-xl text-gray-900">CRM Pro</span>
+            <img 
+              src="/lovable-uploads/153d3133-c453-45c0-89e4-e12fff78895f.png" 
+              alt="EVOjuris Logo" 
+              className="h-8 w-auto"
+            />
           </div>
           
           <div className="flex items-center gap-4">
@@ -64,7 +65,7 @@ const LandingPage = () => {
           </p>
 
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-4">
             {stats.map((stat, index) => (
               <div key={index} className="flex flex-col items-center">
                 <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mb-3">
@@ -79,7 +80,7 @@ const LandingPage = () => {
       </section>
 
       {/* Pricing Section */}
-      <section className="py-16 px-4 bg-gray-50">
+      <section className="py-8 px-4 bg-gray-50">
         <div className="container mx-auto max-w-4xl">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-900">
@@ -199,7 +200,7 @@ const LandingPage = () => {
       <footer className="border-t py-8 px-4 bg-white">
         <div className="container mx-auto text-center">
           <p className="text-gray-600">
-            © 2024 CRM Pro. Todos os direitos reservados.
+            © 2024 EVOjuris. Todos os direitos reservados.
           </p>
         </div>
       </footer>
