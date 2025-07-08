@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -13,7 +12,7 @@ const LandingPage = () => {
 
   const features = [
     "Gestão completa de leads",
-    "Dashboard analítico avançado",
+    "Dashboard analítico avançado", 
     "Relatórios personalizados",
     "Suporte prioritário 24/7"
   ];
@@ -35,7 +34,7 @@ const LandingPage = () => {
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <img 
-              src="/lovable-uploads/153d3133-c453-45c0-89e4-e12fff78895f.png" 
+              src="/lovable-uploads/fe9b88f3-37c0-4d92-a1f5-c25818c8cd49.png" 
               alt="EVOjuris Logo" 
               className="h-8 w-auto"
             />
@@ -154,7 +153,7 @@ const LandingPage = () => {
                   size="lg"
                   onClick={handlePurchaseClick}
                 >
-                  Comprar Agora
+                  Começar Agora
                   <ArrowRight className="ml-2 w-5 h-5" />
                 </Button>
                 
