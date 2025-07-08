@@ -1,3 +1,4 @@
+
 import * as React from "react"
 
 import type {
@@ -140,6 +141,16 @@ function dispatch(action: Action) {
 type Toast = Omit<ToasterToast, "id">
 
 function toast({ ...props }: Toast) {
+  // Filter out "bem vindo de volta" messages
+  if (props.title === "Bem vindo de volta!" || 
+      (typeof props.title === 'string' && props.title.toLowerCase().includes('bem vindo'))) {
+    return {
+      id: '',
+      dismiss: () => {},
+      update: () => {}
+    }
+  }
+
   const id = genId()
 
   const update = (props: ToasterToast) =>

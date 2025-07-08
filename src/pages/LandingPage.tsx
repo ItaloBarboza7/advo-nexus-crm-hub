@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Check, ArrowRight, Star, Users, BarChart3, Shield } from 'lucide-react';
+import { Check, ArrowRight, Users, BarChart3, Shield } from 'lucide-react';
 import { PurchaseModal } from '@/components/PurchaseModal';
 
 const LandingPage = () => {
@@ -15,17 +15,13 @@ const LandingPage = () => {
     "Gestão completa de leads",
     "Dashboard analítico avançado",
     "Relatórios personalizados",
-    "Integração com múltiplas fontes",
-    "Automação de processo",
-    "Suporte prioritário 24/7",
-    "Backup automático",
-    "Segurança avançada"
+    "Suporte prioritário 24/7"
   ];
 
   const stats = [
-    { icon: Users, value: "10k+", label: "Clientes ativos" },
-    { icon: BarChart3, value: "95%", label: "Conversão média" },
-    { icon: Shield, value: "99.9%", label: "Uptime garantido" }
+    { icon: Users, value: "100+", label: "Clientes ativos" },
+    { icon: BarChart3, value: "40%+", label: "Conversão média" },
+    { icon: Shield, value: "99.9%", label: "ajustes precisos" }
   ];
 
   const handlePurchaseClick = () => {
@@ -33,53 +29,49 @@ const LandingPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       {/* Header */}
-      <header className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
+      <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <BarChart3 className="w-5 h-5 text-primary-foreground" />
+            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
+              <BarChart3 className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-xl">CRM Pro</span>
+            <span className="font-bold text-xl text-gray-900">CRM Pro</span>
           </div>
           
           <div className="flex items-center gap-4">
             <Link to="/login">
-              <Button variant="ghost">Entrar</Button>
+              <Button variant="ghost" className="text-gray-700 hover:text-blue-600">Entrar</Button>
             </Link>
-            <Button onClick={handlePurchaseClick}>Começar Agora</Button>
+            <Button onClick={handlePurchaseClick} className="bg-blue-600 hover:bg-blue-700 text-white">Começar Agora</Button>
           </div>
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="py-20 px-4">
+      <section className="py-16 px-4">
         <div className="container mx-auto text-center max-w-4xl">
-          <Badge variant="secondary" className="mb-4">
-            🚀 Solução Completa de CRM
-          </Badge>
-          
-          <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+          <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
             Transforme Leads em
             <br />
             Resultados Reais
           </h1>
           
-          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            O CRM mais completo do mercado para gestão de leads, análise de performance 
-            e automação de processos comerciais.
+          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+            O CRM mais completo do mercado para gestão inteligente de leads, análise de performance 
+            e aperfeiçoamento.
           </p>
 
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
             {stats.map((stat, index) => (
               <div key={index} className="flex flex-col items-center">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
-                  <stat.icon className="w-6 h-6 text-primary" />
+                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mb-3">
+                  <stat.icon className="w-6 h-6 text-blue-600" />
                 </div>
-                <div className="text-3xl font-bold text-primary mb-1">{stat.value}</div>
-                <div className="text-sm text-muted-foreground">{stat.label}</div>
+                <div className="text-3xl font-bold text-blue-600 mb-1">{stat.value}</div>
+                <div className="text-sm text-gray-600">{stat.label}</div>
               </div>
             ))}
           </div>
@@ -87,65 +79,60 @@ const LandingPage = () => {
       </section>
 
       {/* Pricing Section */}
-      <section className="py-20 px-4 bg-background/50">
+      <section className="py-16 px-4 bg-gray-50">
         <div className="container mx-auto max-w-4xl">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Escolha seu plano
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-900">
+              Escolha seu plano e Cadastre-se
             </h2>
-            <p className="text-lg text-muted-foreground mb-8">
+            <p className="text-lg text-gray-600 mb-8">
               Comece hoje mesmo e revolucione sua gestão comercial
             </p>
 
             {/* Billing Toggle */}
             <div className="flex items-center justify-center gap-4 mb-8">
-              <span className={billingPeriod === 'monthly' ? 'font-medium' : 'text-muted-foreground'}>
+              <span className={`text-sm ${billingPeriod === 'monthly' ? 'font-medium text-gray-900' : 'text-gray-600'}`}>
                 Mensal
               </span>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setBillingPeriod(billingPeriod === 'monthly' ? 'annual' : 'monthly')}
-                className="relative"
+                className="relative border-2 border-gray-300 bg-white"
               >
                 <div className={`w-12 h-6 rounded-full transition-colors ${
-                  billingPeriod === 'annual' ? 'bg-primary' : 'bg-muted'
+                  billingPeriod === 'annual' ? 'bg-blue-600' : 'bg-gray-300'
                 }`}>
                   <div className={`w-5 h-5 bg-white rounded-full transition-transform mt-0.5 ${
                     billingPeriod === 'annual' ? 'translate-x-6 ml-0.5' : 'translate-x-0.5'
                   }`} />
                 </div>
               </Button>
-              <span className={billingPeriod === 'annual' ? 'font-medium' : 'text-muted-foreground'}>
+              <span className={`text-sm ${billingPeriod === 'annual' ? 'font-medium text-gray-900' : 'text-gray-600'}`}>
                 Anual
-                <Badge variant="secondary" className="ml-2">-37%</Badge>
+                <Badge variant="secondary" className="ml-2 bg-green-100 text-green-800">-37%</Badge>
               </span>
             </div>
           </div>
 
           {/* Pricing Card */}
           <div className="max-w-md mx-auto">
-            <Card className="border-2 border-primary/20 shadow-lg relative overflow-hidden">
-              <div className="absolute top-0 right-0 bg-primary text-primary-foreground px-3 py-1 rounded-bl-lg">
-                <Star className="w-4 h-4 inline mr-1" />
-                Mais Popular
-              </div>
-              
+            <Card className="border-2 border-blue-200 shadow-lg relative overflow-hidden bg-white">
               <CardHeader className="text-center pb-8 pt-8">
-                <CardTitle className="text-2xl mb-2">CRM Profissional</CardTitle>
-                <CardDescription className="text-base">
+                <CardTitle className="text-2xl mb-2 text-gray-900">CRM inteligente</CardTitle>
+                <CardDescription className="text-base text-gray-600">
                   Tudo que você precisa para dominar suas vendas
                 </CardDescription>
                 
                 <div className="mt-6">
                   <div className="flex items-center justify-center gap-2">
-                    <span className="text-4xl font-bold">
+                    <span className="text-4xl font-bold text-gray-900">
                       R$ {billingPeriod === 'monthly' ? '157' : '99'}
                     </span>
                     <div className="text-left">
-                      <div className="text-muted-foreground">por mês</div>
+                      <div className="text-gray-600">por mês</div>
                       {billingPeriod === 'annual' && (
-                        <div className="text-sm text-muted-foreground line-through">
+                        <div className="text-sm text-gray-500 line-through">
                           R$ 157
                         </div>
                       )}
@@ -153,7 +140,7 @@ const LandingPage = () => {
                   </div>
                   
                   {billingPeriod === 'annual' && (
-                    <p className="text-sm text-muted-foreground mt-2">
+                    <p className="text-sm text-gray-500 mt-2">
                       Cobrado anualmente (R$ 1.188/ano)
                     </p>
                   )}
@@ -162,7 +149,7 @@ const LandingPage = () => {
               
               <CardContent className="pt-0">
                 <Button 
-                  className="w-full mb-6 h-12 text-lg" 
+                  className="w-full mb-6 h-12 text-lg bg-blue-600 hover:bg-blue-700 text-white" 
                   size="lg"
                   onClick={handlePurchaseClick}
                 >
@@ -173,29 +160,34 @@ const LandingPage = () => {
                 <div className="space-y-3">
                   {features.map((feature, index) => (
                     <div key={index} className="flex items-center gap-3">
-                      <Check className="w-5 h-5 text-primary flex-shrink-0" />
-                      <span className="text-sm">{feature}</span>
+                      <Check className="w-5 h-5 text-green-600 flex-shrink-0" />
+                      <span className="text-sm text-gray-700">{feature}</span>
                     </div>
                   ))}
                 </div>
                 
-                <div className="mt-6 pt-6 border-t text-center">
-                  <p className="text-sm text-muted-foreground">
-                    ✅ 7 dias de teste grátis
-                    <br />
-                    ✅ Cancele quando quiser
-                    <br />
-                    ✅ Suporte especializado
-                  </p>
+                <div className="mt-6 pt-6 border-t text-center space-y-1">
+                  <div className="flex items-center justify-center gap-2">
+                    <Check className="w-4 h-4 text-green-600" />
+                    <span className="text-sm text-gray-600">7 dias de teste grátis</span>
+                  </div>
+                  <div className="flex items-center justify-center gap-2">
+                    <Check className="w-4 h-4 text-green-600" />
+                    <span className="text-sm text-gray-600">Cancele quando quiser</span>
+                  </div>
+                  <div className="flex items-center justify-center gap-2">
+                    <Check className="w-4 h-4 text-green-600" />
+                    <span className="text-sm text-gray-600">Suporte especializado</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </div>
 
           <div className="text-center mt-8">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-gray-600">
               Já tem uma conta?{" "}
-              <Link to="/login" className="text-primary hover:underline font-medium">
+              <Link to="/login" className="text-blue-600 hover:underline font-medium">
                 Faça login aqui
               </Link>
             </p>
@@ -204,9 +196,9 @@ const LandingPage = () => {
       </section>
 
       {/* Footer */}
-      <footer className="border-t py-8 px-4 bg-background">
+      <footer className="border-t py-8 px-4 bg-white">
         <div className="container mx-auto text-center">
-          <p className="text-muted-foreground">
+          <p className="text-gray-600">
             © 2024 CRM Pro. Todos os direitos reservados.
           </p>
         </div>
