@@ -157,10 +157,10 @@ serve(async (req) => {
       });
     }
 
-    // Define price IDs with fallback
+    // Define price IDs with the correct values
     const priceIds = {
-      monthly: "price_1R6sLeBOsL29JKGmVYCqplxA",
-      annual: "price_1R6sNwBOsL29JKGm5GpJZQ5W",
+      monthly: "price_1RiRTsC8OCBSCVdTFXjUpEhw",
+      annual: "price_1RiRTsC8OCBSCVdTqgo1iE56",
     };
 
     const priceId = priceIds[planType as keyof typeof priceIds];
