@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Check } from "lucide-react";
+import { Clock, Check, Phone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenantSchema } from "@/hooks/useTenantSchema";
 import { BrazilTimezone } from "@/lib/timezone";
@@ -116,36 +116,20 @@ export function WeeklyFollowUpTask({ userName }: WeeklyFollowUpTaskProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Finalizado':
-        return 'bg-blue-100 text-blue-700';
+        return 'bg-green-100 text-green-700 border-green-200';
       case 'Perdido':
-        return 'bg-red-100 text-red-700';
+        return 'bg-red-100 text-red-700 border-red-200';
       case 'Proposta':
-        return 'bg-yellow-100 text-yellow-700';
+        return 'bg-yellow-100 text-yellow-700 border-yellow-200';
       case 'Reunião':
-        return 'bg-purple-100 text-purple-700';
+        return 'bg-purple-100 text-purple-700 border-purple-200';
       default:
-        return 'bg-gray-100 text-gray-700';
+        return 'bg-gray-100 text-gray-700 border-gray-200';
     }
   };
 
-  const getTaskReason = (status: string, updatedAt: string) => {
-    const daysSince = Math.floor((Date.now() - new Date(updatedAt).getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (['Finalizado', 'Perdido'].includes(status)) {
-      return `${status} há ${daysSince} dias - Verificar satisfação`;
-    } else if (['Proposta', 'Reunião'].includes(status)) {
-      return `Em ${status} há ${daysSince} dias - Necessita follow up`;
-    }
-    return '';
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = BrazilTimezone.toLocal(new Date(dateString));
-    return date.toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+  const getDaysAgo = (updatedAt: string) => {
+    return Math.floor((Date.now() - new Date(updatedAt).getTime()) / (1000 * 60 * 60 * 24));
   };
 
   return (
@@ -158,42 +142,35 @@ export function WeeklyFollowUpTask({ userName }: WeeklyFollowUpTaskProps) {
       </div>
       
       <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-        <div className="mb-4">
-          <h4 className="text-md font-medium text-gray-900 mb-2">
-            Leads que Precisam de Follow Up
-          </h4>
-        </div>
-
         {isLoading ? (
-          <div className="flex items-center justify-center py-4">
+          <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-            <span className="ml-2 text-gray-600">Carregando leads...</span>
+            <span className="ml-2 text-gray-600">Carregando...</span>
           </div>
         ) : leads.length > 0 ? (
           <div className="space-y-3">
             {leads.map((lead) => (
-              <div key={lead.id} className="bg-white p-3 rounded border border-gray-200">
+              <div key={lead.id} className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <h5 className="font-medium text-gray-900">{lead.name}</h5>
-                      <Badge className={getStatusColor(lead.status)}>
+                      <h5 className="font-medium text-gray-900 text-lg">{lead.name}</h5>
+                      <Badge className={`${getStatusColor(lead.status)} text-xs font-medium border`}>
                         {lead.status}
                       </Badge>
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
-                      <span>{lead.phone}</span>
-                      <span>Atualizado em {formatDate(lead.updated_at)}</span>
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <Phone className="h-4 w-4" />
+                      <span className="font-medium">{lead.phone}</span>
+                      <span className="text-sm text-gray-500">
+                        • há {getDaysAgo(lead.updated_at)} dias
+                      </span>
                     </div>
-                    <p className="text-xs text-orange-600 font-medium">
-                      {getTaskReason(lead.status, lead.updated_at)}
-                    </p>
                   </div>
                   <Button
                     size="sm"
-                    variant="outline"
                     onClick={() => handleConcludeTask(lead.id)}
-                    className="ml-3 text-green-600 border-green-600 hover:bg-green-50"
+                    className="bg-green-600 hover:bg-green-700 text-white"
                   >
                     <Check className="h-4 w-4 mr-1" />
                     Concluído
@@ -203,9 +180,13 @@ export function WeeklyFollowUpTask({ userName }: WeeklyFollowUpTaskProps) {
             ))}
           </div>
         ) : (
-          <div className="text-center py-4">
-            <p className="text-gray-600">
-              Nenhum lead necessita follow up no momento.
+          <div className="text-center py-8">
+            <Clock className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+            <p className="text-gray-600 font-medium">
+              Nenhum lead necessita follow up no momento
+            </p>
+            <p className="text-sm text-gray-500 mt-1">
+              Continue o excelente trabalho!
             </p>
           </div>
         )}

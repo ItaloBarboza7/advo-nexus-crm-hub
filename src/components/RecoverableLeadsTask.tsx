@@ -1,11 +1,11 @@
+
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { User, Clock, DollarSign, RefreshCw, AlertCircle, CheckCircle2 } from "lucide-react";
+import { User, Clock, DollarSign, RefreshCw, AlertCircle, CheckCircle2, Phone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Lead } from "@/types/lead";
-import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
 interface RecoverableLeadsTaskProps {
@@ -15,7 +15,6 @@ interface RecoverableLeadsTaskProps {
 export function RecoverableLeadsTask({ userName }: RecoverableLeadsTaskProps) {
   const [recoverableLeads, setRecoverableLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [expandedLead, setExpandedLead] = useState<string | null>(null);
   const [completedLeads, setCompletedLeads] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
@@ -117,7 +116,8 @@ export function RecoverableLeadsTask({ userName }: RecoverableLeadsTaskProps) {
   if (isLoading) {
     return (
       <Card className="p-6">
-        <div className="text-center py-4">
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600 mx-auto mb-2"></div>
           <p className="text-gray-500">Carregando leads recuperáveis...</p>
         </div>
       </Card>
@@ -131,9 +131,9 @@ export function RecoverableLeadsTask({ userName }: RecoverableLeadsTaskProps) {
           <RefreshCw className="h-6 w-6 text-green-600" />
           <h3 className="text-lg font-semibold text-gray-900">Follow UP</h3>
         </div>
-        <div className="text-center py-6 text-gray-500">
+        <div className="text-center py-8 text-gray-500">
           <AlertCircle className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-          <p>Não há leads perdidos recentes que possam ser recuperados</p>
+          <p className="font-medium">Não há leads perdidos recentes que possam ser recuperados</p>
           <p className="text-sm mt-1">Continue o excelente trabalho!</p>
         </div>
       </Card>
@@ -147,45 +147,47 @@ export function RecoverableLeadsTask({ userName }: RecoverableLeadsTaskProps) {
           <RefreshCw className="h-6 w-6 text-green-600" />
           <h3 className="text-lg font-semibold text-gray-900">Follow UP</h3>
         </div>
-        <Badge variant="outline" className="text-green-700 border-green-300">
+        <Badge variant="outline" className="text-green-700 border-green-300 bg-green-50">
           {visibleLeads.length} leads
         </Badge>
       </div>
 
       <div className="bg-blue-50 rounded-lg p-4 mb-4 border border-blue-200">
-        <p className="text-blue-800 text-sm">
-          Estes leads foram perdidos por motivos que podem ser revertidos.
-          Entre em contato novamente para tentar recuperar essas oportunidades.
+        <p className="text-blue-800 text-sm font-medium">
+          Leads com potencial de recuperação - Entre em contato novamente
         </p>
       </div>
 
-      <div className="space-y-3 max-h-96 overflow-y-auto">
+      <div className="space-y-3">
         {visibleLeads.map((lead) => {
           const daysSince = getDaysSinceLoss(lead.updated_at);
           const priority = getPriorityLevel(daysSince, lead.value);
-          const isExpanded = expandedLead === lead.id;
 
           return (
-            <div key={lead.id} className="bg-gray-50 rounded p-3 border border-gray-200">
+            <div key={lead.id} className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <User className="h-4 w-4 text-blue-600" />
-                    <span className="font-medium text-gray-900">{lead.name}</span>
-                    <Badge className={`${getPriorityColor(priority)} text-xs`}>
+                    <span className="font-medium text-gray-900 text-lg">{lead.name}</span>
+                    <Badge className={`${getPriorityColor(priority)} text-xs font-medium border`}>
                       {getPriorityLabel(priority)}
                     </Badge>
                   </div>
                   
-                  <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
+                  <div className="flex items-center gap-4 text-gray-600 mb-2">
+                    <div className="flex items-center gap-1">
+                      <Phone className="h-4 w-4" />
+                      <span className="font-medium">{lead.phone}</span>
+                    </div>
                     <div className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      <span>Perdido há {daysSince} dias</span>
+                      <span className="text-sm">há {daysSince} dias</span>
                     </div>
                     {lead.value && (
                       <div className="flex items-center gap-1">
                         <DollarSign className="h-3 w-3" />
-                        <span>R$ {lead.value.toLocaleString('pt-BR')}</span>
+                        <span className="text-sm font-medium">R$ {lead.value.toLocaleString('pt-BR')}</span>
                       </div>
                     )}
                   </div>
@@ -195,67 +197,16 @@ export function RecoverableLeadsTask({ userName }: RecoverableLeadsTaskProps) {
                   </div>
                 </div>
 
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setExpandedLead(isExpanded ? null : lead.id)}
-                  >
-                    {isExpanded ? 'Menos' : 'Detalhes'}
-                  </Button>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => handleCompleteTask(lead.id)}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    <CheckCircle2 className="h-3 w-3 mr-1" />
-                    Concluído
-                  </Button>
-                </div>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => handleCompleteTask(lead.id)}
+                  className="bg-green-600 hover:bg-green-700 ml-4"
+                >
+                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                  Concluído
+                </Button>
               </div>
-
-              {isExpanded && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <h5 className="font-medium text-gray-900 mb-2">Informações de Contato:</h5>
-                      <div className="space-y-1 text-sm text-gray-600">
-                        <div>
-                          <span className="font-medium">Telefone:</span> {lead.phone}
-                        </div>
-                        {lead.email && (
-                          <div>
-                            <span className="font-medium">Email:</span> {lead.email}
-                          </div>
-                        )}
-                        {lead.state && (
-                          <div>
-                            <span className="font-medium">Estado:</span> {lead.state}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div>
-                      <h5 className="font-medium text-gray-900 mb-2">Detalhes:</h5>
-                      <div className="space-y-1 text-sm text-gray-600">
-                        <div>
-                          <span className="font-medium">Fonte:</span> {lead.source || 'Não informado'}
-                        </div>
-                        <div>
-                          <span className="font-medium">Data da perda:</span> {format(new Date(lead.updated_at), 'dd/MM/yyyy')}
-                        </div>
-                        {lead.description && (
-                          <div>
-                            <span className="font-medium">Descrição:</span> {lead.description}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           );
         })}
@@ -263,8 +214,8 @@ export function RecoverableLeadsTask({ userName }: RecoverableLeadsTaskProps) {
 
       <div className="mt-4 pt-4 border-t border-gray-200">
         <div className="flex justify-between items-center text-sm text-gray-600">
-          <span>Total de oportunidades de recuperação: {visibleLeads.length}</span>
-          <span>Valor potencial: R$ {visibleLeads.reduce((sum, lead) => sum + (lead.value || 0), 0).toLocaleString('pt-BR')}</span>
+          <span className="font-medium">Total de oportunidades: {visibleLeads.length}</span>
+          <span className="font-medium">Valor potencial: R$ {visibleLeads.reduce((sum, lead) => sum + (lead.value || 0), 0).toLocaleString('pt-BR')}</span>
         </div>
       </div>
     </Card>
