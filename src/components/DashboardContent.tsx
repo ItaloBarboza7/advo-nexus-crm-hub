@@ -1,3 +1,4 @@
+
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserPlus, UserX, DollarSign, TrendingUp, BarChart3 } from "lucide-react";
@@ -612,7 +613,7 @@ export function DashboardContent() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
-          <p className="text-gray-600">{getDisplayTitle()}</p>
+          <p className="text-gray-600">Acompanhe suas métricas e resultados</p>
         </div>
         <DateFilter 
           date={dateRange} 

@@ -162,9 +162,6 @@ export function WeeklyFollowUpTask({ userName }: WeeklyFollowUpTaskProps) {
           <h4 className="text-md font-medium text-gray-900 mb-2">
             Leads que Precisam de Follow Up
           </h4>
-          <p className="text-sm text-gray-600">
-            Leads finalizados/perdidos na última semana ou em proposta/reunião há mais de 3 dias.
-          </p>
         </div>
 
         {isLoading ? (
