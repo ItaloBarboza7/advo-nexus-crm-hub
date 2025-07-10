@@ -563,6 +563,7 @@ export function DashboardContent() {
     return actionView === 'type' ? 'type' : 'group';
   };
 
+  // CORREÇÃO: Função para obter o melhor período de conversão com nome correto
   const getBestConversionPeriod = () => {
     const data = getConversionData();
     const best = data.reduce((prev, current) => 
@@ -570,10 +571,11 @@ export function DashboardContent() {
     );
     const periodKey = conversionView === 'weekly' ? 'day' : 'month';
     const periodValue = best[periodKey as keyof typeof best];
-    const suffix = conversionView === 'weekly' ? '-feira' : '';
-    return `${periodValue}${suffix} (${best.conversion}%)`;
+    // CORREÇÃO: Remover o sufixo "-feira" e usar apenas o nome do dia
+    return `${periodValue} (${best.conversion}%)`;
   };
 
+  // CORREÇÃO: Função para obter o melhor período de leads com nome correto
   const getBestLeadsPeriod = () => {
     const data = getLeadsData();
     const best = data.reduce((prev, current) => 
@@ -581,8 +583,8 @@ export function DashboardContent() {
     );
     const periodKey = leadsView === 'weekly' ? 'day' : 'month';
     const periodValue = best[periodKey as keyof typeof best];
-    const suffix = leadsView === 'weekly' ? '-feira' : '';
-    return `${periodValue}${suffix} (${best.leads} leads)`;
+    // CORREÇÃO: Remover o sufixo "-feira" e usar apenas o nome do dia
+    return `${periodValue} (${best.leads} leads)`;
   };
 
   const getBestActionPeriod = () => {
