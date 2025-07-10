@@ -1,4 +1,3 @@
-
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserPlus, UserX, DollarSign, TrendingUp, BarChart3 } from "lucide-react";
@@ -184,6 +183,25 @@ export function DashboardContent() {
       setPreviousMonthData({ leads: 0, proposals: 0, losses: 0, closedDeals: 0 });
     }
   }, [checkForHistoricalData]);
+
+  // Função para calcular ticks customizados do eixo Y baseado nos dados
+  const getCustomYAxisTicks = useCallback((data: any[]) => {
+    if (!data || data.length === 0) return [0, 5, 10, 15, 20];
+    
+    const maxValue = Math.max(...data.map(item => Math.max(item.opportunities || 0, item.closures || 0)));
+    
+    if (maxValue === 0) return [0, 5, 10, 15, 20];
+    
+    // Calcular o próximo múltiplo de 5 maior que o valor máximo
+    const maxTick = Math.ceil(maxValue / 5) * 5 + 5;
+    
+    const ticks = [];
+    for (let i = 0; i <= maxTick; i += 5) {
+      ticks.push(i);
+    }
+    
+    return ticks;
+  }, []);
 
   // CORREÇÃO: Inicialização única e simplificada
   useEffect(() => {
@@ -391,7 +409,7 @@ export function DashboardContent() {
     return { weekly: weeklyData, monthly: monthlyData };
   }, [leads, isOpportunityLead]);
 
-  // CORREÇÃO: Gerar dados reais de leads por período baseados nos leads filtrados
+  // CORREÇÃO: Gerar dados REAIS de leads por período baseados nos leads filtrados
   const getRealLeadsData = useMemo(() => {
     if (!leads || leads.length === 0) {
       const weeklyData = [
@@ -437,7 +455,7 @@ export function DashboardContent() {
     return { weekly: weeklyData, monthly: monthlyData };
   }, [leads]);
 
-  // Gerar dados reais de ação baseados nos leads filtrados
+  // Gerar dados REAIS de ação baseados nos leads filtrados
   const getActionData = useCallback(() => {
     if (!leads || leads.length === 0) return [];
 
@@ -884,6 +902,8 @@ export function DashboardContent() {
                         width={30}
                         axisLine={false}
                         tickLine={false}
+                        ticks={getCustomYAxisTicks(getActionData())}
+                        domain={[0, 'dataMax + 5']}
                       />
                       <ChartTooltip 
                         content={<ChartTooltipContent />}
