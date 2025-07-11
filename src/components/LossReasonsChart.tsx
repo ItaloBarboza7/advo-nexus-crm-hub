@@ -20,7 +20,6 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
       return [];
     }
     
-    // Tratamento padronizado do motivo de perda: qualquer vazio/nulo/"outros" => "Outros" (único grupo)
     const lossReasons = leads.reduce((acc, lead) => {
       let reason = lead.loss_reason;
       if (!reason || reason.trim().toLowerCase() === "outros" || reason.trim() === "") {
@@ -53,12 +52,12 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
     return (
       <Card className="p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <TrendingDown className="h-5 w-5 text-red-500" />
+          <h3 className="text-lg font-semibold text-card-foreground flex items-center gap-2">
+            <TrendingDown className="h-5 w-5 text-red-500 dark:text-red-400" />
             Motivos de Perda
           </h3>
         </div>
-        <div className="text-center text-gray-500 py-8">
+        <div className="text-center text-muted-foreground py-8">
           <p>Nenhum lead perdido encontrado.</p>
         </div>
       </Card>
@@ -68,12 +67,12 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
   return (
     <Card className="p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-          <TrendingDown className="h-5 w-5 text-red-500" />
+        <h3 className="text-lg font-semibold text-card-foreground flex items-center gap-2">
+          <TrendingDown className="h-5 w-5 text-red-500 dark:text-red-400" />
           Motivos de Perda
         </h3>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 text-sm text-gray-600 mr-4">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mr-4">
             <Users className="h-4 w-4" />
             <span>{totalLeads} leads perdidos</span>
           </div>
@@ -107,19 +106,19 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
                       className="w-3 h-3 rounded-full flex-shrink-0" 
                       style={{ backgroundColor: item.color }}
                     />
-                    <span className="font-medium text-gray-800 truncate text-sm">
+                    <span className="font-medium text-card-foreground truncate text-sm">
                       {item.reason}
                     </span>
                   </div>
-                  <div className="flex items-center gap-3 text-sm text-gray-600 ml-4">
-                    <span className="font-bold text-gray-900 min-w-[2rem] text-right">{item.count}</span>
-                    <span className="text-xs bg-red-50 px-2 py-1 rounded-full font-medium min-w-[3rem] text-center text-red-700">
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground ml-4">
+                    <span className="font-bold text-card-foreground min-w-[2rem] text-right">{item.count}</span>
+                    <span className="text-xs bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded-full font-medium min-w-[3rem] text-center text-red-700 dark:text-red-300">
                       {item.percentage.toFixed(1)}%
                     </span>
                   </div>
                 </div>
                 <div className="relative">
-                  <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                  <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-500 ease-out"
                       style={{ 
@@ -152,10 +151,11 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
               </Pie>
               <Tooltip 
                 contentStyle={{ 
-                  backgroundColor: 'white', 
-                  border: '1px solid #e5e7eb',
+                  backgroundColor: 'hsl(var(--card))', 
+                  border: '1px solid hsl(var(--border))',
                   borderRadius: '8px',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                  color: 'hsl(var(--card-foreground))'
                 }}
                 formatter={(value: number, name: string, props: any) => [
                   `${value} leads (${props.payload.percentage.toFixed(1)}%)`, 
@@ -167,7 +167,7 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
                 height={60}
                 wrapperStyle={{ paddingTop: '20px' }}
                 formatter={(value: string, entry: any) => (
-                  <span style={{ fontSize: '12px', color: '#374151' }}>
+                  <span style={{ fontSize: '12px', color: 'hsl(var(--muted-foreground))' }}>
                     {entry.payload.reason}
                   </span>
                 )}
@@ -177,8 +177,8 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
         )}
       </div>
 
-      <div className="mt-6 pt-4 border-t border-gray-200">
-        <div className="flex justify-between text-sm text-gray-600">
+      <div className="mt-6 pt-4 border-t border-border">
+        <div className="flex justify-between text-sm text-muted-foreground">
           <span>Total de leads perdidos: {totalLeads}</span>
           <span>Principal motivo: {chartData[0]?.reason || 'N/A'}</span>
         </div>
@@ -186,4 +186,3 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
     </Card>
   );
 }
-

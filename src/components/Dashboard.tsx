@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
@@ -81,7 +80,6 @@ export function Dashboard() {
     });
   }, [allContracts, appliedDateRange]);
 
-  // Definir período padrão como mês atual na primeira carga
   useEffect(() => {
     const now = BrazilTimezone.now();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -104,7 +102,7 @@ export function Dashboard() {
     if (date) {
       console.log("📅 Dashboard - Nova data selecionada:", BrazilTimezone.formatDateForDisplay(date));
       setSelectedDate(date);
-      setAppliedDateRange(undefined); // Limpar filtro de período quando selecionar data específica
+      setAppliedDateRange(undefined);
       setIsCalendarOpen(false);
     }
   }, []);
@@ -113,7 +111,6 @@ export function Dashboard() {
     console.log("📅 Dashboard - Período aplicado:", range);
     setAppliedDateRange(range);
     if (range?.from) {
-      // Limpar seleção de data individual quando aplicar período
       setSelectedDate(range.from);
     }
   }, []);
@@ -123,7 +120,6 @@ export function Dashboard() {
     console.log("🎯 Dashboard - Mostrando painel de atividades para:", BrazilTimezone.formatDateForDisplay(displayDate));
     setShowActivityPanel(true);
     
-    // Fetch user-specific data for Activity Panel
     fetchUserLeadsForDate(displayDate);
     fetchUserContractsForDate(displayDate);
   }, [selectedDate, appliedDateRange, fetchUserLeadsForDate, fetchUserContractsForDate]);
@@ -159,7 +155,6 @@ export function Dashboard() {
 
   const getDisplayTitle = () => {
     if (appliedDateRange?.from && appliedDateRange?.to) {
-      // Verificar se é o mês atual
       const now = BrazilTimezone.now();
       const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const endOfCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -183,8 +178,8 @@ export function Dashboard() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
-          <p className="text-gray-600">
+          <h1 className="text-3xl font-bold text-foreground mb-2">Dashboard</h1>
+          <p className="text-muted-foreground">
             {getDisplayTitle()}
           </p>
         </div>
@@ -210,7 +205,7 @@ export function Dashboard() {
               <div className="absolute right-0 top-full mt-2 z-50">
                 <Card className="p-3">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium text-sm">Selecionar Data</span>
+                    <span className="font-medium text-sm text-foreground">Selecionar Data</span>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -230,7 +225,7 @@ export function Dashboard() {
             )}
           </div>
           
-          <Button onClick={handleShowActivity} className="bg-blue-600 hover:bg-blue-700">
+          <Button onClick={handleShowActivity} className="bg-primary hover:bg-primary/90">
             <BarChart3 className="h-4 w-4 mr-2" />
             Ver Detalhes
           </Button>
@@ -254,24 +249,24 @@ export function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card className="p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <DollarSign className="h-6 w-6 text-green-600" />
+            <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+              <DollarSign className="h-6 w-6 text-green-600 dark:text-green-400" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Contratos Fechados</p>
-              <p className="text-2xl font-bold text-gray-900">{closedDeals}</p>
+              <p className="text-sm font-medium text-muted-foreground">Contratos Fechados</p>
+              <p className="text-2xl font-bold text-foreground">{closedDeals}</p>
             </div>
           </div>
         </Card>
 
         <Card className="p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <TrendingUp className="h-6 w-6 text-blue-600" />
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+              <TrendingUp className="h-6 w-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Valor Total</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm font-medium text-muted-foreground">Valor Total</p>
+              <p className="text-2xl font-bold text-foreground">
                 R$ {totalValue.toLocaleString('pt-BR')}
               </p>
             </div>
@@ -280,12 +275,12 @@ export function Dashboard() {
 
         <Card className="p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <BarChart3 className="h-6 w-6 text-purple-600" />
+            <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+              <BarChart3 className="h-6 w-6 text-purple-600 dark:text-purple-400" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Ticket Médio</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm font-medium text-muted-foreground">Ticket Médio</p>
+              <p className="text-2xl font-bold text-foreground">
                 R$ {closedDeals > 0 ? Math.round(totalValue / closedDeals).toLocaleString('pt-BR') : '0'}
               </p>
             </div>
@@ -294,21 +289,21 @@ export function Dashboard() {
 
         <Card className="p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <Users className="h-6 w-6 text-yellow-600" />
+            <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+              <Users className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Leads Cadastrados</p>
-              <p className="text-2xl font-bold text-gray-900">{totalLeadsCount}</p>
+              <p className="text-sm font-medium text-muted-foreground">Leads Cadastrados</p>
+              <p className="text-2xl font-bold text-foreground">{totalLeadsCount}</p>
             </div>
           </div>
         </Card>
       </div>
 
       {/* Debug Info */}
-      <Card className="p-4 bg-gray-50">
-        <h3 className="font-medium mb-2">Debug Info:</h3>
-        <div className="text-sm text-gray-600">
+      <Card className="p-4 bg-muted/50">
+        <h3 className="font-medium mb-2 text-foreground">Debug Info:</h3>
+        <div className="text-sm text-muted-foreground">
           <p>Leads retornados (filtrados): {displayLeads.length}</p>
           <p>Contratos retornados (filtrados): {displayContracts.length}</p>
           <p>Período aplicado: {appliedDateRange ? 
@@ -323,7 +318,7 @@ export function Dashboard() {
         <Card className="p-6">
           <div className="flex items-center justify-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mr-4"></div>
-            <span>Carregando dados...</span>
+            <span className="text-foreground">Carregando dados...</span>
           </div>
         </Card>
       )}

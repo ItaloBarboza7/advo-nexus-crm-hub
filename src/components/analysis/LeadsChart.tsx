@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts";
@@ -18,10 +17,8 @@ interface LeadsChartProps {
 export function LeadsChart({ leads, title, filterFunction, viewMode: externalViewMode }: LeadsChartProps) {
   const [internalViewMode, setInternalViewMode] = useState<'weekly' | 'monthly'>('weekly');
   
-  // Se receber viewMode como prop, usar ele, senão usar o estado interno
   const currentViewMode = externalViewMode || internalViewMode;
 
-  // Sincronizar o estado interno com o viewMode externo quando ele mudar
   useEffect(() => {
     if (externalViewMode) {
       setInternalViewMode(externalViewMode);
@@ -79,7 +76,7 @@ export function LeadsChart({ leads, title, filterFunction, viewMode: externalVie
   const chartConfig = {
     leads: {
       label: "Leads",
-      color: "hsl(220, 98%, 61%)",
+      color: "hsl(var(--primary))",
     },
   };
 
@@ -92,10 +89,9 @@ export function LeadsChart({ leads, title, filterFunction, viewMode: externalVie
     <Card className="p-6">
       <CardHeader className="p-0 mb-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold text-gray-900">
+          <CardTitle className="text-lg font-semibold text-card-foreground">
             {title} - {currentViewMode === 'weekly' ? 'Por Dia da Semana' : 'Por Mês'}
           </CardTitle>
-          {/* Só mostrar o dropdown interno se não receber viewMode como prop */}
           {!externalViewMode && (
             <ViewToggleDropdown 
               currentView={currentViewMode}
@@ -112,13 +108,13 @@ export function LeadsChart({ leads, title, filterFunction, viewMode: externalVie
               <BarChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 25 }}>
                 <defs>
                   <linearGradient id="leadsGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#3b82f6" stopOpacity={1}/>
-                    <stop offset="100%" stopColor="#1e40af" stopOpacity={1}/>
+                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={1}/>
+                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.8}/>
                   </linearGradient>
                 </defs>
                 <XAxis 
                   dataKey="period"
-                  tick={{ fontSize: 10, fill: '#6b7280' }}
+                  tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
                   angle={-45}
                   textAnchor="end"
                   height={35}
@@ -126,7 +122,7 @@ export function LeadsChart({ leads, title, filterFunction, viewMode: externalVie
                   tickLine={false}
                 />
                 <YAxis 
-                  tick={{ fontSize: 10, fill: '#6b7280' }}
+                  tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
                   width={25}
                   axisLine={false}
                   tickLine={false}
@@ -146,15 +142,15 @@ export function LeadsChart({ leads, title, filterFunction, viewMode: externalVie
         </div>
         
         <div className="grid grid-cols-2 gap-4 text-center">
-          <div className="bg-blue-50 rounded-lg p-3">
-            <div className="text-2xl font-bold text-blue-600">{totalLeads}</div>
-            <div className="text-sm text-gray-600">Total de Leads</div>
+          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
+            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{totalLeads}</div>
+            <div className="text-sm text-muted-foreground">Total de Leads</div>
           </div>
-          <div className="bg-purple-50 rounded-lg p-3">
-            <div className="text-lg font-bold text-purple-600">
+          <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3">
+            <div className="text-lg font-bold text-purple-600 dark:text-purple-400">
               {maxPeriod.period}
             </div>
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-muted-foreground">
               Melhor Período ({maxPeriod.leads} leads)
             </div>
           </div>

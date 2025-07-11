@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,7 +17,6 @@ export function RecoverableLeadsTask({ userName }: RecoverableLeadsTaskProps) {
   const [completedLeads, setCompletedLeads] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
-  // Motivos de perda que podem ser revertidos
   const recoverableReasons = [
     'Não tinha dinheiro',
     'Não tinha dinheiro no momento',
@@ -35,7 +33,6 @@ export function RecoverableLeadsTask({ userName }: RecoverableLeadsTaskProps) {
     try {
       setIsLoading(true);
       
-      // Buscar leads perdidos nos últimos 30 dias com motivos recuperáveis
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -51,7 +48,6 @@ export function RecoverableLeadsTask({ userName }: RecoverableLeadsTaskProps) {
         return;
       }
 
-      // Filtrar leads com motivos recuperáveis
       const filteredLeads = (data || []).filter(lead => {
         const lossReason = lead.loss_reason?.toLowerCase() || '';
         return recoverableReasons.some(reason => 
@@ -90,10 +86,10 @@ export function RecoverableLeadsTask({ userName }: RecoverableLeadsTaskProps) {
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high': return 'bg-red-100 text-red-700 border-red-200';
-      case 'medium': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
-      case 'low': return 'bg-gray-100 text-gray-700 border-gray-200';
-      default: return 'bg-gray-100 text-gray-700 border-gray-200';
+      case 'high': return 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800';
+      case 'medium': return 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800';
+      case 'low': return 'bg-muted text-muted-foreground border-border';
+      default: return 'bg-muted text-muted-foreground border-border';
     }
   };
 
@@ -110,15 +106,14 @@ export function RecoverableLeadsTask({ userName }: RecoverableLeadsTaskProps) {
     fetchRecoverableLeads();
   }, []);
 
-  // Filtrar leads que não foram marcados como concluídos
   const visibleLeads = recoverableLeads.filter(lead => !completedLeads.has(lead.id));
 
   if (isLoading) {
     return (
       <Card className="p-6">
         <div className="text-center py-8">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600 mx-auto mb-2"></div>
-          <p className="text-gray-500">Carregando leads recuperáveis...</p>
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
+          <p className="text-muted-foreground">Carregando leads recuperáveis...</p>
         </div>
       </Card>
     );
@@ -128,11 +123,11 @@ export function RecoverableLeadsTask({ userName }: RecoverableLeadsTaskProps) {
     return (
       <Card className="p-6">
         <div className="flex items-center gap-3 mb-4">
-          <RefreshCw className="h-6 w-6 text-green-600" />
-          <h3 className="text-lg font-semibold text-gray-900">Follow UP</h3>
+          <RefreshCw className="h-6 w-6 text-green-600 dark:text-green-400" />
+          <h3 className="text-lg font-semibold text-card-foreground">Follow UP</h3>
         </div>
-        <div className="text-center py-8 text-gray-500">
-          <AlertCircle className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+        <div className="text-center py-8 text-muted-foreground">
+          <AlertCircle className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
           <p className="font-medium">Não há leads perdidos recentes que possam ser recuperados</p>
           <p className="text-sm mt-1">Continue o excelente trabalho!</p>
         </div>
@@ -144,16 +139,16 @@ export function RecoverableLeadsTask({ userName }: RecoverableLeadsTaskProps) {
     <Card className="p-6">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <RefreshCw className="h-6 w-6 text-green-600" />
-          <h3 className="text-lg font-semibold text-gray-900">Follow UP</h3>
+          <RefreshCw className="h-6 w-6 text-green-600 dark:text-green-400" />
+          <h3 className="text-lg font-semibold text-card-foreground">Follow UP</h3>
         </div>
-        <Badge variant="outline" className="text-green-700 border-green-300 bg-green-50">
+        <Badge variant="outline" className="text-green-700 dark:text-green-300 border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/20">
           {visibleLeads.length} leads
         </Badge>
       </div>
 
-      <div className="bg-blue-50 rounded-lg p-4 mb-4 border border-blue-200">
-        <p className="text-blue-800 text-sm font-medium">
+      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-4 border border-blue-200 dark:border-blue-800">
+        <p className="text-blue-800 dark:text-blue-300 text-sm font-medium">
           Leads com potencial de recuperação - Entre em contato novamente
         </p>
       </div>
@@ -164,18 +159,18 @@ export function RecoverableLeadsTask({ userName }: RecoverableLeadsTaskProps) {
           const priority = getPriorityLevel(daysSince, lead.value);
 
           return (
-            <div key={lead.id} className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+            <div key={lead.id} className="bg-card p-4 rounded-lg border border-border shadow-sm">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <User className="h-4 w-4 text-blue-600" />
-                    <span className="font-medium text-gray-900 text-lg">{lead.name}</span>
+                    <User className="h-4 w-4 text-primary" />
+                    <span className="font-medium text-card-foreground text-lg">{lead.name}</span>
                     <Badge className={`${getPriorityColor(priority)} text-xs font-medium border`}>
                       {getPriorityLabel(priority)}
                     </Badge>
                   </div>
                   
-                  <div className="flex items-center gap-4 text-gray-600 mb-2">
+                  <div className="flex items-center gap-4 text-muted-foreground mb-2">
                     <div className="flex items-center gap-1">
                       <Phone className="h-4 w-4" />
                       <span className="font-medium">{lead.phone}</span>
@@ -192,7 +187,7 @@ export function RecoverableLeadsTask({ userName }: RecoverableLeadsTaskProps) {
                     )}
                   </div>
 
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-muted-foreground">
                     <span className="font-medium">Motivo:</span> {lead.loss_reason}
                   </div>
                 </div>
@@ -201,7 +196,7 @@ export function RecoverableLeadsTask({ userName }: RecoverableLeadsTaskProps) {
                   variant="default"
                   size="sm"
                   onClick={() => handleCompleteTask(lead.id)}
-                  className="bg-green-600 hover:bg-green-700 ml-4"
+                  className="bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 ml-4"
                 >
                   <CheckCircle2 className="h-3 w-3 mr-1" />
                   Concluído
@@ -212,8 +207,8 @@ export function RecoverableLeadsTask({ userName }: RecoverableLeadsTaskProps) {
         })}
       </div>
 
-      <div className="mt-4 pt-4 border-t border-gray-200">
-        <div className="flex justify-between items-center text-sm text-gray-600">
+      <div className="mt-4 pt-4 border-t border-border">
+        <div className="flex justify-between items-center text-sm text-muted-foreground">
           <span className="font-medium">Total de oportunidades: {visibleLeads.length}</span>
           <span className="font-medium">Valor potencial: R$ {visibleLeads.reduce((sum, lead) => sum + (lead.value || 0), 0).toLocaleString('pt-BR')}</span>
         </div>
