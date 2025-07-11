@@ -8,6 +8,7 @@ import { Lead } from "@/types/lead"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { UserProfileModal } from "./UserProfileModal"
 import { LeadDialogs } from "./analysis/LeadDialogs"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { useState, useEffect } from "react"
 import { supabase } from "@/integrations/supabase/client"
 import { useCompanyInfo } from "@/hooks/useCompanyInfo"
@@ -186,6 +187,7 @@ export function Header({ user, onLogout }: HeaderProps) {
         
         {user && (
           <div className="flex items-center gap-3 px-4">
+            <ThemeToggle />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
