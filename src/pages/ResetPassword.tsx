@@ -29,7 +29,12 @@ const ResetPassword = () => {
       const tokenType = hashParams.get('token_type');
       const type = hashParams.get('type');
 
-      console.log('Hash params:', { accessToken: !!accessToken, refreshToken: !!refreshToken, tokenType, type });
+      console.log('Hash params:', { 
+        hasAccessToken: !!accessToken, 
+        hasRefreshToken: !!refreshToken, 
+        tokenType, 
+        type 
+      });
 
       // Check for error parameters
       const error = hashParams.get('error');
@@ -60,6 +65,7 @@ const ResetPassword = () => {
 
       if (!accessToken || !refreshToken || type !== 'recovery') {
         console.error('❌ Missing required tokens or wrong type');
+        console.log('Expected type: recovery, got:', type);
         toast({
           title: "Link inválido",
           description: "Link de redefinição de senha inválido. Solicite um novo link.",
@@ -167,6 +173,9 @@ const ResetPassword = () => {
           description: "Sua senha foi redefinida com sucesso. Redirecionando...",
           duration: 3000
         });
+        
+        // Sign out to force re-login with new password
+        await supabase.auth.signOut();
         
         // Redirect after a short delay
         setTimeout(() => {

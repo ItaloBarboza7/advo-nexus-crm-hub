@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -31,18 +32,20 @@ const Login = () => {
           return;
         }
 
+        console.log('🔄 Enviando email de redefinição de senha para:', email);
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/reset-password`
         });
 
         if (error) {
-          console.error('Reset password error:', error);
+          console.error('❌ Erro ao enviar email de redefinição:', error);
           toast({
             title: "Erro",
             description: error.message || "Erro ao enviar email de redefinição",
             variant: "destructive"
           });
         } else {
+          console.log('✅ Email de redefinição enviado com sucesso');
           toast({
             title: "Email enviado",
             description: "Verifique seu email para redefinir a senha. O link expira em 1 hora.",
@@ -52,19 +55,21 @@ const Login = () => {
           setEmail('');
         }
       } else if (isLogin) {
+        console.log('🔄 Tentando fazer login com:', email);
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password
         });
 
         if (error) {
-          console.error('Login error:', error);
+          console.error('❌ Erro no login:', error);
           toast({
             title: "Erro no login",
             description: error.message,
             variant: "destructive"
           });
         } else {
+          console.log('✅ Login realizado com sucesso');
           toast({
             title: "Login realizado",
             description: "Bem-vindo de volta!"
@@ -72,6 +77,7 @@ const Login = () => {
           navigate('/');
         }
       } else {
+        console.log('🔄 Tentando criar conta para:', email);
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -81,13 +87,14 @@ const Login = () => {
         });
 
         if (error) {
-          console.error('Signup error:', error);
+          console.error('❌ Erro no cadastro:', error);
           toast({
             title: "Erro no cadastro",
             description: error.message,
             variant: "destructive"
           });
         } else {
+          console.log('✅ Conta criada com sucesso');
           toast({
             title: "Conta criada",
             description: "Verifique seu email para confirmar a conta"
@@ -95,7 +102,7 @@ const Login = () => {
         }
       }
     } catch (error) {
-      console.error('Auth error:', error);
+      console.error('❌ Erro inesperado na autenticação:', error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado",

@@ -1,3 +1,4 @@
+
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/AppSidebar"
 import { Header } from "@/components/Header"
@@ -28,6 +29,10 @@ const Index = () => {
   const navigate = useNavigate()
 
   useEffect(() => {
+    console.log('🔍 Index - Verificando URL para tokens de recovery...')
+    console.log('Current URL:', window.location.href)
+    console.log('Hash:', window.location.hash)
+
     // Check for recovery tokens in URL hash and redirect to reset password page
     const handleRecoveryRedirect = () => {
       const hashParams = new URLSearchParams(window.location.hash.substring(1))
@@ -35,17 +40,29 @@ const Index = () => {
       const refreshToken = hashParams.get('refresh_token')
       const type = hashParams.get('type')
       
+      console.log('Hash params:', { 
+        hasAccessToken: !!accessToken, 
+        hasRefreshToken: !!refreshToken, 
+        type 
+      })
+      
       if (accessToken && refreshToken && type === 'recovery') {
-        console.log('Recovery tokens detected, redirecting to reset password page')
+        console.log('🔄 Recovery tokens detected, redirecting to reset password page')
         navigate('/reset-password')
-        return
+        return true
       }
+      return false
     }
 
-    handleRecoveryRedirect()
+    // If we're handling a recovery redirect, don't set up auth listeners yet
+    if (handleRecoveryRedirect()) {
+      return
+    }
 
+    // Set up normal auth state management
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log('🔄 Auth state change:', event, !!session)
         setSession(session)
         setUser(session?.user ?? null)
         
@@ -58,6 +75,7 @@ const Index = () => {
     )
 
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('📋 Initial session check:', !!session)
       setSession(session)
       setUser(session?.user ?? null)
       
@@ -73,7 +91,7 @@ const Index = () => {
     try {
       console.log("🔍 Index - Verificando primeiro login e informações da empresa para:", user.email);
       
-      // Primeiro, garantir que o esquema do tenant existe
+      // Primeiro, garantir que o esquema do tenant exists
       console.log("🏗️ Index - Garantindo esquema do tenant...");
       const tenantSchema = await ensureTenantSchema();
 
@@ -171,6 +189,7 @@ const Index = () => {
   }
 
   const handleLogout = async () => {
+    console.log('🔄 Fazendo logout...')
     await supabase.auth.signOut()
   }
 
