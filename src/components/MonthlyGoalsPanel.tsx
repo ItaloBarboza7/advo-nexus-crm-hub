@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Target, TrendingUp, Calendar } from "lucide-react";
@@ -14,7 +15,7 @@ export function MonthlyGoalsPanel({
   daysInMonth, 
   currentDay 
 }: MonthlyGoalsPanelProps) {
-  const [monthlyGoal, setMonthlyGoal] = useState(100);
+  const [monthlyGoal, setMonthlyGoal] = useState(100); // Valor padrão
   const [isLoadingGoal, setIsLoadingGoal] = useState(true);
 
   console.log('MonthlyGoalsPanel props:', { currentSales, monthlyGoal, daysInMonth, currentDay });
@@ -26,6 +27,7 @@ export function MonthlyGoalsPanel({
         setIsLoadingGoal(true);
         console.log("🎯 MonthlyGoalsPanel - Carregando meta mensal da equipe...");
         
+        // Obter o tenant ID (admin principal)
         const { data: tenantId, error: tenantError } = await supabase.rpc('get_tenant_id');
         
         if (tenantError) {
@@ -71,11 +73,11 @@ export function MonthlyGoalsPanel({
 
   if (isLoadingGoal) {
     return (
-      <Card className="bg-card border-border shadow-sm">
+      <Card className="bg-white border-gray-200">
         <CardContent className="p-6">
           <div className="flex items-center justify-center py-4">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-            <span className="ml-2 text-muted-foreground">Carregando meta da equipe...</span>
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <span className="ml-2 text-gray-600">Carregando meta da equipe...</span>
           </div>
         </CardContent>
       </Card>
@@ -83,44 +85,44 @@ export function MonthlyGoalsPanel({
   }
 
   return (
-    <Card className="bg-card border-border shadow-sm">
+    <Card className="bg-white border-gray-200">
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg font-semibold text-card-foreground">
-          <Target className="h-5 w-5 text-muted-foreground" />
+        <CardTitle className="flex items-center gap-2 text-lg font-semibold text-gray-800">
+          <Target className="h-5 w-5 text-gray-600" />
           Meta Mensal da Equipe
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Números principais */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="text-center bg-muted/50 rounded-lg p-3 border border-border">
-            <div className="text-2xl font-bold text-card-foreground mb-1">
+          <div className="text-center bg-gray-50 rounded-lg p-3 border border-gray-200">
+            <div className="text-2xl font-bold text-gray-900 mb-1">
               {currentSales}
             </div>
-            <p className="text-sm text-muted-foreground">Contratos Fechados</p>
+            <p className="text-sm text-gray-600">Contratos Fechados</p>
           </div>
-          <div className="text-center bg-muted/50 rounded-lg p-3 border border-border">
-            <div className="text-2xl font-bold text-card-foreground mb-1">
+          <div className="text-center bg-gray-50 rounded-lg p-3 border border-gray-200">
+            <div className="text-2xl font-bold text-gray-900 mb-1">
               {monthlyGoal}
             </div>
-            <p className="text-sm text-muted-foreground">Meta do Mês</p>
+            <p className="text-sm text-gray-600">Meta do Mês</p>
           </div>
         </div>
 
         {/* Barra de progresso */}
         <div className="space-y-2">
           <div className="flex justify-between items-center">
-            <span className="text-sm font-medium text-card-foreground">Progresso</span>
-            <span className="text-sm font-bold text-card-foreground">
+            <span className="text-sm font-medium text-gray-700">Progresso</span>
+            <span className="text-sm font-bold text-gray-900">
               {Math.round(progressPercentage)}%
             </span>
           </div>
-          <div className="w-full bg-muted rounded-full h-3">
+          <div className="w-full bg-gray-200 rounded-full h-3">
             <div 
               className={`h-3 rounded-full transition-all duration-300 ${
                 isOnTrack 
-                  ? 'bg-green-600 dark:bg-green-500' 
-                  : 'bg-orange-500 dark:bg-orange-400'
+                  ? 'bg-green-600' 
+                  : 'bg-orange-500'
               }`}
               style={{ width: `${Math.min(progressPercentage, 100)}%` }}
             ></div>
@@ -129,18 +131,18 @@ export function MonthlyGoalsPanel({
 
         {/* Métricas adicionais */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="flex items-center gap-2 bg-muted/50 rounded-lg p-2 border border-border">
-            <TrendingUp className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+          <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-2 border border-gray-200">
+            <TrendingUp className="h-4 w-4 text-gray-600 flex-shrink-0" />
             <div>
-              <div className="text-lg font-bold text-card-foreground">{dailyTarget}</div>
-              <p className="text-xs text-muted-foreground">Por dia</p>
+              <div className="text-lg font-bold text-gray-900">{dailyTarget}</div>
+              <p className="text-xs text-gray-600">Por dia</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 bg-muted/50 rounded-lg p-2 border border-border">
-            <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+          <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-2 border border-gray-200">
+            <Calendar className="h-4 w-4 text-gray-600 flex-shrink-0" />
             <div>
-              <div className="text-lg font-bold text-card-foreground">{daysRemaining}</div>
-              <p className="text-xs text-muted-foreground">Dias restantes</p>
+              <div className="text-lg font-bold text-gray-900">{daysRemaining}</div>
+              <p className="text-xs text-gray-600">Dias restantes</p>
             </div>
           </div>
         </div>
@@ -148,8 +150,8 @@ export function MonthlyGoalsPanel({
         {/* Status */}
         <div className={`text-center p-2 rounded-lg border ${
           isOnTrack 
-            ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800' 
-            : 'bg-orange-50 dark:bg-orange-900/20 text-orange-800 dark:text-orange-300 border-orange-200 dark:border-orange-800'
+            ? 'bg-green-50 text-green-800 border-green-200' 
+            : 'bg-orange-50 text-orange-800 border-orange-200'
         }`}>
           <p className="text-sm font-medium">
             {isOnTrack 

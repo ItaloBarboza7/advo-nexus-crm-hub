@@ -212,7 +212,7 @@ export function AnalysisStats({ leads, onCategoryChange, statusHistory, hasLeadP
       icon: Users,
       change: totalChange.value,
       changeType: totalChange.type,
-      color: "bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300",
+      color: "bg-purple-100 text-purple-800",
       category: "all"
     },
     {
@@ -221,7 +221,7 @@ export function AnalysisStats({ leads, onCategoryChange, statusHistory, hasLeadP
       icon: UserCheck,
       change: contratosChange.value,
       changeType: contratosChange.type,
-      color: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300",
+      color: "bg-green-100 text-green-800",
       category: "contratos"
     },
     {
@@ -230,7 +230,7 @@ export function AnalysisStats({ leads, onCategoryChange, statusHistory, hasLeadP
       icon: Target,
       change: oportunidadesChange.value,
       changeType: oportunidadesChange.type,
-      color: "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300",
+      color: "bg-blue-100 text-blue-800",
       category: "oportunidades"
     },
     {
@@ -239,7 +239,7 @@ export function AnalysisStats({ leads, onCategoryChange, statusHistory, hasLeadP
       icon: UserX,
       change: perdasChange.value,
       changeType: perdasChange.type === 'positive' ? 'negative' : 'positive', // Invertido para perdas
-      color: "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300",
+      color: "bg-red-100 text-red-800",
       category: "perdas"
     },
   ];
@@ -249,27 +249,27 @@ export function AnalysisStats({ leads, onCategoryChange, statusHistory, hasLeadP
       {analysisStats.map((stat, index) => (
         <Card 
           key={index} 
-          className="p-6 hover:shadow-lg transition-shadow cursor-pointer bg-card border-border"
+          className="p-6 hover:shadow-lg transition-shadow cursor-pointer"
           onClick={() => onCategoryChange(stat.category)}
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
-              <p className="text-2xl font-bold text-card-foreground mt-2">{stat.value}</p>
+              <p className="text-sm font-medium text-gray-600">{stat.title}</p>
+              <p className="text-2xl font-bold text-gray-900 mt-2">{stat.value}</p>
               <div className="flex items-center mt-2">
                 <TrendingUp className={`h-4 w-4 mr-1 ${
-                  stat.changeType === 'positive' ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'
+                  stat.changeType === 'positive' ? 'text-green-500' : 'text-red-500'
                 }`} />
                 <span className={`text-sm font-medium ${
-                  stat.changeType === 'positive' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                  stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
                 }`}>
                   {stat.change}
                 </span>
-                <span className="text-sm text-muted-foreground ml-1">vs mês anterior</span>
+                <span className="text-sm text-gray-500 ml-1">vs mês anterior</span>
               </div>
             </div>
-            <div className={`p-3 rounded-lg ${stat.color}`}>
-              <stat.icon className="h-6 w-6" />
+            <div className={`p-3 rounded-lg ${stat.color.split(' ')[0]}-100`}>
+              <stat.icon className={`h-6 w-6 ${stat.color.split(' ')[1]}-600`} />
             </div>
           </div>
         </Card>

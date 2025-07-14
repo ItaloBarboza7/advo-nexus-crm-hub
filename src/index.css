@@ -46,41 +46,41 @@
   }
 
   .dark {
-    --background: 217 32% 17%;
-    --foreground: 213 31% 91%;
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
 
-    --card: 217 33% 24%;
-    --card-foreground: 213 31% 91%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
 
-    --popover: 217 33% 24%;
-    --popover-foreground: 213 31% 91%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
 
     --primary: 221 83% 53%;
     --primary-foreground: 222.2 47.4% 11.2%;
 
-    --secondary: 215 28% 17%;
-    --secondary-foreground: 213 31% 91%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
 
-    --muted: 215 28% 17%;
-    --muted-foreground: 217.9 10.6% 64.9%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 215 28% 17%;
-    --accent-foreground: 213 31% 91%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 215 28% 17%;
-    --input: 215 28% 17%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
     --ring: 221 83% 53%;
 
-    --sidebar-background: 217 32% 17%;
-    --sidebar-foreground: 213 31% 91%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 221 83% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 215 28% 17%;
-    --sidebar-accent-foreground: 213 31% 91%;
-    --sidebar-border: 215 28% 17%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 221 83% 53%;
   }
 }
@@ -114,50 +114,5 @@
 
   .animate-laser-sweep {
     animation: laser-sweep 2s ease-in-out infinite;
-  }
-
-  /* Force Dark Mode Card Styles */
-  .dark-mode-card {
-    @apply bg-card text-card-foreground border-border;
-  }
-
-  .dark .dark-mode-card {
-    background-color: hsl(var(--card)) !important;
-    color: hsl(var(--card-foreground)) !important;
-    border-color: hsl(var(--border)) !important;
-  }
-
-  /* Force Icon Container Dark Mode */
-  .dark .bg-green-50 {
-    background-color: hsl(142 76% 4%) !important;
-  }
-
-  .dark .bg-blue-50 {
-    background-color: hsl(221 39% 4%) !important;
-  }
-
-  .dark .bg-purple-50 {
-    background-color: hsl(280 40% 4%) !important;
-  }
-
-  .dark .bg-yellow-50 {
-    background-color: hsl(54 92% 4%) !important;
-  }
-
-  /* Force Border Colors in Dark Mode */
-  .dark .border-green-200 {
-    border-color: hsl(142 76% 25%) !important;
-  }
-
-  .dark .border-blue-200 {
-    border-color: hsl(221 39% 25%) !important;
-  }
-
-  .dark .border-purple-200 {
-    border-color: hsl(280 40% 25%) !important;
-  }
-
-  .dark .border-yellow-200 {
-    border-color: hsl(54 92% 25%) !important;
   }
 }

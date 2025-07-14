@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Search, X } from "lucide-react";
@@ -118,27 +119,27 @@ export function GlobalSearch({ onLeadSelect }: GlobalSearchProps) {
   return (
     <div className="relative w-full max-w-md">
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
         <Input
           placeholder="Buscar leads..."
           value={searchTerm}
           onChange={handleInputChange}
-          className="pl-10 pr-8 bg-background border-border text-foreground placeholder:text-muted-foreground"
+          className="pl-10 pr-8"
         />
         {searchTerm && (
           <button
             onClick={clearSearch}
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 hover:bg-muted rounded"
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-100 rounded"
           >
-            <X className="h-4 w-4 text-muted-foreground" />
+            <X className="h-4 w-4 text-gray-400" />
           </button>
         )}
       </div>
       
       {showResults && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-popover rounded-lg shadow-xl border border-border max-h-96 overflow-y-auto z-50">
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 max-h-96 overflow-y-auto z-50">
           {isLoading ? (
-            <div className="p-4 text-center text-muted-foreground">
+            <div className="p-4 text-center text-gray-500">
               Carregando...
             </div>
           ) : filteredLeads.length > 0 ? (
@@ -146,14 +147,14 @@ export function GlobalSearch({ onLeadSelect }: GlobalSearchProps) {
               {filteredLeads.map((lead) => (
                 <div
                   key={lead.id}
-                  className="flex flex-col gap-1 p-3 hover:bg-accent hover:text-accent-foreground rounded cursor-pointer transition-colors"
+                  className="flex flex-col gap-1 p-3 hover:bg-gray-50 rounded cursor-pointer"
                   onClick={() => handleLeadClick(lead)}
                 >
-                  <div className="font-medium text-sm text-popover-foreground">{lead.name}</div>
-                  <div className="text-xs text-muted-foreground flex items-center gap-2">
+                  <div className="font-medium text-sm">{lead.name}</div>
+                  <div className="text-xs text-gray-500 flex items-center gap-2">
                     <span>{lead.phone}</span>
                     {lead.email && <span>• {lead.email}</span>}
-                    <span className="ml-auto px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded text-xs">
+                    <span className="ml-auto px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
                       {lead.status}
                     </span>
                   </div>
@@ -161,7 +162,7 @@ export function GlobalSearch({ onLeadSelect }: GlobalSearchProps) {
               ))}
             </div>
           ) : (
-            <div className="p-4 text-center text-muted-foreground">
+            <div className="p-4 text-center text-gray-500">
               Nenhum lead encontrado
             </div>
           )}
