@@ -50,7 +50,7 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
 
   if (totalLeads === 0) {
     return (
-      <Card className="p-6">
+      <Card className="p-6 bg-card border-border shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-card-foreground flex items-center gap-2">
             <TrendingDown className="h-5 w-5 text-red-500 dark:text-red-400" />
@@ -65,7 +65,7 @@ export function LossReasonsChart({ leads }: LossReasonsChartProps) {
   }
 
   return (
-    <Card className="p-6">
+    <Card className="p-6 bg-card border-border shadow-sm">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-card-foreground flex items-center gap-2">
           <TrendingDown className="h-5 w-5 text-red-500 dark:text-red-400" />

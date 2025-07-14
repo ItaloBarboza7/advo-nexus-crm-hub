@@ -19,11 +19,9 @@ export function Dashboard() {
   const [showActivityPanel, setShowActivityPanel] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
-  // Use team data hooks for dashboard statistics
   const { leads: allLeads, isLoading: leadsLoading } = useLeadsData();
   const { contracts: allContracts, isLoading: contractsLoading } = useContractsData();
 
-  // Use user-specific hooks for Activity Panel
   const { 
     leads: userLeads, 
     isLoading: userLeadsLoading, 
@@ -40,7 +38,6 @@ export function Dashboard() {
     fetchContractsForDate: fetchUserContractsForDate 
   } = useUserContractsData();
 
-  // Filter team leads by date range
   const getFilteredLeads = useCallback(() => {
     if (!allLeads || allLeads.length === 0) return [];
     
@@ -60,7 +57,6 @@ export function Dashboard() {
     });
   }, [allLeads, appliedDateRange]);
 
-  // Filter team contracts by date range
   const getFilteredContracts = useCallback(() => {
     if (!allContracts || allContracts.length === 0) return [];
     
@@ -129,14 +125,11 @@ export function Dashboard() {
     setShowActivityPanel(false);
   }, []);
 
-  // Get filtered data for statistics
   const displayLeads = getFilteredLeads();
   const displayContracts = getFilteredContracts();
 
-  // Calcular valor total dos contratos
   const totalValue = displayContracts.reduce((sum, contract) => sum + contract.value, 0);
 
-  // Calcular estatísticas baseadas nos leads filtrados
   const totalLeadsCount = displayLeads.length;
   const proposalsAndMeetings = displayLeads.filter(lead => 
     lead.status === "Proposta" || lead.status === "Reunião"
@@ -203,9 +196,9 @@ export function Dashboard() {
             
             {isCalendarOpen && (
               <div className="absolute right-0 top-full mt-2 z-50">
-                <Card className="p-3">
+                <Card className="p-3 bg-popover border-border shadow-lg">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium text-sm text-foreground">Selecionar Data</span>
+                    <span className="font-medium text-sm text-popover-foreground">Selecionar Data</span>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -218,14 +211,14 @@ export function Dashboard() {
                     mode="single"
                     selected={selectedDate}
                     onSelect={handleDateSelect}
-                    className="rounded-md border"
+                    className="rounded-md border border-border"
                   />
                 </Card>
               </div>
             )}
           </div>
           
-          <Button onClick={handleShowActivity} className="bg-primary hover:bg-primary/90">
+          <Button onClick={handleShowActivity} className="bg-primary hover:bg-primary/90 text-primary-foreground">
             <BarChart3 className="h-4 w-4 mr-2" />
             Ver Detalhes
           </Button>
@@ -247,7 +240,7 @@ export function Dashboard() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="p-6 bg-card border-border">
+        <Card className="p-6 bg-card border-border shadow-sm">
           <div className="flex items-center">
             <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
               <DollarSign className="h-6 w-6 text-green-600 dark:text-green-400" />
@@ -259,7 +252,7 @@ export function Dashboard() {
           </div>
         </Card>
 
-        <Card className="p-6 bg-card border-border">
+        <Card className="p-6 bg-card border-border shadow-sm">
           <div className="flex items-center">
             <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
               <TrendingUp className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -273,7 +266,7 @@ export function Dashboard() {
           </div>
         </Card>
 
-        <Card className="p-6 bg-card border-border">
+        <Card className="p-6 bg-card border-border shadow-sm">
           <div className="flex items-center">
             <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
               <BarChart3 className="h-6 w-6 text-purple-600 dark:text-purple-400" />
@@ -287,7 +280,7 @@ export function Dashboard() {
           </div>
         </Card>
 
-        <Card className="p-6 bg-card border-border">
+        <Card className="p-6 bg-card border-border shadow-sm">
           <div className="flex items-center">
             <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
               <Users className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
@@ -301,7 +294,7 @@ export function Dashboard() {
       </div>
 
       {/* Debug Info */}
-      <Card className="p-4 bg-muted/50 border-border">
+      <Card className="p-4 bg-muted/50 border-border shadow-sm">
         <h3 className="font-medium mb-2 text-card-foreground">Debug Info:</h3>
         <div className="text-sm text-muted-foreground">
           <p>Leads retornados (filtrados): {displayLeads.length}</p>
@@ -315,7 +308,7 @@ export function Dashboard() {
 
       {/* Loading States */}
       {(leadsLoading || contractsLoading) && (
-        <Card className="p-6 bg-card border-border">
+        <Card className="p-6 bg-card border-border shadow-sm">
           <div className="flex items-center justify-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mr-4"></div>
             <span className="text-card-foreground">Carregando dados...</span>

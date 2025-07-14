@@ -71,7 +71,7 @@ export function MonthlyGoalsPanel({
 
   if (isLoadingGoal) {
     return (
-      <Card className="bg-card border-border">
+      <Card className="bg-card border-border shadow-sm">
         <CardContent className="p-6">
           <div className="flex items-center justify-center py-4">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
@@ -83,7 +83,7 @@ export function MonthlyGoalsPanel({
   }
 
   return (
-    <Card className="bg-card border-border">
+    <Card className="bg-card border-border shadow-sm">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg font-semibold text-card-foreground">
           <Target className="h-5 w-5 text-muted-foreground" />

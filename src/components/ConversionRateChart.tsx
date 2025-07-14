@@ -23,7 +23,7 @@ export function ConversionRateChart({
   const isOnTarget = overallConversionRate >= conversionGoal;
 
   return (
-    <Card className="p-6 bg-card border-border">
+    <Card className="p-6 bg-card border-border shadow-sm">
       <CardHeader className="p-0 mb-4">
         <CardTitle className="text-lg font-semibold text-card-foreground flex items-center gap-2">
           <TrendingUp className="h-5 w-5 text-primary" />
@@ -33,7 +33,7 @@ export function ConversionRateChart({
       
       <CardContent className="p-0">
         {/* Taxa Geral de Conversão */}
-        <div className="bg-muted/30 dark:bg-muted/20 rounded-lg p-6 mb-6 border border-border">
+        <div className="bg-muted/30 rounded-lg p-6 mb-6 border border-border">
           <div className="text-center mb-4">
             <div className="text-4xl font-bold text-primary mb-2">
               {overallConversionRate.toFixed(0)}%
@@ -44,7 +44,7 @@ export function ConversionRateChart({
 
         {/* Detalhamento */}
         <div className="space-y-4 mb-6">
-          <div className="flex items-center justify-between p-3 bg-muted/20 dark:bg-muted/10 rounded-lg border border-border">
+          <div className="flex items-center justify-between p-3 bg-muted/20 rounded-lg border border-border">
             <div className="flex items-center gap-3">
               <Users className="h-4 w-4 text-muted-foreground" />
               <span className="text-card-foreground font-medium">Total de Leads</span>

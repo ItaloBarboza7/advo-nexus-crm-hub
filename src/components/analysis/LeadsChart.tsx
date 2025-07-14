@@ -86,7 +86,7 @@ export function LeadsChart({ leads, title, filterFunction, viewMode: externalVie
   };
 
   return (
-    <Card className="p-6">
+    <Card className="p-6 bg-card border-border shadow-sm">
       <CardHeader className="p-0 mb-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold text-card-foreground">
