@@ -11,6 +11,7 @@ import { useContractsData } from "@/hooks/useContractsData";
 import { useUserLeadsForDate } from "@/hooks/useUserLeadsForDate";
 import { useUserContractsData } from "@/hooks/useUserContractsData";
 import { DateFilter } from "@/components/DateFilter";
+import { ConversionRateChart } from "@/components/ConversionRateChart";
 
 export function Dashboard() {
   const [selectedDate, setSelectedDate] = useState<Date>(BrazilTimezone.now());
@@ -242,7 +243,7 @@ export function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card className="p-6 bg-card border-border shadow-sm">
           <div className="flex items-center">
-            <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+            <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
               <DollarSign className="h-6 w-6 text-green-600 dark:text-green-400" />
             </div>
             <div className="ml-4">
@@ -254,7 +255,7 @@ export function Dashboard() {
 
         <Card className="p-6 bg-card border-border shadow-sm">
           <div className="flex items-center">
-            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+            <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
               <TrendingUp className="h-6 w-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div className="ml-4">
@@ -268,7 +269,7 @@ export function Dashboard() {
 
         <Card className="p-6 bg-card border-border shadow-sm">
           <div className="flex items-center">
-            <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+            <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
               <BarChart3 className="h-6 w-6 text-purple-600 dark:text-purple-400" />
             </div>
             <div className="ml-4">
@@ -282,7 +283,7 @@ export function Dashboard() {
 
         <Card className="p-6 bg-card border-border shadow-sm">
           <div className="flex items-center">
-            <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+            <div className="p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
               <Users className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
             </div>
             <div className="ml-4">
@@ -292,6 +293,14 @@ export function Dashboard() {
           </div>
         </Card>
       </div>
+
+      {/* Conversion Rate Chart */}
+      <ConversionRateChart
+        totalLeads={totalLeadsCount}
+        opportunities={proposalsAndMeetings}
+        sales={closedDeals}
+        conversionGoal={75}
+      />
 
       {/* Debug Info */}
       <Card className="p-4 bg-muted/50 border-border shadow-sm">

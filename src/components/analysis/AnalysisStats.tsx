@@ -1,3 +1,4 @@
+
 import { Card } from "@/components/ui/card";
 import { TrendingUp, Users, UserCheck, Target, UserX } from "lucide-react";
 import { Lead } from "@/types/lead";
@@ -6,7 +7,6 @@ import { useLeadsForDate } from "@/hooks/useLeadsForDate";
 import { BrazilTimezone } from "@/lib/timezone";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenantSchema } from "@/hooks/useTenantSchema";
-import { ConversionRateChart } from "@/components/ConversionRateChart";
 
 interface AnalysisStatsProps {
   leads: Lead[];
@@ -245,45 +245,35 @@ export function AnalysisStats({ leads, onCategoryChange, statusHistory, hasLeadP
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {analysisStats.map((stat, index) => (
-          <Card 
-            key={index} 
-            className="p-6 hover:shadow-lg transition-shadow cursor-pointer bg-card border-border"
-            onClick={() => onCategoryChange(stat.category)}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
-                <p className="text-2xl font-bold text-card-foreground mt-2">{stat.value}</p>
-                <div className="flex items-center mt-2">
-                  <TrendingUp className={`h-4 w-4 mr-1 ${
-                    stat.changeType === 'positive' ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'
-                  }`} />
-                  <span className={`text-sm font-medium ${
-                    stat.changeType === 'positive' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                  }`}>
-                    {stat.change}
-                  </span>
-                  <span className="text-sm text-muted-foreground ml-1">vs mês anterior</span>
-                </div>
-              </div>
-              <div className={`p-3 rounded-lg ${stat.color}`}>
-                <stat.icon className="h-6 w-6" />
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      {analysisStats.map((stat, index) => (
+        <Card 
+          key={index} 
+          className="p-6 hover:shadow-lg transition-shadow cursor-pointer bg-card border-border"
+          onClick={() => onCategoryChange(stat.category)}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
+              <p className="text-2xl font-bold text-card-foreground mt-2">{stat.value}</p>
+              <div className="flex items-center mt-2">
+                <TrendingUp className={`h-4 w-4 mr-1 ${
+                  stat.changeType === 'positive' ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'
+                }`} />
+                <span className={`text-sm font-medium ${
+                  stat.changeType === 'positive' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                }`}>
+                  {stat.change}
+                </span>
+                <span className="text-sm text-muted-foreground ml-1">vs mês anterior</span>
               </div>
             </div>
-          </Card>
-        ))}
-      </div>
-
-      {/* Gráfico de Taxa de Conversão */}
-      <ConversionRateChart
-        totalLeads={currentTotal}
-        opportunities={currentOportunidades}
-        sales={currentContratos}
-        conversionGoal={75}
-      />
+            <div className={`p-3 rounded-lg ${stat.color}`}>
+              <stat.icon className="h-6 w-6" />
+            </div>
+          </div>
+        </Card>
+      ))}
     </div>
   );
 }
