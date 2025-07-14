@@ -18,10 +18,9 @@ const ResetPassword = () => {
 
   useEffect(() => {
     const checkResetToken = async () => {
-      console.log('Checking reset token...');
+      console.log('🔍 Checking reset token...');
       console.log('Current URL:', window.location.href);
       console.log('Hash:', window.location.hash);
-      console.log('Search:', window.location.search);
 
       // Check for token in URL hash (from email link)
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
@@ -30,20 +29,22 @@ const ResetPassword = () => {
       const tokenType = hashParams.get('token_type');
       const type = hashParams.get('type');
 
-      console.log('Hash params:', { accessToken, refreshToken, tokenType, type });
+      console.log('Hash params:', { accessToken: !!accessToken, refreshToken: !!refreshToken, tokenType, type });
 
       // Check for error parameters
       const error = hashParams.get('error');
       const errorDescription = hashParams.get('error_description');
 
       if (error) {
-        console.error('Auth error from URL:', error, errorDescription);
+        console.error('❌ Auth error from URL:', error, errorDescription);
         let errorMessage = "Link de redefinição inválido ou expirado";
         
         if (error === 'access_denied') {
           errorMessage = "Acesso negado. O link pode ter expirado ou já foi usado.";
         } else if (error === 'token_expired' || errorDescription?.includes('expired')) {
           errorMessage = "O link de redefinição expirou. Solicite um novo link.";
+        } else if (error === 'otp_expired') {
+          errorMessage = "O código de verificação expirou. Solicite um novo link de redefinição.";
         }
 
         toast({
@@ -58,7 +59,7 @@ const ResetPassword = () => {
       }
 
       if (!accessToken || !refreshToken || type !== 'recovery') {
-        console.error('Missing required tokens or wrong type');
+        console.error('❌ Missing required tokens or wrong type');
         toast({
           title: "Link inválido",
           description: "Link de redefinição de senha inválido. Solicite um novo link.",
@@ -71,6 +72,7 @@ const ResetPassword = () => {
       }
 
       try {
+        console.log('🔄 Setting session with tokens...');
         // Set the session with the tokens from the URL
         const { data, error: sessionError } = await supabase.auth.setSession({
           access_token: accessToken,
@@ -78,25 +80,28 @@ const ResetPassword = () => {
         });
 
         if (sessionError) {
-          console.error('Session error:', sessionError);
+          console.error('❌ Session error:', sessionError);
           toast({
             title: "Erro",
-            description: "Erro ao validar o link de redefinição. Tente novamente.",
+            description: "Erro ao validar o link de redefinição. Solicite um novo link.",
             variant: "destructive"
           });
           setIsValidToken(false);
           setTimeout(() => navigate('/login'), 3000);
         } else {
-          console.log('Session set successfully:', data);
+          console.log('✅ Session set successfully:', !!data.session);
           setIsValidToken(true);
           toast({
             title: "Link válido",
             description: "Agora você pode definir sua nova senha",
             duration: 3000
           });
+          
+          // Clear the URL hash to remove tokens from URL bar
+          window.history.replaceState({}, document.title, window.location.pathname);
         }
       } catch (err) {
-        console.error('Error setting session:', err);
+        console.error('❌ Error setting session:', err);
         toast({
           title: "Erro",
           description: "Erro ao processar o link de redefinição",
@@ -143,28 +148,25 @@ const ResetPassword = () => {
     setIsLoading(true);
 
     try {
-      console.log('Updating password...');
+      console.log('🔄 Updating password...');
       const { error } = await supabase.auth.updateUser({
         password: password
       });
 
       if (error) {
-        console.error('Password update error:', error);
+        console.error('❌ Password update error:', error);
         toast({
           title: "Erro",
           description: error.message || "Erro ao redefinir senha",
           variant: "destructive"
         });
       } else {
-        console.log('Password updated successfully');
+        console.log('✅ Password updated successfully');
         toast({
           title: "Senha redefinida",
           description: "Sua senha foi redefinida com sucesso. Redirecionando...",
           duration: 3000
         });
-        
-        // Clear the URL hash to remove tokens
-        window.history.replaceState({}, document.title, window.location.pathname);
         
         // Redirect after a short delay
         setTimeout(() => {
@@ -172,7 +174,7 @@ const ResetPassword = () => {
         }, 2000);
       }
     } catch (error) {
-      console.error('Unexpected error:', error);
+      console.error('❌ Unexpected error:', error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado",

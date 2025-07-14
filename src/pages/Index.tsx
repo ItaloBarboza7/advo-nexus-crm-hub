@@ -1,4 +1,3 @@
-
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/AppSidebar"
 import { Header } from "@/components/Header"
@@ -13,7 +12,7 @@ import { useState, useEffect } from "react"
 import { supabase } from "@/integrations/supabase/client"
 import { User, Session } from "@supabase/supabase-js"
 import { Button } from "@/components/ui/button"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { Lead } from "@/types/lead"
 import { useTenantSchema } from "@/hooks/useTenantSchema"
 
@@ -26,8 +25,25 @@ const Index = () => {
   const [showCompanyModal, setShowCompanyModal] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
   const { ensureTenantSchema } = useTenantSchema()
+  const navigate = useNavigate()
 
   useEffect(() => {
+    // Check for recovery tokens in URL hash and redirect to reset password page
+    const handleRecoveryRedirect = () => {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1))
+      const accessToken = hashParams.get('access_token')
+      const refreshToken = hashParams.get('refresh_token')
+      const type = hashParams.get('type')
+      
+      if (accessToken && refreshToken && type === 'recovery') {
+        console.log('Recovery tokens detected, redirecting to reset password page')
+        navigate('/reset-password')
+        return
+      }
+    }
+
+    handleRecoveryRedirect()
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session)
@@ -51,7 +67,7 @@ const Index = () => {
     })
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, [navigate])
 
   const checkFirstLoginAndCompanyInfo = async (user: User) => {
     try {
