@@ -239,12 +239,12 @@ export function Dashboard() {
         />
       )}
 
-      {/* Summary Cards */}
+      {/* Summary Cards - Fixed Dark Mode */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="p-6 bg-card border-border shadow-sm">
+        <Card className="p-6 bg-card text-card-foreground border-border shadow-sm dark-mode-card">
           <div className="flex items-center">
-            <div className="p-3 rounded-lg bg-green-100 dark:bg-green-900/30">
-              <DollarSign className="h-6 w-6 text-green-800 dark:text-green-300" />
+            <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950/50 border border-green-200 dark:border-green-800">
+              <DollarSign className="h-6 w-6 text-green-700 dark:text-green-400" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-muted-foreground">Contratos Fechados</p>
@@ -253,10 +253,10 @@ export function Dashboard() {
           </div>
         </Card>
 
-        <Card className="p-6 bg-card border-border shadow-sm">
+        <Card className="p-6 bg-card text-card-foreground border-border shadow-sm dark-mode-card">
           <div className="flex items-center">
-            <div className="p-3 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-              <TrendingUp className="h-6 w-6 text-blue-800 dark:text-blue-300" />
+            <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800">
+              <TrendingUp className="h-6 w-6 text-blue-700 dark:text-blue-400" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-muted-foreground">Valor Total</p>
@@ -267,10 +267,10 @@ export function Dashboard() {
           </div>
         </Card>
 
-        <Card className="p-6 bg-card border-border shadow-sm">
+        <Card className="p-6 bg-card text-card-foreground border-border shadow-sm dark-mode-card">
           <div className="flex items-center">
-            <div className="p-3 rounded-lg bg-purple-100 dark:bg-purple-900/30">
-              <BarChart3 className="h-6 w-6 text-purple-800 dark:text-purple-300" />
+            <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800">
+              <BarChart3 className="h-6 w-6 text-purple-700 dark:text-purple-400" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-muted-foreground">Ticket Médio</p>
@@ -281,10 +281,10 @@ export function Dashboard() {
           </div>
         </Card>
 
-        <Card className="p-6 bg-card border-border shadow-sm">
+        <Card className="p-6 bg-card text-card-foreground border-border shadow-sm dark-mode-card">
           <div className="flex items-center">
-            <div className="p-3 rounded-lg bg-yellow-100 dark:bg-yellow-900/30">
-              <Users className="h-6 w-6 text-yellow-800 dark:text-yellow-300" />
+            <div className="p-3 rounded-lg bg-yellow-50 dark:bg-yellow-950/50 border border-yellow-200 dark:border-yellow-800">
+              <Users className="h-6 w-6 text-yellow-700 dark:text-yellow-400" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-muted-foreground">Leads Cadastrados</p>

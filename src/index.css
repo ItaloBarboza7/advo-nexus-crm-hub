@@ -115,4 +115,49 @@
   .animate-laser-sweep {
     animation: laser-sweep 2s ease-in-out infinite;
   }
+
+  /* Force Dark Mode Card Styles */
+  .dark-mode-card {
+    @apply bg-card text-card-foreground border-border;
+  }
+
+  .dark .dark-mode-card {
+    background-color: hsl(var(--card)) !important;
+    color: hsl(var(--card-foreground)) !important;
+    border-color: hsl(var(--border)) !important;
+  }
+
+  /* Force Icon Container Dark Mode */
+  .dark .bg-green-50 {
+    background-color: hsl(142 76% 4%) !important;
+  }
+
+  .dark .bg-blue-50 {
+    background-color: hsl(221 39% 4%) !important;
+  }
+
+  .dark .bg-purple-50 {
+    background-color: hsl(280 40% 4%) !important;
+  }
+
+  .dark .bg-yellow-50 {
+    background-color: hsl(54 92% 4%) !important;
+  }
+
+  /* Force Border Colors in Dark Mode */
+  .dark .border-green-200 {
+    border-color: hsl(142 76% 25%) !important;
+  }
+
+  .dark .border-blue-200 {
+    border-color: hsl(221 39% 25%) !important;
+  }
+
+  .dark .border-purple-200 {
+    border-color: hsl(280 40% 25%) !important;
+  }
+
+  .dark .border-yellow-200 {
+    border-color: hsl(54 92% 25%) !important;
+  }
 }
