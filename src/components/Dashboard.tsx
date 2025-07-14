@@ -247,62 +247,62 @@ export function Dashboard() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="p-6">
+        <Card className="p-6 bg-card border-border">
           <div className="flex items-center">
             <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
               <DollarSign className="h-6 w-6 text-green-600 dark:text-green-400" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-muted-foreground">Contratos Fechados</p>
-              <p className="text-2xl font-bold text-foreground">{closedDeals}</p>
+              <p className="text-2xl font-bold text-card-foreground">{closedDeals}</p>
             </div>
           </div>
         </Card>
 
-        <Card className="p-6">
+        <Card className="p-6 bg-card border-border">
           <div className="flex items-center">
             <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
               <TrendingUp className="h-6 w-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-muted-foreground">Valor Total</p>
-              <p className="text-2xl font-bold text-foreground">
+              <p className="text-2xl font-bold text-card-foreground">
                 R$ {totalValue.toLocaleString('pt-BR')}
               </p>
             </div>
           </div>
         </Card>
 
-        <Card className="p-6">
+        <Card className="p-6 bg-card border-border">
           <div className="flex items-center">
             <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
               <BarChart3 className="h-6 w-6 text-purple-600 dark:text-purple-400" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-muted-foreground">Ticket Médio</p>
-              <p className="text-2xl font-bold text-foreground">
+              <p className="text-2xl font-bold text-card-foreground">
                 R$ {closedDeals > 0 ? Math.round(totalValue / closedDeals).toLocaleString('pt-BR') : '0'}
               </p>
             </div>
           </div>
         </Card>
 
-        <Card className="p-6">
+        <Card className="p-6 bg-card border-border">
           <div className="flex items-center">
             <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
               <Users className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-muted-foreground">Leads Cadastrados</p>
-              <p className="text-2xl font-bold text-foreground">{totalLeadsCount}</p>
+              <p className="text-2xl font-bold text-card-foreground">{totalLeadsCount}</p>
             </div>
           </div>
         </Card>
       </div>
 
       {/* Debug Info */}
-      <Card className="p-4 bg-muted/50">
-        <h3 className="font-medium mb-2 text-foreground">Debug Info:</h3>
+      <Card className="p-4 bg-muted/50 border-border">
+        <h3 className="font-medium mb-2 text-card-foreground">Debug Info:</h3>
         <div className="text-sm text-muted-foreground">
           <p>Leads retornados (filtrados): {displayLeads.length}</p>
           <p>Contratos retornados (filtrados): {displayContracts.length}</p>
@@ -315,10 +315,10 @@ export function Dashboard() {
 
       {/* Loading States */}
       {(leadsLoading || contractsLoading) && (
-        <Card className="p-6">
+        <Card className="p-6 bg-card border-border">
           <div className="flex items-center justify-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mr-4"></div>
-            <span className="text-foreground">Carregando dados...</span>
+            <span className="text-card-foreground">Carregando dados...</span>
           </div>
         </Card>
       )}
