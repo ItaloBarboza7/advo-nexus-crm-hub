@@ -243,8 +243,8 @@ export function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card className="p-6 bg-card border-border shadow-sm">
           <div className="flex items-center">
-            <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
-              <DollarSign className="h-6 w-6 text-green-600 dark:text-green-400" />
+            <div className="p-3 rounded-lg bg-green-100 dark:bg-green-900/30">
+              <DollarSign className="h-6 w-6 text-green-800 dark:text-green-300" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-muted-foreground">Contratos Fechados</p>
@@ -255,8 +255,8 @@ export function Dashboard() {
 
         <Card className="p-6 bg-card border-border shadow-sm">
           <div className="flex items-center">
-            <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <TrendingUp className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+            <div className="p-3 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+              <TrendingUp className="h-6 w-6 text-blue-800 dark:text-blue-300" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-muted-foreground">Valor Total</p>
@@ -269,8 +269,8 @@ export function Dashboard() {
 
         <Card className="p-6 bg-card border-border shadow-sm">
           <div className="flex items-center">
-            <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-              <BarChart3 className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+            <div className="p-3 rounded-lg bg-purple-100 dark:bg-purple-900/30">
+              <BarChart3 className="h-6 w-6 text-purple-800 dark:text-purple-300" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-muted-foreground">Ticket Médio</p>
@@ -283,8 +283,8 @@ export function Dashboard() {
 
         <Card className="p-6 bg-card border-border shadow-sm">
           <div className="flex items-center">
-            <div className="p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-              <Users className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
+            <div className="p-3 rounded-lg bg-yellow-100 dark:bg-yellow-900/30">
+              <Users className="h-6 w-6 text-yellow-800 dark:text-yellow-300" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-muted-foreground">Leads Cadastrados</p>

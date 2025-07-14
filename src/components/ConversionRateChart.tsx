@@ -33,7 +33,7 @@ export function ConversionRateChart({
       
       <CardContent className="p-0">
         {/* Taxa Geral de Conversão */}
-        <div className="bg-muted/30 rounded-lg p-6 mb-6 border border-border">
+        <div className="bg-primary/10 dark:bg-primary/20 rounded-lg p-6 mb-6 border border-primary/20 dark:border-primary/30">
           <div className="text-center mb-4">
             <div className="text-4xl font-bold text-primary mb-2">
               {overallConversionRate.toFixed(0)}%
@@ -44,12 +44,12 @@ export function ConversionRateChart({
 
         {/* Detalhamento */}
         <div className="space-y-4 mb-6">
-          <div className="flex items-center justify-between p-3 bg-muted/20 rounded-lg border border-border">
+          <div className="flex items-center justify-between p-3 bg-muted/30 dark:bg-muted/20 rounded-lg border border-border">
             <div className="flex items-center gap-3">
               <Users className="h-4 w-4 text-muted-foreground" />
               <span className="text-card-foreground font-medium">Total de Leads</span>
             </div>
-            <Badge variant="outline" className="bg-background text-foreground border-border">
+            <Badge variant="outline" className="bg-card text-card-foreground border-border">
               {totalLeads}
             </Badge>
           </div>
