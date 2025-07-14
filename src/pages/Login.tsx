@@ -23,22 +23,34 @@ const Login = () => {
 
     try {
       if (isForgotPassword) {
+        if (!email) {
+          toast({
+            title: "Erro",
+            description: "Por favor, digite seu email",
+            variant: "destructive"
+          });
+          return;
+        }
+
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/reset-password`
         });
 
         if (error) {
+          console.error('Reset password error:', error);
           toast({
             title: "Erro",
-            description: error.message,
+            description: error.message || "Erro ao enviar email de redefinição",
             variant: "destructive"
           });
         } else {
           toast({
             title: "Email enviado",
-            description: "Verifique seu email para redefinir a senha"
+            description: "Verifique seu email para redefinir a senha. O link expira em 1 hora.",
+            duration: 5000
           });
           setIsForgotPassword(false);
+          setEmail('');
         }
       } else if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({
@@ -47,6 +59,7 @@ const Login = () => {
         });
 
         if (error) {
+          console.error('Login error:', error);
           toast({
             title: "Erro no login",
             description: error.message,
@@ -69,6 +82,7 @@ const Login = () => {
         });
 
         if (error) {
+          console.error('Signup error:', error);
           toast({
             title: "Erro no cadastro",
             description: error.message,
@@ -82,6 +96,7 @@ const Login = () => {
         }
       }
     } catch (error) {
+      console.error('Auth error:', error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado",
@@ -100,6 +115,11 @@ const Login = () => {
   const getDescription = () => {
     if (isForgotPassword) return "Digite seu email para receber instruções de redefinição";
     return isLogin ? "Entre na sua conta" : "Crie uma nova conta";
+  };
+
+  const getButtonText = () => {
+    if (isForgotPassword) return "Enviar";
+    return isLogin ? "Entrar" : "Criar conta";
   };
 
   return (
@@ -144,7 +164,7 @@ const Login = () => {
               className="w-full"
               disabled={isLoading}
             >
-              {isLoading ? "Carregando..." : getTitle()}
+              {isLoading ? "Carregando..." : getButtonText()}
             </Button>
             
             {!isForgotPassword && (
@@ -183,7 +203,10 @@ const Login = () => {
                 type="button"
                 variant="link"
                 className="text-sm"
-                onClick={() => setIsForgotPassword(false)}
+                onClick={() => {
+                  setIsForgotPassword(false);
+                  setEmail('');
+                }}
               >
                 Voltar ao login
               </Button>
