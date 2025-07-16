@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -18,10 +17,13 @@ const ResetPassword = () => {
 
   useEffect(() => {
     const checkResetToken = async () => {
-      console.log('🔍 ResetPassword - Verificando tokens de recovery...');
-      console.log('Current URL:', window.location.href);
-      console.log('Hash:', window.location.hash);
-      console.log('Search params:', window.location.search);
+      console.log('🔍 ResetPassword - Verificando tokens de recovery...', {
+        currentURL: window.location.href,
+        hash: window.location.hash,
+        searchParams: window.location.search,
+        hostname: window.location.hostname,
+        pathname: window.location.pathname
+      });
 
       // Verificar tokens no hash da URL (formato padrão do Supabase)
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
@@ -29,12 +31,16 @@ const ResetPassword = () => {
       const refreshToken = hashParams.get('refresh_token');
       const tokenType = hashParams.get('token_type');
       const type = hashParams.get('type');
+      const expiresAt = hashParams.get('expires_at');
+      const expiresIn = hashParams.get('expires_in');
 
-      console.log('Hash params:', { 
+      console.log('🔑 Tokens encontrados no hash:', { 
         hasAccessToken: !!accessToken, 
         hasRefreshToken: !!refreshToken, 
         tokenType, 
         type,
+        expiresAt,
+        expiresIn,
         accessTokenLength: accessToken?.length,
         refreshTokenLength: refreshToken?.length
       });
@@ -44,24 +50,33 @@ const ResetPassword = () => {
       const urlAccessToken = urlParams.get('access_token');
       const urlRefreshToken = urlParams.get('refresh_token');
       const urlType = urlParams.get('type');
+      const urlTokenType = urlParams.get('token_type');
 
-      console.log('URL params:', {
+      console.log('🔍 Parâmetros da URL:', {
         hasAccessToken: !!urlAccessToken,
         hasRefreshToken: !!urlRefreshToken,
-        type: urlType
+        type: urlType,
+        tokenType: urlTokenType
       });
 
       // Usar tokens do hash ou URL params
       const finalAccessToken = accessToken || urlAccessToken;
       const finalRefreshToken = refreshToken || urlRefreshToken;
       const finalType = type || urlType;
+      const finalTokenType = tokenType || urlTokenType;
 
       // Verificar se há erros nos parâmetros
       const error = hashParams.get('error') || urlParams.get('error');
       const errorDescription = hashParams.get('error_description') || urlParams.get('error_description');
 
       if (error) {
-        console.error('❌ Erro de autenticação na URL:', error, errorDescription);
+        console.error('❌ Erro de autenticação na URL:', {
+          error,
+          errorDescription,
+          allHashParams: Object.fromEntries(hashParams.entries()),
+          allUrlParams: Object.fromEntries(urlParams.entries())
+        });
+        
         let errorMessage = "Link de redefinição inválido ou expirado";
         
         if (error === 'access_denied') {
@@ -76,33 +91,38 @@ const ResetPassword = () => {
           title: "Erro",
           description: errorMessage,
           variant: "destructive",
-          duration: 5000
+          duration: 8000
         });
         setIsValidToken(false);
-        setTimeout(() => navigate('/login'), 3000);
+        setTimeout(() => navigate('/login'), 5000);
         return;
       }
 
       // Validar se todos os tokens necessários estão presentes
       if (!finalAccessToken || !finalRefreshToken || finalType !== 'recovery') {
-        console.error('❌ Tokens necessários não encontrados ou tipo incorreto');
-        console.log('Esperado: type=recovery, recebido:', finalType);
-        console.log('Tem access token:', !!finalAccessToken);
-        console.log('Tem refresh token:', !!finalRefreshToken);
+        console.error('❌ Tokens necessários não encontrados ou tipo incorreto:', {
+          hasAccessToken: !!finalAccessToken,
+          hasRefreshToken: !!finalRefreshToken,
+          type: finalType,
+          expectedType: 'recovery',
+          tokenType: finalTokenType,
+          allTokensFromHash: Object.fromEntries(hashParams.entries()),
+          allTokensFromUrl: Object.fromEntries(urlParams.entries())
+        });
         
         toast({
           title: "Link inválido",
           description: "Link de redefinição de senha inválido. Solicite um novo link.",
           variant: "destructive",
-          duration: 5000
+          duration: 8000
         });
         setIsValidToken(false);
-        setTimeout(() => navigate('/login'), 3000);
+        setTimeout(() => navigate('/login'), 5000);
         return;
       }
 
       try {
-        console.log('🔄 Configurando sessão com os tokens...');
+        console.log('🔄 Configurando sessão com os tokens de recovery...');
         
         // Configurar a sessão com os tokens da URL
         const { data, error: sessionError } = await supabase.auth.setSession({
@@ -111,17 +131,35 @@ const ResetPassword = () => {
         });
 
         if (sessionError) {
-          console.error('❌ Erro ao configurar sessão:', sessionError);
+          console.error('❌ Erro ao configurar sessão:', {
+            error: sessionError,
+            message: sessionError.message,
+            status: sessionError.status
+          });
+          
+          let errorMessage = "Erro ao validar o link de redefinição.";
+          
+          if (sessionError.message?.includes('expired') || sessionError.message?.includes('invalid')) {
+            errorMessage = "Link de redefinição expirado ou inválido. Solicite um novo link.";
+          }
+          
           toast({
             title: "Erro",
-            description: "Erro ao validar o link de redefinição. Tente solicitar um novo link.",
-            variant: "destructive"
+            description: errorMessage,
+            variant: "destructive",
+            duration: 8000
           });
           setIsValidToken(false);
-          setTimeout(() => navigate('/login'), 3000);
+          setTimeout(() => navigate('/login'), 5000);
         } else {
-          console.log('✅ Sessão configurada com sucesso:', !!data.session);
-          console.log('✅ Usuário autenticado:', !!data.session?.user);
+          console.log('✅ Sessão configurada com sucesso:', {
+            hasSession: !!data.session,
+            hasUser: !!data.session?.user,
+            userId: data.session?.user?.id,
+            userEmail: data.session?.user?.email,
+            sessionId: data.session?.id
+          });
+          
           setIsValidToken(true);
           toast({
             title: "Link válido",
@@ -130,17 +168,21 @@ const ResetPassword = () => {
           });
           
           // Limpar os tokens da barra de endereços por segurança
-          window.history.replaceState({}, document.title, window.location.pathname);
+          const cleanUrl = window.location.pathname;
+          window.history.replaceState({}, document.title, cleanUrl);
+          
+          console.log('🧹 URL limpa para segurança:', cleanUrl);
         }
       } catch (err) {
-        console.error('❌ Erro ao processar sessão:', err);
+        console.error('❌ Erro inesperado ao processar sessão:', err);
         toast({
           title: "Erro",
-          description: "Erro ao processar o link de redefinição",
-          variant: "destructive"
+          description: "Erro inesperado ao processar o link de redefinição",
+          variant: "destructive",
+          duration: 8000
         });
         setIsValidToken(false);
-        setTimeout(() => navigate('/login'), 3000);
+        setTimeout(() => navigate('/login'), 5000);
       }
     };
 

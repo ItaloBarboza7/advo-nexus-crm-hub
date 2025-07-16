@@ -9,35 +9,29 @@ import { supabase } from '@/integrations/supabase/client';
 
 // Função para determinar a URL de redirecionamento baseada no ambiente
 const getResetPasswordUrl = () => {
-  // Em produção, usar sempre a URL de produção
-  if (window.location.hostname === 'evojuris.com.br' || 
-      window.location.hostname.includes('lovableproject.com')) {
-    return 'https://evojuris.com.br/reset-password';
-  }
+  console.log('🔍 Detectando ambiente atual:', {
+    hostname: window.location.hostname,
+    origin: window.location.origin,
+    href: window.location.href
+  });
   
-  // Em desenvolvimento local, usar localhost
-  if (window.location.hostname === 'localhost') {
-    return `${window.location.origin}/reset-password`;
-  }
+  // SEMPRE usar a URL de produção para recuperação de senha
+  const productionUrl = 'https://evojuris.com.br/reset-password';
   
-  // Fallback para outros casos
-  return `${window.location.origin}/reset-password`;
+  console.log('🔗 URL de recuperação definida:', productionUrl);
+  
+  return productionUrl;
 };
 
 const getSignupConfirmationUrl = () => {
-  // Em produção, usar sempre a URL de produção
-  if (window.location.hostname === 'evojuris.com.br' || 
-      window.location.hostname.includes('lovableproject.com')) {
-    return 'https://evojuris.com.br/';
-  }
+  console.log('🔍 Configurando URL de confirmação de cadastro');
   
-  // Em desenvolvimento local, usar localhost
-  if (window.location.hostname === 'localhost') {
-    return window.location.origin;
-  }
+  // SEMPRE usar a URL de produção para confirmação
+  const productionUrl = 'https://evojuris.com.br/';
   
-  // Fallback para outros casos
-  return window.location.origin;
+  console.log('🔗 URL de confirmação definida:', productionUrl);
+  
+  return productionUrl;
 };
 
 const Login = () => {
@@ -65,9 +59,14 @@ const Login = () => {
         }
 
         const resetUrl = getResetPasswordUrl();
-        console.log('🔄 Enviando email de redefinição de senha para:', email);
-        console.log('🔗 URL de redirecionamento configurada:', resetUrl);
-        console.log('🌐 Ambiente atual:', window.location.hostname);
+        console.log('🔄 Enviando email de redefinição de senha:', {
+          email: email,
+          resetUrl: resetUrl,
+          currentEnvironment: {
+            hostname: window.location.hostname,
+            origin: window.location.origin
+          }
+        });
         
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: resetUrl
@@ -81,8 +80,12 @@ const Login = () => {
             variant: "destructive"
           });
         } else {
-          console.log('✅ Email de redefinição enviado com sucesso para:', email);
-          console.log('✅ URL configurada:', resetUrl);
+          console.log('✅ Email de redefinição enviado com sucesso:', {
+            email: email,
+            resetUrl: resetUrl,
+            timestamp: new Date().toISOString()
+          });
+          
           toast({
             title: "Email enviado",
             description: "Verifique seu email para redefinir a senha. O link expira em 1 hora.",
