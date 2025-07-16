@@ -18,12 +18,12 @@ const ResetPassword = () => {
 
   useEffect(() => {
     const checkResetToken = async () => {
-      console.log('🔍 ResetPassword - Checking reset token...');
+      console.log('🔍 ResetPassword - Verificando tokens de recovery...');
       console.log('Current URL:', window.location.href);
       console.log('Hash:', window.location.hash);
       console.log('Search params:', window.location.search);
 
-      // Check for token in URL hash (from email link)
+      // Verificar tokens no hash da URL (formato padrão do Supabase)
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
       const accessToken = hashParams.get('access_token');
       const refreshToken = hashParams.get('refresh_token');
@@ -39,7 +39,7 @@ const ResetPassword = () => {
         refreshTokenLength: refreshToken?.length
       });
 
-      // Also check URL search params as fallback
+      // Verificar também nos parâmetros da URL como fallback
       const urlParams = new URLSearchParams(window.location.search);
       const urlAccessToken = urlParams.get('access_token');
       const urlRefreshToken = urlParams.get('refresh_token');
@@ -51,17 +51,17 @@ const ResetPassword = () => {
         type: urlType
       });
 
-      // Use tokens from either hash or URL params
+      // Usar tokens do hash ou URL params
       const finalAccessToken = accessToken || urlAccessToken;
       const finalRefreshToken = refreshToken || urlRefreshToken;
       const finalType = type || urlType;
 
-      // Check for error parameters
+      // Verificar se há erros nos parâmetros
       const error = hashParams.get('error') || urlParams.get('error');
       const errorDescription = hashParams.get('error_description') || urlParams.get('error_description');
 
       if (error) {
-        console.error('❌ Auth error from URL:', error, errorDescription);
+        console.error('❌ Erro de autenticação na URL:', error, errorDescription);
         let errorMessage = "Link de redefinição inválido ou expirado";
         
         if (error === 'access_denied') {
@@ -83,11 +83,12 @@ const ResetPassword = () => {
         return;
       }
 
+      // Validar se todos os tokens necessários estão presentes
       if (!finalAccessToken || !finalRefreshToken || finalType !== 'recovery') {
-        console.error('❌ Missing required tokens or wrong type');
-        console.log('Expected type: recovery, got:', finalType);
-        console.log('Has access token:', !!finalAccessToken);
-        console.log('Has refresh token:', !!finalRefreshToken);
+        console.error('❌ Tokens necessários não encontrados ou tipo incorreto');
+        console.log('Esperado: type=recovery, recebido:', finalType);
+        console.log('Tem access token:', !!finalAccessToken);
+        console.log('Tem refresh token:', !!finalRefreshToken);
         
         toast({
           title: "Link inválido",
@@ -101,25 +102,26 @@ const ResetPassword = () => {
       }
 
       try {
-        console.log('🔄 Setting session with tokens...');
-        // Set the session with the tokens from the URL
+        console.log('🔄 Configurando sessão com os tokens...');
+        
+        // Configurar a sessão com os tokens da URL
         const { data, error: sessionError } = await supabase.auth.setSession({
           access_token: finalAccessToken,
           refresh_token: finalRefreshToken
         });
 
         if (sessionError) {
-          console.error('❌ Session error:', sessionError);
+          console.error('❌ Erro ao configurar sessão:', sessionError);
           toast({
             title: "Erro",
-            description: "Erro ao validar o link de redefinição. Solicite um novo link.",
+            description: "Erro ao validar o link de redefinição. Tente solicitar um novo link.",
             variant: "destructive"
           });
           setIsValidToken(false);
           setTimeout(() => navigate('/login'), 3000);
         } else {
-          console.log('✅ Session set successfully:', !!data.session);
-          console.log('✅ User authenticated:', !!data.session?.user);
+          console.log('✅ Sessão configurada com sucesso:', !!data.session);
+          console.log('✅ Usuário autenticado:', !!data.session?.user);
           setIsValidToken(true);
           toast({
             title: "Link válido",
@@ -127,11 +129,11 @@ const ResetPassword = () => {
             duration: 3000
           });
           
-          // Clear the URL hash and search params to remove tokens from URL bar
+          // Limpar os tokens da barra de endereços por segurança
           window.history.replaceState({}, document.title, window.location.pathname);
         }
       } catch (err) {
-        console.error('❌ Error setting session:', err);
+        console.error('❌ Erro ao processar sessão:', err);
         toast({
           title: "Erro",
           description: "Erro ao processar o link de redefinição",
@@ -178,36 +180,36 @@ const ResetPassword = () => {
     setIsLoading(true);
 
     try {
-      console.log('🔄 Updating password...');
+      console.log('🔄 Atualizando senha do usuário...');
       const { error } = await supabase.auth.updateUser({
         password: password
       });
 
       if (error) {
-        console.error('❌ Password update error:', error);
+        console.error('❌ Erro ao atualizar senha:', error);
         toast({
           title: "Erro",
           description: error.message || "Erro ao redefinir senha",
           variant: "destructive"
         });
       } else {
-        console.log('✅ Password updated successfully');
+        console.log('✅ Senha atualizada com sucesso');
         toast({
           title: "Senha redefinida",
           description: "Sua senha foi redefinida com sucesso. Redirecionando...",
           duration: 3000
         });
         
-        // Sign out to force re-login with new password
+        // Fazer logout para forçar novo login com a nova senha
         await supabase.auth.signOut();
         
-        // Redirect after a short delay
+        // Redirecionar após um breve delay
         setTimeout(() => {
           navigate('/login');
         }, 2000);
       }
     } catch (error) {
-      console.error('❌ Unexpected error:', error);
+      console.error('❌ Erro inesperado:', error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado",
@@ -218,7 +220,7 @@ const ResetPassword = () => {
     }
   };
 
-  // Show loading state while validating token
+  // Estado de carregamento durante validação do token
   if (isValidToken === null) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -234,7 +236,7 @@ const ResetPassword = () => {
     );
   }
 
-  // Show error state if token is invalid
+  // Estado de erro se o token for inválido
   if (isValidToken === false) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -255,6 +257,7 @@ const ResetPassword = () => {
     );
   }
 
+  // Formulário de redefinição de senha
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -7,6 +6,39 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+
+// Função para determinar a URL de redirecionamento baseada no ambiente
+const getResetPasswordUrl = () => {
+  // Em produção, usar sempre a URL de produção
+  if (window.location.hostname === 'evojuris.com.br' || 
+      window.location.hostname.includes('lovableproject.com')) {
+    return 'https://evojuris.com.br/reset-password';
+  }
+  
+  // Em desenvolvimento local, usar localhost
+  if (window.location.hostname === 'localhost') {
+    return `${window.location.origin}/reset-password`;
+  }
+  
+  // Fallback para outros casos
+  return `${window.location.origin}/reset-password`;
+};
+
+const getSignupConfirmationUrl = () => {
+  // Em produção, usar sempre a URL de produção
+  if (window.location.hostname === 'evojuris.com.br' || 
+      window.location.hostname.includes('lovableproject.com')) {
+    return 'https://evojuris.com.br/';
+  }
+  
+  // Em desenvolvimento local, usar localhost
+  if (window.location.hostname === 'localhost') {
+    return window.location.origin;
+  }
+  
+  // Fallback para outros casos
+  return window.location.origin;
+};
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -32,10 +64,10 @@ const Login = () => {
           return;
         }
 
-        // Use fixed production URL for password reset
-        const resetUrl = 'https://evojuris.com.br/reset-password';
+        const resetUrl = getResetPasswordUrl();
         console.log('🔄 Enviando email de redefinição de senha para:', email);
-        console.log('🔗 URL de redirecionamento:', resetUrl);
+        console.log('🔗 URL de redirecionamento configurada:', resetUrl);
+        console.log('🌐 Ambiente atual:', window.location.hostname);
         
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: resetUrl
@@ -84,8 +116,7 @@ const Login = () => {
       } else {
         console.log('🔄 Tentando criar conta para:', email);
         
-        // Use production URL for signup confirmation as well
-        const confirmationUrl = 'https://evojuris.com.br/';
+        const confirmationUrl = getSignupConfirmationUrl();
         console.log('🔗 URL de confirmação de cadastro:', confirmationUrl);
         
         const { error } = await supabase.auth.signUp({
