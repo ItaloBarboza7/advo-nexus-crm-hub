@@ -32,9 +32,13 @@ const Login = () => {
           return;
         }
 
+        // Use fixed production URL for password reset
+        const resetUrl = 'https://evojuris.com.br/reset-password';
         console.log('🔄 Enviando email de redefinição de senha para:', email);
+        console.log('🔗 URL de redirecionamento:', resetUrl);
+        
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/reset-password`
+          redirectTo: resetUrl
         });
 
         if (error) {
@@ -45,7 +49,8 @@ const Login = () => {
             variant: "destructive"
           });
         } else {
-          console.log('✅ Email de redefinição enviado com sucesso');
+          console.log('✅ Email de redefinição enviado com sucesso para:', email);
+          console.log('✅ URL configurada:', resetUrl);
           toast({
             title: "Email enviado",
             description: "Verifique seu email para redefinir a senha. O link expira em 1 hora.",
@@ -78,11 +83,16 @@ const Login = () => {
         }
       } else {
         console.log('🔄 Tentando criar conta para:', email);
+        
+        // Use production URL for signup confirmation as well
+        const confirmationUrl = 'https://evojuris.com.br/';
+        console.log('🔗 URL de confirmação de cadastro:', confirmationUrl);
+        
         const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/`
+            emailRedirectTo: confirmationUrl
           }
         });
 

@@ -18,9 +18,10 @@ const ResetPassword = () => {
 
   useEffect(() => {
     const checkResetToken = async () => {
-      console.log('🔍 Checking reset token...');
+      console.log('🔍 ResetPassword - Checking reset token...');
       console.log('Current URL:', window.location.href);
       console.log('Hash:', window.location.hash);
+      console.log('Search params:', window.location.search);
 
       // Check for token in URL hash (from email link)
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
@@ -33,12 +34,31 @@ const ResetPassword = () => {
         hasAccessToken: !!accessToken, 
         hasRefreshToken: !!refreshToken, 
         tokenType, 
-        type 
+        type,
+        accessTokenLength: accessToken?.length,
+        refreshTokenLength: refreshToken?.length
       });
 
+      // Also check URL search params as fallback
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlAccessToken = urlParams.get('access_token');
+      const urlRefreshToken = urlParams.get('refresh_token');
+      const urlType = urlParams.get('type');
+
+      console.log('URL params:', {
+        hasAccessToken: !!urlAccessToken,
+        hasRefreshToken: !!urlRefreshToken,
+        type: urlType
+      });
+
+      // Use tokens from either hash or URL params
+      const finalAccessToken = accessToken || urlAccessToken;
+      const finalRefreshToken = refreshToken || urlRefreshToken;
+      const finalType = type || urlType;
+
       // Check for error parameters
-      const error = hashParams.get('error');
-      const errorDescription = hashParams.get('error_description');
+      const error = hashParams.get('error') || urlParams.get('error');
+      const errorDescription = hashParams.get('error_description') || urlParams.get('error_description');
 
       if (error) {
         console.error('❌ Auth error from URL:', error, errorDescription);
@@ -63,9 +83,12 @@ const ResetPassword = () => {
         return;
       }
 
-      if (!accessToken || !refreshToken || type !== 'recovery') {
+      if (!finalAccessToken || !finalRefreshToken || finalType !== 'recovery') {
         console.error('❌ Missing required tokens or wrong type');
-        console.log('Expected type: recovery, got:', type);
+        console.log('Expected type: recovery, got:', finalType);
+        console.log('Has access token:', !!finalAccessToken);
+        console.log('Has refresh token:', !!finalRefreshToken);
+        
         toast({
           title: "Link inválido",
           description: "Link de redefinição de senha inválido. Solicite um novo link.",
@@ -81,8 +104,8 @@ const ResetPassword = () => {
         console.log('🔄 Setting session with tokens...');
         // Set the session with the tokens from the URL
         const { data, error: sessionError } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken
+          access_token: finalAccessToken,
+          refresh_token: finalRefreshToken
         });
 
         if (sessionError) {
@@ -96,6 +119,7 @@ const ResetPassword = () => {
           setTimeout(() => navigate('/login'), 3000);
         } else {
           console.log('✅ Session set successfully:', !!data.session);
+          console.log('✅ User authenticated:', !!data.session?.user);
           setIsValidToken(true);
           toast({
             title: "Link válido",
@@ -103,7 +127,7 @@ const ResetPassword = () => {
             duration: 3000
           });
           
-          // Clear the URL hash to remove tokens from URL bar
+          // Clear the URL hash and search params to remove tokens from URL bar
           window.history.replaceState({}, document.title, window.location.pathname);
         }
       } catch (err) {
