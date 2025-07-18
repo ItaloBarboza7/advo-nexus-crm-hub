@@ -1,5 +1,6 @@
 
 import { Home, Users, Flag, TrendingUp, Settings, Zap } from "lucide-react";
+import { useState, useEffect } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -12,6 +13,7 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar";
 import { ActiveView } from "@/pages/Index";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 
 interface AppSidebarProps {
   activeView: ActiveView;
@@ -34,6 +36,7 @@ const menuItems = [
     title: "Análises",
     icon: TrendingUp,
     view: "cases" as ActiveView,
+    requiresPermission: 'analysis_access'
   },
   {
     title: "Metas",
@@ -53,10 +56,29 @@ const menuItems = [
 ];
 
 export function AppSidebar({ activeView, setActiveView, userRole }: AppSidebarProps) {
+  const { getCurrentUserPermission } = useUserPermissions();
+  const [hasAnalysisAccess, setHasAnalysisAccess] = useState(false);
+
+  useEffect(() => {
+    const checkAnalysisPermission = async () => {
+      const hasAccess = await getCurrentUserPermission('analysis_access');
+      setHasAnalysisAccess(hasAccess);
+    };
+
+    checkAnalysisPermission();
+  }, [getCurrentUserPermission]);
+
   const visibleMenuItems = menuItems.filter(item => {
+    // Configurações só para não-membros
     if (item.view === 'settings') {
       return userRole !== 'member';
     }
+    
+    // Análises só para quem tem permissão
+    if (item.requiresPermission === 'analysis_access') {
+      return hasAnalysisAccess;
+    }
+    
     return true;
   });
 

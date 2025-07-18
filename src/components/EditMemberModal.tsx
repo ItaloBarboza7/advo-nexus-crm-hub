@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 
 interface EditMemberModalProps {
   isOpen: boolean;
@@ -24,6 +25,7 @@ export function EditMemberModal({ isOpen, onClose, member, onMemberUpdated }: Ed
   const [hasAnalysisAccess, setHasAnalysisAccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { updatePermission, hasPermission } = useUserPermissions();
 
   useEffect(() => {
     if (member) {
@@ -31,9 +33,12 @@ export function EditMemberModal({ isOpen, onClose, member, onMemberUpdated }: Ed
       setEmail(member.email || "");
       setRole(member.role || "");
       setPassword("");
-      setHasAnalysisAccess(member.hasAnalysisAccess || false);
+      
+      // Buscar permissão atual do membro
+      const currentPermission = hasPermission(member.id, 'analysis_access');
+      setHasAnalysisAccess(currentPermission);
     }
-  }, [member]);
+  }, [member, hasPermission]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,6 +82,9 @@ export function EditMemberModal({ isOpen, onClose, member, onMemberUpdated }: Ed
         });
         return;
       }
+
+      // Atualizar permissão de acesso a análises
+      await updatePermission(member.id, 'analysis_access', hasAnalysisAccess);
 
       const updatedMember = {
         ...member,
@@ -173,7 +181,7 @@ export function EditMemberModal({ isOpen, onClose, member, onMemberUpdated }: Ed
           </div>
 
           <div className="space-y-3">
-            <Label>Acesso</Label>
+            <Label>Permissões</Label>
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="edit-analysis-access"

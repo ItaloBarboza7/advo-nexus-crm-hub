@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 
 interface AddMemberModalProps {
   isOpen: boolean;
@@ -24,6 +24,7 @@ export function AddMemberModal({ isOpen, onClose, onMemberAdded }: AddMemberModa
   const [hasAnalysisAccess, setHasAnalysisAccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { updatePermission } = useUserPermissions();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,10 +61,15 @@ export function AddMemberModal({ isOpen, onClose, onMemberAdded }: AddMemberModa
       
       const returnedProfile = data.member;
 
+      // Definir permissão de acesso a análises para o novo membro
+      if (returnedProfile?.user_id) {
+        await updatePermission(returnedProfile.user_id, 'analysis_access', hasAnalysisAccess);
+      }
+
       const newMemberForUI = {
         ...returnedProfile,
         role: returnedProfile.title,
-        hasAnalysisAccess, // Note: This permission is not saved in the database yet.
+        hasAnalysisAccess,
         avatar: returnedProfile.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
       };
 
@@ -168,7 +174,7 @@ export function AddMemberModal({ isOpen, onClose, onMemberAdded }: AddMemberModa
           </div>
 
           <div className="space-y-3">
-            <Label>Acesso</Label>
+            <Label>Permissões</Label>
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="analysis-access"
