@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -156,8 +157,7 @@ const ResetPassword = () => {
             hasSession: !!data.session,
             hasUser: !!data.session?.user,
             userId: data.session?.user?.id,
-            userEmail: data.session?.user?.email,
-            sessionId: data.session?.id
+            userEmail: data.session?.user?.email
           });
           
           setIsValidToken(true);
