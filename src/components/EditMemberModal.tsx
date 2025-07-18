@@ -110,10 +110,6 @@ export function EditMemberModal({ isOpen, onClose, member, onMemberUpdated }: Ed
       onMemberUpdated(updatedMember);
       
       console.log(`[EditMemberModal] Membro ${name} atualizado com sucesso`);
-      toast({
-        title: "Membro atualizado",
-        description: `${name} foi atualizado com sucesso. Agora pode fazer login com o email ${email}.`,
-      });
 
       onClose();
     } catch (error) {
