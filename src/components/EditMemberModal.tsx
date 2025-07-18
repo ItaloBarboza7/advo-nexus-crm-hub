@@ -28,17 +28,28 @@ export function EditMemberModal({ isOpen, onClose, member, onMemberUpdated }: Ed
   const { updatePermission, hasPermission } = useUserPermissions();
 
   useEffect(() => {
-    if (member) {
+    if (member && isOpen) {
+      console.log('[EditMemberModal] Carregando dados do membro:', member);
       setName(member.name || "");
       setEmail(member.email || "");
       setRole(member.role || "");
       setPassword("");
       
-      // Buscar permissão atual do membro
-      const currentPermission = hasPermission(member.id, 'analysis_access');
-      setHasAnalysisAccess(currentPermission);
+      // Buscar permissão atual do membro de forma assíncrona
+      const loadPermission = async () => {
+        try {
+          const currentPermission = hasPermission(member.id, 'analysis_access');
+          console.log('[EditMemberModal] Permissão atual carregada:', currentPermission);
+          setHasAnalysisAccess(currentPermission);
+        } catch (error) {
+          console.error('[EditMemberModal] Erro ao carregar permissão:', error);
+          setHasAnalysisAccess(false);
+        }
+      };
+      
+      loadPermission();
     }
-  }, [member, hasPermission]);
+  }, [member, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,6 +95,7 @@ export function EditMemberModal({ isOpen, onClose, member, onMemberUpdated }: Ed
       }
 
       // Atualizar permissão de acesso a análises
+      console.log(`[EditMemberModal] Atualizando permissão de análise para ${hasAnalysisAccess}`);
       await updatePermission(member.id, 'analysis_access', hasAnalysisAccess);
 
       const updatedMember = {
@@ -114,6 +126,11 @@ export function EditMemberModal({ isOpen, onClose, member, onMemberUpdated }: Ed
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleAnalysisAccessChange = (checked: boolean) => {
+    console.log('[EditMemberModal] Alterando acesso a análises para:', checked);
+    setHasAnalysisAccess(checked);
   };
 
   return (
@@ -186,7 +203,7 @@ export function EditMemberModal({ isOpen, onClose, member, onMemberUpdated }: Ed
               <Checkbox
                 id="edit-analysis-access"
                 checked={hasAnalysisAccess}
-                onCheckedChange={(checked) => setHasAnalysisAccess(checked as boolean)}
+                onCheckedChange={handleAnalysisAccessChange}
                 disabled={isLoading}
               />
               <Label htmlFor="edit-analysis-access" className="text-sm font-normal">
