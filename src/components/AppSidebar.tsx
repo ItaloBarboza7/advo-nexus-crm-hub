@@ -89,9 +89,9 @@ export function AppSidebar({ activeView, setActiveView, userRole }: AppSidebarPr
           <img 
             src="/lovable-uploads/cdf6d547-b3db-49aa-a10e-22232822a77e.png" 
             alt="EVOJURIS Logo" 
-            className="h-48 w-auto object-cover scale-125 -m-6"
+            className="h-48 w-auto object-cover scale-125 -my-6"
             style={{
-              clipPath: 'inset(15% 15% 15% 15%)'
+              clipPath: 'inset(15% 8% 15% 8%)'
             }}
           />
         </div>
