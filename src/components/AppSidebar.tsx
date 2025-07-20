@@ -85,11 +85,14 @@ export function AppSidebar({ activeView, setActiveView, userRole }: AppSidebarPr
   return (
     <Sidebar className="border-r border-gray-200 dark:border-gray-800">
       <SidebarHeader className="border-b border-gray-200 dark:border-gray-800 px-0 py-0">
-        <div className="flex items-center justify-center">
+        <div className="flex items-center justify-center overflow-hidden">
           <img 
             src="/lovable-uploads/cdf6d547-b3db-49aa-a10e-22232822a77e.png" 
             alt="EVOJURIS Logo" 
-            className="h-48 w-auto"
+            className="h-48 w-auto object-cover scale-125 -m-6"
+            style={{
+              clipPath: 'inset(15% 15% 15% 15%)'
+            }}
           />
         </div>
       </SidebarHeader>
