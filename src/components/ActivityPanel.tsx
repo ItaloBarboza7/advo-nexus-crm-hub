@@ -1,4 +1,3 @@
-
 import { Card } from "@/components/ui/card";
 import { Calendar, User, FileText, UserPlus } from "lucide-react";
 import { BrazilTimezone } from "@/lib/timezone";
@@ -45,7 +44,6 @@ export function ActivityPanel({
   return (
     <Card className="p-6 bg-background border-border mb-6">
       <div className="flex items-center gap-3 mb-4">
-        <Calendar className="h-6 w-6 text-primary" />
         <h3 className="text-lg font-semibold text-foreground">
           Atividade - {BrazilTimezone.formatDateForDisplay(selectedDate)}
         </h3>

@@ -412,7 +412,6 @@ export function TeamGoalsPanel({
     <Card className="bg-white border-gray-200">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg font-semibold text-gray-800">
-          <Target className="h-5 w-5 text-gray-600" />
           Meta da Equipe
         </CardTitle>
       </CardHeader>
