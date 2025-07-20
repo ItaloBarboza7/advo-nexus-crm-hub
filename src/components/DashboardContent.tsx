@@ -38,7 +38,6 @@ export function DashboardContent() {
   const { contracts: allContracts, isLoading: contractsLoading, error: contractsError } = useContractsData();
   const { statusHistory, hasLeadPassedThroughStatus } = useLeadStatusHistory();
 
-  // Filter team leads by date range
   const getFilteredLeads = useCallback(() => {
     if (!allLeads || allLeads.length === 0) return [];
     
@@ -58,7 +57,6 @@ export function DashboardContent() {
     });
   }, [allLeads, appliedDateRange]);
 
-  // Filter team contracts by date range
   const getFilteredContracts = useCallback(() => {
     if (!allContracts || allContracts.length === 0) return [];
     
@@ -81,33 +79,24 @@ export function DashboardContent() {
   const leads = getFilteredLeads();
   const contracts = getFilteredContracts();
 
-  // Função para verificar se o componente deve ser exibido
   const isComponentVisible = (componentId: string) => {
     const component = components.find(comp => comp.id === componentId);
     return component ? component.visible : true;
   };
 
-  // CORREÇÃO: Função para verificar se um lead é oportunidade (mesma lógica das análises)
   const isOpportunityLead = useCallback((lead: any): boolean => {
     console.log(`🔍 [DashboardContent] Verificando se ${lead.name} (${lead.status}) é oportunidade`);
     
-    // NOVA REGRA: Oportunidades são leads que:
-    // 1. NÃO estão em "Novo" (independente do histórico)
-    // 2. Estão atualmente em "Proposta" ou "Reunião" OU passaram por eles (histórico)
-    
-    // PRIMEIRO: Excluir completamente leads com status "Novo"
     if (lead.status === "Novo") {
       console.log(`❌ [DashboardContent] Lead ${lead.name} está em Novo - SEMPRE EXCLUÍDO`);
       return false;
     }
     
-    // SEGUNDO: Se está em Proposta ou Reunião atualmente, incluir automaticamente
     if (lead.status === "Proposta" || lead.status === "Reunião") {
       console.log(`✅ [DashboardContent] Lead ${lead.name} está atualmente em ${lead.status} - INCLUÍDO`);
       return true;
     }
     
-    // TERCEIRO: Verificar se passou por Proposta/Reunião no histórico (incluindo finalizados)
     const hasPassedThroughTargetStatuses = hasLeadPassedThroughStatus(lead.id, ["Proposta", "Reunião"]);
     console.log(`📊 [DashboardContent] Lead ${lead.name} (${lead.status}) passou por Proposta/Reunião: ${hasPassedThroughTargetStatuses}`);
     
@@ -120,7 +109,6 @@ export function DashboardContent() {
     return false;
   }, [hasLeadPassedThroughStatus]);
 
-  // CORREÇÃO: Função para verificar se existem dados históricos
   const checkForHistoricalData = useCallback(async () => {
     try {
       const schema = tenantSchema || await ensureTenantSchema();
@@ -154,7 +142,6 @@ export function DashboardContent() {
     }
   }, [tenantSchema, ensureTenantSchema]);
 
-  // CORREÇÃO: Buscar dados do mês anterior ou definir como 0 para contas novas
   const fetchPreviousMonthData = useCallback(async () => {
     try {
       const hasHistorical = await checkForHistoricalData();
@@ -171,7 +158,6 @@ export function DashboardContent() {
       }
 
       console.log("📊 DashboardContent - Conta com histórico, usando dados simulados");
-      // Para contas com histórico, usar dados simulados (você pode implementar busca real aqui)
       setPreviousMonthData({
         leads: 3,
         proposals: 2,
@@ -184,7 +170,6 @@ export function DashboardContent() {
     }
   }, [checkForHistoricalData]);
 
-  // Função para calcular ticks customizados do eixo Y baseado nos dados
   const getCustomYAxisTicks = useCallback((data: any[]) => {
     if (!data || data.length === 0) return [0, 5, 10, 15, 20];
     
@@ -192,7 +177,6 @@ export function DashboardContent() {
     
     if (maxValue === 0) return [0, 5, 10, 15, 20];
     
-    // Calcular o próximo múltiplo de 5 maior que o valor máximo
     const maxTick = Math.ceil(maxValue / 5) * 5 + 5;
     
     const ticks = [];
@@ -203,7 +187,6 @@ export function DashboardContent() {
     return ticks;
   }, []);
 
-  // CORREÇÃO: Inicialização única e simplificada
   useEffect(() => {
     if (!isInitialized && allLeads && allContracts && tenantSchema) {
       console.log("🚀 DashboardContent - Inicializando dashboard pela primeira vez");
@@ -228,12 +211,10 @@ export function DashboardContent() {
     }
   }, [isInitialized, allLeads, allContracts, tenantSchema, fetchPreviousMonthData]);
 
-  // CORREÇÃO: Função para aplicar filtro de data
   const handleDateRangeApply = useCallback((range: DateRange | undefined) => {
     console.log("📅 DashboardContent - Aplicando filtro de período:", range);
     
     if (!range?.from) {
-      // Se não há filtro, buscar dados do mês atual
       const now = BrazilTimezone.now();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -248,7 +229,6 @@ export function DashboardContent() {
       return;
     }
 
-    // Aplicar o novo filtro
     const rangeToApply = {
       from: range.from,
       to: range.to || range.from
@@ -262,13 +242,11 @@ export function DashboardContent() {
     setAppliedDateRange(rangeToApply);
   }, []);
 
-  // CORREÇÃO: Calcular estatísticas reais baseadas nos leads filtrados usando a mesma lógica das análises
   const totalLeads = leads?.length || 0;
   const proposalsAndMeetings = leads?.filter(lead => isOpportunityLead(lead)).length || 0;
   const lostLeads = leads?.filter(lead => lead.status === "Perdido").length || 0;
   const closedDeals = leads?.filter(lead => lead.status === "Contrato Fechado").length || 0;
 
-  // Log para debug da contagem de oportunidades
   console.log("📊 DashboardContent - Contagem de oportunidades:", {
     totalLeads,
     proposalsAndMeetings,
@@ -277,12 +255,9 @@ export function DashboardContent() {
     leadsProcessados: leads?.map(l => `${l.name} (${l.status}) - É oportunidade: ${isOpportunityLead(l)}`).join(', ')
   });
 
-  // Calcular valor total dos contratos
   const totalValue = contracts?.reduce((sum, contract) => sum + contract.value, 0) || 0;
 
-  // CORREÇÃO: Função para calcular porcentagem de mudança corrigida para contas novas
   const calculatePercentageChange = (current: number, previous: number): { value: string; type: 'positive' | 'negative' } => {
-    // Se não há dados anteriores (conta nova), mostrar 0%
     if (previous === 0) {
       console.log(`📊 DashboardContent - Conta nova: atual=${current}, anterior=${previous} -> 0%`);
       return { value: '0%', type: 'positive' };
@@ -324,7 +299,7 @@ export function DashboardContent() {
       value: lostLeads.toString(),
       icon: UserX,
       change: lossesChange.value,
-      changeType: lossesChange.type === 'positive' ? 'negative' : 'positive', // Invertido para perdas
+      changeType: lossesChange.type === 'positive' ? 'negative' : 'positive',
     },
     {
       title: "Vendas",
@@ -335,7 +310,6 @@ export function DashboardContent() {
     },
   ];
 
-  // CORREÇÃO: Taxa de conversão baseada nos dados reais filtrados
   const conversionData = [
     {
       totalLeads: totalLeads,
@@ -347,7 +321,6 @@ export function DashboardContent() {
     },
   ];
 
-  // CORREÇÃO: Gerar dados REAIS de conversão baseados nos leads filtrados
   const getRealConversionData = useMemo(() => {
     if (!leads || leads.length === 0) {
       const weeklyData = [
@@ -409,7 +382,6 @@ export function DashboardContent() {
     return { weekly: weeklyData, monthly: monthlyData };
   }, [leads, isOpportunityLead]);
 
-  // CORREÇÃO: Gerar dados REAIS de leads por período baseados nos leads filtrados
   const getRealLeadsData = useMemo(() => {
     if (!leads || leads.length === 0) {
       const weeklyData = [
@@ -455,7 +427,6 @@ export function DashboardContent() {
     return { weekly: weeklyData, monthly: monthlyData };
   }, [leads]);
 
-  // Gerar dados REAIS de ação baseados nos leads filtrados
   const getActionData = useCallback(() => {
     if (!leads || leads.length === 0) return [];
 
@@ -563,7 +534,6 @@ export function DashboardContent() {
     return actionView === 'type' ? 'type' : 'group';
   };
 
-  // CORREÇÃO: Função para obter o melhor período de conversão com nome correto
   const getBestConversionPeriod = () => {
     const data = getConversionData();
     const best = data.reduce((prev, current) => 
@@ -571,11 +541,9 @@ export function DashboardContent() {
     );
     const periodKey = conversionView === 'weekly' ? 'day' : 'month';
     const periodValue = best[periodKey as keyof typeof best];
-    // CORREÇÃO: Remover o sufixo "-feira" e usar apenas o nome do dia
     return `${periodValue} (${best.conversion}%)`;
   };
 
-  // CORREÇÃO: Função para obter o melhor período de leads com nome correto
   const getBestLeadsPeriod = () => {
     const data = getLeadsData();
     const best = data.reduce((prev, current) => 
@@ -583,7 +551,6 @@ export function DashboardContent() {
     );
     const periodKey = leadsView === 'weekly' ? 'day' : 'month';
     const periodValue = best[periodKey as keyof typeof best];
-    // CORREÇÃO: Remover o sufixo "-feira" e usar apenas o nome do dia
     return `${periodValue} (${best.leads} leads)`;
   };
 
@@ -600,7 +567,6 @@ export function DashboardContent() {
     return `${value} (${conversionRate}% taxa)`;
   };
 
-  // CORREÇÃO: Estado de carregamento melhorado
   const isLoading = leadsLoading || contractsLoading;
 
   if (isLoading || !isInitialized) {
@@ -616,7 +582,6 @@ export function DashboardContent() {
     );
   }
 
-  // CORREÇÃO: Melhorar getDisplayTitle para lidar com casos onde to pode ser undefined
   const getDisplayTitle = () => {
     if (appliedDateRange?.from) {
       if (appliedDateRange?.to) {
@@ -680,7 +645,7 @@ export function DashboardContent() {
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-lg text-gray-900">
                   <BarChart3 className="h-5 w-5 text-blue-600" />
-                  Conversão por {conversionView === 'weekly' ? 'Dia da Semana' : 'Mês'}
+                  Conversão por Dia
                 </CardTitle>
                 <Select value={conversionView} onValueChange={(value: 'weekly' | 'monthly') => setConversionView(value)}>
                   <SelectTrigger className="w-[120px]">
@@ -798,7 +763,7 @@ export function DashboardContent() {
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-lg text-gray-900">
                   <Users className="h-5 w-5 text-green-600" />
-                  Leads Novos por {leadsView === 'weekly' ? 'Dia da Semana' : 'Mês'}
+                  Leads Novos por Dia
                 </CardTitle>
                 <Select value={leadsView} onValueChange={(value: 'weekly' | 'monthly') => setLeadsView(value)}>
                   <SelectTrigger className="w-[120px]">
