@@ -62,6 +62,8 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
 
   const fetchUserNames = async (userIds: string[]) => {
     try {
+      console.log('🔍 Buscando nomes dos usuários:', userIds);
+      
       const { data, error } = await supabase
         .from('user_profiles')
         .select('user_id, name')
@@ -72,11 +74,14 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
         return;
       }
 
+      console.log('📋 Perfis encontrados:', data);
+
       const nameMap: {[key: string]: string} = {};
       data?.forEach(profile => {
         nameMap[profile.user_id] = profile.name;
       });
       
+      console.log('📝 Mapa de nomes criado:', nameMap);
       setUserNames(nameMap);
     } catch (error) {
       console.error('❌ Erro inesperado ao buscar nomes:', error);
@@ -107,11 +112,12 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
 
       const historyData = Array.isArray(data) ? data : [];
       console.log(`✅ LeadDetailsDialog - ${historyData.length} registros de histórico encontrados:`, historyData);
-      console.log('📋 Dados do histórico:', historyData);
       setStatusHistory(historyData);
 
-      // Buscar nomes dos usuários
+      // Buscar nomes dos usuários - incluindo o user_id do lead e closed_by_user_id
       const userIds = [lead?.user_id, lead?.closed_by_user_id].filter(Boolean) as string[];
+      console.log('👥 IDs de usuários para buscar nomes:', userIds);
+      
       if (userIds.length > 0) {
         await fetchUserNames(userIds);
       }
@@ -582,6 +588,12 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
     return options.find(o => o.value === actionType)?.label || actionType;
   };
 
+  const getUserDisplayName = (userId: string) => {
+    const userName = userNames[userId];
+    console.log(`🎯 getUserDisplayName - userId: ${userId}, userName: ${userName}`);
+    return userName || "Usuário";
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
@@ -714,7 +726,7 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
                           </Badge>
                           {history.new_status === "Contrato Fechado" && lead.closed_by_user_id && (
                             <span className="text-gray-500 dark:text-gray-400 ml-2">
-                              por {userNames[lead.closed_by_user_id] || "Usuário"}
+                              por {getUserDisplayName(lead.closed_by_user_id)}
                             </span>
                           )}
                         </>
@@ -722,7 +734,7 @@ export function LeadDetailsDialog({ lead, open, onOpenChange, onEditLead }: Lead
                         <>
                           <span className="text-gray-600 dark:text-gray-400">Lead criado por </span>
                           <span className="font-medium text-gray-700 dark:text-gray-300">
-                            {userNames[lead.user_id] || "Usuário"}
+                            {getUserDisplayName(lead.user_id)}
                           </span>
                         </>
                       )}
