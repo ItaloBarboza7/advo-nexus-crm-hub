@@ -29,6 +29,45 @@ function isValidEmail(email: string): boolean {
   return emailRegex.test(email);
 }
 
+// Phone formatting function for Brazil
+function formatBrazilianPhone(phone: string): string {
+  // Remove all non-numeric characters
+  const cleanPhone = phone.replace(/\D/g, '');
+  
+  // If it already starts with 55, return as is with +55
+  if (cleanPhone.startsWith('55') && cleanPhone.length >= 12) {
+    return `+${cleanPhone}`;
+  }
+  
+  // If it's a valid Brazilian phone number (10 or 11 digits), add +55
+  if (cleanPhone.length === 10 || cleanPhone.length === 11) {
+    return `+55${cleanPhone}`;
+  }
+  
+  // If it's already formatted with +55, return as is
+  if (phone.startsWith('+55')) {
+    return phone;
+  }
+  
+  // For any other case, add +55 prefix
+  return `+55${cleanPhone}`;
+}
+
+// Phone input formatting for display
+function formatPhoneForDisplay(phone: string): string {
+  const cleanPhone = phone.replace(/\D/g, '');
+  
+  if (cleanPhone.length <= 2) {
+    return `(${cleanPhone}`;
+  } else if (cleanPhone.length <= 7) {
+    return `(${cleanPhone.slice(0, 2)}) ${cleanPhone.slice(2)}`;
+  } else if (cleanPhone.length <= 11) {
+    return `(${cleanPhone.slice(0, 2)}) ${cleanPhone.slice(2, 7)}-${cleanPhone.slice(7)}`;
+  } else {
+    return `(${cleanPhone.slice(0, 2)}) ${cleanPhone.slice(2, 7)}-${cleanPhone.slice(7, 11)}`;
+  }
+}
+
 export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps) {
   const [step, setStep] = useState<'customer-data' | 'payment'>('customer-data');
   const [customerData, setCustomerData] = useState<CustomerData>({
@@ -48,7 +87,18 @@ export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps)
   const planDescription = planType === 'monthly' ? 'por mês' : 'por mês (cobrado anualmente)';
 
   const handleInputChange = (field: keyof CustomerData, value: string) => {
-    setCustomerData(prev => ({ ...prev, [field]: value }));
+    let processedValue = value;
+    
+    // Special handling for phone field
+    if (field === 'phone') {
+      // Remove all non-numeric characters for processing
+      const cleanValue = value.replace(/\D/g, '');
+      // Format for display
+      processedValue = formatPhoneForDisplay(cleanValue);
+    }
+    
+    setCustomerData(prev => ({ ...prev, [field]: processedValue }));
+    
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
@@ -70,6 +120,12 @@ export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps)
     
     if (!customerData.phone.trim()) {
       newErrors.phone = 'Telefone é obrigatório';
+    } else {
+      // Validate Brazilian phone number
+      const cleanPhone = customerData.phone.replace(/\D/g, '');
+      if (cleanPhone.length < 10) {
+        newErrors.phone = 'Telefone deve ter pelo menos 10 dígitos';
+      }
     }
     
     if (!customerData.cpf.trim()) {
@@ -87,10 +143,12 @@ export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps)
   };
 
   const isCustomerDataValid = () => {
+    const cleanPhone = customerData.phone.replace(/\D/g, '');
     return customerData.name && 
            customerData.email && 
            isValidEmail(customerData.email) &&
            customerData.phone && 
+           cleanPhone.length >= 10 &&
            customerData.cpf &&
            customerData.password &&
            customerData.password.length >= 6;
@@ -114,20 +172,29 @@ export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps)
     try {
       console.log('🚀 Iniciando processo de pagamento...');
       console.log('Plan type:', planType);
+      
+      // Format phone with Brazilian country code before sending
+      const formattedPhone = formatBrazilianPhone(customerData.phone);
+      
+      const customerDataForPayment = {
+        ...customerData,
+        phone: formattedPhone
+      };
+      
       console.log('Customer data:', {
-        name: customerData.name,
-        email: customerData.email,
-        phone: customerData.phone,
-        cpf: customerData.cpf ? 'presente' : 'ausente',
-        password: customerData.password ? 'presente' : 'ausente'
+        name: customerDataForPayment.name,
+        email: customerDataForPayment.email,
+        phone: customerDataForPayment.phone,
+        cpf: customerDataForPayment.cpf ? 'presente' : 'ausente',
+        password: customerDataForPayment.password ? 'presente' : 'ausente'
       });
       
       const requestData = {
-        customerData,
+        customerData: customerDataForPayment,
         planType,
       };
 
-      console.log('Request data prepared:', requestData);
+      console.log('Request data prepared with formatted phone:', requestData);
 
       const { data, error } = await supabase.functions.invoke('create-payment', {
         body: requestData,
@@ -274,6 +341,9 @@ export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps)
                   {errors.phone}
                 </div>
               )}
+              <p className="text-xs text-gray-500">
+                O código do país (+55) será adicionado automaticamente
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -360,6 +430,10 @@ export function PurchaseModal({ isOpen, onClose, planType }: PurchaseModalProps)
                 <div className="flex justify-between">
                   <span>Email:</span>
                   <span>{customerData.email}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Telefone:</span>
+                  <span>{formatBrazilianPhone(customerData.phone)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Plano:</span>
