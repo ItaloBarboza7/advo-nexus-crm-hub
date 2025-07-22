@@ -459,9 +459,6 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
                 placeholder="seu@email.com"
                 disabled={isLoading}
               />
-              <p className="text-xs text-muted-foreground">
-                * Alterações no email também afetarão o login do sistema
-              </p>
             </div>
 
             <div className="space-y-2">

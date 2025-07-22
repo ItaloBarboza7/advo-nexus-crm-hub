@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -342,9 +341,6 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
               placeholder="(XX) XXXXX-XXXX"
               disabled={isLoading}
             />
-            <p className="text-xs text-muted-foreground">
-              * Alterações aqui também afetarão o perfil do usuário
-            </p>
           </div>
 
           <div className="space-y-2">
@@ -357,9 +353,6 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
               placeholder="seu@email.com"
               disabled={isLoading}
             />
-            <p className="text-xs text-muted-foreground">
-              * Alterações aqui também afetarão o perfil do usuário
-            </p>
           </div>
 
           <div className="space-y-2">
