@@ -1,14 +1,14 @@
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Camera } from "lucide-react";
+import { Camera, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompanyInfo } from "@/hooks/useCompanyInfo";
+import { uploadAvatar, deleteAvatar } from "@/utils/avatarUpload";
 
 interface UserProfileModalProps {
   isOpen: boolean;
@@ -21,7 +21,9 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
   const [phone, setPhone] = useState("");
   const [avatar, setAvatar] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [originalEmail, setOriginalEmail] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const { toast } = useToast();
   const { companyInfo, updateCompanyInfo, refreshCompanyInfo } = useCompanyInfo();
@@ -161,64 +163,77 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
     }
   };
 
-  useEffect(() => {
-    if (isOpen) {
-      console.log('[UserProfileModal] Modal aberto, carregando perfil');
-      loadUserProfile();
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Tipo de arquivo inválido",
+        description: "Por favor, selecione uma imagem válida.",
+        variant: "destructive",
+      });
+      return;
     }
-  }, [isOpen]);
 
-  // Real-time subscription para mudanças na empresa
-  useEffect(() => {
-    if (!isOpen) return;
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "Arquivo muito grande",
+        description: "A imagem deve ter no máximo 5MB.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    const setupRealtimeSync = async () => {
+    setIsUploadingAvatar(true);
+    try {
       const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) return;
-
-      console.log('[UserProfileModal] Configurando sincronização em tempo real');
-      
-      const channel = supabase
-        .channel('user_profile_company_sync')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'company_info',
-            filter: `user_id=eq.${user.id}`
-          },
-          (payload) => {
-            console.log('[UserProfileModal] Mudança na empresa detectada:', payload);
-            if (payload.new && typeof payload.new === 'object') {
-              const newData = payload.new as any;
-              console.log('[UserProfileModal] Atualizando campos com dados da empresa:', newData);
-              setEmail(newData.email || "");
-              setPhone(newData.phone || "");
-            }
-          }
-        )
-        .subscribe();
-
-      return () => {
-        console.log('[UserProfileModal] Removendo subscription');
-        supabase.removeChannel(channel);
-      };
-    };
-
-    let cleanup: (() => void) | undefined;
-    
-    setupRealtimeSync().then((cleanupFn) => {
-      cleanup = cleanupFn;
-    });
-
-    return () => {
-      if (cleanup) {
-        cleanup();
+      if (!user) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Usuário não encontrado. Faça login novamente.",
+          variant: "destructive",
+        });
+        return;
       }
-    };
-  }, [isOpen]);
+
+      // Delete old avatar if exists
+      if (avatar) {
+        await deleteAvatar(avatar, user.id);
+      }
+
+      // Upload new avatar
+      const avatarUrl = await uploadAvatar(file, user.id);
+      if (avatarUrl) {
+        setAvatar(avatarUrl);
+        toast({
+          title: "Avatar atualizado",
+          description: "Sua foto de perfil foi atualizada com sucesso.",
+        });
+      } else {
+        toast({
+          title: "Erro no upload",
+          description: "Não foi possível fazer o upload da imagem. Tente novamente.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('[UserProfileModal] Erro no upload do avatar:', error);
+      toast({
+        title: "Erro no upload",
+        description: "Ocorreu um erro inesperado ao fazer o upload da imagem.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingAvatar(false);
+      // Clear the input so the same file can be selected again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -391,21 +406,32 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
                   {getInitials(name || "U")}
                 </AvatarFallback>
               </Avatar>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarUpload}
+                className="hidden"
+              />
               <Button
                 variant="outline"
                 size="icon"
                 className="absolute -bottom-2 -right-2 rounded-full w-8 h-8"
-                onClick={() => {
-                  // TODO: Implementar upload de imagem
-                  toast({
-                    title: "Em desenvolvimento",
-                    description: "Funcionalidade de upload será implementada em breve.",
-                  });
-                }}
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploadingAvatar}
               >
-                <Camera className="h-4 w-4" />
+                {isUploadingAvatar ? (
+                  <Upload className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Camera className="h-4 w-4" />
+                )}
               </Button>
             </div>
+            <p className="text-xs text-muted-foreground text-center">
+              Clique no ícone da câmera para alterar sua foto
+              <br />
+              Máximo: 5MB • Formatos: JPG, PNG, GIF
+            </p>
           </div>
 
           {/* Personal Information */}
