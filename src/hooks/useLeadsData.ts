@@ -5,6 +5,25 @@ import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
 import { useLossReasonsGlobal } from "@/hooks/useLossReasonsGlobal";
 
+interface TenantLead {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string;
+  description: string | null;
+  source: string | null;
+  state: string | null;
+  status: string;
+  action_group: string | null;
+  action_type: string | null;
+  loss_reason: string | null;
+  value: number | null;
+  user_id: string;
+  closed_by_user_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export function useLeadsData() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,7 +63,7 @@ export function useLeadsData() {
         return;
       }
 
-      const transformedLeads: Lead[] = (data || []).map((lead: any) => ({
+      const transformedLeads: Lead[] = (data as TenantLead[] || []).map((lead: TenantLead) => ({
         ...lead,
         company: undefined,
         interest: undefined,

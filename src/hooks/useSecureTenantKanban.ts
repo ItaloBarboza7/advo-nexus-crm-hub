@@ -9,6 +9,18 @@ export interface KanbanColumn {
   color: string;
   order_position: number;
   is_default: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface TenantKanbanColumn {
+  id: string;
+  name: string;
+  color: string;
+  order_position: number;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export function useSecureTenantKanban() {
@@ -36,8 +48,13 @@ export function useSecureTenantKanban() {
         return;
       }
 
-      console.log(`✅ useSecureTenantKanban - ${data?.length || 0} columns loaded securely`);
-      setColumns(data || []);
+      const columnsData = (data as TenantKanbanColumn[] || []).map(col => ({
+        ...col,
+        order_position: col.order_position
+      }));
+
+      console.log(`✅ useSecureTenantKanban - ${columnsData.length} columns loaded securely`);
+      setColumns(columnsData);
     } catch (error: any) {
       console.error('❌ Unexpected error fetching kanban columns:', error);
       setError(error.message || 'Erro desconhecido');

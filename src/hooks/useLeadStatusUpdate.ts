@@ -3,6 +3,25 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
+interface TenantLead {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string;
+  description: string | null;
+  source: string | null;
+  state: string | null;
+  status: string;
+  action_group: string | null;
+  action_type: string | null;
+  loss_reason: string | null;
+  value: number | null;
+  user_id: string;
+  closed_by_user_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export function useLeadStatusUpdate() {
   const [isUpdating, setIsUpdating] = useState(false);
   const { toast } = useToast();
@@ -24,7 +43,7 @@ export function useLeadStatusUpdate() {
         return false;
       }
 
-      const currentLead = leads?.find((lead: any) => lead.id === leadId);
+      const currentLead = (leads as TenantLead[] || []).find((lead) => lead.id === leadId);
       
       if (!currentLead) {
         console.error('❌ Lead not found');

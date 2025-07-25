@@ -4,6 +4,25 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Lead } from '@/types/lead';
 
+interface TenantLead {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string;
+  description: string | null;
+  source: string | null;
+  state: string | null;
+  status: string;
+  action_group: string | null;
+  action_type: string | null;
+  loss_reason: string | null;
+  value: number | null;
+  user_id: string;
+  closed_by_user_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export function useSecureTenantLeads() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -29,7 +48,7 @@ export function useSecureTenantLeads() {
         return;
       }
 
-      const transformedLeads: Lead[] = (data || []).map((lead: any) => ({
+      const transformedLeads: Lead[] = (data as TenantLead[] || []).map((lead) => ({
         ...lead,
         company: undefined,
         interest: undefined,
@@ -98,7 +117,7 @@ export function useSecureTenantLeads() {
       // Refresh leads list
       await fetchLeads();
       
-      return leadId;
+      return leadId as string;
     } catch (error: any) {
       console.error('❌ Unexpected error creating lead:', error);
       toast({
