@@ -46,12 +46,24 @@ export function useTenantLeadOperations() {
         return false;
       }
 
-      // Construir a query de insert (sem user_id no esquema do tenant)
+      // Obter o user_id atual
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('❌ Usuário não autenticado');
+        toast({
+          title: "Erro",
+          description: "Usuário não autenticado.",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      // Construir a query de insert (agora incluindo user_id)
       const fields = [];
       const values = [];
       
-      fields.push('name', 'phone');
-      values.push(`'${leadData.name.replace(/'/g, "''")}'`, `'${leadData.phone.replace(/'/g, "''")}'`);
+      fields.push('name', 'phone', 'user_id');
+      values.push(`'${leadData.name.replace(/'/g, "''")}'`, `'${leadData.phone.replace(/'/g, "''")}'`, `'${user.id}'`);
       
       if (leadData.email) {
         fields.push('email');
