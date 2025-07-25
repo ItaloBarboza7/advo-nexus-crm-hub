@@ -4,14 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
 import { useLossReasonsGlobal } from "@/hooks/useLossReasonsGlobal";
-import { useTenantSchema } from "@/hooks/useTenantSchema";
 
 export function useLeadsData() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const { lossReasons } = useLossReasonsGlobal();
-  const { tenantSchema, ensureTenantSchema } = useTenantSchema();
   const fetchingRef = useRef(false);
   const mountedRef = useRef(true);
   const lastFetchTimeRef = useRef(0);
@@ -21,8 +19,8 @@ export function useLeadsData() {
 
   const fetchLeads = useCallback(async () => {
     const now = Date.now();
-    if (fetchingRef.current || !tenantSchema || (now - lastFetchTimeRef.current) < FETCH_DEBOUNCE_MS) {
-      console.log("🚫 useLeadsData - Fetch skipped (debounce, no schema, or already fetching)");
+    if (fetchingRef.current || (now - lastFetchTimeRef.current) < FETCH_DEBOUNCE_MS) {
+      console.log("🚫 useLeadsData - Fetch skipped (debounce or already fetching)");
       return;
     }
     
@@ -30,20 +28,12 @@ export function useLeadsData() {
       fetchingRef.current = true;
       lastFetchTimeRef.current = now;
       setIsLoading(true);
-      console.log("📊 useLeadsData - Buscando leads no esquema do tenant...");
+      console.log("📊 useLeadsData - Fetching leads using secure function...");
       
-      const schema = tenantSchema;
-      if (!schema) {
-        console.error('❌ Não foi possível obter o esquema do tenant');
-        return;
-      }
-
-      const { data, error } = await supabase.rpc('exec_sql' as any, {
-        sql: `SELECT * FROM ${schema}.leads ORDER BY created_at DESC`
-      });
+      const { data, error } = await supabase.rpc('get_tenant_leads');
 
       if (error) {
-        console.error('❌ Erro ao buscar leads:', error);
+        console.error('❌ Error fetching leads:', error);
         if (mountedRef.current) {
           toast({
             title: "Erro",
@@ -54,17 +44,15 @@ export function useLeadsData() {
         return;
       }
 
-      const leadsData = Array.isArray(data) ? data : [];
-      const transformedLeads: Lead[] = leadsData.map((lead: any) => ({
+      const transformedLeads: Lead[] = (data || []).map((lead: any) => ({
         ...lead,
         company: undefined,
         interest: undefined,
         lastContact: undefined,
         avatar: undefined,
-        closed_by_user_id: lead.closed_by_user_id || null
       }));
 
-      console.log(`✅ useLeadsData - ${transformedLeads.length} leads carregados do esquema ${schema}`);
+      console.log(`✅ useLeadsData - ${transformedLeads.length} leads loaded securely`);
       if (mountedRef.current) {
         setLeads(prev => {
           // Only update if data has actually changed
@@ -75,7 +63,7 @@ export function useLeadsData() {
         });
       }
     } catch (error: any) {
-      console.error('❌ Erro inesperado ao buscar leads:', error);
+      console.error('❌ Unexpected error fetching leads:', error);
       if (mountedRef.current) {
         toast({
           title: "Erro",
@@ -89,62 +77,47 @@ export function useLeadsData() {
       }
       fetchingRef.current = false;
     }
-  }, [tenantSchema, toast]);
+  }, [toast]);
 
   // Memoize refresh function to prevent recreation
   const refreshData = useMemo(() => {
     return () => {
-      console.log(`🔄 useLeadsData - Atualizando dados dos leads...`);
+      console.log(`🔄 useLeadsData - Refreshing lead data...`);
       fetchLeads();
     };
   }, [fetchLeads]);
 
   const updateLead = useCallback(async (leadId: string, updates: Partial<Lead>) => {
     try {
-      console.log(`📝 useLeadsData - Atualizando lead ${leadId}:`, updates);
+      console.log(`📝 useLeadsData - Updating lead ${leadId}:`, updates);
       
-      const schema = tenantSchema || await ensureTenantSchema();
-      if (!schema) {
-        console.error('❌ Não foi possível obter o esquema do tenant');
+      // Get current lead data first
+      const currentLead = leads.find(lead => lead.id === leadId);
+      if (!currentLead) {
+        console.error('❌ Lead not found in current data');
         return false;
       }
 
-      // Remover campos undefined e preparar os valores para atualização
-      const validUpdates: Record<string, any> = {};
-      Object.entries(updates).forEach(([key, value]) => {
-        if (value !== undefined) {
-          validUpdates[key] = value;
-        }
-      });
+      // Merge updates with current data
+      const updatedLeadData = { ...currentLead, ...updates };
 
-      if (Object.keys(validUpdates).length === 0) {
-        console.log('Nenhuma atualização válida para aplicar');
-        return true;
-      }
-
-      // Usar exec_sql mas de forma mais simples para preservar o contexto de auth
-      // O trigger agora usa auth.uid() que deve funcionar corretamente
-      console.log('🔧 Executando atualização com contexto de auth preservado');
-      
-      // Construir a query SQL de forma segura
-      const setClause = Object.keys(validUpdates)
-        .map(key => {
-          const value = validUpdates[key];
-          // Escapar aspas simples nos valores string
-          const escapedValue = typeof value === 'string' ? value.replace(/'/g, "''") : value;
-          return `${key} = '${escapedValue}'`;
-        })
-        .join(', ');
-
-      const sql = `UPDATE ${schema}.leads SET ${setClause}, updated_at = now() WHERE id = '${leadId}'`;
-      console.log('🔧 SQL de atualização:', sql);
-
-      const { error } = await supabase.rpc('exec_sql' as any, {
-        sql: sql
+      const { data: success, error } = await supabase.rpc('update_tenant_lead', {
+        p_lead_id: leadId,
+        p_name: updatedLeadData.name,
+        p_email: updatedLeadData.email,
+        p_phone: updatedLeadData.phone,
+        p_state: updatedLeadData.state,
+        p_source: updatedLeadData.source,
+        p_status: updatedLeadData.status,
+        p_action_group: updatedLeadData.action_group,
+        p_action_type: updatedLeadData.action_type,
+        p_value: updatedLeadData.value,
+        p_description: updatedLeadData.description,
+        p_loss_reason: updatedLeadData.loss_reason
       });
 
       if (error) {
-        console.error('❌ Erro ao atualizar lead:', error);
+        console.error('❌ Error updating lead:', error);
         toast({
           title: "Erro",
           description: "Não foi possível atualizar o lead.",
@@ -154,17 +127,17 @@ export function useLeadsData() {
       }
 
       setLeads(prev => prev.map(lead => 
-        lead.id === leadId ? { ...lead, ...validUpdates } : lead
+        lead.id === leadId ? { ...lead, ...updates } : lead
       ));
 
-      console.log(`✅ useLeadsData - Lead ${leadId} atualizado com sucesso`);
+      console.log(`✅ useLeadsData - Lead ${leadId} updated successfully`);
       toast({
         title: "Sucesso",
         description: "Lead atualizado com sucesso.",
       });
       return true;
     } catch (error) {
-      console.error('❌ Erro inesperado ao atualizar lead:', error);
+      console.error('❌ Unexpected error updating lead:', error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado ao atualizar o lead.",
@@ -172,13 +145,11 @@ export function useLeadsData() {
       });
       return false;
     }
-  }, [tenantSchema, ensureTenantSchema, toast]);
+  }, [leads, toast]);
 
   useEffect(() => {
-    if (tenantSchema && !fetchingRef.current) {
-      fetchLeads();
-    }
-  }, [tenantSchema, fetchLeads]);
+    fetchLeads();
+  }, [fetchLeads]);
 
   useEffect(() => {
     return () => {
