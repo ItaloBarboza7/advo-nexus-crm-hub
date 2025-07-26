@@ -273,33 +273,33 @@ export function KanbanView({ leads, statuses, onLeadUpdated, onViewDetails, orig
                 return (
                   <Card 
                     key={lead.id} 
-                    className="p-4 cursor-grab hover:shadow-md transition-shadow active:cursor-grabbing"
+                    className="p-3 cursor-grab hover:shadow-md transition-shadow active:cursor-grabbing"
                     draggable
                     onDragStart={(e) => handleDragStart(e, lead)}
                   >
                     <div className="flex items-center gap-2 mb-2">
-                      <div className="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold">
+                      <div className="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0">
                         {lead.avatar}
                       </div>
-                      <div className="flex-1">
-                        <h4 className="font-medium text-sm text-gray-900">{lead.name}</h4>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-sm text-gray-900 truncate">{lead.name}</h4>
                         <div className="flex items-center gap-1 text-xs">
-                          <DollarSign className="h-3 w-3 text-green-600" />
-                          <span className="text-green-600 font-medium">{lead.value}</span>
+                          <DollarSign className="h-3 w-3 text-green-600 flex-shrink-0" />
+                          <span className="text-green-600 font-medium truncate">{lead.value}</span>
                         </div>
                       </div>
                     </div>
                     <div className="space-y-1 text-xs text-gray-600">
                       <div className="flex items-center gap-1">
-                        <Mail className="h-3 w-3" />
+                        <Mail className="h-3 w-3 flex-shrink-0" />
                         <span className="truncate">{lead.email}</span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <Phone className="h-3 w-3" />
-                        <span>{lead.phone}</span>
+                        <Phone className="h-3 w-3 flex-shrink-0" />
+                        <span className="truncate">{lead.phone}</span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3" />
+                        <MapPin className="h-3 w-3 flex-shrink-0" />
                         <span className="truncate">{lead.company}</span>
                       </div>
                     </div>
@@ -308,27 +308,27 @@ export function KanbanView({ leads, statuses, onLeadUpdated, onViewDetails, orig
                       <p className="text-xs text-gray-600">
                         Grupo de ação: <span className="font-semibold">{actionGroup}</span>
                       </p>
-                      <p className="text-xs text-gray-500">{lead.interest}</p>
+                      <p className="text-xs text-gray-500 truncate">{lead.interest}</p>
                       <p className="text-xs text-gray-400">Último contato: {lead.lastContact}</p>
                     </div>
-                    <div className="mt-2 flex gap-1">
+                    <div className="mt-3 flex flex-col sm:flex-row gap-2">
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        className="flex-1 text-xs"
+                        className="flex-1 text-xs min-w-0 px-2"
                         onClick={() => handleViewDetails(lead)}
                       >
-                        <Eye className="h-3 w-3 mr-1" />
-                        Ver
+                        <Eye className="h-3 w-3 mr-1 flex-shrink-0" />
+                        <span className="truncate">Ver</span>
                       </Button>
                       <Button 
                         variant="destructive"
                         size="sm" 
-                        className="flex-1 text-xs"
+                        className="flex-1 text-xs min-w-0 px-2"
                         onClick={() => handleDeleteLead(lead.originalId, lead.name)}
                       >
-                        <Trash2 className="h-3 w-3 mr-1" />
-                        Excluir
+                        <Trash2 className="h-3 w-3 mr-1 flex-shrink-0" />
+                        <span className="truncate">Excluir</span>
                       </Button>
                     </div>
                   </Card>
