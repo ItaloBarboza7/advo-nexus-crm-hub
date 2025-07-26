@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useTenantSchema } from '@/hooks/useTenantSchema';
 
 interface LeadUpdateData {
   name: string;
@@ -32,23 +33,34 @@ interface LeadCreateData {
 export function useTenantLeadOperations() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { tenantSchema } = useTenantSchema();
 
   const createLead = async (leadData: LeadCreateData): Promise<boolean> => {
+    if (!tenantSchema) {
+      console.error('❌ No tenant schema available for create');
+      return false;
+    }
+
     try {
       setIsLoading(true);
-      console.log(`🔄 useTenantLeadOperations - Creating lead using secure function...`);
+      console.log(`🔄 useTenantLeadOperations - Creating lead in schema ${tenantSchema}...`);
       
-      const { data: leadId, error } = await (supabase as any).rpc('create_tenant_lead', {
-        p_name: leadData.name,
-        p_email: leadData.email || null,
-        p_phone: leadData.phone,
-        p_description: leadData.description || null,
-        p_source: leadData.source || null,
-        p_state: leadData.state || null,
-        p_action_group: leadData.action_group || null,
-        p_action_type: leadData.action_type || null,
-        p_value: leadData.value || null
-      });
+      const { data, error } = await supabase
+        .from(`${tenantSchema}.leads`)
+        .insert([{
+          name: leadData.name,
+          email: leadData.email || null,
+          phone: leadData.phone,
+          description: leadData.description || null,
+          source: leadData.source || null,
+          state: leadData.state || null,
+          action_group: leadData.action_group || null,
+          action_type: leadData.action_type || null,
+          value: leadData.value || null,
+          status: 'Novo'
+        }])
+        .select()
+        .single();
 
       if (error) {
         console.error('❌ Error creating lead:', error);
@@ -60,7 +72,7 @@ export function useTenantLeadOperations() {
         return false;
       }
 
-      console.log('✅ useTenantLeadOperations - Lead created successfully:', leadId);
+      console.log('✅ useTenantLeadOperations - Lead created successfully:', data.id);
       toast({
         title: "Sucesso",
         description: "Lead criado com sucesso.",
@@ -80,24 +92,31 @@ export function useTenantLeadOperations() {
   };
 
   const updateLead = async (leadId: string, leadData: LeadUpdateData): Promise<boolean> => {
+    if (!tenantSchema) {
+      console.error('❌ No tenant schema available for update');
+      return false;
+    }
+
     try {
       setIsLoading(true);
-      console.log(`🔄 useTenantLeadOperations - Updating lead ${leadId} using secure function...`);
+      console.log(`🔄 useTenantLeadOperations - Updating lead ${leadId} in schema ${tenantSchema}...`);
       
-      const { data: success, error } = await (supabase as any).rpc('update_tenant_lead', {
-        p_lead_id: leadId,
-        p_name: leadData.name,
-        p_email: leadData.email,
-        p_phone: leadData.phone,
-        p_state: leadData.state,
-        p_source: leadData.source,
-        p_status: leadData.status,
-        p_action_group: leadData.action_group,
-        p_action_type: leadData.action_type,
-        p_value: leadData.value,
-        p_description: leadData.description,
-        p_loss_reason: leadData.loss_reason
-      });
+      const { error } = await supabase
+        .from(`${tenantSchema}.leads`)
+        .update({
+          name: leadData.name,
+          email: leadData.email,
+          phone: leadData.phone,
+          state: leadData.state,
+          source: leadData.source,
+          status: leadData.status,
+          action_group: leadData.action_group,
+          action_type: leadData.action_type,
+          value: leadData.value,
+          description: leadData.description,
+          loss_reason: leadData.loss_reason
+        })
+        .eq('id', leadId);
 
       if (error) {
         console.error('❌ Error updating lead:', error);

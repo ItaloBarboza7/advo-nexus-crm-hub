@@ -3,14 +3,15 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
-import { TenantLead } from "@/types/supabase-rpc";
 import { useLossReasonsGlobal } from "@/hooks/useLossReasonsGlobal";
+import { useTenantSchema } from "@/hooks/useTenantSchema";
 
 export function useLeadsData() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const { lossReasons } = useLossReasonsGlobal();
+  const { tenantSchema } = useTenantSchema();
   const fetchingRef = useRef(false);
   const mountedRef = useRef(true);
   const lastFetchTimeRef = useRef(0);
@@ -19,6 +20,11 @@ export function useLeadsData() {
   const FETCH_DEBOUNCE_MS = 1000;
 
   const fetchLeads = useCallback(async () => {
+    if (!tenantSchema) {
+      console.log("🚫 useLeadsData - No tenant schema available");
+      return;
+    }
+
     const now = Date.now();
     if (fetchingRef.current || (now - lastFetchTimeRef.current) < FETCH_DEBOUNCE_MS) {
       console.log("🚫 useLeadsData - Fetch skipped (debounce or already fetching)");
@@ -29,9 +35,12 @@ export function useLeadsData() {
       fetchingRef.current = true;
       lastFetchTimeRef.current = now;
       setIsLoading(true);
-      console.log("📊 useLeadsData - Fetching leads using secure function...");
+      console.log("📊 useLeadsData - Fetching leads from tenant schema:", tenantSchema);
       
-      const { data, error } = await (supabase as any).rpc('get_tenant_leads');
+      const { data, error } = await supabase
+        .from(`${tenantSchema}.leads`)
+        .select('*')
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('❌ Error fetching leads:', error);
@@ -45,7 +54,7 @@ export function useLeadsData() {
         return;
       }
 
-      const transformedLeads: Lead[] = (data as TenantLead[] || []).map((lead: TenantLead) => ({
+      const transformedLeads: Lead[] = (data || []).map((lead: any) => ({
         ...lead,
         company: undefined,
         interest: undefined,
@@ -53,7 +62,7 @@ export function useLeadsData() {
         avatar: undefined,
       }));
 
-      console.log(`✅ useLeadsData - ${transformedLeads.length} leads loaded securely`);
+      console.log(`✅ useLeadsData - ${transformedLeads.length} leads loaded from tenant schema`);
       if (mountedRef.current) {
         setLeads(prev => {
           // Only update if data has actually changed
@@ -78,7 +87,7 @@ export function useLeadsData() {
       }
       fetchingRef.current = false;
     }
-  }, [toast]);
+  }, [toast, tenantSchema]);
 
   // Memoize refresh function to prevent recreation
   const refreshData = useMemo(() => {
@@ -89,33 +98,18 @@ export function useLeadsData() {
   }, [fetchLeads]);
 
   const updateLead = useCallback(async (leadId: string, updates: Partial<Lead>) => {
+    if (!tenantSchema) {
+      console.error('❌ No tenant schema available for update');
+      return false;
+    }
+
     try {
-      console.log(`📝 useLeadsData - Updating lead ${leadId}:`, updates);
+      console.log(`📝 useLeadsData - Updating lead ${leadId} in schema ${tenantSchema}:`, updates);
       
-      // Get current lead data first
-      const currentLead = leads.find(lead => lead.id === leadId);
-      if (!currentLead) {
-        console.error('❌ Lead not found in current data');
-        return false;
-      }
-
-      // Merge updates with current data
-      const updatedLeadData = { ...currentLead, ...updates };
-
-      const { data: success, error } = await (supabase as any).rpc('update_tenant_lead', {
-        p_lead_id: leadId,
-        p_name: updatedLeadData.name,
-        p_email: updatedLeadData.email,
-        p_phone: updatedLeadData.phone,
-        p_state: updatedLeadData.state,
-        p_source: updatedLeadData.source,
-        p_status: updatedLeadData.status,
-        p_action_group: updatedLeadData.action_group,
-        p_action_type: updatedLeadData.action_type,
-        p_value: updatedLeadData.value,
-        p_description: updatedLeadData.description,
-        p_loss_reason: updatedLeadData.loss_reason
-      });
+      const { error } = await supabase
+        .from(`${tenantSchema}.leads`)
+        .update(updates)
+        .eq('id', leadId);
 
       if (error) {
         console.error('❌ Error updating lead:', error);
@@ -146,11 +140,13 @@ export function useLeadsData() {
       });
       return false;
     }
-  }, [leads, toast]);
+  }, [tenantSchema, toast]);
 
   useEffect(() => {
-    fetchLeads();
-  }, [fetchLeads]);
+    if (tenantSchema) {
+      fetchLeads();
+    }
+  }, [fetchLeads, tenantSchema]);
 
   useEffect(() => {
     return () => {

@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { TenantKanbanColumn } from '@/types/supabase-rpc';
+import { useTenantSchema } from '@/hooks/useTenantSchema';
 
 export interface KanbanColumn {
   id: string;
@@ -19,14 +19,23 @@ export function useSecureTenantKanban() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const { tenantSchema } = useTenantSchema();
 
   const fetchColumns = useCallback(async () => {
+    if (!tenantSchema) {
+      console.log("🚫 useSecureTenantKanban - No tenant schema available");
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);
-      console.log("📊 useSecureTenantKanban - Fetching kanban columns using secure function...");
+      console.log("📊 useSecureTenantKanban - Fetching kanban columns from tenant schema:", tenantSchema);
       
-      const { data, error } = await (supabase as any).rpc('get_tenant_kanban_columns');
+      const { data, error } = await supabase
+        .from(`${tenantSchema}.kanban_columns`)
+        .select('*')
+        .order('order_position', { ascending: true });
       
       if (error) {
         console.error('❌ Error fetching kanban columns:', error);
@@ -39,7 +48,7 @@ export function useSecureTenantKanban() {
         return;
       }
 
-      const columnsData = (data as TenantKanbanColumn[] || []).map(col => ({
+      const columnsData = (data || []).map(col => ({
         ...col,
         order_position: col.order_position
       }));
@@ -57,11 +66,13 @@ export function useSecureTenantKanban() {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [toast, tenantSchema]);
 
   useEffect(() => {
-    fetchColumns();
-  }, [fetchColumns]);
+    if (tenantSchema) {
+      fetchColumns();
+    }
+  }, [fetchColumns, tenantSchema]);
 
   return {
     columns,

@@ -1,52 +1,48 @@
 
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { TenantLead } from "@/types/supabase-rpc";
 import { supabase } from "@/integrations/supabase/client";
+import { useTenantSchema } from "@/hooks/useTenantSchema";
 
 export function useLeadStatusUpdate() {
   const [isUpdating, setIsUpdating] = useState(false);
   const { toast } = useToast();
+  const { tenantSchema } = useTenantSchema();
 
   const updateLeadStatus = async (
     leadId: string, 
     newStatus: string, 
     lossReason?: string
   ): Promise<boolean> => {
+    if (!tenantSchema) {
+      console.error('❌ No tenant schema available for status update');
+      return false;
+    }
+
     try {
       setIsUpdating(true);
-      console.log(`🔄 useLeadStatusUpdate - Updating lead ${leadId} status to ${newStatus} using secure function...`);
+      console.log(`🔄 useLeadStatusUpdate - Updating lead ${leadId} status to ${newStatus} in schema ${tenantSchema}`);
       
       // First get the current lead data
-      const { data: leads, error: fetchError } = await (supabase as any).rpc('get_tenant_leads');
+      const { data: currentLead, error: fetchError } = await supabase
+        .from(`${tenantSchema}.leads`)
+        .select('*')
+        .eq('id', leadId)
+        .single();
       
-      if (fetchError) {
+      if (fetchError || !currentLead) {
         console.error('❌ Error fetching lead data:', fetchError);
         return false;
       }
 
-      const currentLead = (leads as TenantLead[] || []).find((lead) => lead.id === leadId);
-      
-      if (!currentLead) {
-        console.error('❌ Lead not found');
-        return false;
-      }
-
       // Update the lead with the new status
-      const { data: success, error } = await (supabase as any).rpc('update_tenant_lead', {
-        p_lead_id: leadId,
-        p_name: currentLead.name,
-        p_email: currentLead.email,
-        p_phone: currentLead.phone,
-        p_state: currentLead.state,
-        p_source: currentLead.source,
-        p_status: newStatus,
-        p_action_group: currentLead.action_group,
-        p_action_type: currentLead.action_type,
-        p_value: currentLead.value,
-        p_description: currentLead.description,
-        p_loss_reason: newStatus === "Perdido" ? lossReason : null
-      });
+      const { error } = await supabase
+        .from(`${tenantSchema}.leads`)
+        .update({
+          status: newStatus,
+          loss_reason: newStatus === "Perdido" ? lossReason : null
+        })
+        .eq('id', leadId);
 
       if (error) {
         console.error('❌ Error updating lead status:', error);

@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Lead } from '@/types/lead';
-import { TenantLead, TenantKanbanColumn } from '@/types/supabase-rpc';
+import { useTenantSchema } from '@/hooks/useTenantSchema';
 
 interface KanbanColumn {
   id: string;
@@ -21,17 +21,29 @@ export function useSecureTenantData() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const { tenantSchema } = useTenantSchema();
 
   const fetchData = useCallback(async () => {
+    if (!tenantSchema) {
+      console.log("🚫 useSecureTenantData - No tenant schema available");
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);
-      console.log("🔄 useSecureTenantData - Fetching tenant data using secure functions...");
+      console.log("🔄 useSecureTenantData - Fetching tenant data from schema:", tenantSchema);
       
       // Fetch leads and columns in parallel
       const [leadsResult, columnsResult] = await Promise.all([
-        (supabase as any).rpc('get_tenant_leads'),
-        (supabase as any).rpc('get_tenant_kanban_columns')
+        supabase
+          .from(`${tenantSchema}.leads`)
+          .select('*')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from(`${tenantSchema}.kanban_columns`)
+          .select('*')
+          .order('order_position', { ascending: true })
       ]);
 
       if (leadsResult.error) {
@@ -45,7 +57,7 @@ export function useSecureTenantData() {
       }
 
       // Transform leads data
-      const transformedLeads: Lead[] = (leadsResult.data as TenantLead[] || []).map((lead) => ({
+      const transformedLeads: Lead[] = (leadsResult.data || []).map((lead: any) => ({
         ...lead,
         company: undefined,
         interest: undefined,
@@ -53,10 +65,10 @@ export function useSecureTenantData() {
         avatar: undefined,
       }));
 
-      console.log(`✅ useSecureTenantData - ${transformedLeads.length} leads and ${(columnsResult.data as TenantKanbanColumn[] || []).length} columns loaded successfully`);
+      console.log(`✅ useSecureTenantData - ${transformedLeads.length} leads and ${(columnsResult.data || []).length} columns loaded successfully`);
       
       setLeads(transformedLeads);
-      setColumns(columnsResult.data as TenantKanbanColumn[] || []);
+      setColumns(columnsResult.data || []);
 
     } catch (error: any) {
       console.error('❌ Error fetching tenant data:', error);
@@ -69,7 +81,7 @@ export function useSecureTenantData() {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [toast, tenantSchema]);
 
   const createLead = useCallback(async (leadData: {
     name: string;
@@ -82,21 +94,31 @@ export function useSecureTenantData() {
     action_type?: string;
     value?: number;
   }): Promise<string | null> => {
+    if (!tenantSchema) {
+      console.error('❌ No tenant schema available for create');
+      return null;
+    }
+
     try {
       setIsLoading(true);
-      console.log("🔄 useSecureTenantData - Creating lead using secure function...");
+      console.log("🔄 useSecureTenantData - Creating lead in schema:", tenantSchema);
       
-      const { data: leadId, error } = await (supabase as any).rpc('create_tenant_lead', {
-        p_name: leadData.name,
-        p_email: leadData.email || null,
-        p_phone: leadData.phone,
-        p_description: leadData.description || null,
-        p_source: leadData.source || null,
-        p_state: leadData.state || null,
-        p_action_group: leadData.action_group || null,
-        p_action_type: leadData.action_type || null,
-        p_value: leadData.value || null
-      });
+      const { data, error } = await supabase
+        .from(`${tenantSchema}.leads`)
+        .insert([{
+          name: leadData.name,
+          email: leadData.email || null,
+          phone: leadData.phone,
+          description: leadData.description || null,
+          source: leadData.source || null,
+          state: leadData.state || null,
+          action_group: leadData.action_group || null,
+          action_type: leadData.action_type || null,
+          value: leadData.value || null,
+          status: 'Novo'
+        }])
+        .select()
+        .single();
 
       if (error) {
         console.error('❌ Error creating lead:', error);
@@ -108,7 +130,7 @@ export function useSecureTenantData() {
         return null;
       }
 
-      console.log('✅ useSecureTenantData - Lead created successfully:', leadId);
+      console.log('✅ useSecureTenantData - Lead created successfully:', data.id);
       toast({
         title: "Sucesso",
         description: "Lead criado com sucesso.",
@@ -117,7 +139,7 @@ export function useSecureTenantData() {
       // Refresh data
       await fetchData();
       
-      return leadId as string;
+      return data.id;
     } catch (error: any) {
       console.error('❌ Unexpected error creating lead:', error);
       toast({
@@ -129,7 +151,7 @@ export function useSecureTenantData() {
     } finally {
       setIsLoading(false);
     }
-  }, [toast, fetchData]);
+  }, [toast, fetchData, tenantSchema]);
 
   const updateLead = useCallback(async (leadId: string, leadData: {
     name: string;
@@ -144,24 +166,31 @@ export function useSecureTenantData() {
     description?: string;
     loss_reason?: string;
   }): Promise<boolean> => {
+    if (!tenantSchema) {
+      console.error('❌ No tenant schema available for update');
+      return false;
+    }
+
     try {
       setIsLoading(true);
-      console.log(`🔄 useSecureTenantData - Updating lead ${leadId} using secure function...`);
+      console.log(`🔄 useSecureTenantData - Updating lead ${leadId} in schema ${tenantSchema}`);
       
-      const { data: success, error } = await (supabase as any).rpc('update_tenant_lead', {
-        p_lead_id: leadId,
-        p_name: leadData.name,
-        p_email: leadData.email || null,
-        p_phone: leadData.phone,
-        p_state: leadData.state || null,
-        p_source: leadData.source || null,
-        p_status: leadData.status,
-        p_action_group: leadData.action_group || null,
-        p_action_type: leadData.action_type || null,
-        p_value: leadData.value || null,
-        p_description: leadData.description || null,
-        p_loss_reason: leadData.loss_reason || null
-      });
+      const { error } = await supabase
+        .from(`${tenantSchema}.leads`)
+        .update({
+          name: leadData.name,
+          email: leadData.email || null,
+          phone: leadData.phone,
+          state: leadData.state || null,
+          source: leadData.source || null,
+          status: leadData.status,
+          action_group: leadData.action_group || null,
+          action_type: leadData.action_type || null,
+          value: leadData.value || null,
+          description: leadData.description || null,
+          loss_reason: leadData.loss_reason || null
+        })
+        .eq('id', leadId);
 
       if (error) {
         console.error('❌ Error updating lead:', error);
@@ -194,11 +223,13 @@ export function useSecureTenantData() {
     } finally {
       setIsLoading(false);
     }
-  }, [toast, fetchData]);
+  }, [toast, fetchData, tenantSchema]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (tenantSchema) {
+      fetchData();
+    }
+  }, [fetchData, tenantSchema]);
 
   return {
     leads,
