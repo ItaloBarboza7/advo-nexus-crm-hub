@@ -52,33 +52,36 @@ export function SecureTenantDashboard() {
     }));
   }, [columns]);
 
+  // Filter leads for search
+  const filteredLeads = useMemo(() => {
+    return leads.filter(lead => 
+      lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (lead.email && lead.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      lead.phone.includes(searchTerm)
+    );
+  }, [leads, searchTerm]);
+
   // Transform leads for the views
   const transformedLeads: TransformedLead[] = useMemo(() => {
-    return leads
-      .filter(lead => 
-        lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (lead.email && lead.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        lead.phone.includes(searchTerm)
-      )
-      .map((lead, index) => ({
-        id: index + 1,
-        name: lead.name,
-        email: lead.email || '',
-        phone: lead.phone,
-        company: lead.state || '',
-        source: lead.source || '',
-        status: lead.status,
-        interest: lead.action_group || 'Outros',
-        value: new Intl.NumberFormat('pt-BR', {
-          style: 'currency',
-          currency: 'BRL'
-        }).format(lead.value || 0),
-        lastContact: new Date(lead.created_at).toLocaleDateString('pt-BR'),
-        avatar: lead.name.charAt(0).toUpperCase(),
-        originalId: lead.id,
-        numericValue: lead.value || 0
-      }));
-  }, [leads, searchTerm]);
+    return filteredLeads.map((lead, index) => ({
+      id: index + 1,
+      name: lead.name,
+      email: lead.email || '',
+      phone: lead.phone,
+      company: lead.state || '',
+      source: lead.source || '',
+      status: lead.status,
+      interest: lead.action_group || 'Outros',
+      value: new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+      }).format(lead.value || 0),
+      lastContact: new Date(lead.created_at).toLocaleDateString('pt-BR'),
+      avatar: lead.name.charAt(0).toUpperCase(),
+      originalId: lead.id,
+      numericValue: lead.value || 0
+    }));
+  }, [filteredLeads]);
 
   const handleLeadUpdated = () => {
     console.log("🔄 SecureTenantDashboard - Lead updated, refreshing data...");
@@ -90,11 +93,10 @@ export function SecureTenantDashboard() {
     setIsLeadDetailsOpen(true);
   };
 
-  const handleNewLead = async (leadData: any) => {
-    const success = await createLead(leadData);
-    if (success) {
-      setIsNewLeadFormOpen(false);
-    }
+  const handleNewLeadCreated = async () => {
+    console.log("🔄 SecureTenantDashboard - New lead created, refreshing data...");
+    await fetchData();
+    setIsNewLeadFormOpen(false);
   };
 
   // Loading state
@@ -234,14 +236,14 @@ export function SecureTenantDashboard() {
           statuses={statusConfigs}
           onLeadUpdated={handleLeadUpdated}
           onViewDetails={handleViewDetails}
-          originalLeads={leads}
+          originalLeads={filteredLeads}
         />
       ) : (
         <LeadsListView
           leads={transformedLeads}
           onLeadUpdated={handleLeadUpdated}
           onViewDetails={handleViewDetails}
-          originalLeads={leads}
+          originalLeads={filteredLeads}
         />
       )}
 
@@ -249,7 +251,7 @@ export function SecureTenantDashboard() {
       <NewLeadForm
         open={isNewLeadFormOpen}
         onOpenChange={setIsNewLeadFormOpen}
-        onLeadCreated={handleNewLead}
+        onLeadCreated={handleNewLeadCreated}
       />
 
       {selectedLead && (
