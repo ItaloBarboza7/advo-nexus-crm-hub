@@ -240,10 +240,16 @@ export function SecureTenantDashboard() {
         />
       ) : (
         <LeadsListView
-          leads={transformedLeads}
-          onLeadUpdated={handleLeadUpdated}
+          leads={filteredLeads}
           onViewDetails={handleViewDetails}
-          originalLeads={filteredLeads}
+          onEditStatus={handleViewDetails}
+          onDeleteLead={() => {}}
+          getStatusColor={() => ""}
+          formatDate={(date) => new Date(date).toLocaleDateString('pt-BR')}
+          formatCurrency={(value) => new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+          }).format(value || 0)}
         />
       )}
 
