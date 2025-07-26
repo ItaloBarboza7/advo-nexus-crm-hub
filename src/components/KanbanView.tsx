@@ -311,24 +311,24 @@ export function KanbanView({ leads, statuses, onLeadUpdated, onViewDetails, orig
                       <p className="text-xs text-gray-500 truncate">{lead.interest}</p>
                       <p className="text-xs text-gray-400">Último contato: {lead.lastContact}</p>
                     </div>
-                    <div className="mt-3 flex gap-2">
+                    <div className="mt-3 flex flex-col sm:flex-row gap-2">
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        className="flex-1 text-xs px-2"
+                        className="flex-1 text-xs min-w-0 px-2"
                         onClick={() => handleViewDetails(lead)}
                       >
-                        <Eye className="h-3 w-3 flex-shrink-0" />
-                        <span className="ml-1 hidden sm:inline">Ver</span>
+                        <Eye className="h-3 w-3 mr-1 flex-shrink-0" />
+                        <span className="truncate">Ver</span>
                       </Button>
                       <Button 
                         variant="destructive"
                         size="sm" 
-                        className="flex-1 text-xs px-2"
+                        className="flex-1 text-xs min-w-0 px-2"
                         onClick={() => handleDeleteLead(lead.originalId, lead.name)}
                       >
-                        <Trash2 className="h-3 w-3 flex-shrink-0" />
-                        <span className="ml-1 hidden sm:inline">Excluir</span>
+                        <Trash2 className="h-3 w-3 mr-1 flex-shrink-0" />
+                        <span className="truncate">Excluir</span>
                       </Button>
                     </div>
                   </Card>

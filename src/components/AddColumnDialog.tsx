@@ -16,14 +16,21 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenantSchema } from "@/hooks/useTenantSchema";
 import { Trash2 } from "lucide-react";
-import { KanbanColumn } from "@/hooks/useKanbanColumnManager";
+
+interface KanbanColumn {
+  id: string;
+  name: string;
+  color: string;
+  order_position: number;
+  is_default: boolean;
+}
 
 interface AddColumnDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddColumn: () => void;
+  onAddColumn: () => void; // Simplified to just notify completion
   maxOrder: number;
-  columns: KanbanColumn[];
+  columns: KanbanColumn[]; // Receive columns from parent
 }
 
 export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder, columns }: AddColumnDialogProps) {
@@ -57,7 +64,8 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder, column
 
       let safeOrder = Math.max(1, Math.min(columnOrder, maxOrder + 1));
 
-      const { error } = await supabase.rpc('exec_sql', {
+      // SEMPRE usar o esquema do tenant - nunca a tabela global
+      const { error } = await supabase.rpc('exec_sql' as any, {
         sql: `INSERT INTO ${schema}.kanban_columns (name, color, order_position, is_default) VALUES ('${columnName.trim()}', '${columnColor}', ${safeOrder}, false)`
       });
 
@@ -82,7 +90,7 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder, column
       setColumnColor("#3B82F6");
       setColumnOrder(defaultOrder);
       
-      // Notify parent to refresh
+      // Notify parent to refresh - ONLY ONE CALL
       onAddColumn();
     } catch (error) {
       console.error('❌ Erro inesperado ao criar coluna no tenant:', error);
@@ -124,7 +132,8 @@ export function AddColumnDialog({ isOpen, onClose, onAddColumn, maxOrder, column
         return;
       }
 
-      const { error } = await supabase.rpc('exec_sql', {
+      // SEMPRE usar o esquema do tenant - nunca a tabela global
+      const { error } = await supabase.rpc('exec_sql' as any, {
         sql: `DELETE FROM ${schema}.kanban_columns WHERE id = '${columnToDelete.id}'`
       });
 
