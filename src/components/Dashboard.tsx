@@ -3,7 +3,10 @@ import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { SecureTenantDashboard } from "@/components/SecureTenantDashboard";
 
 export function Dashboard() {
-  const { canViewDashboard } = useUserPermissions();
+  const { hasPermission } = useUserPermissions();
+  
+  // Check if user has dashboard permission using the generic hasPermission function
+  const canViewDashboard = hasPermission('dashboard', 'view');
 
   if (!canViewDashboard) {
     return (

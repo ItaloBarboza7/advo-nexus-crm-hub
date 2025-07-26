@@ -257,7 +257,6 @@ export function SecureTenantDashboard() {
           lead={selectedLead}
           open={isLeadDetailsOpen}
           onOpenChange={setIsLeadDetailsOpen}
-          onLeadUpdated={handleLeadUpdated}
         />
       )}
     </div>

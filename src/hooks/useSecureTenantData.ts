@@ -63,7 +63,7 @@ export function useSecureTenantData() {
       }
 
       // Transform leads data
-      const transformedLeads: Lead[] = (leadsResult.data as TenantLead[] || []).map((lead) => ({
+      const transformedLeads: Lead[] = (leadsResult.data || []).map((lead) => ({
         ...lead,
         company: undefined,
         interest: undefined,
@@ -74,7 +74,7 @@ export function useSecureTenantData() {
       console.log(`✅ useSecureTenantData - ${transformedLeads.length} leads and ${columnsResult.data?.length || 0} columns loaded successfully`);
       
       setLeads(transformedLeads);
-      setColumns(columnsResult.data as KanbanColumn[] || []);
+      setColumns(columnsResult.data || []);
 
     } catch (error: any) {
       console.error('❌ Error fetching tenant data:', error);
