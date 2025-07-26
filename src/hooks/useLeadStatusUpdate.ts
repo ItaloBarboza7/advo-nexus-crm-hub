@@ -1,26 +1,8 @@
 
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { TenantLead } from "@/types/supabase-rpc";
 import { supabase } from "@/integrations/supabase/client";
-
-interface TenantLead {
-  id: string;
-  name: string;
-  email: string | null;
-  phone: string;
-  description: string | null;
-  source: string | null;
-  state: string | null;
-  status: string;
-  action_group: string | null;
-  action_type: string | null;
-  loss_reason: string | null;
-  value: number | null;
-  user_id: string;
-  closed_by_user_id: string | null;
-  created_at: string;
-  updated_at: string;
-}
 
 export function useLeadStatusUpdate() {
   const [isUpdating, setIsUpdating] = useState(false);
@@ -36,7 +18,7 @@ export function useLeadStatusUpdate() {
       console.log(`🔄 useLeadStatusUpdate - Updating lead ${leadId} status to ${newStatus} using secure function...`);
       
       // First get the current lead data
-      const { data: leads, error: fetchError } = await supabase.rpc('get_tenant_leads');
+      const { data: leads, error: fetchError } = await (supabase as any).rpc('get_tenant_leads');
       
       if (fetchError) {
         console.error('❌ Error fetching lead data:', fetchError);
@@ -51,7 +33,7 @@ export function useLeadStatusUpdate() {
       }
 
       // Update the lead with the new status
-      const { data: success, error } = await supabase.rpc('update_tenant_lead', {
+      const { data: success, error } = await (supabase as any).rpc('update_tenant_lead', {
         p_lead_id: leadId,
         p_name: currentLead.name,
         p_email: currentLead.email,

@@ -3,25 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Lead } from '@/types/lead';
-
-interface TenantLead {
-  id: string;
-  name: string;
-  email: string | null;
-  phone: string;
-  description: string | null;
-  source: string | null;
-  state: string | null;
-  status: string;
-  action_group: string | null;
-  action_type: string | null;
-  loss_reason: string | null;
-  value: number | null;
-  user_id: string;
-  closed_by_user_id: string | null;
-  created_at: string;
-  updated_at: string;
-}
+import { TenantLead, TenantKanbanColumn } from '@/types/supabase-rpc';
 
 interface KanbanColumn {
   id: string;
@@ -48,8 +30,8 @@ export function useSecureTenantData() {
       
       // Fetch leads and columns in parallel
       const [leadsResult, columnsResult] = await Promise.all([
-        supabase.rpc('get_tenant_leads'),
-        supabase.rpc('get_tenant_kanban_columns')
+        (supabase as any).rpc('get_tenant_leads'),
+        (supabase as any).rpc('get_tenant_kanban_columns')
       ]);
 
       if (leadsResult.error) {
@@ -63,7 +45,7 @@ export function useSecureTenantData() {
       }
 
       // Transform leads data
-      const transformedLeads: Lead[] = (leadsResult.data || []).map((lead) => ({
+      const transformedLeads: Lead[] = (leadsResult.data as TenantLead[] || []).map((lead) => ({
         ...lead,
         company: undefined,
         interest: undefined,
@@ -71,10 +53,10 @@ export function useSecureTenantData() {
         avatar: undefined,
       }));
 
-      console.log(`✅ useSecureTenantData - ${transformedLeads.length} leads and ${columnsResult.data?.length || 0} columns loaded successfully`);
+      console.log(`✅ useSecureTenantData - ${transformedLeads.length} leads and ${(columnsResult.data as TenantKanbanColumn[] || []).length} columns loaded successfully`);
       
       setLeads(transformedLeads);
-      setColumns(columnsResult.data || []);
+      setColumns(columnsResult.data as TenantKanbanColumn[] || []);
 
     } catch (error: any) {
       console.error('❌ Error fetching tenant data:', error);
@@ -104,7 +86,7 @@ export function useSecureTenantData() {
       setIsLoading(true);
       console.log("🔄 useSecureTenantData - Creating lead using secure function...");
       
-      const { data: leadId, error } = await supabase.rpc('create_tenant_lead', {
+      const { data: leadId, error } = await (supabase as any).rpc('create_tenant_lead', {
         p_name: leadData.name,
         p_email: leadData.email || null,
         p_phone: leadData.phone,
@@ -166,7 +148,7 @@ export function useSecureTenantData() {
       setIsLoading(true);
       console.log(`🔄 useSecureTenantData - Updating lead ${leadId} using secure function...`);
       
-      const { data: success, error } = await supabase.rpc('update_tenant_lead', {
+      const { data: success, error } = await (supabase as any).rpc('update_tenant_lead', {
         p_lead_id: leadId,
         p_name: leadData.name,
         p_email: leadData.email || null,

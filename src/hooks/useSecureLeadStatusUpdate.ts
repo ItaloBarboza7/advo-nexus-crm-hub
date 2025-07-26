@@ -27,7 +27,7 @@ export function useSecureLeadStatusUpdate() {
       setIsUpdating(true);
       console.log(`🔄 useSecureLeadStatusUpdate - Updating lead ${leadId} using secure function...`);
       
-      const { data: success, error } = await supabase.rpc('update_tenant_lead', {
+      const { data: success, error } = await (supabase as any).rpc('update_tenant_lead', {
         p_lead_id: leadId,
         p_name: leadData.name,
         p_email: leadData.email || null,

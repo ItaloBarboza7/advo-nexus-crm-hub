@@ -3,26 +3,8 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
+import { TenantLead } from "@/types/supabase-rpc";
 import { useLossReasonsGlobal } from "@/hooks/useLossReasonsGlobal";
-
-interface TenantLead {
-  id: string;
-  name: string;
-  email: string | null;
-  phone: string;
-  description: string | null;
-  source: string | null;
-  state: string | null;
-  status: string;
-  action_group: string | null;
-  action_type: string | null;
-  loss_reason: string | null;
-  value: number | null;
-  user_id: string;
-  closed_by_user_id: string | null;
-  created_at: string;
-  updated_at: string;
-}
 
 export function useLeadsData() {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -49,7 +31,7 @@ export function useLeadsData() {
       setIsLoading(true);
       console.log("📊 useLeadsData - Fetching leads using secure function...");
       
-      const { data, error } = await supabase.rpc('get_tenant_leads');
+      const { data, error } = await (supabase as any).rpc('get_tenant_leads');
 
       if (error) {
         console.error('❌ Error fetching leads:', error);
@@ -120,7 +102,7 @@ export function useLeadsData() {
       // Merge updates with current data
       const updatedLeadData = { ...currentLead, ...updates };
 
-      const { data: success, error } = await supabase.rpc('update_tenant_lead', {
+      const { data: success, error } = await (supabase as any).rpc('update_tenant_lead', {
         p_lead_id: leadId,
         p_name: updatedLeadData.name,
         p_email: updatedLeadData.email,

@@ -38,7 +38,7 @@ export function useTenantLeadOperations() {
       setIsLoading(true);
       console.log(`🔄 useTenantLeadOperations - Creating lead using secure function...`);
       
-      const { data: leadId, error } = await supabase.rpc('create_tenant_lead', {
+      const { data: leadId, error } = await (supabase as any).rpc('create_tenant_lead', {
         p_name: leadData.name,
         p_email: leadData.email || null,
         p_phone: leadData.phone,
@@ -84,7 +84,7 @@ export function useTenantLeadOperations() {
       setIsLoading(true);
       console.log(`🔄 useTenantLeadOperations - Updating lead ${leadId} using secure function...`);
       
-      const { data: success, error } = await supabase.rpc('update_tenant_lead', {
+      const { data: success, error } = await (supabase as any).rpc('update_tenant_lead', {
         p_lead_id: leadId,
         p_name: leadData.name,
         p_email: leadData.email,

@@ -2,18 +2,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { TenantKanbanColumn } from '@/types/supabase-rpc';
 
 export interface KanbanColumn {
-  id: string;
-  name: string;
-  color: string;
-  order_position: number;
-  is_default: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-interface TenantKanbanColumn {
   id: string;
   name: string;
   color: string;
@@ -35,7 +26,7 @@ export function useSecureTenantKanban() {
       setError(null);
       console.log("📊 useSecureTenantKanban - Fetching kanban columns using secure function...");
       
-      const { data, error } = await supabase.rpc('get_tenant_kanban_columns');
+      const { data, error } = await (supabase as any).rpc('get_tenant_kanban_columns');
       
       if (error) {
         console.error('❌ Error fetching kanban columns:', error);

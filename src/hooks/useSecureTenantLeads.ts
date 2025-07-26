@@ -3,25 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Lead } from '@/types/lead';
-
-interface TenantLead {
-  id: string;
-  name: string;
-  email: string | null;
-  phone: string;
-  description: string | null;
-  source: string | null;
-  state: string | null;
-  status: string;
-  action_group: string | null;
-  action_type: string | null;
-  loss_reason: string | null;
-  value: number | null;
-  user_id: string;
-  closed_by_user_id: string | null;
-  created_at: string;
-  updated_at: string;
-}
+import { TenantLead } from '@/types/supabase-rpc';
 
 export function useSecureTenantLeads() {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -35,7 +17,7 @@ export function useSecureTenantLeads() {
       setError(null);
       console.log("📊 useSecureTenantLeads - Fetching leads using secure function...");
       
-      const { data, error } = await supabase.rpc('get_tenant_leads');
+      const { data, error } = await (supabase as any).rpc('get_tenant_leads');
       
       if (error) {
         console.error('❌ Error fetching leads:', error);
@@ -86,7 +68,7 @@ export function useSecureTenantLeads() {
       setIsLoading(true);
       console.log("🔄 useSecureTenantLeads - Creating lead using secure function...");
       
-      const { data: leadId, error } = await supabase.rpc('create_tenant_lead', {
+      const { data: leadId, error } = await (supabase as any).rpc('create_tenant_lead', {
         p_name: leadData.name,
         p_email: leadData.email || null,
         p_phone: leadData.phone,
@@ -148,7 +130,7 @@ export function useSecureTenantLeads() {
       setIsLoading(true);
       console.log(`🔄 useSecureTenantLeads - Updating lead ${leadId} using secure function...`);
       
-      const { data: success, error } = await supabase.rpc('update_tenant_lead', {
+      const { data: success, error } = await (supabase as any).rpc('update_tenant_lead', {
         p_lead_id: leadId,
         p_name: leadData.name,
         p_email: leadData.email || null,
