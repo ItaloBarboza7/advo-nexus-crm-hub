@@ -64,12 +64,7 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
       const { shouldCreate, sourceId } = await checkAndUnhideDefaultSource(name);
       
       if (!shouldCreate) {
-        // Source was unhidden successfully
-        toast({
-          title: "Sucesso",
-          description: "Fonte de lead reativada com sucesso.",
-        });
-        
+        // Source was unhidden successfully - no message needed
         setName("");
         onSourceAdded();
         fetchLeadSources();
@@ -119,11 +114,26 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
     const thisSource = leadSources.find(s => s.id === sourceId);
     if (!thisSource) return;
     if (!thisSource.user_id) {
-      toast({
-        title: "Ação bloqueada",
-        description: "Não é possível excluir uma fonte global/padrão.",
-        variant: "destructive"
-      });
+      // Just hide the default source without showing any message
+      const { error } = await supabase
+        .from('hidden_default_items')
+        .insert({
+          item_id: sourceId,
+          item_type: 'lead_source'
+        });
+
+      if (error) {
+        console.error('❌ Erro ao ocultar fonte:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível ocultar a fonte de lead.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      fetchLeadSources();
+      onSourceAdded();
       return;
     }
 

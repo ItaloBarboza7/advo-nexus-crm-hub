@@ -28,7 +28,7 @@ export function useNewOptionHandler() {
         const { shouldCreate, sourceId } = await checkAndUnhideDefaultSource(newOptionValue);
         
         if (!shouldCreate) {
-          // Source was unhidden successfully
+          // Source was unhidden successfully - no message needed
           success = true;
           await refreshData();
           onSuccess(sourceName);
