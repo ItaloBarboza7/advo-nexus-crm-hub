@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { checkAndUnhideDefaultLossReason } from "@/utils/lossReasonUtils";
 
 export interface LossReasonRecord {
   id: string;
@@ -79,6 +80,16 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
   }, [fetchLossReasons]);
 
   const addLossReason = useCallback(async (reason: string) => {
+    // Check if we should unhide a default reason instead of creating a new one
+    const { shouldCreate, reasonId } = await checkAndUnhideDefaultLossReason(reason);
+    
+    if (!shouldCreate) {
+      // Reason was unhidden successfully - no message needed
+      refreshData();
+      return true;
+    }
+
+    // Create a new reason if no hidden default was found
     const { error } = await supabase
       .from("loss_reasons")
       .insert([{ reason, is_fixed: false }]);
@@ -149,11 +160,7 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
       }
 
       if (hiddenItem) {
-        toast({
-          title: "Motivo de perda já estava oculto",
-          description: "O motivo de perda já estava oculto para este tenant.",
-          variant: "default",
-        });
+        // Already hidden - just refresh without showing message
         setTimeout(() => {
           refreshData();
         }, 350);
@@ -172,11 +179,7 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
           hideErr.code === "23505" ||
           (hideErr.message && hideErr.message.includes("duplicate"))
         ) {
-          toast({
-            title: "Motivo de perda já estava oculto (duplicidade)",
-            description: "O motivo de perda já estava oculto para este tenant.",
-            variant: "default",
-          });
+          // Already hidden - just refresh without showing message
           setTimeout(() => {
             refreshData();
           }, 350);

@@ -132,6 +132,7 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
         return;
       }
 
+      // No success message for hiding default sources
       fetchLeadSources();
       onSourceAdded();
       return;

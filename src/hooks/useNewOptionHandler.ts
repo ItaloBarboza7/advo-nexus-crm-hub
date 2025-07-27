@@ -3,6 +3,7 @@ import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { checkAndUnhideDefaultSource } from "@/utils/leadSourceUtils";
+import { checkAndUnhideDefaultLossReason } from "@/utils/lossReasonUtils";
 
 export function useNewOptionHandler() {
   const [showNewOptionInput, setShowNewOptionInput] = useState<string | null>(null);
@@ -76,18 +77,42 @@ export function useNewOptionHandler() {
             onSuccess(newOptionValue.toLowerCase().replace(/\s+/g, '-'));
           }
         }
-      } else if (field === 'loss_reason' && addLossReason) {
-        success = await addLossReason(newOptionValue.trim());
-        if (success) {
+      } else if (field === 'loss_reason') {
+        // Check if we should unhide a default loss reason instead of creating a new one
+        const { shouldCreate, reasonId } = await checkAndUnhideDefaultLossReason(newOptionValue);
+        
+        if (!shouldCreate) {
+          // Reason was unhidden successfully - no message needed
+          success = true;
+          await refreshData();
           onSuccess(newOptionValue.trim());
+        } else if (addLossReason) {
+          // Create a new reason
+          success = await addLossReason(newOptionValue.trim());
+          if (success) {
+            onSuccess(newOptionValue.trim());
+          }
         }
       }
 
       if (success) {
-        toast({
-          title: "Sucesso",
-          description: `Nova opção adicionada com sucesso.`,
-        });
+        // Only show success message for newly created items, not for unhidden ones
+        if (field === 'source' || field === 'loss_reason') {
+          // For sources and loss reasons, we already handle unhiding silently
+          // Only show toast for truly new items
+          const isNewItem = field === 'action_group' || field === 'action_type';
+          if (isNewItem) {
+            toast({
+              title: "Sucesso",
+              description: `Nova opção adicionada com sucesso.`,
+            });
+          }
+        } else {
+          toast({
+            title: "Sucesso",
+            description: `Nova opção adicionada com sucesso.`,
+          });
+        }
         setNewOptionValue("");
         setShowNewOptionInput(null);
       }
