@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,11 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Lead } from "@/types/lead";
-import { useFilterOptions } from "@/hooks/useFilterOptions";
-import { useLossReasonsGlobal } from "@/hooks/useLossReasonsGlobal";
-import { useKanbanColumns } from "@/hooks/useKanbanColumns";
 import { useTenantLeadOperations } from "@/hooks/useTenantLeadOperations";
-import { supabase } from "@/integrations/supabase/client";
+import { useOptimizedFormOptions } from "@/hooks/useOptimizedFormOptions";
+import { useFormDataManager } from "@/hooks/useFormDataManager";
+import { useNewOptionHandler } from "@/hooks/useNewOptionHandler";
 
 interface EditLeadFormProps {
   lead: Lead | null;
@@ -31,132 +30,68 @@ const BRAZILIAN_STATES = [
 ];
 
 export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLeadFormProps) {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    state: "",
-    source: "",
-    status: "",
-    action_group: "",
-    action_type: "",
-    value: "",
-    description: "",
-    loss_reason: "",
-  });
-  
-  const [originalLeadData, setOriginalLeadData] = useState<Lead | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [showNewOptionInput, setShowNewOptionInput] = useState<string | null>(null);
-  const [newOptionValue, setNewOptionValue] = useState("");
-  const [isDataInitialized, setIsDataInitialized] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const initializationRef = useRef(false);
   
   const { toast } = useToast();
-  
-  // Memoizar os hooks para evitar re-execução desnecessária
-  const { 
-    sourceOptions, 
-    actionGroupOptions, 
-    getActionTypeOptions, 
-    actionGroups,
-    loading: optionsLoading,
-    refreshData 
-  } = useFilterOptions();
-  
-  const { lossReasons, addLossReason } = useLossReasonsGlobal();
-  
-  // Carregar colunas do Kanban apenas uma vez quando o modal abre
-  const { columns: kanbanColumns, isLoading: kanbanLoading } = useKanbanColumns();
-  
   const { updateLead } = useTenantLeadOperations();
+  
+  // Use optimized hooks
+  const {
+    isReady,
+    sourceOptions,
+    actionGroupOptions,
+    actionGroups,
+    lossReasons,
+    kanbanColumns,
+    getActionTypeOptions,
+    refreshData,
+    addLossReason
+  } = useOptimizedFormOptions();
+  
+  const {
+    formData,
+    initializeFormData,
+    updateField,
+    resetFormData,
+    restoreOriginalData
+  } = useFormDataManager();
+  
+  const {
+    showNewOptionInput,
+    setShowNewOptionInput,
+    newOptionValue,
+    setNewOptionValue,
+    handleAddNewOption,
+    closeNewOptionInput
+  } = useNewOptionHandler();
 
-  // Memoizar as colunas do Kanban para evitar re-renderizações
-  const memoizedKanbanColumns = useMemo(() => kanbanColumns, [kanbanColumns]);
-
-  // Inicializar dados apenas quando o modal abrir com um lead válido
+  // Initialize form data only once when modal opens with valid lead and options are ready
   useEffect(() => {
-    if (lead && open && !optionsLoading && !kanbanLoading && !isDataInitialized) {
-      console.log("🔄 EditLeadForm - Inicializando dados do lead:", lead.name);
-      
-      setOriginalLeadData(lead);
-      
-      let initialLossReason = lead.loss_reason ?? "";
-      if (
-        !initialLossReason ||
-        initialLossReason.trim().toLowerCase() === "outros" ||
-        initialLossReason.trim() === ""
-      ) {
-        initialLossReason = "Outros";
-      }
-
-      const initialData = {
-        name: lead.name || "",
-        email: lead.email || "",
-        phone: lead.phone || "",
-        state: lead.state || "",
-        source: lead.source || "",
-        status: lead.status || "",
-        action_group: lead.action_group || "",
-        action_type: lead.action_type || "",
-        value: lead.value?.toString() || "",
-        description: lead.description || "",
-        loss_reason: initialLossReason,
-      };
-
-      setFormData(initialData);
-      setIsDataInitialized(true);
+    if (lead && open && isReady && !initializationRef.current) {
+      console.log("🚀 EditLeadForm - Initializing with optimized data");
+      initializeFormData(lead);
+      setIsInitialized(true);
+      initializationRef.current = true;
     }
-  }, [lead, open, optionsLoading, kanbanLoading, isDataInitialized]);
+  }, [lead, open, isReady, initializeFormData]);
 
-  // Reset quando o modal fechar
+  // Reset when modal closes
   useEffect(() => {
     if (!open) {
-      console.log("❌ EditLeadForm - Modal fechado, resetando estados...");
-      setIsDataInitialized(false);
-      setShowNewOptionInput(null);
-      setNewOptionValue("");
-      setFormData({
-        name: "",
-        email: "",
-        phone: "",
-        state: "",
-        source: "",
-        status: "",
-        action_group: "",
-        action_type: "",
-        value: "",
-        description: "",
-        loss_reason: "",
-      });
+      console.log("❌ EditLeadForm - Modal closed, resetting");
+      resetFormData();
+      closeNewOptionInput();
+      setIsInitialized(false);
+      initializationRef.current = false;
     }
-  }, [open]);
-
-  const restoreOriginalData = () => {
-    if (originalLeadData) {
-      const restoredData = {
-        name: originalLeadData.name || "",
-        email: originalLeadData.email || "",
-        phone: originalLeadData.phone || "",
-        state: originalLeadData.state || "",
-        source: originalLeadData.source || "",
-        status: originalLeadData.status || "",
-        action_group: originalLeadData.action_group || "",
-        action_type: originalLeadData.action_type || "",
-        value: originalLeadData.value?.toString() || "",
-        description: originalLeadData.description || "",
-        loss_reason: originalLeadData.loss_reason || "",
-      };
-      
-      console.log("🔄 EditLeadForm - Restaurando dados originais:", restoredData);
-      setFormData(restoredData);
-    }
-  };
+  }, [open, resetFormData, closeNewOptionInput]);
 
   const handleClose = () => {
-    console.log("❌ EditLeadForm - Fechando modal sem salvar");
+    console.log("❌ EditLeadForm - Closing modal");
     restoreOriginalData();
-    setShowNewOptionInput(null);
-    setNewOptionValue("");
+    closeNewOptionInput();
     onOpenChange(false);
   };
 
@@ -164,9 +99,9 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
     e.preventDefault();
     if (!lead) return;
 
-    console.log("💾 EditLeadForm - Salvando lead com dados:", formData);
+    console.log("💾 EditLeadForm - Submitting form");
+    setIsSubmitting(true);
 
-    setIsLoading(true);
     try {
       const success = await updateLead(lead.id, {
         name: formData.name,
@@ -183,7 +118,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
       });
 
       if (success) {
-        console.log("✅ EditLeadForm - Lead atualizado com sucesso");
+        console.log("✅ EditLeadForm - Lead updated successfully");
         toast({
           title: "Sucesso",
           description: "Lead atualizado com sucesso.",
@@ -199,169 +134,14 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
         variant: "destructive"
       });
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
-  };
-
-  // Otimizar a função de mudança de input para evitar re-renderizações desnecessárias
-  const handleInputChange = (field: string, value: string) => {
-    console.log(`📝 EditLeadForm - Alterando ${field} para:`, value);
-    setFormData(prev => {
-      const newData = { ...prev, [field]: value };
-      
-      // Limpar action_type quando action_group mudar
-      if (field === 'action_group') {
-        newData.action_type = "";
-      }
-      
-      return newData;
-    });
-  };
-
-  const handleAddNewOption = async (field: string) => {
-    if (!newOptionValue.trim()) return;
-
-    if (field === 'source') {
-      try {
-        const { error } = await supabase
-          .from('lead_sources')
-          .insert([
-            {
-              name: newOptionValue.toLowerCase().replace(/\s+/g, '-'),
-              label: newOptionValue.trim()
-            }
-          ]);
-
-        if (error) {
-          console.error('Erro ao adicionar fonte:', error);
-          toast({
-            title: "Erro",
-            description: "Não foi possível adicionar a nova fonte.",
-            variant: "destructive"
-          });
-          return;
-        }
-
-        await refreshData();
-        handleInputChange(field, newOptionValue.toLowerCase().replace(/\s+/g, '-'));
-        
-        toast({
-          title: "Sucesso",
-          description: "Nova fonte adicionada com sucesso.",
-        });
-      } catch (error) {
-        console.error('Erro inesperado ao adicionar fonte:', error);
-        toast({
-          title: "Erro",
-          description: "Ocorreu um erro inesperado.",
-          variant: "destructive"
-        });
-        return;
-      }
-    } else if (field === 'action_group') {
-      try {
-        const { error } = await supabase
-          .from('action_groups')
-          .insert([
-            {
-              name: newOptionValue.toLowerCase().replace(/\s+/g, '-'),
-              description: newOptionValue.trim()
-            }
-          ]);
-
-        if (error) {
-          console.error('Erro ao adicionar grupo de ação:', error);
-          toast({
-            title: "Erro",
-            description: "Não foi possível adicionar o novo grupo.",
-            variant: "destructive"
-          });
-          return;
-        }
-
-        await refreshData();
-        handleInputChange(field, newOptionValue.toLowerCase().replace(/\s+/g, '-'));
-        
-        toast({
-          title: "Sucesso",
-          description: "Novo grupo de ação adicionado com sucesso.",
-        });
-      } catch (error) {
-        console.error('Erro inesperado ao adicionar grupo:', error);
-        toast({
-          title: "Erro",
-          description: "Ocorreu um erro inesperado.",
-          variant: "destructive"
-        });
-        return;
-      }
-    } else if (field === 'action_type') {
-      try {
-        const actionGroup = actionGroups.find(group => group.name === formData.action_group);
-        if (!actionGroup) {
-          toast({
-            title: "Erro",
-            description: "Selecione um grupo de ação primeiro.",
-            variant: "destructive"
-          });
-          return;
-        }
-
-        const { error } = await supabase
-          .from('action_types')
-          .insert([
-            {
-              name: newOptionValue.toLowerCase().replace(/\s+/g, '-'),
-              action_group_id: actionGroup.id
-            }
-          ]);
-
-        if (error) {
-          console.error('Erro ao adicionar tipo de ação:', error);
-          toast({
-            title: "Erro",
-            description: "Não foi possível adicionar o novo tipo.",
-            variant: "destructive"
-          });
-          return;
-        }
-
-        await refreshData();
-        handleInputChange(field, newOptionValue.toLowerCase().replace(/\s+/g, '-'));
-        
-        toast({
-          title: "Sucesso",
-          description: "Novo tipo de ação adicionado com sucesso.",
-        });
-      } catch (error) {
-        console.error('Erro inesperado ao adicionar tipo:', error);
-        toast({
-          title: "Erro",
-          description: "Ocorreu um erro inesperado.",
-          variant: "destructive"
-        });
-        return;
-      }
-    } else if (field === 'loss_reason') {
-      const success = await addLossReason(newOptionValue.trim());
-      
-      if (success) {
-        handleInputChange(field, newOptionValue.trim());
-        toast({
-          title: "Sucesso",
-          description: "Novo motivo de perda adicionado com sucesso.",
-        });
-      }
-    }
-
-    setNewOptionValue("");
-    setShowNewOptionInput(null);
   };
 
   if (!lead) return null;
 
-  // Mostrar loading apenas durante a inicialização
-  if (optionsLoading || kanbanLoading || !isDataInitialized) {
+  // Show loading only during initial data loading
+  if (!isReady || !isInitialized) {
     return (
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -371,7 +151,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
           <div className="flex items-center justify-center p-8">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Carregando...</p>
+              <p className="text-gray-600">Carregando dados...</p>
             </div>
           </div>
         </DialogContent>
@@ -393,7 +173,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) => handleInputChange('name', e.target.value)}
+                onChange={(e) => updateField('name', e.target.value)}
                 required
               />
             </div>
@@ -404,7 +184,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
                 id="email"
                 type="email"
                 value={formData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
+                onChange={(e) => updateField('email', e.target.value)}
               />
             </div>
 
@@ -413,33 +193,31 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
               <Input
                 id="phone"
                 value={formData.phone}
-                onChange={(e) => handleInputChange('phone', e.target.value)}
+                onChange={(e) => updateField('phone', e.target.value)}
                 required
               />
             </div>
 
-            <div className="space-y-2 relative">
+            <div className="space-y-2">
               <Label htmlFor="state">Estado</Label>
-              <div className="flex gap-2">
-                <Select value={formData.state} onValueChange={(value) => handleInputChange('state', value)}>
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Selecione o estado" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white border shadow-lg max-h-60 overflow-y-auto z-50">
-                    {BRAZILIAN_STATES.map((state) => (
-                      <SelectItem key={state} value={state}>
-                        {state}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Select value={formData.state} onValueChange={(value) => updateField('state', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o estado" />
+                </SelectTrigger>
+                <SelectContent className="bg-white border shadow-lg max-h-60 overflow-y-auto z-50">
+                  {BRAZILIAN_STATES.map((state) => (
+                    <SelectItem key={state} value={state}>
+                      {state}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2 relative">
               <Label htmlFor="source">Fonte</Label>
               <div className="flex gap-2">
-                <Select value={formData.source} onValueChange={(value) => handleInputChange('source', value)}>
+                <Select value={formData.source} onValueChange={(value) => updateField('source', value)}>
                   <SelectTrigger className="flex-1">
                     <SelectValue placeholder="Selecione a fonte" />
                   </SelectTrigger>
@@ -469,7 +247,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
                       placeholder="Nova fonte..."
                       value={newOptionValue}
                       onChange={(e) => setNewOptionValue(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleAddNewOption('source')}
+                      onKeyPress={(e) => e.key === 'Enter' && handleAddNewOption('source', (value) => updateField('source', value), refreshData)}
                       className="text-sm"
                     />
                     <div className="flex gap-2 justify-end">
@@ -477,17 +255,14 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
                         type="button"
                         size="sm"
                         variant="outline"
-                        onClick={() => {
-                          setShowNewOptionInput(null);
-                          setNewOptionValue("");
-                        }}
+                        onClick={closeNewOptionInput}
                       >
                         Cancelar
                       </Button>
                       <Button
                         type="button"
                         size="sm"
-                        onClick={() => handleAddNewOption('source')}
+                        onClick={() => handleAddNewOption('source', (value) => updateField('source', value), refreshData)}
                         className="bg-blue-600 hover:bg-blue-700"
                       >
                         Adicionar
@@ -500,12 +275,12 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
 
             <div className="space-y-2">
               <Label htmlFor="status">Status *</Label>
-              <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
+              <Select value={formData.status} onValueChange={(value) => updateField('status', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o status" />
                 </SelectTrigger>
                 <SelectContent className="bg-white border shadow-lg z-50">
-                  {memoizedKanbanColumns.map((column) => (
+                  {kanbanColumns.map((column) => (
                     <SelectItem key={column.id} value={column.name}>
                       {column.name}
                     </SelectItem>
@@ -517,7 +292,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
             <div className="space-y-2 relative">
               <Label htmlFor="action_group">Grupo de Ação</Label>
               <div className="flex gap-2">
-                <Select value={formData.action_group} onValueChange={(value) => handleInputChange('action_group', value)}>
+                <Select value={formData.action_group} onValueChange={(value) => updateField('action_group', value)}>
                   <SelectTrigger className="flex-1">
                     <SelectValue placeholder="Selecione o grupo de ação" />
                   </SelectTrigger>
@@ -547,7 +322,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
                       placeholder="Novo grupo de ação..."
                       value={newOptionValue}
                       onChange={(e) => setNewOptionValue(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleAddNewOption('action_group')}
+                      onKeyPress={(e) => e.key === 'Enter' && handleAddNewOption('action_group', (value) => updateField('action_group', value), refreshData)}
                       className="text-sm"
                     />
                     <div className="flex gap-2 justify-end">
@@ -555,17 +330,14 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
                         type="button"
                         size="sm"
                         variant="outline"
-                        onClick={() => {
-                          setShowNewOptionInput(null);
-                          setNewOptionValue("");
-                        }}
+                        onClick={closeNewOptionInput}
                       >
                         Cancelar
                       </Button>
                       <Button
                         type="button"
                         size="sm"
-                        onClick={() => handleAddNewOption('action_group')}
+                        onClick={() => handleAddNewOption('action_group', (value) => updateField('action_group', value), refreshData)}
                         className="bg-blue-600 hover:bg-blue-700"
                       >
                         Adicionar
@@ -580,7 +352,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
               <div className="space-y-2 relative">
                 <Label htmlFor="action_type">Tipo de Ação</Label>
                 <div className="flex gap-2">
-                  <Select value={formData.action_type} onValueChange={(value) => handleInputChange('action_type', value)}>
+                  <Select value={formData.action_type} onValueChange={(value) => updateField('action_type', value)}>
                     <SelectTrigger className="flex-1">
                       <SelectValue placeholder="Selecione o tipo específico" />
                     </SelectTrigger>
@@ -610,7 +382,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
                         placeholder="Novo tipo de ação..."
                         value={newOptionValue}
                         onChange={(e) => setNewOptionValue(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && handleAddNewOption('action_type')}
+                        onKeyPress={(e) => e.key === 'Enter' && handleAddNewOption('action_type', (value) => updateField('action_type', value), refreshData, addLossReason, actionGroups)}
                         className="text-sm"
                       />
                       <div className="flex gap-2 justify-end">
@@ -618,17 +390,14 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
                           type="button"
                           size="sm"
                           variant="outline"
-                          onClick={() => {
-                            setShowNewOptionInput(null);
-                            setNewOptionValue("");
-                          }}
+                          onClick={closeNewOptionInput}
                         >
                           Cancelar
                         </Button>
                         <Button
                           type="button"
                           size="sm"
-                          onClick={() => handleAddNewOption('action_type')}
+                          onClick={() => handleAddNewOption('action_type', (value) => updateField('action_type', value), refreshData, addLossReason, actionGroups)}
                           className="bg-blue-600 hover:bg-blue-700"
                         >
                           Adicionar
@@ -648,7 +417,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
                 step="0.01"
                 min="0"
                 value={formData.value}
-                onChange={(e) => handleInputChange('value', e.target.value)}
+                onChange={(e) => updateField('value', e.target.value)}
               />
             </div>
           </div>
@@ -657,7 +426,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
             <div className="space-y-2 relative">
               <Label htmlFor="loss_reason">Motivo da Perda</Label>
               <div className="flex gap-2">
-                <Select value={formData.loss_reason} onValueChange={(value) => handleInputChange('loss_reason', value)}>
+                <Select value={formData.loss_reason} onValueChange={(value) => updateField('loss_reason', value)}>
                   <SelectTrigger className="flex-1">
                     <SelectValue placeholder="Selecione o motivo da perda" />
                   </SelectTrigger>
@@ -687,7 +456,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
                       placeholder="Novo motivo da perda..."
                       value={newOptionValue}
                       onChange={(e) => setNewOptionValue(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleAddNewOption('loss_reason')}
+                      onKeyPress={(e) => e.key === 'Enter' && handleAddNewOption('loss_reason', (value) => updateField('loss_reason', value), refreshData, addLossReason)}
                       className="text-sm"
                     />
                     <div className="flex gap-2 justify-end">
@@ -695,17 +464,14 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
                         type="button"
                         size="sm"
                         variant="outline"
-                        onClick={() => {
-                          setShowNewOptionInput(null);
-                          setNewOptionValue("");
-                        }}
+                        onClick={closeNewOptionInput}
                       >
                         Cancelar
                       </Button>
                       <Button
                         type="button"
                         size="sm"
-                        onClick={() => handleAddNewOption('loss_reason')}
+                        onClick={() => handleAddNewOption('loss_reason', (value) => updateField('loss_reason', value), refreshData, addLossReason)}
                         className="bg-blue-600 hover:bg-blue-700"
                       >
                         Adicionar
@@ -723,7 +489,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
               id="description"
               rows={3}
               value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
+              onChange={(e) => updateField('description', e.target.value)}
               placeholder="Adicione uma descrição para este lead..."
             />
           </div>
@@ -739,10 +505,10 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
             </Button>
             <Button 
               type="submit" 
-              disabled={isLoading}
+              disabled={isSubmitting}
               className="flex-1 bg-blue-600 hover:bg-blue-700"
             >
-              {isLoading ? "Salvando..." : "Salvar Alterações"}
+              {isSubmitting ? "Salvando..." : "Salvar Alterações"}
             </Button>
           </div>
         </form>
