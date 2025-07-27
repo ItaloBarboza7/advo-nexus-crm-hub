@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { DeleteButton } from "@/components/DeleteButton";
+import { checkAndUnhideDefaultSource } from "@/utils/leadSourceUtils";
 
 interface LeadSource {
   id: string;
@@ -59,6 +60,23 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
     setIsLoading(true);
 
     try {
+      // Check if we should unhide a default source instead of creating a new one
+      const { shouldCreate, sourceId } = await checkAndUnhideDefaultSource(name);
+      
+      if (!shouldCreate) {
+        // Source was unhidden successfully
+        toast({
+          title: "Sucesso",
+          description: "Fonte de lead reativada com sucesso.",
+        });
+        
+        setName("");
+        onSourceAdded();
+        fetchLeadSources();
+        return;
+      }
+
+      // Create a new source if no hidden default was found
       const { error } = await supabase
         .from('lead_sources')
         .insert({

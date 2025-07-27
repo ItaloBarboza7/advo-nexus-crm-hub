@@ -2,6 +2,7 @@
 import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { checkAndUnhideDefaultSource } from "@/utils/leadSourceUtils";
 
 export function useNewOptionHandler() {
   const [showNewOptionInput, setShowNewOptionInput] = useState<string | null>(null);
@@ -21,17 +22,30 @@ export function useNewOptionHandler() {
       let success = false;
 
       if (field === 'source') {
-        const { error } = await supabase
-          .from('lead_sources')
-          .insert([{
-            name: newOptionValue.toLowerCase().replace(/\s+/g, '-'),
-            label: newOptionValue.trim()
-          }]);
-
-        if (!error) {
+        const sourceName = newOptionValue.toLowerCase().replace(/\s+/g, '-');
+        
+        // Check if we should unhide a default source instead of creating a new one
+        const { shouldCreate, sourceId } = await checkAndUnhideDefaultSource(newOptionValue);
+        
+        if (!shouldCreate) {
+          // Source was unhidden successfully
           success = true;
           await refreshData();
-          onSuccess(newOptionValue.toLowerCase().replace(/\s+/g, '-'));
+          onSuccess(sourceName);
+        } else {
+          // Create a new source
+          const { error } = await supabase
+            .from('lead_sources')
+            .insert([{
+              name: sourceName,
+              label: newOptionValue.trim()
+            }]);
+
+          if (!error) {
+            success = true;
+            await refreshData();
+            onSuccess(sourceName);
+          }
         }
       } else if (field === 'action_group') {
         const { error } = await supabase
