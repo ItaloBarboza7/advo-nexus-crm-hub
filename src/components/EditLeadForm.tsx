@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,12 +51,9 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
   const [newOptionValue, setNewOptionValue] = useState("");
   const [isDataInitialized, setIsDataInitialized] = useState(false);
   
-  // Usar refs para evitar re-renderizações desnecessárias
-  const leadRef = useRef<Lead | null>(null);
-  const isOpenRef = useRef(false);
-  
   const { toast } = useToast();
   
+  // Memoizar os hooks para evitar re-execução desnecessária
   const { 
     sourceOptions, 
     actionGroupOptions, 
@@ -66,61 +64,72 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
   } = useFilterOptions();
   
   const { lossReasons, addLossReason } = useLossReasonsGlobal();
+  
+  // Carregar colunas do Kanban apenas uma vez quando o modal abre
   const { columns: kanbanColumns, isLoading: kanbanLoading } = useKanbanColumns();
+  
   const { updateLead } = useTenantLeadOperations();
 
-  // Inicializar dados apenas quando necessário
+  // Memoizar as colunas do Kanban para evitar re-renderizações
+  const memoizedKanbanColumns = useMemo(() => kanbanColumns, [kanbanColumns]);
+
+  // Inicializar dados apenas quando o modal abrir com um lead válido
   useEffect(() => {
-    if (lead && open && !kanbanLoading && !optionsLoading) {
-      // Verificar se os dados realmente mudaram
-      const leadChanged = !leadRef.current || leadRef.current.id !== lead.id;
-      const modalOpened = !isOpenRef.current && open;
+    if (lead && open && !optionsLoading && !kanbanLoading && !isDataInitialized) {
+      console.log("🔄 EditLeadForm - Inicializando dados do lead:", lead.name);
       
-      if (leadChanged || modalOpened) {
-        console.log("🔄 EditLeadForm - Inicializando dados do lead:", lead.name);
-        
-        leadRef.current = lead;
-        isOpenRef.current = open;
-        setOriginalLeadData(lead);
-        
-        let initialLossReason = lead.loss_reason ?? "";
-        if (
-          !initialLossReason ||
-          initialLossReason.trim().toLowerCase() === "outros" ||
-          initialLossReason.trim() === ""
-        ) {
-          initialLossReason = "Outros";
-        }
-
-        const initialData = {
-          name: lead.name || "",
-          email: lead.email || "",
-          phone: lead.phone || "",
-          state: lead.state || "",
-          source: lead.source || "",
-          status: lead.status || "",
-          action_group: lead.action_group || "",
-          action_type: lead.action_type || "",
-          value: lead.value?.toString() || "",
-          description: lead.description || "",
-          loss_reason: initialLossReason,
-        };
-
-        setFormData(initialData);
-        setIsDataInitialized(true);
+      setOriginalLeadData(lead);
+      
+      let initialLossReason = lead.loss_reason ?? "";
+      if (
+        !initialLossReason ||
+        initialLossReason.trim().toLowerCase() === "outros" ||
+        initialLossReason.trim() === ""
+      ) {
+        initialLossReason = "Outros";
       }
+
+      const initialData = {
+        name: lead.name || "",
+        email: lead.email || "",
+        phone: lead.phone || "",
+        state: lead.state || "",
+        source: lead.source || "",
+        status: lead.status || "",
+        action_group: lead.action_group || "",
+        action_type: lead.action_type || "",
+        value: lead.value?.toString() || "",
+        description: lead.description || "",
+        loss_reason: initialLossReason,
+      };
+
+      setFormData(initialData);
+      setIsDataInitialized(true);
     }
-    
-    // Reset quando o modal fechar
-    if (!open && isOpenRef.current) {
+  }, [lead, open, optionsLoading, kanbanLoading, isDataInitialized]);
+
+  // Reset quando o modal fechar
+  useEffect(() => {
+    if (!open) {
       console.log("❌ EditLeadForm - Modal fechado, resetando estados...");
-      isOpenRef.current = false;
-      leadRef.current = null;
       setIsDataInitialized(false);
       setShowNewOptionInput(null);
       setNewOptionValue("");
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        state: "",
+        source: "",
+        status: "",
+        action_group: "",
+        action_type: "",
+        value: "",
+        description: "",
+        loss_reason: "",
+      });
     }
-  }, [lead?.id, open, kanbanLoading, optionsLoading]); // Dependências específicas para evitar loops
+  }, [open]);
 
   const restoreOriginalData = () => {
     if (originalLeadData) {
@@ -194,19 +203,19 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
     }
   };
 
+  // Otimizar a função de mudança de input para evitar re-renderizações desnecessárias
   const handleInputChange = (field: string, value: string) => {
     console.log(`📝 EditLeadForm - Alterando ${field} para:`, value);
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-    
-    if (field === 'action_group') {
-      setFormData(prev => ({
-        ...prev,
-        action_type: ""
-      }));
-    }
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      
+      // Limpar action_type quando action_group mudar
+      if (field === 'action_group') {
+        newData.action_type = "";
+      }
+      
+      return newData;
+    });
   };
 
   const handleAddNewOption = async (field: string) => {
@@ -351,7 +360,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
 
   if (!lead) return null;
 
-  // Mostrar loading enquanto as opções ou dados não estão prontos
+  // Mostrar loading apenas durante a inicialização
   if (optionsLoading || kanbanLoading || !isDataInitialized) {
     return (
       <Dialog open={open} onOpenChange={handleClose}>
@@ -362,9 +371,7 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
           <div className="flex items-center justify-center p-8">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">
-                {optionsLoading ? "Carregando opções..." : kanbanLoading ? "Carregando status..." : "Inicializando..."}
-              </p>
+              <p className="text-gray-600">Carregando...</p>
             </div>
           </div>
         </DialogContent>
@@ -493,12 +500,12 @@ export function EditLeadForm({ lead, open, onOpenChange, onLeadUpdated }: EditLe
 
             <div className="space-y-2">
               <Label htmlFor="status">Status *</Label>
-              <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}>
+              <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o status" />
                 </SelectTrigger>
                 <SelectContent className="bg-white border shadow-lg z-50">
-                  {kanbanColumns.map((column) => (
+                  {memoizedKanbanColumns.map((column) => (
                     <SelectItem key={column.id} value={column.name}>
                       {column.name}
                     </SelectItem>
