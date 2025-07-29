@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Save, X } from "lucide-react";
 import { useLossReasonsGlobal } from "@/hooks/useLossReasonsGlobal";
-import { useToast } from "@/hooks/use-toast";
 import { DeleteButton } from "@/components/DeleteButton";
 
 export function LossReasonsManager() {
@@ -14,7 +13,6 @@ export function LossReasonsManager() {
   const [newReason, setNewReason] = useState("");
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
 
   console.log(`🔍 LossReasonsManager - Renderizando com ${lossReasons.length} motivos de perda`);
 

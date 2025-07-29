@@ -1,14 +1,12 @@
 
 import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 import { checkAndUnhideDefaultSource } from "@/utils/leadSourceUtils";
 import { checkAndUnhideDefaultLossReason } from "@/utils/lossReasonUtils";
 
 export function useNewOptionHandler() {
   const [showNewOptionInput, setShowNewOptionInput] = useState<string | null>(null);
   const [newOptionValue, setNewOptionValue] = useState("");
-  const { toast } = useToast();
 
   const handleAddNewOption = useCallback(async (
     field: string,
@@ -21,7 +19,6 @@ export function useNewOptionHandler() {
 
     try {
       let success = false;
-      let showSuccessToast = false;
 
       if (field === 'source') {
         const sourceName = newOptionValue.toLowerCase().replace(/\s+/g, '-');
@@ -45,7 +42,6 @@ export function useNewOptionHandler() {
 
           if (!error) {
             success = true;
-            showSuccessToast = true;
             await refreshData();
             onSuccess(sourceName);
           }
@@ -60,7 +56,6 @@ export function useNewOptionHandler() {
 
         if (!error) {
           success = true;
-          showSuccessToast = true;
           await refreshData();
           onSuccess(newOptionValue.toLowerCase().replace(/\s+/g, '-'));
         }
@@ -76,7 +71,6 @@ export function useNewOptionHandler() {
 
           if (!error) {
             success = true;
-            showSuccessToast = true;
             await refreshData();
             onSuccess(newOptionValue.toLowerCase().replace(/\s+/g, '-'));
           }
@@ -94,17 +88,9 @@ export function useNewOptionHandler() {
           // Create a new reason
           success = await addLossReason(newOptionValue.trim());
           if (success) {
-            showSuccessToast = true;
             onSuccess(newOptionValue.trim());
           }
         }
-      }
-
-      if (success && showSuccessToast) {
-        toast({
-          title: "Sucesso",
-          description: `Nova opção adicionada com sucesso.`,
-        });
       }
 
       if (success) {
@@ -113,13 +99,8 @@ export function useNewOptionHandler() {
       }
     } catch (error) {
       console.error('Erro ao adicionar nova opção:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado.",
-        variant: "destructive"
-      });
     }
-  }, [newOptionValue, toast]);
+  }, [newOptionValue]);
 
   const closeNewOptionInput = useCallback(() => {
     setShowNewOptionInput(null);

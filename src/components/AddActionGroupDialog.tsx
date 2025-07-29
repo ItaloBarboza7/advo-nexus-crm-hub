@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -161,7 +160,7 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Ex: Vendas, Marketing, Suporte..."
+                placeholder="Nome do grupo"
                 required
               />
             </div>

@@ -4,7 +4,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { DeleteButton } from "@/components/DeleteButton";
 import { checkAndUnhideDefaultSource } from "@/utils/leadSourceUtils";
@@ -27,7 +26,6 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
   const [isLoading, setIsLoading] = useState(false);
   const [leadSources, setLeadSources] = useState<LeadSource[]>([]);
   const [isLoadingSources, setIsLoadingSources] = useState(false);
-  const { toast } = useToast();
 
   // Busca somente fontes visíveis para este tenant
   const fetchLeadSources = async () => {
@@ -53,7 +51,6 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      toast({ title: "Erro", description: "Nome é obrigatório.", variant: "destructive" });
       return;
     }
 
@@ -81,29 +78,14 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
 
       if (error) {
         console.error('Erro ao criar fonte:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível criar a fonte de lead.",
-          variant: "destructive"
-        });
         return;
       }
-
-      toast({
-        title: "Sucesso",
-        description: "Fonte de lead criada com sucesso.",
-      });
 
       setName("");
       onSourceAdded();
       fetchLeadSources();
     } catch (error) {
       console.error('Erro inesperado:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado.",
-        variant: "destructive"
-      });
     } finally {
       setIsLoading(false);
     }
@@ -124,11 +106,6 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
 
       if (error) {
         console.error('❌ Erro ao ocultar fonte:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível ocultar a fonte de lead.",
-          variant: "destructive"
-        });
         return;
       }
 
@@ -145,18 +122,8 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
 
     if (error) {
       console.error('❌ Erro ao excluir fonte:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível excluir a fonte de lead.",
-        variant: "destructive"
-      });
       throw error;
     }
-
-    toast({
-      title: "Sucesso",
-      description: "Fonte de lead excluída com sucesso.",
-    });
 
     fetchLeadSources();
     onSourceAdded();
@@ -191,7 +158,7 @@ export function AddLeadSourceDialog({ isOpen, onClose, onSourceAdded }: AddLeadS
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Ex: Site, Indicação, Facebook..."
+                placeholder="Nome da fonte"
                 required
               />
             </div>

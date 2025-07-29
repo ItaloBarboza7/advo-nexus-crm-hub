@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -181,7 +180,7 @@ export function AddActionTypeDialog({ isOpen, onClose, onTypeAdded, actionGroups
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Ex: Ligação, Email, Reunião..."
+                placeholder="Nome do tipo"
                 required
               />
             </div>

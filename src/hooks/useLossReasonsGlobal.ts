@@ -1,7 +1,6 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 import { checkAndUnhideDefaultLossReason } from "@/utils/lossReasonUtils";
 
 export interface LossReasonRecord {
@@ -24,7 +23,6 @@ interface UseLossReasonsReturn {
 export function useLossReasonsGlobal(): UseLossReasonsReturn {
   const [lossReasons, setLossReasons] = useState<LossReasonRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
   const fetchingRef = useRef(false);
   const mountedRef = useRef(true);
 
@@ -42,11 +40,6 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
       if (error || !data) {
         console.error("❌ fetchLossReasons - Erro ao buscar via RPC:", error);
         if (mountedRef.current) {
-          toast({
-            title: "Erro",
-            description: "Não foi possível carregar os motivos de perda.",
-            variant: "destructive",
-          });
           setLossReasons([]);
         }
         return;
@@ -59,11 +52,6 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
     } catch (error) {
       console.error("❌ fetchLossReasons - Erro inesperado:", error);
       if (mountedRef.current) {
-        toast({
-          title: "Erro",
-          description: "Erro inesperado ao carregar motivos de perda.",
-          variant: "destructive",
-        });
         setLossReasons([]);
       }
     } finally {
@@ -72,7 +60,7 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
       }
       fetchingRef.current = false;
     }
-  }, [toast]);
+  }, []);
 
   const refreshData = useCallback(() => {
     console.log("🔄 refreshData - Atualizando a lista de motivos de perda...");
@@ -95,16 +83,11 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
       .insert([{ reason, is_fixed: false }]);
 
     if (error) {
-      toast({
-        title: "Erro",
-        description: "Não foi possível criar o motivo de perda.",
-        variant: "destructive",
-      });
       return false;
     }
     refreshData();
     return true;
-  }, [refreshData, toast]);
+  }, [refreshData]);
 
   const deleteLossReason = useCallback(async (id: string) => {
     const { data: reasonData, error: reasonError } = await supabase
@@ -114,11 +97,6 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
       .maybeSingle();
 
     if (reasonError || !reasonData) {
-      toast({
-        title: "Erro",
-        description: "Motivo de perda não encontrado.",
-        variant: "destructive",
-      });
       return false;
     }
 
@@ -131,11 +109,6 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
         .eq("id", id);
 
       if (delErr) {
-        toast({
-          title: "Erro",
-          description: "Não foi possível remover o motivo de perda.",
-          variant: "destructive",
-        });
         return false;
       }
       refreshData();
@@ -151,11 +124,6 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
         .maybeSingle();
 
       if (hiddenFetchErr) {
-        toast({
-          title: "Erro",
-          description: "Erro ao verificar ocultação do motivo de perda.",
-          variant: "destructive",
-        });
         return false;
       }
 
@@ -185,12 +153,6 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
           }, 350);
           return true;
         }
-        toast({
-          title: "Erro",
-          description:
-            "Não foi possível ocultar o motivo de perda padrão do sistema.",
-          variant: "destructive",
-        });
         return false;
       }
       setTimeout(() => {
@@ -199,13 +161,8 @@ export function useLossReasonsGlobal(): UseLossReasonsReturn {
       return true;
     }
 
-    toast({
-      title: "Erro",
-      description: "Motivo de perda do sistema não pode ser excluído.",
-      variant: "destructive",
-    });
     return false;
-  }, [toast, refreshData]);
+  }, [refreshData]);
 
   useEffect(() => {
     fetchLossReasons();
