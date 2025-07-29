@@ -1,9 +1,9 @@
+
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { DeleteButton } from "@/components/DeleteButton";
 
@@ -25,7 +25,6 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
   const [isLoading, setIsLoading] = useState(false);
   const [actionGroups, setActionGroups] = useState<ActionGroup[]>([]);
   const [isLoadingGroups, setIsLoadingGroups] = useState(false);
-  const { toast } = useToast();
 
   const fetchActionGroups = async () => {
     setIsLoadingGroups(true);
@@ -51,11 +50,6 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
     e.preventDefault();
     
     if (!name.trim()) {
-      toast({
-        title: "Erro",
-        description: "Nome é obrigatório.",
-        variant: "destructive",
-      });
       return;
     }
 
@@ -71,29 +65,14 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
 
       if (error) {
         console.error('Erro ao criar grupo:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível criar o grupo de ação.",
-          variant: "destructive"
-        });
         return;
       }
-
-      toast({
-        title: "Sucesso",
-        description: "Grupo de ação criado com sucesso.",
-      });
 
       setName("");
       onGroupAdded();
       fetchActionGroups();
     } catch (error) {
       console.error('Erro inesperado:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado.",
-        variant: "destructive"
-      });
     } finally {
       setIsLoading(false);
     }
@@ -108,18 +87,8 @@ export function AddActionGroupDialog({ isOpen, onClose, onGroupAdded }: AddActio
 
       if (error) {
         console.error('❌ Erro ao excluir grupo:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível excluir o grupo de ação. Verifique se ele já foi removido.",
-          variant: "destructive"
-        });
         throw error;
       }
-
-      toast({
-        title: "Sucesso",
-        description: `Grupo de ação "${groupDescription}" e seus tipos associados foram excluídos.`,
-      });
 
       setActionGroups((prev) => prev.filter((g) => g.id !== groupId));
       onGroupAdded();
