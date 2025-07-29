@@ -21,6 +21,7 @@ export function useNewOptionHandler() {
 
     try {
       let success = false;
+      let showSuccessToast = false;
 
       if (field === 'source') {
         const sourceName = newOptionValue.toLowerCase().replace(/\s+/g, '-');
@@ -44,6 +45,7 @@ export function useNewOptionHandler() {
 
           if (!error) {
             success = true;
+            showSuccessToast = true;
             await refreshData();
             onSuccess(sourceName);
           }
@@ -58,6 +60,7 @@ export function useNewOptionHandler() {
 
         if (!error) {
           success = true;
+          showSuccessToast = true;
           await refreshData();
           onSuccess(newOptionValue.toLowerCase().replace(/\s+/g, '-'));
         }
@@ -73,6 +76,7 @@ export function useNewOptionHandler() {
 
           if (!error) {
             success = true;
+            showSuccessToast = true;
             await refreshData();
             onSuccess(newOptionValue.toLowerCase().replace(/\s+/g, '-'));
           }
@@ -90,29 +94,20 @@ export function useNewOptionHandler() {
           // Create a new reason
           success = await addLossReason(newOptionValue.trim());
           if (success) {
+            showSuccessToast = true;
             onSuccess(newOptionValue.trim());
           }
         }
       }
 
+      if (success && showSuccessToast) {
+        toast({
+          title: "Sucesso",
+          description: `Nova opção adicionada com sucesso.`,
+        });
+      }
+
       if (success) {
-        // Only show success message for newly created items, not for unhidden ones
-        if (field === 'source' || field === 'loss_reason') {
-          // For sources and loss reasons, we already handle unhiding silently
-          // Only show toast for truly new items
-          const isNewItem = field === 'action_group' || field === 'action_type';
-          if (isNewItem) {
-            toast({
-              title: "Sucesso",
-              description: `Nova opção adicionada com sucesso.`,
-            });
-          }
-        } else {
-          toast({
-            title: "Sucesso",
-            description: `Nova opção adicionada com sucesso.`,
-          });
-        }
         setNewOptionValue("");
         setShowNewOptionInput(null);
       }
