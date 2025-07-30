@@ -15,7 +15,6 @@ import { AddLeadSourceDialog } from "@/components/AddLeadSourceDialog";
 import { AddLossReasonDialog } from "@/components/AddLossReasonDialog";
 import { EditCompanyModal } from "@/components/EditCompanyModal";
 import { DeleteButton } from "@/components/DeleteButton";
-import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useFilterOptions } from "@/hooks/useFilterOptions";
 import { useDashboardSettings } from "@/hooks/useDashboardSettings";
@@ -89,8 +88,6 @@ export function SettingsContent() {
     refreshData: refreshLossReasons
   } = useLossReasonsGlobal();
 
-  const { toast } = useToast();
-
   // Função para carregar membros da equipe
   const fetchTeamMembers = async () => {
     setIsLoadingMembers(true);
@@ -117,11 +114,6 @@ export function SettingsContent() {
       setTeamMembers(members);
     } catch (error) {
       console.error("Error fetching team members:", error);
-      toast({
-        title: "Erro ao buscar membros",
-        description: (error as Error).message || "Não foi possível carregar os membros da equipe.",
-        variant: "destructive",
-      });
     } finally {
       setIsLoadingMembers(false);
     }
@@ -186,27 +178,14 @@ export function SettingsContent() {
         throw new Error(data.error);
       }
 
-      toast({
-        title: "Membro removido com sucesso",
-        description: `O membro ${memberName} foi removido permanentemente.`,
-      });
-
       fetchTeamMembers();
     } catch (error) {
       console.error("Error deleting member:", error);
-      toast({
-        title: "Erro ao remover membro",
-        description: (error as Error).message || "Não foi possível remover o membro da equipe.",
-        variant: "destructive",
-      });
     }
   };
 
   const handleChangePaymentMethod = () => {
-    toast({
-      title: "Funcionalidade em desenvolvimento",
-      description: "A alteração da forma de pagamento será implementada em breve.",
-    });
+    // Functionality will be implemented soon
   };
 
   const handleEditColumnName = (columnId: string, currentName: string) => {
@@ -216,11 +195,6 @@ export function SettingsContent() {
 
   const handleSaveColumnName = async (columnId: string) => {
     if (!editingColumnName.trim()) {
-      toast({
-        title: "Erro",
-        description: "O nome da coluna não pode estar vazio.",
-        variant: "destructive",
-      });
       return;
     }
 
@@ -230,11 +204,6 @@ export function SettingsContent() {
       const schema = tenantSchema || await ensureTenantSchema();
       if (!schema) {
         console.error('❌ Não foi possível obter o esquema do tenant');
-        toast({
-          title: "Erro",
-          description: "Não foi possível obter o esquema do tenant.",
-          variant: "destructive"
-        });
         return;
       }
 
@@ -245,11 +214,6 @@ export function SettingsContent() {
 
       if (error) {
         console.error('❌ Erro ao atualizar coluna do tenant:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível atualizar o nome da coluna.",
-          variant: "destructive"
-        });
         return;
       }
 
@@ -257,20 +221,11 @@ export function SettingsContent() {
       setEditingColumnName("");
 
       console.log('✅ SettingsContent - Nome da coluna atualizado com sucesso no esquema do tenant');
-      toast({
-        title: "Sucesso",
-        description: "Nome da coluna atualizado com sucesso.",
-      });
 
       // Refresh columns after update
       handleColumnAdded();
     } catch (error) {
       console.error('❌ Erro inesperado ao atualizar coluna do tenant:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado ao atualizar a coluna.",
-        variant: "destructive"
-      });
     }
   };
 
@@ -286,11 +241,6 @@ export function SettingsContent() {
       const schema = tenantSchema || await ensureTenantSchema();
       if (!schema) {
         console.error('❌ Não foi possível obter o esquema do tenant');
-        toast({
-          title: "Erro",
-          description: "Não foi possível obter o esquema do tenant.",
-          variant: "destructive"
-        });
         return;
       }
 
@@ -301,29 +251,15 @@ export function SettingsContent() {
 
       if (error) {
         console.error('❌ Erro ao excluir coluna do tenant:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível excluir a coluna.",
-          variant: "destructive"
-        });
         return;
       }
 
       console.log('✅ SettingsContent - Coluna excluída com sucesso do esquema do tenant');
-      toast({
-        title: "Sucesso",
-        description: "Coluna excluída e ordem atualizada.",
-      });
 
       // Refresh columns after deletion
       handleColumnAdded();
     } catch (error) {
       console.error('❌ Erro inesperado ao excluir coluna do tenant:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado ao excluir a coluna.",
-        variant: "destructive"
-      });
     }
   };
 
@@ -364,14 +300,6 @@ export function SettingsContent() {
   // Função para gerenciar visibilidade dos componentes do dashboard
   const handleToggleComponentVisibility = (componentId: string) => {
     toggleComponentVisibility(componentId);
-    
-    const component = components.find(comp => comp.id === componentId);
-    if (component) {
-      toast({
-        title: "Visibilidade alterada",
-        description: `${component.name} foi ${component.visible ? 'ocultado' : 'exibido'}.`,
-      });
-    }
   };
 
   const renderDashboardTab = () => (
@@ -933,11 +861,6 @@ export function SettingsContent() {
     // Descobre a fonte no array atual para verificar user_id
     const source = leadSources.find((s: any) => s.id === sourceId);
     if (!source) {
-      toast({
-        title: "Erro",
-        description: "Fonte não encontrada.",
-        variant: "destructive"
-      });
       return;
     }
     if (!source.user_id) {
@@ -951,17 +874,8 @@ export function SettingsContent() {
         });
       if (error) {
         console.error('Erro ao ocultar fonte global:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível ocultar a fonte padrão.",
-          variant: "destructive"
-        });
         return;
       }
-      toast({
-        title: "Fonte padrão ocultada!",
-        description: "A fonte global não pode ser excluída, mas foi ocultada para seu workspace.",
-      });
       refreshData();
       return;
     }
@@ -972,17 +886,8 @@ export function SettingsContent() {
       .eq('id', source.id);
     if (error) {
       console.error('Erro ao excluir fonte de lead:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível excluir a fonte.",
-        variant: "destructive"
-      });
       return;
     }
-    toast({
-      title: "Sucesso",
-      description: "Fonte de lead excluída.",
-    });
     refreshData();
   };
 
@@ -991,11 +896,6 @@ export function SettingsContent() {
     // Descobre o grupo no array atual para verificar user_id
     const group = actionGroups.find((g: any) => g.id === groupId);
     if (!group) {
-      toast({
-        title: "Erro",
-        description: "Grupo não encontrado.",
-        variant: "destructive"
-      });
       return;
     }
     if (!group.user_id) {
@@ -1008,17 +908,8 @@ export function SettingsContent() {
         });
       if (error) {
         console.error('Erro ao ocultar grupo global:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível ocultar o grupo padrão.",
-          variant: "destructive"
-        });
         return;
       }
-      toast({
-        title: "Grupo padrão ocultado!",
-        description: "O grupo global não pode ser excluído, mas foi ocultado para seu workspace.",
-      });
       refreshData();
       return;
     }
@@ -1031,25 +922,11 @@ export function SettingsContent() {
 
       if (error) {
         console.error('Erro ao excluir grupo de ação:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível excluir o grupo.",
-          variant: "destructive"
-        });
         return;
       }
-      toast({
-        title: "Sucesso",
-        description: "Grupo de ação excluído.",
-      });
       refreshData();
     } catch (error) {
       console.error('Erro inesperado ao excluir grupo de ação:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro ao excluir o grupo.",
-        variant: "destructive"
-      });
     }
   };
 
@@ -1058,11 +935,6 @@ export function SettingsContent() {
     // Descobre o tipo no array atual para verificar user_id
     const type = actionTypes.find((t: any) => t.id === typeId);
     if (!type) {
-      toast({
-        title: "Erro",
-        description: "Tipo não encontrado.",
-        variant: "destructive"
-      });
       return;
     }
     if (!type.user_id) {
@@ -1075,17 +947,8 @@ export function SettingsContent() {
         });
       if (error) {
         console.error('Erro ao ocultar tipo global:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível ocultar o tipo padrão.",
-          variant: "destructive"
-        });
         return;
       }
-      toast({
-        title: "Tipo padrão ocultado!",
-        description: "O tipo global não pode ser excluído, mas foi ocultado para seu workspace.",
-      });
       refreshData();
       return;
     }
@@ -1098,25 +961,11 @@ export function SettingsContent() {
 
       if (error) {
         console.error('Erro ao excluir tipo de ação:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível excluir o tipo.",
-          variant: "destructive"
-        });
         return;
       }
-      toast({
-        title: "Sucesso",
-        description: "Tipo de ação excluído.",
-      });
       refreshData();
     } catch (error) {
       console.error('Erro inesperado ao excluir tipo de ação:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro ao excluir o tipo.",
-        variant: "destructive"
-      });
     }
   };
 
@@ -1124,18 +973,9 @@ export function SettingsContent() {
   const handleDeleteLossReason = async (reasonId: string) => {
     try {
       await deleteLossReason(reasonId);
-      toast({
-        title: "Motivo de perda excluído!",
-        description: "O motivo de perda foi removido com sucesso.",
-      });
       refreshLossReasons();
     } catch (error) {
       console.error('Erro ao excluir motivo de perda:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível excluir o motivo de perda.",
-        variant: "destructive"
-      });
     }
   };
 
