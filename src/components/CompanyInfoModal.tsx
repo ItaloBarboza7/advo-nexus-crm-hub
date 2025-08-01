@@ -1,13 +1,12 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFilterOptions } from "@/hooks/useFilterOptions";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 
 interface CompanyInfoModalProps {
   isOpen: boolean;
@@ -16,7 +15,7 @@ interface CompanyInfoModalProps {
 
 export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
   const [companyName, setCompanyName] = useState("");
-  const [cnpj, setCnpj] = useState("");
+  const [cpfCnpj, setCpfCnpj] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [cep, setCep] = useState("");
@@ -25,151 +24,275 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [originalAuthEmail, setOriginalAuthEmail] = useState("");
-  
-  const { stateOptions } = useFilterOptions();
+  const [existingCompanyId, setExistingCompanyId] = useState<string | null>(null);
   const { toast } = useToast();
+  const { stateOptions } = useFilterOptions();
 
+  // Carregar informações existentes ao abrir o modal
   useEffect(() => {
-    const loadUserInfo = async () => {
-      if (isOpen) {
-        try {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user?.email) {
-            console.log("🔍 CompanyInfoModal - Email de autenticação original:", user.email);
-            setOriginalAuthEmail(user.email);
-            setEmail(user.email); // Começar com o email atual
-          }
-        } catch (error) {
-          console.error("❌ Erro ao carregar informações do usuário:", error);
-        }
-      }
-    };
-
-    loadUserInfo();
+    if (isOpen) {
+      loadExistingCompanyInfo();
+    }
   }, [isOpen]);
 
+  const loadExistingCompanyInfo = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      console.log('🏢 CompanyInfoModal - Carregando informações existentes da empresa para usuário:', user.id);
+
+      // Verificar se já existe informação da empresa na tabela public.company_info
+      const { data: existingCompany, error } = await supabase
+        .from('company_info')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error('❌ Erro ao carregar informações da empresa:', error);
+        return;
+      }
+
+      if (existingCompany) {
+        console.log('✅ Informações da empresa encontradas, preenchendo campos:', existingCompany);
+        setExistingCompanyId(existingCompany.id);
+        setCompanyName(existingCompany.company_name || "");
+        setCpfCnpj(existingCompany.cnpj || "");
+        setPhone(existingCompany.phone || "");
+        setEmail(existingCompany.email || user.email || "");
+
+        // Parse do endereço se existir
+        if (existingCompany.address) {
+          const parsed = parseCompanyAddressFields(existingCompany.address);
+          setCep(parsed.cep ?? "");
+          setAddress(parsed.address ?? "");
+          setNeighborhood(parsed.neighborhood ?? "");
+          setCity(parsed.city ?? "");
+          setState(parsed.state ?? "");
+        }
+      } else {
+        // Se não há informações, carregar email do usuário
+        setEmail(user.email || "");
+        setExistingCompanyId(null);
+        console.log('ℹ️ Nenhuma informação de empresa encontrada, campos em branco');
+      }
+    } catch (error) {
+      console.error('❌ Erro ao carregar informações da empresa:', error);
+      // Em caso de erro, pelo menos carregar o email do usuário
+      loadUserEmail();
+    }
+  };
+
+  const loadUserEmail = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setEmail(user.email || "");
+      }
+    } catch (error) {
+      console.error('❌ Erro ao carregar email do usuário:', error);
+    }
+  };
+
+  function parseCompanyAddressFields(addr: string) {
+    const result = {
+      cep: "",
+      address: "",
+      neighborhood: "",
+      city: "",
+      state: "",
+    };
+    try {
+      const parts = addr.split(",");
+      // O último campo normalmente é "CEP: XXXXX-XXX"
+      if (parts.length > 0) {
+        const cepMatch = parts[parts.length - 1].match(/CEP[:\s]+([0-9\-]+)/i);
+        if (cepMatch) {
+          result.cep = cepMatch[1].trim();
+          parts.pop();
+        }
+      }
+      if (parts[0]) result.address = parts[0].trim();
+      if (parts[1]) result.neighborhood = parts[1].trim();
+      if (parts[2]) result.city = parts[2].trim();
+      if (parts[3]) result.state = parts[3].trim();
+    } catch {
+      // Mantém campos vazios se falhar
+    }
+    return result;
+  }
+
+  const updateUserProfile = async (email: string, phone: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return false;
+
+      console.log('👤 Atualizando perfil do usuário com email e telefone sincronizados...');
+
+      // Verificar se já existe um perfil para este usuário
+      const { data: existingProfile, error: checkError } = await supabase
+        .from('user_profiles')
+        .select('id, name')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('Erro ao verificar perfil existente:', checkError);
+        return false;
+      }
+
+      const profileData = {
+        user_id: user.id,
+        email: email.trim() || null,
+        phone: phone.trim() || null,
+      };
+
+      let saveError;
+      if (existingProfile) {
+        // Atualizar perfil existente mantendo o nome
+        const { error } = await supabase
+          .from('user_profiles')
+          .update(profileData)
+          .eq('user_id', user.id);
+        saveError = error;
+      } else {
+        // Criar novo perfil com dados básicos
+        const { error } = await supabase
+          .from('user_profiles')
+          .insert({
+            ...profileData,
+            name: user.user_metadata?.name || user.email?.split('@')[0] || "Usuário"
+          });
+        saveError = error;
+      }
+
+      if (saveError) {
+        console.error('Erro ao atualizar perfil do usuário:', saveError);
+        return false;
+      }
+
+      console.log('✅ Perfil do usuário atualizado com sucesso');
+      return true;
+    } catch (error) {
+      console.error('Erro inesperado ao atualizar perfil do usuário:', error);
+      return false;
+    }
+  };
+
   const handleSave = async () => {
-    if (!companyName || !cnpj || !phone || !email || !cep || !address || !neighborhood || !city || !state) {
+    if (!companyName || !cpfCnpj || !phone || !email || !cep || !address || !neighborhood || !city || !state) {
       toast({
         title: "Campos obrigatórios",
-        description: "Por favor, preencha todos os campos obrigatórios.",
+        description: "Por favor, preencha todos os campos.",
         variant: "destructive",
       });
       return;
     }
 
     setIsLoading(true);
-
     try {
-      console.log("💾 CompanyInfoModal - Iniciando salvamento das informações da empresa");
-      console.log("📧 Emails para comparação:", {
-        originalAuthEmail,
-        newEmail: email.trim(),
-        isDifferent: email.trim() !== originalAuthEmail
-      });
-
       const { data: { user } } = await supabase.auth.getUser();
+      
       if (!user) {
-        throw new Error("Usuário não encontrado");
-      }
-
-      // Se o email é diferente do email de autenticação original, atualizar via Edge Function
-      if (email.trim() !== originalAuthEmail && originalAuthEmail) {
-        console.log("🔄 CompanyInfoModal - Email diferente detectado, atualizando email de autenticação");
-        
-        const { data, error } = await supabase.functions.invoke('update-user-email', {
-          body: { 
-            newEmail: email.trim()
-          },
+        toast({
+          title: "Erro de autenticação",
+          description: "Usuário não encontrado. Faça login novamente.",
+          variant: "destructive",
         });
-
-        if (error) {
-          console.error("❌ Erro da Edge Function:", error);
-          throw new Error(`Erro ao atualizar email de login: ${error.message}`);
-        }
-        
-        if (data?.error) {
-          console.error("❌ Erro retornado pela função:", data.error);
-          throw new Error(`Erro ao atualizar email de login: ${data.error}`);
-        }
-
-        console.log("✅ Email de autenticação atualizado com sucesso");
+        return;
       }
 
-      // Montar o endereço completo
+      console.log('💾 CompanyInfoModal - Salvando informações da empresa para usuário:', user.id);
+
+      // Concatenar endereço completo
       const fullAddress = `${address}, ${neighborhood}, ${city}, ${state}, CEP: ${cep}`;
 
-      // Salvar informações da empresa
-      const { error: companyError } = await supabase
-        .from('company_info')
-        .insert({
-          company_name: companyName,
-          cnpj,
-          phone,
-          email: email.trim(),
-          address: fullAddress,
-        });
+      const companyData = {
+        user_id: user.id,
+        company_name: companyName,
+        cnpj: cpfCnpj,
+        phone,
+        email,
+        address: fullAddress
+      };
 
-      if (companyError) {
-        console.error("❌ Erro ao salvar informações da empresa:", companyError);
-        throw new Error(`Erro ao salvar informações da empresa: ${companyError.message}`);
+      let error;
+
+      if (existingCompanyId) {
+        // Atualizar registro existente
+        console.log('🔄 Atualizando informações da empresa existente:', existingCompanyId);
+        const updateResult = await supabase
+          .from('company_info')
+          .update(companyData)
+          .eq('id', existingCompanyId)
+          .eq('user_id', user.id);
+        
+        error = updateResult.error;
+      } else {
+        // Criar novo registro
+        console.log('➕ Criando novo registro de informações da empresa');
+        const insertResult = await supabase
+          .from('company_info')
+          .insert(companyData);
+        
+        error = insertResult.error;
       }
 
-      // Atualizar perfil do usuário
-      const { error: profileError } = await supabase
-        .from('user_profiles')
-        .upsert({
-          user_id: user.id,
-          email: email.trim(),
-          phone,
-        });
-
-      if (profileError) {
-        console.error("❌ Erro ao atualizar perfil:", profileError);
-        // Não falhar aqui, apenas avisar
-        console.warn("Aviso: Não foi possível atualizar o perfil do usuário");
+      if (error) {
+        console.error('❌ Erro ao salvar informações da empresa:', error);
+        
+        // Tratar erro específico de chave duplicada
+        if (error.code === '23505' && error.message.includes('company_info_user_id_key')) {
+          toast({
+            title: "Informações já existem",
+            description: "As informações da empresa já estão cadastradas para este usuário.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Erro",
+            description: `Não foi possível salvar as informações da empresa: ${error.message}`,
+            variant: "destructive",
+          });
+        }
+        return;
       }
 
-      // Atualizar metadados do usuário para marcar como completo
-      await supabase.auth.updateUser({
+      console.log('✅ Informações da empresa salvas com sucesso');
+
+      // Sincronizar com perfil do usuário
+      const profileUpdateSuccess = await updateUserProfile(email, phone);
+      if (!profileUpdateSuccess) {
+        toast({
+          title: "Aviso",
+          description: "Informações da empresa salvas, mas houve problema ao sincronizar com o perfil.",
+        });
+      }
+
+      // Atualizar os metadados do usuário para marcar que as informações estão completas
+      const { error: updateError } = await supabase.auth.updateUser({
         data: { 
-          company_info_completed: true,
-          is_first_login: false 
+          is_first_login: false,
+          company_info_completed: true
         }
       });
 
-      console.log("✅ CompanyInfoModal - Informações salvas com sucesso");
-
-      // Mostrar mensagem apropriada
-      const successMessage = email.trim() !== originalAuthEmail && originalAuthEmail
-        ? `Informações salvas com sucesso! Seu email de login foi atualizado para ${email.trim()}. Use este novo email para fazer login na próxima vez.`
-        : "Informações da empresa salvas com sucesso!";
+      if (updateError) {
+        console.warn('⚠️ Erro ao atualizar metadados do usuário:', updateError);
+      }
 
       toast({
-        title: "Sucesso",
-        description: successMessage,
-        duration: 5000,
+        title: "Informações salvas",
+        description: "As informações da empresa foram salvas com sucesso.",
       });
 
       onClose();
-
-      // Se o email foi alterado, mostrar aviso adicional
-      if (email.trim() !== originalAuthEmail && originalAuthEmail) {
-        setTimeout(() => {
-          toast({
-            title: "Email de Login Atualizado",
-            description: `Seu novo email de login é: ${email.trim()}`,
-            duration: 8000,
-          });
-        }, 1000);
-      }
-
     } catch (error) {
-      console.error("❌ CompanyInfoModal - Erro inesperado:", error);
+      console.error('❌ Erro inesperado ao salvar informações da empresa:', error);
       toast({
         title: "Erro",
-        description: error instanceof Error ? error.message : "Ocorreu um erro inesperado",
+        description: "Não foi possível salvar as informações da empresa. Tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -178,11 +301,11 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={() => {}}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">
-            Informações da Empresa
+            {existingCompanyId ? 'Editar Informações da Empresa' : 'Informações da Empresa'}
           </DialogTitle>
         </DialogHeader>
         
@@ -199,11 +322,11 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="cnpj">CPF/CNPJ *</Label>
+            <Label htmlFor="cpfCnpj">CPF/CNPJ *</Label>
             <Input
-              id="cnpj"
-              value={cnpj}
-              onChange={(e) => setCnpj(e.target.value)}
+              id="cpfCnpj"
+              value={cpfCnpj}
+              onChange={(e) => setCpfCnpj(e.target.value)}
               placeholder="XXX.XXX.XXX-XX ou XX.XXX.XXX/XXXX-XX"
               disabled={isLoading}
             />
@@ -230,11 +353,6 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
               placeholder="seu@email.com"
               disabled={isLoading}
             />
-            {email.trim() !== originalAuthEmail && originalAuthEmail && (
-              <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded border">
-                ⚠️ Este email será usado como seu novo email de login, substituindo: {originalAuthEmail}
-              </p>
-            )}
           </div>
 
           <div className="space-y-2">
@@ -302,6 +420,9 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
           </div>
 
           <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={onClose} disabled={isLoading}>
+              Fechar
+            </Button>
             <Button onClick={handleSave} disabled={isLoading}>
               {isLoading ? "Salvando..." : "Salvar"}
             </Button>
