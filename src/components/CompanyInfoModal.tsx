@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -72,10 +73,10 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
           setState(parsed.state ?? "");
         }
       } else {
-        // Se não há informações, carregar email do usuário
+        // Se não há informações, carregar email do usuário (não editável no modal inicial)
         setEmail(user.email || "");
         setExistingCompanyId(null);
-        console.log('ℹ️ Nenhuma informação de empresa encontrada, campos em branco');
+        console.log('ℹ️ Nenhuma informação de empresa encontrada, preenchendo email da conta:', user.email);
       }
     } catch (error) {
       console.error('❌ Erro ao carregar informações da empresa:', error);
@@ -300,6 +301,9 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
     }
   };
 
+  // Verificar se é um modal inicial (sem informações existentes da empresa)
+  const isInitialModal = !existingCompanyId;
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
@@ -351,8 +355,14 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="seu@email.com"
-              disabled={isLoading}
+              disabled={isLoading || isInitialModal}
+              className={isInitialModal ? "bg-muted text-muted-foreground cursor-not-allowed" : ""}
             />
+            {isInitialModal && (
+              <p className="text-xs text-muted-foreground">
+                Email da conta criada (não editável)
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
