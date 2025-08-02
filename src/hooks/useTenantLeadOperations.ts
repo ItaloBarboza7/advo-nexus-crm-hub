@@ -258,9 +258,57 @@ export function useTenantLeadOperations() {
     }
   };
 
+  const deleteLead = async (leadId: string): Promise<boolean> => {
+    try {
+      setIsLoading(true);
+      console.log(`🗑️ useTenantLeadOperations - Deletando lead ${leadId} no esquema do tenant...`);
+      
+      const schema = tenantSchema || await ensureTenantSchema();
+      if (!schema) {
+        console.error('❌ Não foi possível obter o esquema do tenant');
+        return false;
+      }
+
+      const sql = `DELETE FROM ${schema}.leads WHERE id = '${leadId}'`;
+      console.log('🔧 useTenantLeadOperations - Executando SQL de exclusão:', sql);
+
+      const { error } = await supabase.rpc('exec_sql' as any, {
+        sql: sql
+      });
+
+      if (error) {
+        console.error('❌ Erro ao excluir lead:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível excluir o lead.",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      console.log('✅ useTenantLeadOperations - Lead excluído com sucesso');
+      toast({
+        title: "Sucesso",
+        description: "Lead excluído com sucesso.",
+      });
+      return true;
+    } catch (error) {
+      console.error('❌ Erro inesperado ao excluir lead:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado ao excluir o lead.",
+        variant: "destructive"
+      });
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return {
     createLead,
     updateLead,
+    deleteLead,
     isLoading
   };
 }

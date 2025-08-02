@@ -6,6 +6,7 @@ import { Plus, LayoutGrid, List, BarChart3, Settings, Bug } from "lucide-react";
 import { useLeadsData } from "@/hooks/useLeadsData";
 import { useKanbanColumns } from "@/hooks/useKanbanColumns";
 import { useKanbanColumnManager } from "@/hooks/useKanbanColumnManager";
+import { useTenantLeadOperations } from "@/hooks/useTenantLeadOperations";
 import { NewLeadForm } from "@/components/NewLeadForm";
 import { KanbanView } from "@/components/KanbanView";
 import { LeadsListView } from "@/components/LeadsListView";
@@ -33,6 +34,7 @@ export function Dashboard() {
   const { leads, isLoading, refreshData, updateLead } = useLeadsData();
   const { columns } = useKanbanColumns();
   const { toast } = useToast();
+  const { deleteLead } = useTenantLeadOperations();
   
   const {
     columns: kanbanColumns,
@@ -106,12 +108,15 @@ export function Dashboard() {
     refreshData();
   };
 
-  const handleNewLeadCreated = () => {
+  const handleNewLeadCreated = async () => {
     console.log("🎉 Dashboard - Novo lead criado, atualizando lista");
     setIsNewLeadDialogOpen(false);
     
-    // Força atualização imediata dos dados
-    refreshData();
+    // Aguarda um pouco para garantir que a transação do banco foi concluída
+    setTimeout(() => {
+      console.log("🔄 Dashboard - Executando refresh após delay");
+      refreshData();
+    }, 500);
     
     toast({
       title: "Sucesso",
@@ -119,15 +124,23 @@ export function Dashboard() {
     });
   };
 
-  const handleDeleteConfirm = () => {
-    if (leadToDelete) {
-      // Here we would call the actual delete function
-      // For now, we'll just refresh the data and show success
-      handleLeadUpdated();
-      toast({
-        title: "Sucesso",
-        description: `Lead "${leadToDelete.name}" excluído com sucesso!`,
-      });
+  const handleDeleteConfirm = async () => {
+    if (!leadToDelete) return;
+    
+    console.log(`🗑️ Dashboard - Confirmando exclusão do lead: ${leadToDelete.name}`);
+    
+    try {
+      const success = await deleteLead(leadToDelete.id);
+      
+      if (success) {
+        // Atualizar a lista após exclusão bem-sucedida
+        refreshData();
+        console.log(`✅ Dashboard - Lead "${leadToDelete.name}" excluído com sucesso`);
+      }
+    } catch (error) {
+      console.error('❌ Dashboard - Erro ao excluir lead:', error);
+    } finally {
+      setLeadToDelete(null);
     }
   };
 
