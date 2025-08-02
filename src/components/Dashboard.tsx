@@ -1,332 +1,230 @@
-
-import { useState, useCallback, useEffect } from "react";
-import { Card } from "@/components/ui/card";
-import { Calendar } from "@/components/ui/calendar";
+import { useState, useMemo } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { CalendarIcon, X, BarChart3, TrendingUp, Users, DollarSign } from "lucide-react";
-import { DateRange } from "react-day-picker";
-import { BrazilTimezone } from "@/lib/timezone";
-import { ActivityPanel } from "@/components/ActivityPanel";
+import { Input } from "@/components/ui/input";
+import { Plus, LayoutGrid, List, BarChart3, Settings, Bug } from "lucide-react";
 import { useLeadsData } from "@/hooks/useLeadsData";
-import { useContractsData } from "@/hooks/useContractsData";
-import { useUserLeadsForDate } from "@/hooks/useUserLeadsForDate";
-import { useUserContractsData } from "@/hooks/useUserContractsData";
-import { DateFilter } from "@/components/DateFilter";
+import { useKanbanColumns } from "@/hooks/useKanbanColumns";
+import { useKanbanColumnManager } from "@/hooks/useKanbanColumnManager";
+import { NewLeadForm } from "@/components/NewLeadForm";
+import { KanbanView } from "@/components/KanbanView";
+import { LeadsListView } from "@/components/LeadsListView";
+import { DashboardContent } from "@/components/DashboardContent";
+import { SettingsContent } from "@/components/SettingsContent";
+import { LeadDetailsDialog } from "@/components/LeadDetailsDialog";
+import { AddColumnDialog } from "@/components/AddColumnDialog";
+import { LeadDebugPanel } from "@/components/LeadDebugPanel";
+import { Lead } from "@/types/lead";
+import { useToast } from "@/hooks/use-toast";
 
 export function Dashboard() {
-  const [selectedDate, setSelectedDate] = useState<Date>(BrazilTimezone.now());
-  const [dateRange, setDateRange] = useState<DateRange | undefined>();
-  const [appliedDateRange, setAppliedDateRange] = useState<DateRange | undefined>();
-  const [showActivityPanel, setShowActivityPanel] = useState(false);
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [activeView, setActiveView] = useState("kanban");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isNewLeadDialogOpen, setIsNewLeadDialogOpen] = useState(false);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [isDebugPanelOpen, setIsDebugPanelOpen] = useState(false);
+  
+  const { leads, isLoading, refreshData } = useLeadsData();
+  const { columns } = useKanbanColumns();
+  const { toast } = useToast();
+  
+  const {
+    isAddColumnDialogOpen,
+    maxOrder,
+    handleOpenAddColumnDialog,
+    handleCloseAddColumnDialog,
+    handleColumnAdded
+  } = useKanbanColumnManager();
 
-  // Use team data hooks for dashboard statistics
-  const { leads: allLeads, isLoading: leadsLoading } = useLeadsData();
-  const { contracts: allContracts, isLoading: contractsLoading } = useContractsData();
+  const filteredLeads = useMemo(() => {
+    if (!searchTerm) return leads;
+    const term = searchTerm.toLowerCase();
+    return leads.filter(lead => 
+      lead.name.toLowerCase().includes(term) ||
+      lead.email?.toLowerCase().includes(term) ||
+      lead.phone.toLowerCase().includes(term) ||
+      lead.source?.toLowerCase().includes(term) ||
+      lead.status.toLowerCase().includes(term) ||
+      lead.action_group?.toLowerCase().includes(term) ||
+      lead.action_type?.toLowerCase().includes(term)
+    );
+  }, [leads, searchTerm]);
 
-  // Use user-specific hooks for Activity Panel
-  const { 
-    leads: userLeads, 
-    isLoading: userLeadsLoading, 
-    error: userLeadsError, 
-    currentUser: userLeadsUser, 
-    fetchLeadsForDate: fetchUserLeadsForDate
-  } = useUserLeadsForDate();
+  const transformedLeads = useMemo(() => {
+    return filteredLeads.map(lead => ({
+      id: lead.id,
+      name: lead.name,
+      email: lead.email || '',
+      phone: lead.phone,
+      company: lead.description || '',
+      source: lead.source || '',
+      status: lead.status,
+      interest: lead.action_group || 'Outros',
+      value: lead.value ? new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+      }).format(Number(lead.value)) : 'R$ 0,00',
+      lastContact: new Intl.DateTimeFormat('pt-BR').format(new Date(lead.created_at)),
+      avatar: lead.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
+      originalId: lead.id,
+      numericValue: lead.value ? Number(lead.value) : 0
+    }));
+  }, [filteredLeads]);
 
-  const { 
-    contracts: userContracts, 
-    isLoading: userContractsLoading, 
-    error: userContractsError, 
-    currentUser: userContractsUser, 
-    fetchContractsForDate: fetchUserContractsForDate 
-  } = useUserContractsData();
+  const statusConfigs = useMemo(() => {
+    return columns.map(column => ({
+      id: column.name,
+      title: column.name,
+      color: column.color
+    }));
+  }, [columns]);
 
-  // Filter team leads by date range
-  const getFilteredLeads = useCallback(() => {
-    if (!allLeads || allLeads.length === 0) return [];
-    
-    if (!appliedDateRange) return allLeads;
-
-    const fromDate = appliedDateRange.from;
-    const toDate = appliedDateRange.to || appliedDateRange.from;
-
-    return allLeads.filter(lead => {
-      const leadDate = new Date(lead.created_at);
-      const leadDateLocal = BrazilTimezone.toLocal(leadDate);
-      const leadDateOnly = new Date(leadDateLocal.getFullYear(), leadDateLocal.getMonth(), leadDateLocal.getDate());
-      const fromDateOnly = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate());
-      const toDateOnly = new Date(toDate.getFullYear(), toDate.getMonth(), toDate.getDate());
-      
-      return leadDateOnly >= fromDateOnly && leadDateOnly <= toDateOnly;
-    });
-  }, [allLeads, appliedDateRange]);
-
-  // Filter team contracts by date range
-  const getFilteredContracts = useCallback(() => {
-    if (!allContracts || allContracts.length === 0) return [];
-    
-    if (!appliedDateRange) return allContracts;
-
-    const fromDate = appliedDateRange.from;
-    const toDate = appliedDateRange.to || appliedDateRange.from;
-
-    return allContracts.filter(contract => {
-      const contractDate = new Date(contract.closedAt);
-      const contractDateLocal = BrazilTimezone.toLocal(contractDate);
-      const contractDateOnly = new Date(contractDateLocal.getFullYear(), contractDateLocal.getMonth(), contractDateLocal.getDate());
-      const fromDateOnly = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate());
-      const toDateOnly = new Date(toDate.getFullYear(), toDate.getMonth(), toDate.getDate());
-      
-      return contractDateOnly >= fromDateOnly && contractDateOnly <= toDateOnly;
-    });
-  }, [allContracts, appliedDateRange]);
-
-  // Definir período padrão como mês atual na primeira carga
-  useEffect(() => {
-    const now = BrazilTimezone.now();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    
-    const currentMonthRange = {
-      from: startOfMonth,
-      to: endOfMonth
-    };
-    
-    console.log("📅 Dashboard - Definindo período padrão como mês atual:", {
-      from: BrazilTimezone.formatDateForDisplay(startOfMonth),
-      to: BrazilTimezone.formatDateForDisplay(endOfMonth)
-    });
-    
-    setAppliedDateRange(currentMonthRange);
-  }, []);
-
-  const handleDateSelect = useCallback((date: Date | undefined) => {
-    if (date) {
-      console.log("📅 Dashboard - Nova data selecionada:", BrazilTimezone.formatDateForDisplay(date));
-      setSelectedDate(date);
-      setAppliedDateRange(undefined); // Limpar filtro de período quando selecionar data específica
-      setIsCalendarOpen(false);
-    }
-  }, []);
-
-  const handleDateRangeApply = useCallback((range: DateRange | undefined) => {
-    console.log("📅 Dashboard - Período aplicado:", range);
-    setAppliedDateRange(range);
-    if (range?.from) {
-      // Limpar seleção de data individual quando aplicar período
-      setSelectedDate(range.from);
-    }
-  }, []);
-
-  const handleShowActivity = useCallback(() => {
-    const displayDate = appliedDateRange?.from || selectedDate;
-    console.log("🎯 Dashboard - Mostrando painel de atividades para:", BrazilTimezone.formatDateForDisplay(displayDate));
-    setShowActivityPanel(true);
-    
-    // Fetch user-specific data for Activity Panel
-    fetchUserLeadsForDate(displayDate);
-    fetchUserContractsForDate(displayDate);
-  }, [selectedDate, appliedDateRange, fetchUserLeadsForDate, fetchUserContractsForDate]);
-
-  const handleCloseActivity = useCallback(() => {
-    console.log("❌ Dashboard - Fechando painel de atividades");
-    setShowActivityPanel(false);
-  }, []);
-
-  // Get filtered data for statistics
-  const displayLeads = getFilteredLeads();
-  const displayContracts = getFilteredContracts();
-
-  // Calcular valor total dos contratos
-  const totalValue = displayContracts.reduce((sum, contract) => sum + contract.value, 0);
-
-  // Calcular estatísticas baseadas nos leads filtrados
-  const totalLeadsCount = displayLeads.length;
-  const proposalsAndMeetings = displayLeads.filter(lead => 
-    lead.status === "Proposta" || lead.status === "Reunião"
-  ).length;
-  const lostLeads = displayLeads.filter(lead => lead.status === "Perdido").length;
-  const closedDeals = displayLeads.filter(lead => lead.status === "Contrato Fechado").length;
-
-  console.log("🎯 Dashboard - Dados finais:", {
-    totalLeadsFromFiltered: displayLeads.length,
-    totalLeadsCount,
-    proposalsAndMeetings,
-    lostLeads,
-    closedDeals,
-    appliedDateRange
-  });
-
-  const getDisplayTitle = () => {
-    if (appliedDateRange?.from && appliedDateRange?.to) {
-      // Verificar se é o mês atual
-      const now = BrazilTimezone.now();
-      const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const endOfCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      
-      const isCurrentMonth = 
-        appliedDateRange.from.getTime() === startOfCurrentMonth.getTime() &&
-        appliedDateRange.to.getTime() === endOfCurrentMonth.getTime();
-      
-      if (isCurrentMonth) {
-        return `Resumo das atividades do mês atual (${now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })})`;
-      }
-      
-      return `Período de ${BrazilTimezone.formatDateForDisplay(appliedDateRange.from)} a ${BrazilTimezone.formatDateForDisplay(appliedDateRange.to)}`;
-    } else if (appliedDateRange?.from) {
-      return `Resumo das atividades de ${BrazilTimezone.formatDateForDisplay(appliedDateRange.from)}`;
-    }
-    return `Resumo das atividades de ${BrazilTimezone.formatDateForDisplay(selectedDate)}`;
+  const handleViewDetails = (lead: Lead) => {
+    setSelectedLead(lead);
+    setIsDetailsDialogOpen(true);
   };
 
+  const handleLeadUpdated = () => {
+    refreshData();
+  };
+
+  const handleNewLeadSuccess = () => {
+    setIsNewLeadDialogOpen(false);
+    refreshData();
+    toast({
+      title: "Sucesso",
+      description: "Lead criado com sucesso!",
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">Carregando...</div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
-          <p className="text-gray-600">
-            {getDisplayTitle()}
-          </p>
+    <div className="min-h-screen bg-gray-50 p-4">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Sistema CRM</h1>
+              <p className="text-gray-600">Gerencie seus leads de forma eficiente</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={() => setIsDebugPanelOpen(!isDebugPanelOpen)}
+                variant="outline"
+                size="sm"
+              >
+                <Bug className="h-4 w-4 mr-2" />
+                Debug
+              </Button>
+              <Button onClick={() => setIsNewLeadDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Lead
+              </Button>
+            </div>
+          </div>
         </div>
-        
-        <div className="flex items-center gap-4">
-          <DateFilter 
-            date={dateRange} 
-            setDate={setDateRange}
-            onApply={handleDateRangeApply}
-          />
-          
-          <div className="relative">
-            <Button
-              variant="outline"
-              onClick={() => setIsCalendarOpen(!isCalendarOpen)}
-              className="justify-start text-left font-normal"
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {BrazilTimezone.formatDateForDisplay(selectedDate)}
-            </Button>
-            
-            {isCalendarOpen && (
-              <div className="absolute right-0 top-full mt-2 z-50">
-                <Card className="p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium text-sm">Selecionar Data</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setIsCalendarOpen(false)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={handleDateSelect}
-                    className="rounded-md border"
-                  />
-                </Card>
+
+        {isDebugPanelOpen && <LeadDebugPanel />}
+
+        <Tabs value={activeView} onValueChange={setActiveView} className="w-full">
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <TabsList className="grid w-full lg:w-auto grid-cols-4 lg:grid-cols-4">
+                <TabsTrigger value="kanban" className="flex items-center gap-2">
+                  <LayoutGrid className="h-4 w-4" />
+                  Kanban
+                </TabsTrigger>
+                <TabsTrigger value="list" className="flex items-center gap-2">
+                  <List className="h-4 w-4" />
+                  Lista
+                </TabsTrigger>
+                <TabsTrigger value="dashboard" className="flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  Dashboard
+                </TabsTrigger>
+                <TabsTrigger value="settings" className="flex items-center gap-2">
+                  <Settings className="h-4 w-4" />
+                  Configurações
+                </TabsTrigger>
+              </TabsList>
+              
+              <div className="flex items-center gap-3">
+                <Input
+                  placeholder="Buscar leads..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full lg:w-64"
+                />
+                {activeView === "kanban" && (
+                  <Button 
+                    variant="outline" 
+                    onClick={handleOpenAddColumnDialog}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nova Coluna
+                  </Button>
+                )}
               </div>
-            )}
+            </div>
           </div>
-          
-          <Button onClick={handleShowActivity} className="bg-blue-600 hover:bg-blue-700">
-            <BarChart3 className="h-4 w-4 mr-2" />
-            Ver Detalhes
-          </Button>
-        </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <TabsContent value="kanban" className="mt-0">
+              <KanbanView
+                leads={transformedLeads}
+                statuses={statusConfigs}
+                onLeadUpdated={handleLeadUpdated}
+                onViewDetails={handleViewDetails}
+                originalLeads={filteredLeads}
+              />
+            </TabsContent>
+
+            <TabsContent value="list" className="mt-0">
+              <LeadsListView
+                leads={filteredLeads}
+                onViewDetails={handleViewDetails}
+                onLeadUpdated={handleLeadUpdated}
+              />
+            </TabsContent>
+
+            <TabsContent value="dashboard" className="mt-0">
+              <DashboardContent />
+            </TabsContent>
+
+            <TabsContent value="settings" className="mt-0">
+              <SettingsContent />
+            </TabsContent>
+          </div>
+        </Tabs>
       </div>
 
-      {/* Activity Panel */}
-      {showActivityPanel && (
-        <ActivityPanel
-          selectedDate={appliedDateRange?.from || selectedDate}
-          contracts={userContracts}
-          leads={userLeads}
-          isLoading={userLeadsLoading || userContractsLoading}
-          error={userLeadsError || userContractsError}
-          currentUser={userLeadsUser || userContractsUser}
-          onClose={handleCloseActivity}
-        />
-      )}
+      <NewLeadForm
+        open={isNewLeadDialogOpen}
+        onOpenChange={setIsNewLeadDialogOpen}
+        onSuccess={handleNewLeadSuccess}
+      />
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <DollarSign className="h-6 w-6 text-green-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Contratos Fechados</p>
-              <p className="text-2xl font-bold text-gray-900">{closedDeals}</p>
-            </div>
-          </div>
-        </Card>
+      <LeadDetailsDialog
+        lead={selectedLead}
+        open={isDetailsDialogOpen}
+        onOpenChange={setIsDetailsDialogOpen}
+        onLeadUpdated={handleLeadUpdated}
+      />
 
-        <Card className="p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <TrendingUp className="h-6 w-6 text-blue-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Valor Total</p>
-              <p className="text-2xl font-bold text-gray-900">
-                R$ {totalValue.toLocaleString('pt-BR')}
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <BarChart3 className="h-6 w-6 text-purple-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Ticket Médio</p>
-              <p className="text-2xl font-bold text-gray-900">
-                R$ {closedDeals > 0 ? Math.round(totalValue / closedDeals).toLocaleString('pt-BR') : '0'}
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <Users className="h-6 w-6 text-yellow-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Leads Cadastrados</p>
-              <p className="text-2xl font-bold text-gray-900">{totalLeadsCount}</p>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Debug Info */}
-      <Card className="p-4 bg-gray-50">
-        <h3 className="font-medium mb-2">Debug Info:</h3>
-        <div className="text-sm text-gray-600">
-          <p>Leads retornados (filtrados): {displayLeads.length}</p>
-          <p>Contratos retornados (filtrados): {displayContracts.length}</p>
-          <p>Período aplicado: {appliedDateRange ? 
-            `${BrazilTimezone.formatDateForDisplay(appliedDateRange.from!)} - ${BrazilTimezone.formatDateForDisplay(appliedDateRange.to!)}` 
-            : 'Nenhum'}</p>
-          <p>Hook carregando: {leadsLoading || contractsLoading ? 'Sim' : 'Não'}</p>
-        </div>
-      </Card>
-
-      {/* Loading States */}
-      {(leadsLoading || contractsLoading) && (
-        <Card className="p-6">
-          <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mr-4"></div>
-            <span>Carregando dados...</span>
-          </div>
-        </Card>
-      )}
+      <AddColumnDialog
+        open={isAddColumnDialogOpen}
+        onOpenChange={handleCloseAddColumnDialog}
+        onColumnAdded={handleColumnAdded}
+        maxOrder={maxOrder}
+      />
     </div>
   );
 }
