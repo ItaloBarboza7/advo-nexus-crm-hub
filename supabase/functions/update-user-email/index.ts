@@ -18,6 +18,210 @@ const logStep = (step: string, details?: any) => {
   console.log(`[${timestamp}] [UPDATE-USER-EMAIL] ${step}${detailsStr}`);
 };
 
+// Função para avaliar prioridade de clientes
+const evaluateCustomerPriority = async (stripe: Stripe, customer: any, userId: string): Promise<number> => {
+  let priority = 0;
+  
+  // +100 pontos se tem supabase_user_id correspondente
+  if (customer.metadata?.supabase_user_id === userId) {
+    priority += 100;
+  }
+  
+  // +50 pontos para cada assinatura ativa
+  try {
+    const subscriptions = await stripe.subscriptions.list({
+      customer: customer.id,
+      status: 'active',
+      limit: 10
+    });
+    priority += subscriptions.data.length * 50;
+  } catch (error) {
+    logStep("Error checking subscriptions for priority", { customerId: customer.id, error });
+  }
+  
+  // +10 pontos se foi criado mais recentemente (baseado em timestamp)
+  const daysSinceCreation = (Date.now() / 1000 - customer.created) / (24 * 60 * 60);
+  if (daysSinceCreation < 30) {
+    priority += Math.max(0, 10 - Math.floor(daysSinceCreation / 3));
+  }
+  
+  logStep("Customer priority calculated", {
+    customerId: customer.id,
+    email: customer.email,
+    priority,
+    hasMatchingUserId: customer.metadata?.supabase_user_id === userId,
+    created: new Date(customer.created * 1000).toISOString()
+  });
+  
+  return priority;
+};
+
+// Função para consolidar clientes duplicados
+const consolidateDuplicateCustomers = async (stripe: Stripe, customers: any[], userId: string, newEmail: string) => {
+  if (customers.length <= 1) return customers;
+  
+  logStep("=== STARTING CUSTOMER CONSOLIDATION ===", {
+    totalCustomers: customers.length,
+    customerEmails: customers.map(c => ({ id: c.id, email: c.email }))
+  });
+  
+  // Avaliar prioridade de cada cliente
+  const customersWithPriority = [];
+  for (const customer of customers) {
+    const priority = await evaluateCustomerPriority(stripe, customer, userId);
+    customersWithPriority.push({ customer, priority });
+  }
+  
+  // Ordenar por prioridade (maior primeiro)
+  customersWithPriority.sort((a, b) => b.priority - a.priority);
+  
+  const primaryCustomer = customersWithPriority[0].customer;
+  const duplicateCustomers = customersWithPriority.slice(1).map(item => item.customer);
+  
+  logStep("Primary customer selected", {
+    primaryId: primaryCustomer.id,
+    primaryEmail: primaryCustomer.email,
+    primaryPriority: customersWithPriority[0].priority,
+    duplicatesCount: duplicateCustomers.length
+  });
+  
+  // Transferir assinaturas dos clientes duplicados para o principal
+  for (const duplicateCustomer of duplicateCustomers) {
+    try {
+      logStep("Processing duplicate customer", {
+        duplicateId: duplicateCustomer.id,
+        duplicateEmail: duplicateCustomer.email
+      });
+      
+      // Buscar assinaturas do cliente duplicado
+      const subscriptions = await stripe.subscriptions.list({
+        customer: duplicateCustomer.id,
+        limit: 100
+      });
+      
+      logStep("Found subscriptions to transfer", {
+        customerId: duplicateCustomer.id,
+        subscriptionCount: subscriptions.data.length,
+        subscriptions: subscriptions.data.map(s => ({
+          id: s.id,
+          status: s.status,
+          priceId: s.items.data[0]?.price?.id
+        }))
+      });
+      
+      // Transferir cada assinatura para o cliente principal
+      for (const subscription of subscriptions.data) {
+        if (['active', 'trialing', 'past_due'].includes(subscription.status)) {
+          logStep("Transferring subscription", {
+            subscriptionId: subscription.id,
+            fromCustomer: duplicateCustomer.id,
+            toCustomer: primaryCustomer.id,
+            status: subscription.status
+          });
+          
+          await stripe.subscriptions.update(subscription.id, {
+            customer: primaryCustomer.id,
+            metadata: {
+              ...subscription.metadata,
+              transferred_from: duplicateCustomer.id,
+              transferred_at: new Date().toISOString(),
+              transfer_reason: 'customer_consolidation'
+            }
+          });
+          
+          logStep("Subscription transferred successfully", {
+            subscriptionId: subscription.id,
+            newCustomer: primaryCustomer.id
+          });
+        }
+      }
+      
+      // Buscar métodos de pagamento do cliente duplicado
+      const paymentMethods = await stripe.paymentMethods.list({
+        customer: duplicateCustomer.id,
+        limit: 100
+      });
+      
+      logStep("Found payment methods to transfer", {
+        customerId: duplicateCustomer.id,
+        paymentMethodCount: paymentMethods.data.length
+      });
+      
+      // Transferir métodos de pagamento para o cliente principal
+      for (const paymentMethod of paymentMethods.data) {
+        try {
+          await stripe.paymentMethods.attach(paymentMethod.id, {
+            customer: primaryCustomer.id
+          });
+          
+          logStep("Payment method transferred", {
+            paymentMethodId: paymentMethod.id,
+            type: paymentMethod.type,
+            toCustomer: primaryCustomer.id
+          });
+        } catch (pmError: any) {
+          logStep("Warning: Could not transfer payment method", {
+            paymentMethodId: paymentMethod.id,
+            error: pmError.message
+          });
+        }
+      }
+      
+      // Aguardar um pouco antes de deletar para garantir que as transferências foram processadas
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Deletar o cliente duplicado
+      await stripe.customers.del(duplicateCustomer.id);
+      
+      logStep("Duplicate customer deleted successfully", {
+        deletedCustomerId: duplicateCustomer.id,
+        deletedCustomerEmail: duplicateCustomer.email
+      });
+      
+    } catch (error: any) {
+      logStep("Error processing duplicate customer", {
+        customerId: duplicateCustomer.id,
+        error: error.message,
+        type: error.type,
+        code: error.code
+      });
+    }
+  }
+  
+  // Atualizar metadados do cliente principal
+  try {
+    await stripe.customers.update(primaryCustomer.id, {
+      email: newEmail,
+      metadata: {
+        ...primaryCustomer.metadata,
+        supabase_user_id: userId,
+        email_updated_at: new Date().toISOString(),
+        consolidated_duplicates: 'true',
+        consolidation_date: new Date().toISOString(),
+        original_duplicates_count: duplicateCustomers.length.toString()
+      }
+    });
+    
+    logStep("Primary customer metadata updated", {
+      customerId: primaryCustomer.id,
+      newEmail,
+      consolidatedCount: duplicateCustomers.length
+    });
+  } catch (error: any) {
+    logStep("Error updating primary customer metadata", {
+      customerId: primaryCustomer.id,
+      error: error.message
+    });
+  }
+  
+  logStep("=== CUSTOMER CONSOLIDATION COMPLETED ===", {
+    primaryCustomerId: primaryCustomer.id,
+    consolidatedCustomers: duplicateCustomers.length
+  });
+  
+  return [primaryCustomer];
+};
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -68,7 +272,7 @@ serve(async (req: Request) => {
       newEmail 
     });
 
-    // === STRIPE CUSTOMER SEARCH AND UPDATE ===
+    // === STRIPE CUSTOMER SEARCH AND CONSOLIDATION ===
     logStep("=== STRIPE UPDATE PHASE ===");
     
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
@@ -77,142 +281,105 @@ serve(async (req: Request) => {
         const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
         logStep("Stripe client initialized");
 
-        // STRATEGY 1: Search by old email
-        logStep("Strategy 1: Searching customers by old email", { oldEmail });
-        let customers = await stripe.customers.list({ 
-          email: oldEmail, 
-          limit: 10 
-        });
+        // ESTRATÉGIA DE BUSCA ABRANGENTE - buscar por ambos os emails
+        const searchEmails = [oldEmail, newEmail].filter(Boolean);
+        const allFoundCustomers = new Map<string, any>();
         
-        logStep("Old email search results", { 
-          found: customers.data.length,
-          customers: customers.data.map(c => ({ 
-            id: c.id, 
-            email: c.email, 
-            created: c.created 
-          }))
-        });
+        logStep("Searching for customers by multiple emails", { searchEmails });
 
-        // STRATEGY 2: If no customers found by email, search by user metadata or recent customers
-        if (customers.data.length === 0) {
-          logStep("Strategy 2: Searching all recent customers for matches");
-          const allRecentCustomers = await stripe.customers.list({ 
-            limit: 100,
-            created: { gte: Math.floor(Date.now() / 1000) - (90 * 24 * 60 * 60) } // Last 90 days
-          });
-          
-          logStep("Recent customers search results", { 
-            totalFound: allRecentCustomers.data.length
-          });
-
-          // Look for customers with matching email (case insensitive)
-          const matchingByEmail = allRecentCustomers.data.filter(c => 
-            c.email?.toLowerCase() === oldEmail?.toLowerCase()
-          );
-
-          if (matchingByEmail.length > 0) {
-            customers = { 
-              data: matchingByEmail, 
-              has_more: false, 
-              object: 'list', 
-              url: '' 
-            };
-            logStep("Found customers by case-insensitive email match", { 
-              count: matchingByEmail.length 
-            });
+        // Buscar por cada email
+        for (const email of searchEmails) {
+          if (email) {
+            try {
+              const customers = await stripe.customers.list({ 
+                email: email, 
+                limit: 10 
+              });
+              
+              logStep(`Found customers for email ${email}`, { 
+                count: customers.data.length,
+                customers: customers.data.map(c => ({ 
+                  id: c.id, 
+                  email: c.email, 
+                  created: c.created,
+                  metadata: c.metadata 
+                }))
+              });
+              
+              // Adicionar ao mapa (evita duplicatas por ID)
+              customers.data.forEach(customer => {
+                allFoundCustomers.set(customer.id, customer);
+              });
+            } catch (error: any) {
+              logStep(`Error searching for email ${email}`, { error: error.message });
+            }
           }
         }
 
-        // STRATEGY 3: Search by Supabase user ID in metadata
-        if (customers.data.length === 0) {
-          logStep("Strategy 3: Searching by Supabase user ID in metadata");
+        // Buscar por Supabase user ID nos metadados
+        try {
+          logStep("Searching by Supabase user ID in metadata");
           const allCustomers = await stripe.customers.list({ limit: 100 });
           const matchingByUserId = allCustomers.data.filter(c => 
             c.metadata?.supabase_user_id === user.id
           );
-
-          if (matchingByUserId.length > 0) {
-            customers = { 
-              data: matchingByUserId, 
-              has_more: false, 
-              object: 'list', 
-              url: '' 
-            };
-            logStep("Found customers by Supabase user ID", { 
-              count: matchingByUserId.length 
-            });
-          }
+          
+          logStep("Found customers by user ID metadata", { 
+            count: matchingByUserId.length,
+            customers: matchingByUserId.map(c => ({ 
+              id: c.id, 
+              email: c.email,
+              metadata: c.metadata 
+            }))
+          });
+          
+          matchingByUserId.forEach(customer => {
+            allFoundCustomers.set(customer.id, customer);
+          });
+        } catch (error: any) {
+          logStep("Error searching by user ID", { error: error.message });
         }
 
-        if (customers.data.length > 0) {
-          // Update all matching customers
-          for (const customer of customers.data) {
-            logStep("Updating Stripe customer", { 
-              customerId: customer.id, 
-              oldEmail: customer.email, 
-              newEmail 
-            });
+        const customersArray = Array.from(allFoundCustomers.values());
+        
+        logStep("Total unique customers found", { 
+          totalCount: customersArray.length,
+          customerIds: customersArray.map(c => c.id)
+        });
 
-            // Check if customer has active subscriptions before updating
-            const subscriptions = await stripe.subscriptions.list({
-              customer: customer.id,
-              status: 'active',
-              limit: 10
-            });
-
-            logStep("Customer subscriptions found", {
-              customerId: customer.id,
-              activeSubscriptions: subscriptions.data.length,
-              subscriptions: subscriptions.data.map(s => ({
-                id: s.id,
-                status: s.status,
-                items: s.items.data.map(item => ({
-                  price_id: item.price.id,
-                  amount: item.price.unit_amount
-                }))
-              }))
-            });
-
-            // Update customer with new email and enhanced metadata
-            const updatedCustomer = await stripe.customers.update(customer.id, {
-              email: newEmail,
-              metadata: {
-                ...customer.metadata,
-                supabase_user_id: user.id,
-                email_updated_at: new Date().toISOString(),
-                previous_email: oldEmail,
-                updated_by_function: 'update-user-email'
-              }
-            });
-
-            logStep("Stripe customer updated successfully", { 
-              customerId: customer.id,
-              newEmail: updatedCustomer.email,
-              hasActiveSubscriptions: subscriptions.data.length > 0
-            });
-          }
-
-          logStep("All matching Stripe customers updated", { 
-            totalUpdated: customers.data.length 
+        if (customersArray.length > 0) {
+          // Consolidar clientes duplicados se houver mais de um
+          const consolidatedCustomers = await consolidateDuplicateCustomers(
+            stripe, 
+            customersArray, 
+            user.id, 
+            newEmail
+          );
+          
+          logStep("Customer consolidation completed", { 
+            originalCount: customersArray.length,
+            finalCount: consolidatedCustomers.length,
+            primaryCustomerId: consolidatedCustomers[0]?.id
           });
+          
         } else {
           logStep("WARNING: No Stripe customers found for user", { 
             oldEmail, 
+            newEmail,
             userId: user.id 
           });
         }
 
       } catch (stripeError: any) {
-        logStep("ERROR: Stripe update failed", { 
+        logStep("ERROR: Stripe operations failed", { 
           error: stripeError.message,
           type: stripeError.type,
-          code: stripeError.code,
-          details: stripeError
+          code: stripeError.code
         });
-        // Don't fail the entire process for Stripe errors
+        // Não falhar o processo inteiro por erros do Stripe
       }
     } else {
-      logStep("WARNING: STRIPE_SECRET_KEY not configured, skipping Stripe update");
+      logStep("WARNING: STRIPE_SECRET_KEY not configured, skipping Stripe operations");
     }
 
     // === SUPABASE UPDATES ===
@@ -228,7 +395,8 @@ serve(async (req: Request) => {
           ...user.user_metadata,
           email: newEmail,
           email_updated_at: new Date().toISOString(),
-          previous_email: oldEmail
+          previous_email: oldEmail,
+          customer_consolidation_performed: true
         }
       }
     );
@@ -267,19 +435,20 @@ serve(async (req: Request) => {
       logStep("Company info updated successfully");
     }
 
-    logStep("=== EMAIL UPDATE COMPLETED SUCCESSFULLY ===", { 
+    logStep("=== EMAIL UPDATE AND CONSOLIDATION COMPLETED SUCCESSFULLY ===", { 
       oldEmail, 
       newEmail,
-      userId: user.id
+      userId: user.id,
+      consolidationPerformed: true
     });
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Email atualizado com sucesso no Supabase e Stripe',
+        message: 'Email atualizado com sucesso e clientes Stripe consolidados',
         oldEmail,
         newEmail,
-        stripeUpdated: !!stripeKey,
+        stripeConsolidated: !!stripeKey,
         userId: user.id
       }),
       {
