@@ -4,6 +4,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useTenantSchema } from '@/hooks/useTenantSchema';
 import { useLeadsDebugger } from '@/hooks/useLeadsDebugger';
+import { 
+  LeadRecord, 
+  toLeadRecordArray, 
+  toStatusResult 
+} from '@/utils/typeGuards';
 
 interface LeadUpdateData {
   name: string;
@@ -29,14 +34,6 @@ interface LeadCreateData {
   action_type?: string;
   value?: number;
   description?: string;
-}
-
-interface LeadRecord {
-  id: string;
-  name: string;
-  phone: string;
-  created_at: string;
-  status?: string;
 }
 
 export function useEnhancedTenantLeadOperations() {
@@ -115,9 +112,9 @@ export function useEnhancedTenantLeadOperations() {
         return false;
       }
 
-      // Type assertion and verification
-      const resultData = data as LeadRecord[];
-      if (!resultData || !Array.isArray(resultData) || resultData.length === 0) {
+      // Safe type conversion
+      const resultData = toLeadRecordArray(data);
+      if (resultData.length === 0) {
         endOperation('create_lead_enhanced', { error: 'No data returned', data }, false);
         toast({
           title: "Erro",
@@ -135,8 +132,8 @@ export function useEnhancedTenantLeadOperations() {
         sql: verificationSql 
       });
 
-      const verificationResult = verificationData as LeadRecord[];
-      if (verificationError || !verificationResult || !Array.isArray(verificationResult) || verificationResult.length === 0) {
+      const verificationResult = toLeadRecordArray(verificationData || []);
+      if (verificationError || verificationResult.length === 0) {
         endOperation('create_lead_enhanced', { 
           verificationError, 
           verificationData,
@@ -205,8 +202,8 @@ export function useEnhancedTenantLeadOperations() {
         return false;
       }
 
-      const existingLeadData = existingLead as LeadRecord[];
-      if (!existingLeadData || !Array.isArray(existingLeadData) || existingLeadData.length === 0) {
+      const existingLeadData = toLeadRecordArray(existingLead || []);
+      if (existingLeadData.length === 0) {
         endOperation('delete_lead_enhanced', { error: 'Lead not found', leadId }, false);
         addDebugLog('delete_lead_not_found', { leadId }, false);
         toast({
@@ -259,11 +256,11 @@ export function useEnhancedTenantLeadOperations() {
       const verify2Sql = `SELECT id, status FROM ${schema}.leads WHERE id = '${leadId}'`;
       const { data: verify2Data, error: verify2Error } = await supabase.rpc('exec_sql', { sql: verify2Sql });
 
-      const verify1Result = verify1Data as { count: number }[];
-      const verify2Result = verify2Data as LeadRecord[];
+      const verify1Result = toCountResultArray(verify1Data || []);
+      const verify2Result = toLeadRecordArray(verify2Data || []);
 
-      const stillExists = !verify1Error && verify1Result && Array.isArray(verify1Result) && verify1Result[0]?.count > 0;
-      const statusChanged = !verify2Error && verify2Result && Array.isArray(verify2Result) && verify2Result.length > 0 && 
+      const stillExists = !verify1Error && verify1Result.length > 0 && verify1Result[0].count > 0;
+      const statusChanged = !verify2Error && verify2Result.length > 0 && 
                            verify2Result[0].status !== leadInfo.status;
 
       addDebugLog('delete_verification', {
@@ -350,9 +347,9 @@ export function useEnhancedTenantLeadOperations() {
           sql: getCurrentStatusSql 
         });
 
-        const currentStatusData = currentData as { status: string }[];
-        if (!getCurrentError && currentStatusData && Array.isArray(currentStatusData) && currentStatusData.length > 0) {
-          currentStatus = currentStatusData[0].status;
+        const statusResult = toStatusResult(currentData);
+        if (!getCurrentError && statusResult) {
+          currentStatus = statusResult.status;
         }
       }
 
