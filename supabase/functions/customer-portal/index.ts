@@ -14,6 +14,102 @@ const logStep = (step: string, details?: any) => {
   console.log(`[CUSTOMER-PORTAL] ${step}${detailsStr}`);
 };
 
+// Função para encontrar o melhor cliente baseado em critérios (copied from get-stripe-details)
+const findBestCustomer = async (stripe: Stripe, candidates: any[], userId: string): Promise<any | null> => {
+  if (candidates.length === 0) return null;
+  if (candidates.length === 1) return candidates[0];
+  
+  logStep("Multiple customers found, evaluating best match", {
+    totalCandidates: candidates.length,
+    candidates: candidates.map(c => ({
+      id: c.id,
+      email: c.email,
+      created: c.created,
+      metadata: c.metadata
+    }))
+  });
+  
+  const evaluatedCustomers = [];
+  
+  for (const customer of candidates) {
+    let score = 0;
+    
+    // +100 pontos se tem o supabase_user_id correto
+    if (customer.metadata?.supabase_user_id === userId) {
+      score += 100;
+    }
+    
+    // Verificar assinaturas ativas
+    try {
+      const subscriptions = await stripe.subscriptions.list({
+        customer: customer.id,
+        status: 'active',
+        limit: 10
+      });
+      
+      // +50 pontos por assinatura ativa
+      score += subscriptions.data.length * 50;
+      
+      // +25 pontos se tem assinatura trialing
+      const trialingSubscriptions = await stripe.subscriptions.list({
+        customer: customer.id,
+        status: 'trialing',
+        limit: 10
+      });
+      score += trialingSubscriptions.data.length * 25;
+      
+    } catch (error) {
+      logStep("Error checking subscriptions for customer", {
+        customerId: customer.id,
+        error
+      });
+    }
+    
+    // +10 pontos se foi atualizado recentemente (metadados)
+    if (customer.metadata?.email_updated_at) {
+      const updateTime = new Date(customer.metadata.email_updated_at).getTime();
+      const daysSinceUpdate = (Date.now() - updateTime) / (1000 * 60 * 60 * 24);
+      if (daysSinceUpdate < 7) {
+        score += 10;
+      }
+    }
+    
+    // +5 pontos se foi consolidado (indica que já passou pelo processo)
+    if (customer.metadata?.consolidated_duplicates === 'true') {
+      score += 5;
+    }
+    
+    evaluatedCustomers.push({
+      customer,
+      score,
+      details: {
+        hasMatchingUserId: customer.metadata?.supabase_user_id === userId,
+        hasRecentUpdate: !!customer.metadata?.email_updated_at,
+        wasConsolidated: customer.metadata?.consolidated_duplicates === 'true'
+      }
+    });
+  }
+  
+  // Ordenar por pontuação (maior primeiro)
+  evaluatedCustomers.sort((a, b) => b.score - a.score);
+  
+  const bestCustomer = evaluatedCustomers[0];
+  
+  logStep("Best customer selected", {
+    customerId: bestCustomer.customer.id,
+    email: bestCustomer.customer.email,
+    score: bestCustomer.score,
+    details: bestCustomer.details,
+    allScores: evaluatedCustomers.map(ec => ({
+      id: ec.customer.id,
+      score: ec.score,
+      details: ec.details
+    }))
+  });
+  
+  return bestCustomer.customer;
+};
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -98,56 +194,129 @@ serve(async (req: Request) => {
     logStep("Initializing Stripe client");
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
 
-    // ENHANCED CUSTOMER SEARCH with multiple strategies
+    // COMPREHENSIVE CUSTOMER SEARCH with multiple strategies (same as get-stripe-details)
     logStep("=== CUSTOMER SEARCH PHASE ===");
     
-    // Strategy 1: Direct email search
-    logStep("Strategy 1: Searching by email", { email: user.email });
-    let customers = await stripe.customers.list({ 
-      email: user.email, 
-      limit: 10 
-    });
+    const allFoundCustomers = new Map<string, any>();
     
-    logStep("Email search results", { 
-      found: customers.data.length,
-      customers: customers.data.map(c => ({ 
-        id: c.id, 
-        email: c.email, 
-        created: c.created 
-      }))
-    });
-
-    // Strategy 2: If no exact match, try case-insensitive search
-    if (customers.data.length === 0) {
-      logStep("Strategy 2: Trying case-insensitive search");
-      const allCustomers = await stripe.customers.list({ limit: 100 });
-      const matchingCustomers = allCustomers.data.filter(c => 
-        c.email?.toLowerCase() === user.email.toLowerCase()
-      );
+    // Strategy 1: Direct email search
+    logStep("Strategy 1: Searching by exact email", { email: user.email });
+    try {
+      const customers = await stripe.customers.list({ 
+        email: user.email, 
+        limit: 10 
+      });
       
-      logStep("Case-insensitive search results", { 
-        totalSearched: allCustomers.data.length,
-        matches: matchingCustomers.length,
-        matchingCustomers: matchingCustomers.map(c => ({ 
+      logStep("Exact email search results", { 
+        found: customers.data.length,
+        customers: customers.data.map(c => ({ 
           id: c.id, 
-          email: c.email 
+          email: c.email, 
+          created: c.created,
+          metadata: c.metadata 
         }))
       });
       
-      if (matchingCustomers.length > 0) {
-        customers = { 
-          data: matchingCustomers, 
-          has_more: false, 
-          object: 'list', 
-          url: '' 
-        };
+      customers.data.forEach(customer => {
+        allFoundCustomers.set(customer.id, customer);
+      });
+    } catch (error) {
+      logStep("Strategy 1 failed", { error });
+    }
+
+    // Strategy 2: Search by Supabase user ID in metadata
+    logStep("Strategy 2: Searching by Supabase user ID in metadata");
+    try {
+      const allRecentCustomers = await stripe.customers.list({ 
+        limit: 100,
+        created: { gte: Math.floor(Date.now() / 1000) - (180 * 24 * 60 * 60) } // Last 180 days
+      });
+      
+      const matchingByUserId = allRecentCustomers.data.filter(c => 
+        c.metadata?.supabase_user_id === user.id
+      );
+      
+      logStep("User ID metadata search results", { 
+        totalSearched: allRecentCustomers.data.length,
+        matches: matchingByUserId.length,
+        matchingCustomers: matchingByUserId.map(c => ({ 
+          id: c.id, 
+          email: c.email,
+          metadata: c.metadata 
+        }))
+      });
+      
+      matchingByUserId.forEach(customer => {
+        allFoundCustomers.set(customer.id, customer);
+      });
+    } catch (error) {
+      logStep("Strategy 2 failed", { error });
+    }
+
+    // Strategy 3: Search by previous email in metadata
+    logStep("Strategy 3: Searching by previous_email in metadata");
+    try {
+      const allCustomers = await stripe.customers.list({ limit: 100 });
+      const matchingByPreviousEmail = allCustomers.data.filter(c => 
+        c.metadata?.previous_email?.toLowerCase() === user.email.toLowerCase() ||
+        c.email?.toLowerCase() !== user.email.toLowerCase() && 
+        c.metadata?.supabase_user_id === user.id
+      );
+      
+      logStep("Previous email metadata search results", { 
+        matches: matchingByPreviousEmail.length,
+        matchingCustomers: matchingByPreviousEmail.map(c => ({ 
+          id: c.id, 
+          email: c.email,
+          previousEmail: c.metadata?.previous_email,
+          metadata: c.metadata 
+        }))
+      });
+      
+      matchingByPreviousEmail.forEach(customer => {
+        allFoundCustomers.set(customer.id, customer);
+      });
+    } catch (error) {
+      logStep("Strategy 3 failed", { error });
+    }
+
+    // Strategy 4: Case-insensitive email search
+    if (allFoundCustomers.size === 0) {
+      logStep("Strategy 4: Case-insensitive email search");
+      try {
+        const allCustomers = await stripe.customers.list({ limit: 100 });
+        const matchingCustomers = allCustomers.data.filter(c => 
+          c.email?.toLowerCase() === user.email.toLowerCase()
+        );
+        
+        logStep("Case-insensitive search results", { 
+          totalSearched: allCustomers.data.length,
+          matches: matchingCustomers.length,
+          matchingCustomers: matchingCustomers.map(c => ({ 
+            id: c.id, 
+            email: c.email 
+          }))
+        });
+        
+        matchingCustomers.forEach(customer => {
+          allFoundCustomers.set(customer.id, customer);
+        });
+      } catch (error) {
+        logStep("Strategy 4 failed", { error });
       }
     }
 
-    // Strategy 3: If still no customer, create one
+    const candidateCustomers = Array.from(allFoundCustomers.values());
+    
+    logStep("All search strategies completed", {
+      totalUniqueCandidates: candidateCustomers.length,
+      candidateIds: candidateCustomers.map(c => c.id)
+    });
+
+    // If no customers found, create a new one
     let customerId: string;
-    if (customers.data.length === 0) {
-      logStep("Strategy 3: Creating new customer", { email: user.email });
+    if (candidateCustomers.length === 0) {
+      logStep("No customers found, creating new customer", { email: user.email });
       try {
         const newCustomer = await stripe.customers.create({
           email: user.email,
@@ -171,11 +340,17 @@ serve(async (req: Request) => {
         throw new Error(`Failed to create Stripe customer: ${stripeError.message}`);
       }
     } else {
-      customerId = customers.data[0].id;
-      logStep("Using existing customer", { 
+      // Find the best customer using the same logic as get-stripe-details
+      const bestCustomer = await findBestCustomer(stripe, candidateCustomers, user.id);
+      if (!bestCustomer) {
+        throw new Error("Failed to determine the best customer");
+      }
+      customerId = bestCustomer.id;
+      logStep("Using best customer selected", { 
         customerId,
-        customerEmail: customers.data[0].email,
-        customerCreated: customers.data[0].created
+        customerEmail: bestCustomer.email,
+        customerCreated: bestCustomer.created,
+        customerMetadata: bestCustomer.metadata
       });
     }
 
