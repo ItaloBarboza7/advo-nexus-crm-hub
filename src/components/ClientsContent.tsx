@@ -1,14 +1,14 @@
+
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { KanbanView } from "./KanbanView";
 import { LeadsListView } from "./LeadsListView";
 import { NewLeadForm } from "./NewLeadForm";
-import { EditLeadForm } from "./EditLeadForm";
 import { LeadFilters, FilterOptions } from "./LeadFilters";
 import { GlobalSearch } from "./GlobalSearch";
 import { Button } from "./ui/button";
-import { Plus, Grid3X3, List, Download, Target } from "lucide-react";
+import { Plus, Grid3X3, List, Target } from "lucide-react";
 import { Lead } from "@/types/lead";
 import { DeleteLeadDialog } from "./DeleteLeadDialog";
 import { LossReasonDialog } from "./LossReasonDialog";
@@ -16,11 +16,13 @@ import { useSubscriptionControl } from "@/hooks/useSubscriptionControl";
 import { SubscriptionProtectedWrapper } from "./SubscriptionProtectedWrapper";
 import { BlockedContent } from "./BlockedContent";
 import { useToast } from "@/hooks/use-toast";
+import { useLeadDialogs } from "@/hooks/useLeadDialogs";
+import { LeadDialogs } from "./analysis/LeadDialogs";
+import { useKanbanColumns } from "@/hooks/useKanbanColumns";
 
 export function ClientsContent() {
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [showNewLeadForm, setShowNewLeadForm] = useState(false);
-  const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [deletingLead, setDeletingLead] = useState<Lead | null>(null);
   const [lossReasonLead, setLossReasonLead] = useState<Lead | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -34,6 +36,18 @@ export function ClientsContent() {
 
   const { canAccessFeature } = useSubscriptionControl();
   const { toast } = useToast();
+  const { columns, isLoading: columnsLoading } = useKanbanColumns();
+  
+  const {
+    selectedLead,
+    isDetailsDialogOpen,
+    setIsDetailsDialogOpen,
+    isEditFormOpen,
+    setIsEditFormOpen,
+    handleViewDetails,
+    handleEditLead,
+    handleLeadUpdated
+  } = useLeadDialogs();
 
   const {
     data,
@@ -110,15 +124,12 @@ export function ClientsContent() {
     numericValue: lead.value || 0
   })) || [];
 
-  // Define statuses for KanbanView
-  const kanbanStatuses = [
-    { id: "Novo", title: "Novo", color: "bg-gray-100 text-gray-800" },
-    { id: "Proposta", title: "Proposta", color: "bg-gray-100 text-gray-800" },
-    { id: "Reunião", title: "Reunião", color: "bg-gray-100 text-gray-800" },
-    { id: "Contrato Fechado", title: "Contrato Fechado", color: "bg-gray-100 text-gray-800" },
-    { id: "Perdido", title: "Perdido", color: "bg-gray-100 text-gray-800" },
-    { id: "Finalizado", title: "Finalizado", color: "bg-gray-100 text-gray-800" }
-  ];
+  // Map columns to KanbanView status format
+  const kanbanStatuses = columns.map(column => ({
+    id: column.name,
+    title: column.name,
+    color: column.color || "bg-gray-100 text-gray-800"
+  }));
 
   const handleCreateLead = () => {
     if (!canAccessFeature('create_lead')) {
@@ -138,18 +149,6 @@ export function ClientsContent() {
       title: "Oportunidades",
       description: "Funcionalidade em desenvolvimento.",
     });
-  };
-
-  const handleEditLead = (lead: Lead) => {
-    if (!canAccessFeature('edit_lead')) {
-      toast({
-        title: "Acesso Restrito", 
-        description: "Editar leads requer uma assinatura ativa.",
-        variant: "destructive",
-      });
-      return;
-    }
-    setEditingLead(lead);
   };
 
   const handleDeleteLead = (leadId: string, leadName: string) => {
@@ -213,13 +212,9 @@ export function ClientsContent() {
     }
   };
 
-  const handleLeadSelect = (lead: Lead) => {
-    setEditingLead(lead);
-  };
-
-  const handleLeadUpdated = () => {
+  const handleLeadUpdatedWrapper = () => {
     refetch();
-    setEditingLead(null);
+    handleLeadUpdated();
   };
 
   const handleFiltersChange = (filters: FilterOptions) => {
@@ -321,7 +316,7 @@ export function ClientsContent() {
 
       <div className="flex items-center gap-4 p-4 border rounded-lg bg-background">
         <div className="w-full max-w-md">
-          <GlobalSearch onLeadSelect={handleLeadSelect} />
+          <GlobalSearch onLeadSelect={handleViewDetails} />
         </div>
         
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -360,7 +355,7 @@ export function ClientsContent() {
         </div>
       </div>
 
-      {isLoading ? (
+      {isLoading || columnsLoading ? (
         <div className="text-center">Carregando leads...</div>
       ) : error ? (
         <div className="text-center text-red-500">Erro ao carregar leads: {error.message}</div>
@@ -378,14 +373,14 @@ export function ClientsContent() {
               leads={transformedLeads}
               statuses={kanbanStatuses}
               onLeadUpdated={refetch}
-              onViewDetails={handleEditLead}
+              onViewDetails={handleViewDetails}
               originalLeads={filteredData || []}
             />
           ) : (
             <LeadsListView
               leads={filteredData || []}
-              onViewDetails={handleEditLead}
-              onEditStatus={handleEditLead}
+              onViewDetails={handleViewDetails}
+              onEditStatus={handleViewDetails}
               onDeleteLead={handleDeleteLead}
               getStatusColor={getStatusColor}
               formatDate={formatDate}
@@ -402,14 +397,15 @@ export function ClientsContent() {
         />
       )}
 
-      {editingLead && (
-        <EditLeadForm
-          lead={editingLead}
-          open={!!editingLead}
-          onOpenChange={(open) => !open && setEditingLead(null)}
-          onLeadUpdated={handleLeadUpdated}
-        />
-      )}
+      <LeadDialogs
+        selectedLead={selectedLead}
+        isDetailsDialogOpen={isDetailsDialogOpen}
+        setIsDetailsDialogOpen={setIsDetailsDialogOpen}
+        isEditFormOpen={isEditFormOpen}
+        setIsEditFormOpen={setIsEditFormOpen}
+        onEditLead={handleEditLead}
+        onLeadUpdated={handleLeadUpdatedWrapper}
+      />
 
       {deletingLead && (
         <DeleteLeadDialog

@@ -21,13 +21,33 @@ export function useLeadDialogs() {
     setIsDetailsDialogOpen(false);
   };
 
+  const handleLeadUpdated = () => {
+    setIsEditFormOpen(false);
+    setSelectedLead(null);
+  };
+
+  const handleDetailsClose = (open: boolean) => {
+    setIsDetailsDialogOpen(open);
+    if (!open) {
+      setSelectedLead(null);
+    }
+  };
+
+  const handleEditClose = (open: boolean) => {
+    setIsEditFormOpen(open);
+    if (!open) {
+      setSelectedLead(null);
+    }
+  };
+
   return {
     selectedLead,
     isDetailsDialogOpen,
-    setIsDetailsDialogOpen,
+    setIsDetailsDialogOpen: handleDetailsClose,
     isEditFormOpen,
-    setIsEditFormOpen,
+    setIsEditFormOpen: handleEditClose,
     handleViewDetails,
-    handleEditLead
+    handleEditLead,
+    handleLeadUpdated
   };
 }
