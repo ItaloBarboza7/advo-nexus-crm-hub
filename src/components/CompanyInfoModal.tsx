@@ -1,10 +1,10 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useEmailAvailability } from "@/hooks/useEmailAvailability";
 import { supabase } from "@/integrations/supabase/client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFilterOptions } from "@/hooks/useFilterOptions";
@@ -19,6 +19,7 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
   const [cpfCnpj, setCpfCnpj] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [originalEmail, setOriginalEmail] = useState("");
   const [cep, setCep] = useState("");
   const [address, setAddress] = useState("");
   const [neighborhood, setNeighborhood] = useState("");
@@ -26,8 +27,35 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
   const [state, setState] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [existingCompanyId, setExistingCompanyId] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string>('');
+  const [previousEmail, setPreviousEmail] = useState<string>('');
   const { toast } = useToast();
   const { stateOptions } = useFilterOptions();
+  const { checkEmailAvailability, isChecking } = useEmailAvailability();
+
+  // Verificar disponibilidade do email quando o usuário para de digitar
+  useEffect(() => {
+    const checkEmail = async () => {
+      // Só verificar se o email mudou do original e não está vazio
+      if (email && email.includes('@') && email !== originalEmail && email !== previousEmail) {
+        const result = await checkEmailAvailability(email);
+        
+        if (!result.available) {
+          setEmailError('Email indisponível');
+        } else {
+          setEmailError('');
+        }
+        setPreviousEmail(email);
+      } else if (!email || !email.includes('@') || email === originalEmail) {
+        setEmailError('');
+        setPreviousEmail('');
+      }
+    };
+
+    // Debounce para evitar muitas chamadas
+    const timeoutId = setTimeout(checkEmail, 1000);
+    return () => clearTimeout(timeoutId);
+  }, [email, originalEmail, checkEmailAvailability, previousEmail]);
 
   // Carregar informações existentes ao abrir o modal
   useEffect(() => {
@@ -62,6 +90,7 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
         setCpfCnpj(existingCompany.cnpj || "");
         setPhone(existingCompany.phone || "");
         setEmail(existingCompany.email || user.email || "");
+        setOriginalEmail(existingCompany.email || user.email || "");
 
         // Parse do endereço se existir
         if (existingCompany.address) {
@@ -74,9 +103,11 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
         }
       } else {
         // Se não há informações, carregar email do usuário (não editável no modal inicial)
-        setEmail(user.email || "");
+        const userEmail = user.email || "";
+        setEmail(userEmail);
+        setOriginalEmail(userEmail);
         setExistingCompanyId(null);
-        console.log('ℹ️ Nenhuma informação de empresa encontrada, preenchendo email da conta:', user.email);
+        console.log('ℹ️ Nenhuma informação de empresa encontrada, preenchendo email da conta:', userEmail);
       }
     } catch (error) {
       console.error('❌ Erro ao carregar informações da empresa:', error);
@@ -89,7 +120,9 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        setEmail(user.email || "");
+        const userEmail = user.email || "";
+        setEmail(userEmail);
+        setOriginalEmail(userEmail);
       }
     } catch (error) {
       console.error('❌ Erro ao carregar email do usuário:', error);
@@ -186,6 +219,15 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
       toast({
         title: "Campos obrigatórios",
         description: "Por favor, preencha todos os campos.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (emailError) {
+      toast({
+        title: "Email indisponível",
+        description: "Este email já está sendo usado. Escolha outro email.",
         variant: "destructive",
       });
       return;
@@ -356,12 +398,18 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="seu@email.com"
               disabled={isLoading || isInitialModal}
-              className={isInitialModal ? "bg-muted text-muted-foreground cursor-not-allowed" : ""}
+              className={`${isInitialModal ? "bg-muted text-muted-foreground cursor-not-allowed" : ""} ${emailError ? "border-red-500" : ""}`}
             />
             {isInitialModal && (
               <p className="text-xs text-muted-foreground">
                 Email da conta criada (não editável)
               </p>
+            )}
+            {!isInitialModal && isChecking && email && (
+              <p className="text-sm text-gray-500">Verificando disponibilidade...</p>
+            )}
+            {!isInitialModal && emailError && (
+              <p className="text-sm text-red-500">{emailError}</p>
             )}
           </div>
 
@@ -433,7 +481,10 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
             <Button variant="outline" onClick={onClose} disabled={isLoading}>
               Fechar
             </Button>
-            <Button onClick={handleSave} disabled={isLoading}>
+            <Button 
+              onClick={handleSave} 
+              disabled={isLoading || !!emailError || isChecking}
+            >
               {isLoading ? "Salvando..." : "Salvar"}
             </Button>
           </div>

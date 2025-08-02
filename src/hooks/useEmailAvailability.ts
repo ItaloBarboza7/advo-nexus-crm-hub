@@ -10,7 +10,6 @@ interface EmailAvailabilityResponse {
 
 export function useEmailAvailability() {
   const [isChecking, setIsChecking] = useState(false);
-  const [lastCheckedEmail, setLastCheckedEmail] = useState<string>('');
 
   const checkEmailAvailability = useCallback(async (email: string): Promise<EmailAvailabilityResponse> => {
     if (!email || email.trim() === '') {
@@ -19,11 +18,6 @@ export function useEmailAvailability() {
 
     const trimmedEmail = email.trim().toLowerCase();
     
-    // Se é o mesmo email da última verificação, não verificar novamente
-    if (trimmedEmail === lastCheckedEmail) {
-      return { available: true, email: trimmedEmail };
-    }
-
     setIsChecking(true);
     
     try {
@@ -36,8 +30,6 @@ export function useEmailAvailability() {
         return { available: true, email: trimmedEmail, error: 'Erro ao verificar email' };
       }
 
-      setLastCheckedEmail(trimmedEmail);
-      
       return {
         available: data.available,
         email: trimmedEmail,
@@ -49,7 +41,7 @@ export function useEmailAvailability() {
     } finally {
       setIsChecking(false);
     }
-  }, [lastCheckedEmail]);
+  }, []);
 
   return {
     checkEmailAvailability,

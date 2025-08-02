@@ -26,13 +26,14 @@ export function PurchaseModal({ isOpen, onClose, planType, planPrice }: Purchase
   });
   const [isLoading, setIsLoading] = useState(false);
   const [emailError, setEmailError] = useState<string>('');
+  const [previousEmail, setPreviousEmail] = useState<string>('');
   const { toast } = useToast();
   const { checkEmailAvailability, isChecking } = useEmailAvailability();
 
   // Verificar disponibilidade do email quando o usuário para de digitar
   useEffect(() => {
     const checkEmail = async () => {
-      if (customerData.email && customerData.email.includes('@')) {
+      if (customerData.email && customerData.email.includes('@') && customerData.email !== previousEmail) {
         const result = await checkEmailAvailability(customerData.email);
         
         if (!result.available) {
@@ -40,15 +41,17 @@ export function PurchaseModal({ isOpen, onClose, planType, planPrice }: Purchase
         } else {
           setEmailError('');
         }
-      } else {
+        setPreviousEmail(customerData.email);
+      } else if (!customerData.email || !customerData.email.includes('@')) {
         setEmailError('');
+        setPreviousEmail('');
       }
     };
 
     // Debounce para evitar muitas chamadas
     const timeoutId = setTimeout(checkEmail, 1000);
     return () => clearTimeout(timeoutId);
-  }, [customerData.email, checkEmailAvailability]);
+  }, [customerData.email, checkEmailAvailability, previousEmail]);
 
   const handleInputChange = (field: string, value: string) => {
     setCustomerData(prev => ({
@@ -56,9 +59,12 @@ export function PurchaseModal({ isOpen, onClose, planType, planPrice }: Purchase
       [field]: value
     }));
 
-    // Limpar erro de email quando usuário começar a digitar novamente
-    if (field === 'email') {
-      setEmailError('');
+    // Apenas limpar erro de email se o campo email mudou e não está vazio
+    if (field === 'email' && value !== customerData.email) {
+      // Só limpar o erro se o novo valor for diferente do anterior
+      if (value !== previousEmail) {
+        setEmailError('');
+      }
     }
   };
 
@@ -158,7 +164,7 @@ export function PurchaseModal({ isOpen, onClose, planType, planPrice }: Purchase
         return;
       }
 
-      if (data.error) {
+      if (data?.error) {
         toast({
           title: "Erro no pagamento",
           description: data.error,
@@ -167,10 +173,20 @@ export function PurchaseModal({ isOpen, onClose, planType, planPrice }: Purchase
         return;
       }
 
-      // Redirecionar para o Stripe Checkout
-      if (data.url) {
-        window.location.href = data.url;
+      // Verificar se a URL existe antes de redirecionar
+      if (!data?.url) {
+        console.error('URL de pagamento não recebida:', data);
+        toast({
+          title: "Erro no redirecionamento",
+          description: "Não foi possível obter o link de pagamento. Tente novamente.",
+          variant: "destructive"
+        });
+        return;
       }
+
+      // Redirecionar para o Stripe Checkout
+      console.log('Redirecionando para:', data.url);
+      window.location.href = data.url;
 
     } catch (error) {
       console.error('Erro inesperado:', error);
@@ -194,6 +210,7 @@ export function PurchaseModal({ isOpen, onClose, planType, planPrice }: Purchase
       confirmPassword: ''
     });
     setEmailError('');
+    setPreviousEmail('');
   };
 
   // Reset form quando o modal abrir
