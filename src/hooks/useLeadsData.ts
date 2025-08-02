@@ -14,32 +14,25 @@ export function useLeadsData() {
   const { tenantSchema, ensureTenantSchema } = useTenantSchema();
   const fetchingRef = useRef(false);
   const mountedRef = useRef(true);
-  const lastFetchTimeRef = useRef(0);
 
-  // Debounce mechanism to prevent rapid successive calls
-  const FETCH_DEBOUNCE_MS = 1000;
-
-  const fetchLeads = useCallback(async () => {
-    const now = Date.now();
-    if (fetchingRef.current || !tenantSchema || (now - lastFetchTimeRef.current) < FETCH_DEBOUNCE_MS) {
-      console.log("🚫 useLeadsData - Fetch skipped (debounce, no schema, or already fetching)");
+  const fetchLeads = useCallback(async (forceRefresh = false) => {
+    if (fetchingRef.current && !forceRefresh) {
+      console.log("🚫 useLeadsData - Fetch em andamento, pulando...");
+      return;
+    }
+    
+    if (!tenantSchema) {
+      console.log("🚫 useLeadsData - Schema do tenant não disponível");
       return;
     }
     
     try {
       fetchingRef.current = true;
-      lastFetchTimeRef.current = now;
       setIsLoading(true);
       console.log("📊 useLeadsData - Buscando leads no esquema do tenant...");
       
-      const schema = tenantSchema;
-      if (!schema) {
-        console.error('❌ Não foi possível obter o esquema do tenant');
-        return;
-      }
-
       const { data, error } = await supabase.rpc('exec_sql' as any, {
-        sql: `SELECT * FROM ${schema}.leads ORDER BY created_at DESC`
+        sql: `SELECT * FROM ${tenantSchema}.leads ORDER BY created_at DESC`
       });
 
       if (error) {
@@ -64,15 +57,9 @@ export function useLeadsData() {
         closed_by_user_id: lead.closed_by_user_id || null
       }));
 
-      console.log(`✅ useLeadsData - ${transformedLeads.length} leads carregados do esquema ${schema}`);
+      console.log(`✅ useLeadsData - ${transformedLeads.length} leads carregados do esquema ${tenantSchema}`);
       if (mountedRef.current) {
-        setLeads(prev => {
-          // Only update if data has actually changed
-          if (JSON.stringify(prev) !== JSON.stringify(transformedLeads)) {
-            return transformedLeads;
-          }
-          return prev;
-        });
+        setLeads(transformedLeads);
       }
     } catch (error: any) {
       console.error('❌ Erro inesperado ao buscar leads:', error);
@@ -91,12 +78,10 @@ export function useLeadsData() {
     }
   }, [tenantSchema, toast]);
 
-  // Memoize refresh function to prevent recreation
-  const refreshData = useMemo(() => {
-    return () => {
-      console.log(`🔄 useLeadsData - Atualizando dados dos leads...`);
-      fetchLeads();
-    };
+  // Função de refresh que força a atualização
+  const refreshData = useCallback(() => {
+    console.log(`🔄 useLeadsData - Forçando atualização dos leads...`);
+    fetchLeads(true);
   }, [fetchLeads]);
 
   const updateLead = useCallback(async (leadId: string, updates: Partial<Lead>) => {
@@ -122,10 +107,6 @@ export function useLeadsData() {
         return true;
       }
 
-      // Usar exec_sql mas de forma mais simples para preservar o contexto de auth
-      // O trigger agora usa auth.uid() que deve funcionar corretamente
-      console.log('🔧 Executando atualização com contexto de auth preservado');
-      
       // Construir a query SQL de forma segura
       const setClause = Object.keys(validUpdates)
         .map(key => {

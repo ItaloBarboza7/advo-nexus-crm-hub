@@ -102,12 +102,17 @@ export function Dashboard() {
   };
 
   const handleLeadUpdated = () => {
+    console.log("🔄 Dashboard - Atualizando dados após mudança no lead");
     refreshData();
   };
 
   const handleNewLeadCreated = () => {
+    console.log("🎉 Dashboard - Novo lead criado, atualizando lista");
     setIsNewLeadDialogOpen(false);
+    
+    // Força atualização imediata dos dados
     refreshData();
+    
     toast({
       title: "Sucesso",
       description: "Lead criado com sucesso!",
