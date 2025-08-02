@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -96,9 +95,30 @@ export function ClientsContent() {
   // Transform leads for KanbanView which expects numeric id and value
   const transformedLeads = filteredData?.map(lead => ({
     ...lead,
+    id: lead.id, // Keep as string now since we fixed the interface
+    email: lead.email || "",
+    company: lead.company || "",
+    source: lead.source || "",
+    interest: lead.action_group || "",
+    value: lead.value ? new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(lead.value) : "R$ 0,00",
+    lastContact: lead.updated_at ? new Date(lead.updated_at).toLocaleDateString('pt-BR') : "",
+    avatar: lead.name.charAt(0).toUpperCase(),
     originalId: lead.id,
     numericValue: lead.value || 0
   })) || [];
+
+  // Define statuses for KanbanView
+  const kanbanStatuses = [
+    { id: "Novo", title: "Novo", color: "bg-blue-100 text-blue-800" },
+    { id: "Contato", title: "Contato", color: "bg-yellow-100 text-yellow-800" },
+    { id: "Qualificado", title: "Qualificado", color: "bg-purple-100 text-purple-800" },
+    { id: "Proposta", title: "Proposta", color: "bg-orange-100 text-orange-800" },
+    { id: "Fechado", title: "Fechado", color: "bg-green-100 text-green-800" },
+    { id: "Perdido", title: "Perdido", color: "bg-red-100 text-red-800" }
+  ];
 
   const handleCreateLead = () => {
     if (!canAccessFeature('create_lead')) {
@@ -335,9 +355,10 @@ export function ClientsContent() {
           {viewMode === 'kanban' ? (
             <KanbanView
               leads={transformedLeads}
-              onEditLead={handleEditLead}
-              onDeleteLead={handleDeleteLead}
-              onStatusChange={handleStatusChange}
+              statuses={kanbanStatuses}
+              onLeadUpdated={refetch}
+              onViewDetails={handleEditLead}
+              originalLeads={filteredData || []}
             />
           ) : (
             <LeadsListView
@@ -353,7 +374,6 @@ export function ClientsContent() {
         </SubscriptionProtectedWrapper>
       )}
 
-      {/* Dialogs */}
       {showNewLeadForm && (
         <NewLeadForm
           open={showNewLeadForm}

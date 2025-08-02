@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +13,7 @@ import { useTenantSchema } from "@/hooks/useTenantSchema";
 import { supabase } from "@/integrations/supabase/client";
 
 interface TransformedLead {
-  id: number;
+  id: string;
   name: string;
   email: string;
   phone: string;
