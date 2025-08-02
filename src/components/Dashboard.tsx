@@ -3,10 +3,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, LayoutGrid, List, BarChart3, Settings, Bug } from "lucide-react";
-import { useLeadsData } from "@/hooks/useLeadsData";
+import { useEnhancedLeadsData } from "@/hooks/useEnhancedLeadsData";
 import { useKanbanColumns } from "@/hooks/useKanbanColumns";
 import { useKanbanColumnManager } from "@/hooks/useKanbanColumnManager";
-import { useTenantLeadOperations } from "@/hooks/useTenantLeadOperations";
+import { useEnhancedTenantLeadOperations } from "@/hooks/useEnhancedTenantLeadOperations";
 import { NewLeadForm } from "@/components/NewLeadForm";
 import { KanbanView } from "@/components/KanbanView";
 import { LeadsListView } from "@/components/LeadsListView";
@@ -14,7 +14,7 @@ import { DashboardContent } from "@/components/DashboardContent";
 import { SettingsContent } from "@/components/SettingsContent";
 import { LeadDetailsDialog } from "@/components/LeadDetailsDialog";
 import { AddColumnDialog } from "@/components/AddColumnDialog";
-import { LeadDebugPanel } from "@/components/LeadDebugPanel";
+import { EnhancedLeadDebugPanel } from "@/components/EnhancedLeadDebugPanel";
 import { DeleteLeadDialog } from "@/components/DeleteLeadDialog";
 import { StatusChangeForm } from "@/components/StatusChangeForm";
 import { Lead } from "@/types/lead";
@@ -32,10 +32,20 @@ export function Dashboard() {
   const [leadToDelete, setLeadToDelete] = useState<{ id: string; name: string } | null>(null);
   const [isDeletingLead, setIsDeletingLead] = useState(false);
   
-  const { leads, isLoading, refreshData, updateLead } = useLeadsData();
+  // Enhanced hooks
+  const { 
+    leads, 
+    isLoading, 
+    refreshData, 
+    updateLead,
+    cacheInfo,
+    isPolling,
+    hasRealtimeConnection 
+  } = useEnhancedLeadsData();
+  
   const { columns } = useKanbanColumns();
   const { toast } = useToast();
-  const { deleteLead } = useTenantLeadOperations();
+  const { deleteLead } = useEnhancedTenantLeadOperations();
   
   const {
     columns: kanbanColumns,
@@ -105,21 +115,17 @@ export function Dashboard() {
     setIsDeleteDialogOpen(true);
   };
 
-  const handleLeadUpdated = () => {
+  const handleLeadUpdated = async () => {
     console.log("🔄 Dashboard - Atualizando dados após mudança no lead");
-    // Force refresh with cache breaker after any update
-    refreshData(true);
+    await refreshData({ forceRefresh: true, source: 'lead_updated' });
   };
 
   const handleNewLeadCreated = async () => {
     console.log("🎉 Dashboard - Novo lead criado, executando refresh IMEDIATO");
     setIsNewLeadDialogOpen(false);
     
-    // Small delay to ensure database transaction is committed
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    // Force immediate refresh with cache breaker
-    refreshData(true);
+    // Enhanced refresh with immediate cache invalidation
+    await refreshData({ forceRefresh: true, source: 'new_lead_created' });
     
     toast({
       title: "Sucesso",
@@ -141,19 +147,20 @@ export function Dashboard() {
         setIsDeleteDialogOpen(false);
         setLeadToDelete(null);
         
-        // Small delay to ensure database changes are processed
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Enhanced refresh with immediate verification
+        await refreshData({ forceRefresh: true, source: 'lead_deleted' });
         
-        // Force immediate refresh with cache breaker
-        refreshData(true);
         console.log(`✅ Dashboard - Lead "${leadToDelete.name}" excluído com sucesso`);
+        
+        toast({
+          title: "Sucesso",
+          description: "Lead excluído com sucesso!",
+        });
       } else {
-        // Keep dialog open on failure so user can retry or cancel
         console.log(`❌ Dashboard - Falha na exclusão do lead "${leadToDelete.name}"`);
       }
     } catch (error) {
       console.error('❌ Dashboard - Erro ao excluir lead:', error);
-      // Keep dialog open so user can retry
     } finally {
       setIsDeletingLead(false);
     }
@@ -170,7 +177,6 @@ export function Dashboard() {
     const column = columns.find(col => col.name === status);
     if (!column) return "bg-gray-100 text-gray-800";
     
-    // Convert hex color to appropriate Tailwind classes
     const colorMap: { [key: string]: string } = {
       '#3B82F6': 'bg-blue-100 text-blue-800',
       '#10B981': 'bg-green-100 text-green-800',
@@ -210,7 +216,24 @@ export function Dashboard() {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Sistema CRM</h1>
-              <p className="text-gray-600">Gerencie seus leads de forma eficiente</p>
+              <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
+                <span>Gerencie seus leads de forma eficiente</span>
+                {cacheInfo && (
+                  <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+                    Cache: {Math.round((Date.now() - cacheInfo.timestamp) / 1000)}s ago
+                  </span>
+                )}
+                {isPolling && (
+                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                    Polling ativo
+                  </span>
+                )}
+                {hasRealtimeConnection && (
+                  <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
+                    Real-time conectado
+                  </span>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-3">
               <Button
@@ -229,7 +252,7 @@ export function Dashboard() {
           </div>
         </div>
 
-        {isDebugPanelOpen && <LeadDebugPanel />}
+        {isDebugPanelOpen && <EnhancedLeadDebugPanel />}
 
         <Tabs value={activeView} onValueChange={setActiveView} className="w-full">
           <div className="bg-white rounded-lg shadow p-6">
