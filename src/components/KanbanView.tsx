@@ -255,7 +255,7 @@ export function KanbanView({ leads, statuses, onLeadUpdated, onViewDetails, orig
             <div className="flex flex-col gap-2 mb-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-gray-900">{status.title}</h3>
-                <Badge className={status.color}>
+                <Badge className="bg-gray-100 text-gray-800">
                   {getLeadsByStatus(status.id).length}
                 </Badge>
               </div>

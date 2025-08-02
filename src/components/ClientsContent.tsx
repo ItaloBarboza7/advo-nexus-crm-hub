@@ -112,12 +112,12 @@ export function ClientsContent() {
 
   // Define statuses for KanbanView
   const kanbanStatuses = [
-    { id: "Novo", title: "Novo", color: "bg-blue-100 text-blue-800" },
-    { id: "Contato", title: "Contato", color: "bg-yellow-100 text-yellow-800" },
-    { id: "Qualificado", title: "Qualificado", color: "bg-purple-100 text-purple-800" },
-    { id: "Proposta", title: "Proposta", color: "bg-orange-100 text-orange-800" },
-    { id: "Fechado", title: "Fechado", color: "bg-green-100 text-green-800" },
-    { id: "Perdido", title: "Perdido", color: "bg-red-100 text-red-800" }
+    { id: "Novo", title: "Novo", color: "bg-gray-100 text-gray-800" },
+    { id: "Proposta", title: "Proposta", color: "bg-gray-100 text-gray-800" },
+    { id: "Reunião", title: "Reunião", color: "bg-gray-100 text-gray-800" },
+    { id: "Contrato Fechado", title: "Contrato Fechado", color: "bg-gray-100 text-gray-800" },
+    { id: "Perdido", title: "Perdido", color: "bg-gray-100 text-gray-800" },
+    { id: "Finalizado", title: "Finalizado", color: "bg-gray-100 text-gray-800" }
   ];
 
   const handleCreateLead = () => {
@@ -330,13 +330,16 @@ export function ClientsContent() {
         </div>
       </div>
 
-      <div className="space-y-4">
-        <GlobalSearch onLeadSelect={handleLeadSelect} />
-        
-        <LeadFilters
-          onFiltersChange={handleFiltersChange}
-          activeFilters={activeFilters}
-        />
+      <div className="flex flex-col lg:flex-row gap-4">
+        <div className="flex-1">
+          <GlobalSearch onLeadSelect={handleLeadSelect} />
+        </div>
+        <div className="lg:flex-shrink-0">
+          <LeadFilters
+            onFiltersChange={handleFiltersChange}
+            activeFilters={activeFilters}
+          />
+        </div>
       </div>
 
       {isLoading ? (
