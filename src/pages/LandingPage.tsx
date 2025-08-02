@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,9 @@ const LandingPage = () => {
   const handlePurchaseClick = () => {
     setIsPurchaseModalOpen(true);
   };
+
+  // Calculate the plan price based on billing period
+  const planPrice = billingPeriod === 'monthly' ? 'R$ 157/mês' : 'R$ 99/mês (cobrado anualmente)';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -208,6 +212,7 @@ const LandingPage = () => {
         isOpen={isPurchaseModalOpen}
         onClose={() => setIsPurchaseModalOpen(false)}
         planType={billingPeriod}
+        planPrice={planPrice}
       />
     </div>
   );
