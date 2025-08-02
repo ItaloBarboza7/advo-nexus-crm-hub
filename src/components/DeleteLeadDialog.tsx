@@ -9,29 +9,41 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Loader2 } from "lucide-react";
 
 interface DeleteLeadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   leadName: string;
   onConfirm: () => void;
+  onCancel?: () => void;
+  isDeleting?: boolean;
 }
 
 export function DeleteLeadDialog({
   open,
   onOpenChange,
   leadName,
-  onConfirm
+  onConfirm,
+  onCancel,
+  isDeleting = false
 }: DeleteLeadDialogProps) {
-  const handleConfirm = () => {
+  const handleConfirm = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     console.log("🗑️ DeleteLeadDialog - Executando confirmação de exclusão");
     onConfirm();
-    // Note: Dialog state management is now handled in Dashboard's handleDeleteConfirm
   };
 
-  const handleCancel = () => {
+  const handleCancel = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     console.log("❌ DeleteLeadDialog - Cancelando exclusão");
-    onOpenChange(false);
+    if (onCancel) {
+      onCancel();
+    } else {
+      onOpenChange(false);
+    }
   };
 
   return (
@@ -45,12 +57,19 @@ export function DeleteLeadDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={handleCancel}>Cancelar</AlertDialogCancel>
+          <AlertDialogCancel 
+            onClick={handleCancel}
+            disabled={isDeleting}
+          >
+            Cancelar
+          </AlertDialogCancel>
           <AlertDialogAction 
             onClick={handleConfirm}
-            className="bg-red-600 hover:bg-red-700"
+            disabled={isDeleting}
+            className="bg-red-600 hover:bg-red-700 disabled:opacity-50"
           >
-            Excluir
+            {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isDeleting ? 'Excluindo...' : 'Excluir'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

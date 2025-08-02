@@ -140,7 +140,7 @@ export function useTenantLeadOperations() {
     }
   };
 
-  const updateLead = async (leadId: string, leadData: LeadUpdateData): Promise<boolean> => {
+  const updateLead = useCallback(async (leadId: string, leadData: LeadUpdateData): Promise<boolean> => {
     try {
       setIsLoading(true);
       console.log(`🔄 useTenantLeadOperations - Atualizando lead ${leadId} no esquema do tenant...`);
@@ -256,7 +256,7 @@ export function useTenantLeadOperations() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [tenantSchema, ensureTenantSchema, toast]);
 
   const deleteLead = async (leadId: string): Promise<boolean> => {
     try {
@@ -269,15 +269,42 @@ export function useTenantLeadOperations() {
         return false;
       }
 
-      const sql = `DELETE FROM ${schema}.leads WHERE id = '${leadId}'`;
-      console.log('🔧 useTenantLeadOperations - Executando SQL de exclusão:', sql);
-
-      const { error } = await supabase.rpc('exec_sql' as any, {
-        sql: sql
+      // First check if the lead exists and get its details for logging
+      const checkSql = `SELECT id, name, status FROM ${schema}.leads WHERE id = '${leadId}'`;
+      console.log('🔍 useTenantLeadOperations - Verificando existência do lead:', checkSql);
+      
+      const { data: existingLead, error: checkError } = await supabase.rpc('exec_sql' as any, {
+        sql: checkSql
       });
 
-      if (error) {
-        console.error('❌ Erro ao excluir lead:', error);
+      if (checkError) {
+        console.error('❌ Erro ao verificar lead:', checkError);
+        return false;
+      }
+
+      if (!existingLead || !Array.isArray(existingLead) || existingLead.length === 0) {
+        console.error('❌ Lead não encontrado para exclusão');
+        toast({
+          title: "Erro",
+          description: "Lead não encontrado.",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      const leadInfo = existingLead[0];
+      console.log(`📋 useTenantLeadOperations - Lead encontrado:`, leadInfo);
+
+      // Now perform the actual deletion
+      const deleteSql = `DELETE FROM ${schema}.leads WHERE id = '${leadId}'`;
+      console.log('🔧 useTenantLeadOperations - Executando SQL de exclusão:', deleteSql);
+
+      const { data: deleteResult, error: deleteError } = await supabase.rpc('exec_sql' as any, {
+        sql: deleteSql
+      });
+
+      if (deleteError) {
+        console.error('❌ Erro ao excluir lead:', deleteError);
         toast({
           title: "Erro",
           description: "Não foi possível excluir o lead.",
@@ -286,7 +313,30 @@ export function useTenantLeadOperations() {
         return false;
       }
 
-      console.log('✅ useTenantLeadOperations - Lead excluído com sucesso');
+      console.log('🔧 useTenantLeadOperations - Resultado da exclusão:', deleteResult);
+
+      // Verify the deletion was successful by checking if the lead still exists
+      const verifySql = `SELECT COUNT(*) as count FROM ${schema}.leads WHERE id = '${leadId}'`;
+      console.log('✅ useTenantLeadOperations - Verificando exclusão:', verifySql);
+      
+      const { data: verifyResult, error: verifyError } = await supabase.rpc('exec_sql' as any, {
+        sql: verifySql
+      });
+
+      if (!verifyError && Array.isArray(verifyResult) && verifyResult.length > 0) {
+        const count = verifyResult[0].count;
+        if (count > 0) {
+          console.error('❌ Lead ainda existe após tentativa de exclusão');
+          toast({
+            title: "Erro",
+            description: "Lead não foi excluído corretamente. Pode ter sido movido para outro status.",
+            variant: "destructive"
+          });
+          return false;
+        }
+      }
+
+      console.log('✅ useTenantLeadOperations - Lead excluído com sucesso e verificação confirmada');
       toast({
         title: "Sucesso",
         description: "Lead excluído com sucesso.",

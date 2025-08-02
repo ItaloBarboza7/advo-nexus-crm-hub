@@ -30,6 +30,7 @@ export function Dashboard() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isStatusChangeFormOpen, setIsStatusChangeFormOpen] = useState(false);
   const [leadToDelete, setLeadToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [isDeletingLead, setIsDeletingLead] = useState(false);
   
   const { leads, isLoading, refreshData, updateLead } = useLeadsData();
   const { columns } = useKanbanColumns();
@@ -99,20 +100,25 @@ export function Dashboard() {
   };
 
   const handleDeleteLead = (leadId: string, leadName: string) => {
+    console.log(`🗑️ Dashboard - Iniciando exclusão do lead: ${leadName} (${leadId})`);
     setLeadToDelete({ id: leadId, name: leadName });
     setIsDeleteDialogOpen(true);
   };
 
   const handleLeadUpdated = () => {
     console.log("🔄 Dashboard - Atualizando dados após mudança no lead");
-    refreshData(true); // Force refresh
+    // Force refresh with cache breaker after any update
+    refreshData(true);
   };
 
   const handleNewLeadCreated = async () => {
     console.log("🎉 Dashboard - Novo lead criado, executando refresh IMEDIATO");
     setIsNewLeadDialogOpen(false);
     
-    // Force immediate refresh without delay
+    // Small delay to ensure database transaction is committed
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Force immediate refresh with cache breaker
     refreshData(true);
     
     toast({
@@ -125,22 +131,39 @@ export function Dashboard() {
     if (!leadToDelete) return;
     
     console.log(`🗑️ Dashboard - Confirmando exclusão do lead: ${leadToDelete.name}`);
+    setIsDeletingLead(true);
     
     try {
       const success = await deleteLead(leadToDelete.id);
       
       if (success) {
-        // Force immediate refresh after successful deletion
+        // Close dialog immediately on success
+        setIsDeleteDialogOpen(false);
+        setLeadToDelete(null);
+        
+        // Small delay to ensure database changes are processed
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Force immediate refresh with cache breaker
         refreshData(true);
         console.log(`✅ Dashboard - Lead "${leadToDelete.name}" excluído com sucesso`);
+      } else {
+        // Keep dialog open on failure so user can retry or cancel
+        console.log(`❌ Dashboard - Falha na exclusão do lead "${leadToDelete.name}"`);
       }
     } catch (error) {
       console.error('❌ Dashboard - Erro ao excluir lead:', error);
+      // Keep dialog open so user can retry
     } finally {
-      // Properly close the dialog and clean up state
-      setLeadToDelete(null);
-      setIsDeleteDialogOpen(false);
+      setIsDeletingLead(false);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    console.log("❌ Dashboard - Cancelando exclusão de lead");
+    setLeadToDelete(null);
+    setIsDeleteDialogOpen(false);
+    setIsDeletingLead(false);
   };
 
   const getStatusColor = (status: string) => {
@@ -309,6 +332,8 @@ export function Dashboard() {
         onOpenChange={setIsDeleteDialogOpen}
         leadName={leadToDelete?.name || ""}
         onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+        isDeleting={isDeletingLead}
       />
 
       <StatusChangeForm

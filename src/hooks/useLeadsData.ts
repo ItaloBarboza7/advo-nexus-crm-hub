@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -11,13 +12,15 @@ export function useLeadsData() {
   const { toast } = useToast();
   const { lossReasons } = useLossReasonsGlobal();
   const { tenantSchema, ensureTenantSchema } = useTenantSchema();
-  const fetchingRef = useRef(false);
   const mountedRef = useRef(true);
+  const lastFetchTime = useRef(0);
+  const realtimeChannel = useRef<any>(null);
 
-  const fetchLeads = useCallback(async (forceRefresh = false) => {
-    // Allow forced refresh to bypass the fetching check
-    if (fetchingRef.current && !forceRefresh) {
-      console.log("🚫 useLeadsData - Fetch em andamento, pulando...");
+  const fetchLeads = useCallback(async (forceRefresh = false, cacheBreaker = false) => {
+    // Simple debounce: prevent fetches within 100ms unless forced
+    const now = Date.now();
+    if (!forceRefresh && (now - lastFetchTime.current) < 100) {
+      console.log("🚫 useLeadsData - Fetch muito recente, pulando...");
       return;
     }
     
@@ -27,7 +30,7 @@ export function useLeadsData() {
     }
     
     try {
-      fetchingRef.current = true;
+      lastFetchTime.current = now;
       setIsLoading(true);
       
       if (forceRefresh) {
@@ -36,8 +39,14 @@ export function useLeadsData() {
         console.log("📊 useLeadsData - Buscando leads no esquema do tenant...");
       }
       
+      // Add cache breaker to prevent Supabase RPC caching
+      let sql = `SELECT * FROM ${tenantSchema}.leads ORDER BY created_at DESC`;
+      if (cacheBreaker) {
+        sql += ` -- ${Math.random()}`;
+      }
+      
       const { data, error } = await supabase.rpc('exec_sql' as any, {
-        sql: `SELECT * FROM ${tenantSchema}.leads ORDER BY created_at DESC`
+        sql: sql
       });
 
       if (error) {
@@ -84,18 +93,44 @@ export function useLeadsData() {
       if (mountedRef.current) {
         setIsLoading(false);
       }
-      fetchingRef.current = false;
     }
   }, [tenantSchema, toast]);
+
+  // Setup real-time subscription for immediate updates
+  const setupRealtimeSubscription = useCallback(() => {
+    if (!tenantSchema || realtimeChannel.current) return;
+
+    console.log("🔄 useLeadsData - Configurando subscriçõa real-time...");
+    
+    realtimeChannel.current = supabase
+      .channel(`leads_changes_${tenantSchema}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: tenantSchema,
+          table: 'leads'
+        },
+        (payload) => {
+          console.log('🔄 Real-time change detected:', payload);
+          // Force refresh with cache breaker on any change
+          fetchLeads(true, true);
+        }
+      )
+      .subscribe();
+
+  }, [tenantSchema, fetchLeads]);
 
   // Função de refresh que força a atualização
   const refreshData = useCallback((forceRefresh = false) => {
     if (forceRefresh) {
       console.log(`🔄 useLeadsData - Forçando atualização IMEDIATA dos leads...`);
+      // Use cache breaker for forced refreshes
+      fetchLeads(true, true);
     } else {
       console.log(`🔄 useLeadsData - Atualizando leads...`);
+      fetchLeads(forceRefresh);
     }
-    fetchLeads(forceRefresh);
   }, [fetchLeads]);
 
   const updateLead = useCallback(async (leadId: string, updates: Partial<Lead>) => {
@@ -169,15 +204,22 @@ export function useLeadsData() {
     }
   }, [tenantSchema, ensureTenantSchema, toast]);
 
+  // Initial fetch when tenant schema is available
   useEffect(() => {
-    if (tenantSchema && !fetchingRef.current) {
+    if (tenantSchema) {
       fetchLeads();
+      setupRealtimeSubscription();
     }
-  }, [tenantSchema, fetchLeads]);
+  }, [tenantSchema, fetchLeads, setupRealtimeSubscription]);
 
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       mountedRef.current = false;
+      if (realtimeChannel.current) {
+        supabase.removeChannel(realtimeChannel.current);
+        realtimeChannel.current = null;
+      }
     };
   }, []);
 
