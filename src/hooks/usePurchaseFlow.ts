@@ -16,6 +16,73 @@ interface UsePurchaseFlowReturn {
   handlePurchase: (customerData: CustomerData, planType: 'monthly' | 'annual') => Promise<void>;
 }
 
+// Função para detectar se estamos no ambiente Lovable (iframe)
+const isLovableEnvironment = (): boolean => {
+  try {
+    return window.self !== window.top;
+  } catch (e) {
+    return true; // Se não conseguir acessar window.top, provavelmente está em iframe
+  }
+};
+
+// Função para redirecionar considerando o ambiente
+const performRedirect = (url: string): void => {
+  console.log('🔄 Iniciando redirecionamento para:', url);
+  
+  if (isLovableEnvironment()) {
+    console.log('📱 Ambiente Lovable detectado - usando estratégias específicas para iframe');
+    
+    try {
+      // Estratégia 1: Tentar abrir em nova aba usando window.parent
+      if (window.parent && window.parent.open) {
+        console.log('🎯 Tentando window.parent.open');
+        const newWindow = window.parent.open(url, '_blank', 'noopener,noreferrer');
+        if (newWindow) {
+          console.log('✅ Redirecionamento via window.parent.open bem-sucedido');
+          return;
+        }
+      }
+      
+      // Estratégia 2: Tentar redirecionar a janela pai
+      if (window.top && window.top.location) {
+        console.log('🎯 Tentando window.top.location');
+        window.top.location.href = url;
+        return;
+      }
+      
+      // Estratégia 3: Fallback para window.open no contexto atual
+      console.log('🎯 Tentando window.open como fallback');
+      const fallbackWindow = window.open(url, '_blank', 'noopener,noreferrer');
+      if (fallbackWindow) {
+        console.log('✅ Redirecionamento via window.open fallback bem-sucedido');
+        return;
+      }
+      
+      throw new Error('Todas as estratégias de redirecionamento falharam');
+      
+    } catch (redirectError) {
+      console.error('❌ Erro no redirecionamento em ambiente iframe:', redirectError);
+      // Mostrar URL manualmente como último recurso
+      alert(`Por favor, copie e acesse este link para finalizar o pagamento:\n\n${url}`);
+    }
+    
+  } else {
+    console.log('🖥️ Ambiente normal detectado - usando redirecionamento padrão');
+    
+    try {
+      // Em ambiente normal, usar redirecionamento direto
+      window.location.href = url;
+    } catch (redirectError) {
+      console.warn('⚠️ Falha na redirecionamento direto, tentando window.open:', redirectError);
+      
+      const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+      if (!newWindow) {
+        throw new Error("Popup bloqueado. Por favor, permita popups e tente novamente.");
+      }
+    }
+  }
+};
+
 export function usePurchaseFlow(): UsePurchaseFlowReturn {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -24,7 +91,8 @@ export function usePurchaseFlow(): UsePurchaseFlowReturn {
     setIsLoading(true);
 
     try {
-      console.log('🛒 Iniciando processo de compra com timeout:', { planType, email: customerData.email });
+      console.log('🛒 Iniciando processo de compra:', { planType, email: customerData.email });
+      console.log('🔍 Ambiente detectado:', isLovableEnvironment() ? 'Lovable (iframe)' : 'Normal');
       
       // Create a timeout promise
       const timeoutPromise = new Promise((_, reject) => {
@@ -75,21 +143,10 @@ export function usePurchaseFlow(): UsePurchaseFlowReturn {
         throw new Error("Não foi possível obter o link de pagamento. Tente novamente.");
       }
 
-      console.log('✅ Redirecionando para:', data.url);
+      console.log('✅ URL de pagamento recebida, iniciando redirecionamento');
       
-      // Try multiple redirection methods as fallback
-      try {
-        // Primary method: direct assignment
-        window.location.href = data.url;
-      } catch (redirectError) {
-        console.warn('⚠️ Falha na redireção primária, tentando fallback:', redirectError);
-        
-        // Fallback method: window.open
-        const newWindow = window.open(data.url, '_blank');
-        if (!newWindow) {
-          throw new Error("Popup bloqueado. Por favor, permita popups e tente novamente.");
-        }
-      }
+      // Usar a nova função de redirecionamento inteligente
+      performRedirect(data.url);
 
     } catch (error) {
       console.error('❌ Erro no processo de compra:', error);
