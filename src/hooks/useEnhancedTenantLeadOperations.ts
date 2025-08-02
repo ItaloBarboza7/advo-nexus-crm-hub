@@ -7,7 +7,8 @@ import { useLeadsDebugger } from '@/hooks/useLeadsDebugger';
 import { 
   LeadRecord, 
   toLeadRecordArray, 
-  toStatusResult 
+  toStatusResult,
+  toCountResultArray
 } from '@/utils/typeGuards';
 
 interface LeadUpdateData {
