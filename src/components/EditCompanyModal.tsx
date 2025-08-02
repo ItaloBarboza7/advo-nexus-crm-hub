@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useFilterOptions } from "@/hooks/useFilterOptions";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useEmailAvailability } from "@/hooks/useEmailAvailability";
 
 interface CompanyInfo {
   id: string;
@@ -71,8 +73,11 @@ export function EditCompanyModal({
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [originalEmail, setOriginalEmail] = useState("");
+  const [emailError, setEmailError] = useState<string>('');
+  const [previousEmail, setPreviousEmail] = useState<string>('');
   const { stateOptions } = useFilterOptions();
   const { toast } = useToast();
+  const { checkEmailAvailability, isChecking } = useEmailAvailability();
 
   useEffect(() => {
     const loadUserEmail = async () => {
@@ -120,6 +125,30 @@ export function EditCompanyModal({
       setState("");
     }
   }, [companyInfo, isOpen]);
+
+  // Verificar disponibilidade do email quando o usuário para de digitar
+  useEffect(() => {
+    const checkEmail = async () => {
+      // Só verificar se o email mudou do original e não está vazio
+      if (email && email.includes('@') && email !== originalEmail && email !== previousEmail) {
+        const result = await checkEmailAvailability(email);
+        
+        if (!result.available) {
+          setEmailError('Email indisponível');
+        } else {
+          setEmailError('');
+        }
+        setPreviousEmail(email);
+      } else if (!email || !email.includes('@') || email === originalEmail) {
+        setEmailError('');
+        setPreviousEmail('');
+      }
+    };
+
+    // Debounce para evitar muitas chamadas
+    const timeoutId = setTimeout(checkEmail, 1000);
+    return () => clearTimeout(timeoutId);
+  }, [email, originalEmail, checkEmailAvailability, previousEmail]);
 
   // Real-time subscription para mudanças no perfil do usuário
   useEffect(() => {
@@ -176,6 +205,15 @@ export function EditCompanyModal({
   const handleSave = async () => {
     console.log('[EditCompanyModal] Iniciando salvamento das informações da empresa');
     
+    if (emailError) {
+      toast({
+        title: "Email indisponível",
+        description: "Este email já está sendo usado. Escolha outro email.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
       // Se o email foi alterado, usar a Edge Function para atualizar o email de autenticação
       if (email.trim() !== originalEmail) {
@@ -190,17 +228,18 @@ export function EditCompanyModal({
           console.error('[EditCompanyModal] Erro da Edge Function:', error);
           toast({
             title: "Erro ao atualizar email",
-            description: error.message,
+            description: "Não foi possível atualizar o email. Tente novamente.",
             variant: "destructive",
           });
           return;
         }
         
-        if (data.error) {
-          console.error('[EditCompanyModal] Erro retornado pela função:', data.error);
+        if (data?.error) {
+          console.error('[EditCompanyModal] Erro retornado pela função:', data);
           
           // Verificar se é um erro de email já existente
           if (data.code === 'EMAIL_ALREADY_EXISTS') {
+            setEmailError('Email indisponível');
             toast({
               title: "Email já existe",
               description: "Este email já está sendo usado por outra conta. Por favor, escolha outro email.",
@@ -209,7 +248,7 @@ export function EditCompanyModal({
           } else {
             toast({
               title: "Erro ao atualizar email",
-              description: data.error,
+              description: data.error || "Erro desconhecido ao atualizar email",
               variant: "destructive",
             });
           }
@@ -307,7 +346,14 @@ export function EditCompanyModal({
               onChange={(e) => setEmail(e.target.value)}
               placeholder="seu@email.com"
               disabled={isLoading}
+              className={emailError ? "border-red-500" : ""}
             />
+            {isChecking && email && (
+              <p className="text-sm text-gray-500">Verificando disponibilidade...</p>
+            )}
+            {emailError && (
+              <p className="text-sm text-red-500">{emailError}</p>
+            )}
             <p className="text-xs text-muted-foreground">
               * Alterações no email também afetarão o login do sistema
             </p>
@@ -381,7 +427,10 @@ export function EditCompanyModal({
             <Button variant="outline" onClick={onClose} disabled={isLoading}>
               Cancelar
             </Button>
-            <Button onClick={handleSave} disabled={isLoading}>
+            <Button 
+              onClick={handleSave} 
+              disabled={isLoading || !!emailError || isChecking}
+            >
               {isLoading ? "Salvando..." : "Salvar"}
             </Button>
           </div>

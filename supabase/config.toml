@@ -6,3 +6,9 @@ verify_jwt = false
 
 [functions.create-payment]
 verify_jwt = false
+
+[functions.check-email-availability]
+verify_jwt = false
+
+[functions.update-user-email]
+verify_jwt = false

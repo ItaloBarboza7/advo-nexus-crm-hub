@@ -141,6 +141,8 @@ export function PurchaseModal({ isOpen, onClose, planType, planPrice }: Purchase
     setIsLoading(true);
 
     try {
+      console.log('🛒 Iniciando processo de compra:', { planType, email: customerData.email });
+      
       const { data, error } = await supabase.functions.invoke('create-payment', {
         body: {
           customerData: {
@@ -154,20 +156,32 @@ export function PurchaseModal({ isOpen, onClose, planType, planPrice }: Purchase
         }
       });
 
+      console.log('📦 Resposta da função create-payment:', { data, error });
+
       if (error) {
-        console.error('Erro ao criar pagamento:', error);
+        console.error('❌ Erro da Edge Function create-payment:', error);
         toast({
           title: "Erro no pagamento",
-          description: "Não foi possível processar o pagamento. Tente novamente.",
+          description: `Não foi possível processar o pagamento: ${error.message}`,
           variant: "destructive"
         });
         return;
       }
 
+      // Verificar se houve erro na resposta da função
       if (data?.error) {
+        console.error('❌ Erro retornado pela função create-payment:', data.error);
+        let errorMessage = "Erro desconhecido no processamento do pagamento";
+        
+        if (typeof data.error === 'string') {
+          errorMessage = data.error;
+        } else if (data.details) {
+          errorMessage = data.details;
+        }
+        
         toast({
           title: "Erro no pagamento",
-          description: data.error,
+          description: errorMessage,
           variant: "destructive"
         });
         return;
@@ -175,7 +189,7 @@ export function PurchaseModal({ isOpen, onClose, planType, planPrice }: Purchase
 
       // Verificar se a URL existe antes de redirecionar
       if (!data?.url) {
-        console.error('URL de pagamento não recebida:', data);
+        console.error('❌ URL de pagamento não recebida:', data);
         toast({
           title: "Erro no redirecionamento",
           description: "Não foi possível obter o link de pagamento. Tente novamente.",
@@ -185,14 +199,20 @@ export function PurchaseModal({ isOpen, onClose, planType, planPrice }: Purchase
       }
 
       // Redirecionar para o Stripe Checkout
-      console.log('Redirecionando para:', data.url);
+      console.log('✅ Redirecionando para:', data.url);
       window.location.href = data.url;
 
     } catch (error) {
-      console.error('Erro inesperado:', error);
+      console.error('❌ Erro inesperado no processo de compra:', error);
+      
+      let errorMessage = "Ocorreu um erro inesperado. Tente novamente.";
+      if (error instanceof Error) {
+        errorMessage = `Erro: ${error.message}`;
+      }
+      
       toast({
         title: "Erro inesperado",
-        description: "Ocorreu um erro inesperado. Tente novamente.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -248,6 +249,49 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
 
       console.log('💾 CompanyInfoModal - Salvando informações da empresa para usuário:', user.id);
 
+      // Se o email foi alterado, atualizar via Edge Function
+      if (email.trim() !== originalEmail) {
+        console.log('📧 Email alterado, atualizando via Edge Function');
+        const { data, error } = await supabase.functions.invoke('update-user-email', {
+          body: { 
+            newEmail: email.trim()
+          },
+        });
+
+        if (error) {
+          console.error('❌ Erro da Edge Function:', error);
+          toast({
+            title: "Erro ao atualizar email",
+            description: "Não foi possível atualizar o email. Tente novamente.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        if (data?.error) {
+          console.error('❌ Erro retornado pela função:', data);
+          
+          // Verificar se é um erro de email já existente
+          if (data.code === 'EMAIL_ALREADY_EXISTS') {
+            setEmailError('Email indisponível');
+            toast({
+              title: "Email já existe",
+              description: "Este email já está sendo usado por outra conta. Por favor, escolha outro email.",
+              variant: "destructive",
+            });
+          } else {
+            toast({
+              title: "Erro ao atualizar email",
+              description: data.error || "Erro desconhecido ao atualizar email",
+              variant: "destructive",
+            });
+          }
+          return;
+        }
+
+        console.log('✅ Email de autenticação atualizado com sucesso');
+      }
+
       // Concatenar endereço completo
       const fullAddress = `${address}, ${neighborhood}, ${city}, ${state}, CEP: ${cep}`;
 
@@ -327,7 +371,9 @@ export function CompanyInfoModal({ isOpen, onClose }: CompanyInfoModalProps) {
 
       toast({
         title: "Informações salvas",
-        description: "As informações da empresa foram salvas com sucesso.",
+        description: email.trim() !== originalEmail ? 
+          "Informações salvas com sucesso. Se você alterou o email, faça login novamente com o novo email." :
+          "As informações da empresa foram salvas com sucesso.",
       });
 
       onClose();
