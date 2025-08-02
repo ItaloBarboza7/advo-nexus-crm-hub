@@ -105,18 +105,15 @@ export function Dashboard() {
 
   const handleLeadUpdated = () => {
     console.log("🔄 Dashboard - Atualizando dados após mudança no lead");
-    refreshData();
+    refreshData(true); // Force refresh
   };
 
   const handleNewLeadCreated = async () => {
-    console.log("🎉 Dashboard - Novo lead criado, atualizando lista");
+    console.log("🎉 Dashboard - Novo lead criado, executando refresh IMEDIATO");
     setIsNewLeadDialogOpen(false);
     
-    // Aguarda um pouco para garantir que a transação do banco foi concluída
-    setTimeout(() => {
-      console.log("🔄 Dashboard - Executando refresh após delay");
-      refreshData();
-    }, 500);
+    // Force immediate refresh without delay
+    refreshData(true);
     
     toast({
       title: "Sucesso",
@@ -133,14 +130,16 @@ export function Dashboard() {
       const success = await deleteLead(leadToDelete.id);
       
       if (success) {
-        // Atualizar a lista após exclusão bem-sucedida
-        refreshData();
+        // Force immediate refresh after successful deletion
+        refreshData(true);
         console.log(`✅ Dashboard - Lead "${leadToDelete.name}" excluído com sucesso`);
       }
     } catch (error) {
       console.error('❌ Dashboard - Erro ao excluir lead:', error);
     } finally {
+      // Properly close the dialog and clean up state
       setLeadToDelete(null);
+      setIsDeleteDialogOpen(false);
     }
   };
 

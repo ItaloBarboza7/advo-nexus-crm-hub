@@ -24,7 +24,13 @@ export function DeleteLeadDialog({
   onConfirm
 }: DeleteLeadDialogProps) {
   const handleConfirm = () => {
+    console.log("🗑️ DeleteLeadDialog - Executando confirmação de exclusão");
     onConfirm();
+    // Note: Dialog state management is now handled in Dashboard's handleDeleteConfirm
+  };
+
+  const handleCancel = () => {
+    console.log("❌ DeleteLeadDialog - Cancelando exclusão");
     onOpenChange(false);
   };
 
@@ -39,7 +45,7 @@ export function DeleteLeadDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogCancel onClick={handleCancel}>Cancelar</AlertDialogCancel>
           <AlertDialogAction 
             onClick={handleConfirm}
             className="bg-red-600 hover:bg-red-700"

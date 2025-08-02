@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -16,6 +15,7 @@ export function useLeadsData() {
   const mountedRef = useRef(true);
 
   const fetchLeads = useCallback(async (forceRefresh = false) => {
+    // Allow forced refresh to bypass the fetching check
     if (fetchingRef.current && !forceRefresh) {
       console.log("🚫 useLeadsData - Fetch em andamento, pulando...");
       return;
@@ -29,7 +29,12 @@ export function useLeadsData() {
     try {
       fetchingRef.current = true;
       setIsLoading(true);
-      console.log("📊 useLeadsData - Buscando leads no esquema do tenant...");
+      
+      if (forceRefresh) {
+        console.log("🔄 useLeadsData - FORÇANDO refresh dos leads no esquema do tenant...");
+      } else {
+        console.log("📊 useLeadsData - Buscando leads no esquema do tenant...");
+      }
       
       const { data, error } = await supabase.rpc('exec_sql' as any, {
         sql: `SELECT * FROM ${tenantSchema}.leads ORDER BY created_at DESC`
@@ -57,7 +62,12 @@ export function useLeadsData() {
         closed_by_user_id: lead.closed_by_user_id || null
       }));
 
-      console.log(`✅ useLeadsData - ${transformedLeads.length} leads carregados do esquema ${tenantSchema}`);
+      if (forceRefresh) {
+        console.log(`✅ useLeadsData - REFRESH FORÇADO: ${transformedLeads.length} leads carregados do esquema ${tenantSchema}`);
+      } else {
+        console.log(`✅ useLeadsData - ${transformedLeads.length} leads carregados do esquema ${tenantSchema}`);
+      }
+      
       if (mountedRef.current) {
         setLeads(transformedLeads);
       }
@@ -79,9 +89,13 @@ export function useLeadsData() {
   }, [tenantSchema, toast]);
 
   // Função de refresh que força a atualização
-  const refreshData = useCallback(() => {
-    console.log(`🔄 useLeadsData - Forçando atualização dos leads...`);
-    fetchLeads(true);
+  const refreshData = useCallback((forceRefresh = false) => {
+    if (forceRefresh) {
+      console.log(`🔄 useLeadsData - Forçando atualização IMEDIATA dos leads...`);
+    } else {
+      console.log(`🔄 useLeadsData - Atualizando leads...`);
+    }
+    fetchLeads(forceRefresh);
   }, [fetchLeads]);
 
   const updateLead = useCallback(async (leadId: string, updates: Partial<Lead>) => {
