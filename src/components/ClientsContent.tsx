@@ -6,7 +6,7 @@ import { NewLeadForm } from "./NewLeadForm";
 import { LeadFilters, FilterOptions } from "./LeadFilters";
 import { GlobalSearch } from "./GlobalSearch";
 import { Button } from "./ui/button";
-import { Plus, Grid3X3, List, Target } from "lucide-react";
+import { Plus, Grid3X3, List } from "lucide-react";
 import { Lead } from "@/types/lead";
 import { DeleteLeadDialog } from "./DeleteLeadDialog";
 import { LossReasonDialog } from "./LossReasonDialog";
@@ -32,6 +32,7 @@ export function ClientsContent() {
     state: [],
     actionType: []
   });
+  const [isOpportunityMode, setIsOpportunityMode] = useState(false);
 
   const { canAccessFeature } = useSubscriptionControl();
   const { toast } = useToast();
@@ -72,7 +73,10 @@ export function ClientsContent() {
     const valueMatch = (!activeFilters.valueRange.min || (lead.value && lead.value >= activeFilters.valueRange.min)) &&
                       (!activeFilters.valueRange.max || (lead.value && lead.value <= activeFilters.valueRange.max));
     
-    return nameMatch && statusMatch && sourceMatch && stateMatch && actionTypeMatch && valueMatch;
+    // Opportunity filter - only show leads in specific statuses when opportunity mode is active
+    const opportunityMatch = !isOpportunityMode || ["Novo", "Proposta", "Reunião"].includes(lead.status);
+    
+    return nameMatch && statusMatch && sourceMatch && stateMatch && actionTypeMatch && valueMatch && opportunityMatch;
   });
 
   // Transform leads for KanbanView which expects numeric id and value
@@ -93,12 +97,14 @@ export function ClientsContent() {
     numericValue: lead.value || 0
   })) || [];
 
-  // Map columns to KanbanView status format
-  const kanbanStatuses = columns.map(column => ({
-    id: column.name,
-    title: column.name,
-    color: column.color || "bg-gray-100 text-gray-800"
-  }));
+  // Map columns to KanbanView status format, filtering based on opportunity mode
+  const kanbanStatuses = columns
+    .filter(column => !isOpportunityMode || ["Novo", "Proposta", "Reunião"].includes(column.name))
+    .map(column => ({
+      id: column.name,
+      title: column.name,
+      color: column.color || "bg-gray-100 text-gray-800"
+    }));
 
   const handleCreateLead = () => {
     if (!canAccessFeature('create_lead')) {
@@ -113,11 +119,7 @@ export function ClientsContent() {
   };
 
   const handleOportunidadeClick = () => {
-    // Placeholder for opportunity functionality
-    toast({
-      title: "Oportunidades",
-      description: "Funcionalidade em desenvolvimento.",
-    });
+    setIsOpportunityMode(!isOpportunityMode);
   };
 
   const handleDeleteLead = (leadId: string, leadName: string) => {
@@ -254,28 +256,6 @@ export function ClientsContent() {
               Novo Lead
             </Button>
           </SubscriptionProtectedWrapper>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-4 p-4 border rounded-lg bg-background">
-        <div className="w-full max-w-md">
-          <GlobalSearch onLeadSelect={handleViewDetails} />
-        </div>
-        
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <LeadFilters
-            onFiltersChange={handleFiltersChange}
-            activeFilters={activeFilters}
-          />
-          
-          <Button 
-            variant="outline" 
-            onClick={handleOportunidadeClick}
-            className="flex items-center gap-2"
-          >
-            <Target className="h-4 w-4" />
-            Oportunidade
-          </Button>
           
           <div className="flex items-center gap-1 rounded-lg border p-1">
             <Button
@@ -295,6 +275,27 @@ export function ClientsContent() {
               <List className="h-4 w-4" />
             </Button>
           </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-4 p-4 border rounded-lg bg-background">
+        <div className="w-full max-w-md">
+          <GlobalSearch onLeadSelect={handleViewDetails} />
+        </div>
+        
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <LeadFilters
+            onFiltersChange={handleFiltersChange}
+            activeFilters={activeFilters}
+          />
+          
+          <Button 
+            variant={isOpportunityMode ? "default" : "outline"}
+            onClick={handleOportunidadeClick}
+            className="flex items-center gap-2"
+          >
+            Oportunidade
+          </Button>
         </div>
       </div>
 
