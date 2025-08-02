@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import Stripe from "https://esm.sh/stripe@14.21.0";
@@ -272,6 +271,37 @@ serve(async (req: Request) => {
       newEmail 
     });
 
+    // Verificar se já existe um usuário com o novo email
+    logStep("=== CHECKING EMAIL AVAILABILITY ===");
+    const { data: existingUsers, error: listUsersError } = await supabaseAdmin.auth.admin.listUsers();
+    
+    if (listUsersError) {
+      logStep("ERROR: Failed to check existing users", { error: listUsersError });
+      throw new Error('Erro ao verificar disponibilidade do email');
+    }
+
+    const emailExists = existingUsers.users.some(existingUser => 
+      existingUser.email?.toLowerCase() === newEmail.toLowerCase() && 
+      existingUser.id !== user.id
+    );
+
+    if (emailExists) {
+      logStep("ERROR: Email already exists", { newEmail });
+      return new Response(
+        JSON.stringify({ 
+          error: 'Este email já está sendo usado por outra conta',
+          success: false,
+          code: 'EMAIL_ALREADY_EXISTS'
+        }),
+        {
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+          status: 409, // Conflict status
+        }
+      );
+    }
+
+    logStep("Email is available, proceeding with update");
+
     // === STRIPE CUSTOMER SEARCH AND CONSOLIDATION ===
     logStep("=== STRIPE UPDATE PHASE ===");
     
@@ -369,7 +399,7 @@ serve(async (req: Request) => {
             userId: user.id 
           });
         }
-
+        
       } catch (stripeError: any) {
         logStep("ERROR: Stripe operations failed", { 
           error: stripeError.message,
@@ -435,20 +465,18 @@ serve(async (req: Request) => {
       logStep("Company info updated successfully");
     }
 
-    logStep("=== EMAIL UPDATE AND CONSOLIDATION COMPLETED SUCCESSFULLY ===", { 
+    logStep("=== EMAIL UPDATE COMPLETED SUCCESSFULLY ===", { 
       oldEmail, 
       newEmail,
-      userId: user.id,
-      consolidationPerformed: true
+      userId: user.id
     });
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Email atualizado com sucesso e clientes Stripe consolidados',
+        message: 'Email atualizado com sucesso',
         oldEmail,
         newEmail,
-        stripeConsolidated: !!stripeKey,
         userId: user.id
       }),
       {

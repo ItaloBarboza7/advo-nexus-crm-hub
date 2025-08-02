@@ -198,11 +198,21 @@ export function EditCompanyModal({
         
         if (data.error) {
           console.error('[EditCompanyModal] Erro retornado pela função:', data.error);
-          toast({
-            title: "Erro ao atualizar email",
-            description: data.error,
-            variant: "destructive",
-          });
+          
+          // Verificar se é um erro de email já existente
+          if (data.code === 'EMAIL_ALREADY_EXISTS') {
+            toast({
+              title: "Email já existe",
+              description: "Este email já está sendo usado por outra conta. Por favor, escolha outro email.",
+              variant: "destructive",
+            });
+          } else {
+            toast({
+              title: "Erro ao atualizar email",
+              description: data.error,
+              variant: "destructive",
+            });
+          }
           return;
         }
 
