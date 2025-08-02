@@ -1,3 +1,4 @@
+
 import { useState, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,8 @@ import { SettingsContent } from "@/components/SettingsContent";
 import { LeadDetailsDialog } from "@/components/LeadDetailsDialog";
 import { AddColumnDialog } from "@/components/AddColumnDialog";
 import { LeadDebugPanel } from "@/components/LeadDebugPanel";
+import { DeleteLeadDialog } from "@/components/DeleteLeadDialog";
+import { StatusChangeForm } from "@/components/StatusChangeForm";
 import { Lead } from "@/types/lead";
 import { useToast } from "@/hooks/use-toast";
 
@@ -24,12 +27,16 @@ export function Dashboard() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [isDebugPanelOpen, setIsDebugPanelOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isStatusChangeFormOpen, setIsStatusChangeFormOpen] = useState(false);
+  const [leadToDelete, setLeadToDelete] = useState<{ id: string; name: string } | null>(null);
   
-  const { leads, isLoading, refreshData } = useLeadsData();
+  const { leads, isLoading, refreshData, updateLead } = useLeadsData();
   const { columns } = useKanbanColumns();
   const { toast } = useToast();
   
   const {
+    columns: kanbanColumns,
     isAddColumnDialogOpen,
     maxOrder,
     handleOpenAddColumnDialog,
@@ -85,17 +92,56 @@ export function Dashboard() {
     setIsDetailsDialogOpen(true);
   };
 
+  const handleEditStatus = (lead: Lead) => {
+    setSelectedLead(lead);
+    setIsStatusChangeFormOpen(true);
+  };
+
+  const handleDeleteLead = (leadId: string, leadName: string) => {
+    setLeadToDelete({ id: leadId, name: leadName });
+    setIsDeleteDialogOpen(true);
+  };
+
   const handleLeadUpdated = () => {
     refreshData();
   };
 
-  const handleNewLeadSuccess = () => {
+  const handleNewLeadCreated = () => {
     setIsNewLeadDialogOpen(false);
     refreshData();
     toast({
       title: "Sucesso",
       description: "Lead criado com sucesso!",
     });
+  };
+
+  const getStatusColor = (status: string) => {
+    const column = columns.find(col => col.name === status);
+    if (!column) return "bg-gray-100 text-gray-800";
+    
+    // Convert hex color to appropriate Tailwind classes
+    const colorMap: { [key: string]: string } = {
+      '#3B82F6': 'bg-blue-100 text-blue-800',
+      '#10B981': 'bg-green-100 text-green-800',
+      '#F59E0B': 'bg-yellow-100 text-yellow-800',
+      '#EF4444': 'bg-red-100 text-red-800',
+      '#8B5CF6': 'bg-purple-100 text-purple-800',
+      '#06B6D4': 'bg-cyan-100 text-cyan-800',
+    };
+    
+    return colorMap[column.color] || "bg-gray-100 text-gray-800";
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Intl.DateTimeFormat('pt-BR').format(new Date(dateString));
+  };
+
+  const formatCurrency = (value: number | null) => {
+    if (!value) return 'R$ 0,00';
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
   };
 
   if (isLoading) {
@@ -191,7 +237,11 @@ export function Dashboard() {
               <LeadsListView
                 leads={filteredLeads}
                 onViewDetails={handleViewDetails}
-                onLeadUpdated={handleLeadUpdated}
+                onEditStatus={handleEditStatus}
+                onDeleteLead={handleDeleteLead}
+                getStatusColor={getStatusColor}
+                formatDate={formatDate}
+                formatCurrency={formatCurrency}
               />
             </TabsContent>
 
@@ -209,21 +259,35 @@ export function Dashboard() {
       <NewLeadForm
         open={isNewLeadDialogOpen}
         onOpenChange={setIsNewLeadDialogOpen}
-        onSuccess={handleNewLeadSuccess}
+        onLeadCreated={handleNewLeadCreated}
       />
 
       <LeadDetailsDialog
         lead={selectedLead}
         open={isDetailsDialogOpen}
         onOpenChange={setIsDetailsDialogOpen}
-        onLeadUpdated={handleLeadUpdated}
       />
 
       <AddColumnDialog
-        open={isAddColumnDialogOpen}
-        onOpenChange={handleCloseAddColumnDialog}
-        onColumnAdded={handleColumnAdded}
+        isOpen={isAddColumnDialogOpen}
+        onClose={handleCloseAddColumnDialog}
+        onAddColumn={handleColumnAdded}
         maxOrder={maxOrder}
+        columns={kanbanColumns}
+      />
+
+      <DeleteLeadDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        leadToDelete={leadToDelete}
+        onLeadDeleted={handleLeadUpdated}
+      />
+
+      <StatusChangeForm
+        lead={selectedLead}
+        isOpen={isStatusChangeFormOpen}
+        onClose={() => setIsStatusChangeFormOpen(false)}
+        onLeadUpdated={handleLeadUpdated}
       />
     </div>
   );
