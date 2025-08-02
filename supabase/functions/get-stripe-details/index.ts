@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
@@ -59,7 +58,7 @@ serve(async (req) => {
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
     logStep("Stripe client initialized successfully");
 
-    // ENHANCED CUSTOMER SEARCH - Multiple strategies
+    // COMPREHENSIVE CUSTOMER SEARCH - Multiple strategies
     logStep("=== CUSTOMER SEARCH PHASE ===");
     
     // Strategy 1: Exact email match
@@ -67,24 +66,80 @@ serve(async (req) => {
     let customers = await stripe.customers.list({ email: user.email, limit: 10 });
     logStep("Exact email search results", { 
       found: customers.data.length,
-      customers: customers.data.map(c => ({ id: c.id, email: c.email, created: c.created }))
+      customers: customers.data.map(c => ({ 
+        id: c.id, 
+        email: c.email, 
+        created: c.created,
+        metadata: c.metadata 
+      }))
     });
 
-    // Strategy 2: If no exact match, search all customers and filter (for edge cases)
+    // Strategy 2: Search by Supabase user ID in metadata
     if (customers.data.length === 0) {
-      logStep("Strategy 2: Searching all recent customers");
-      const allRecentCustomers = await stripe.customers.list({ limit: 100 });
-      const matchingCustomers = allRecentCustomers.data.filter(c => 
+      logStep("Strategy 2: Searching by Supabase user ID in metadata");
+      const allRecentCustomers = await stripe.customers.list({ 
+        limit: 100,
+        created: { gte: Math.floor(Date.now() / 1000) - (90 * 24 * 60 * 60) } // Last 90 days
+      });
+      
+      const matchingByUserId = allRecentCustomers.data.filter(c => 
+        c.metadata?.supabase_user_id === user.id
+      );
+      
+      logStep("User ID metadata search results", { 
+        totalSearched: allRecentCustomers.data.length,
+        matches: matchingByUserId.length,
+        matchingCustomers: matchingByUserId.map(c => ({ 
+          id: c.id, 
+          email: c.email,
+          metadata: c.metadata 
+        }))
+      });
+      
+      if (matchingByUserId.length > 0) {
+        customers = { data: matchingByUserId, has_more: false, object: 'list', url: '' };
+      }
+    }
+
+    // Strategy 3: Case-insensitive email search
+    if (customers.data.length === 0) {
+      logStep("Strategy 3: Case-insensitive email search");
+      const allCustomers = await stripe.customers.list({ limit: 100 });
+      const matchingCustomers = allCustomers.data.filter(c => 
         c.email?.toLowerCase() === user.email.toLowerCase()
       );
-      logStep("Fuzzy search results", { 
-        totalSearched: allRecentCustomers.data.length,
+      logStep("Case-insensitive search results", { 
+        totalSearched: allCustomers.data.length,
         matches: matchingCustomers.length,
-        matchingCustomers: matchingCustomers.map(c => ({ id: c.id, email: c.email }))
+        matchingCustomers: matchingCustomers.map(c => ({ 
+          id: c.id, 
+          email: c.email 
+        }))
       });
       
       if (matchingCustomers.length > 0) {
         customers = { data: matchingCustomers, has_more: false, object: 'list', url: '' };
+      }
+    }
+
+    // Strategy 4: Search by previous_email in metadata
+    if (customers.data.length === 0) {
+      logStep("Strategy 4: Searching by previous_email in metadata");
+      const allCustomers = await stripe.customers.list({ limit: 100 });
+      const matchingByPreviousEmail = allCustomers.data.filter(c => 
+        c.metadata?.previous_email?.toLowerCase() === user.email.toLowerCase()
+      );
+      logStep("Previous email metadata search results", { 
+        matches: matchingByPreviousEmail.length,
+        matchingCustomers: matchingByPreviousEmail.map(c => ({ 
+          id: c.id, 
+          email: c.email,
+          previousEmail: c.metadata?.previous_email 
+        }))
+      });
+      
+      if (matchingByPreviousEmail.length > 0) {
+        customers = { data: matchingByPreviousEmail, has_more: false, object: 'list', url: '' };
       }
     }
 
@@ -162,7 +217,8 @@ serve(async (req) => {
               reason: "payment_confirmed_no_customer",
               userPlanType,
               isPaymentConfirmed,
-              subscriptionCreatedAt
+              subscriptionCreatedAt,
+              searchStrategiesUsed: ["exact_email", "user_id_metadata", "case_insensitive", "previous_email"]
             }
           }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -178,7 +234,11 @@ serve(async (req) => {
           message: "Usuário ainda não possui assinatura ativa",
           plan_name: "Nenhum plano ativo",
           amount: 0,
-          status: "inactive"
+          status: "inactive",
+          debug: {
+            reason: "no_payment_metadata",
+            searchStrategiesUsed: ["exact_email", "user_id_metadata", "case_insensitive", "previous_email"]
+          }
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 200,
@@ -190,7 +250,8 @@ serve(async (req) => {
     logStep("=== CUSTOMER FOUND - ANALYZING SUBSCRIPTIONS ===", { 
       customerId, 
       customerEmail: customers.data[0].email,
-      customerCreated: customers.data[0].created
+      customerCreated: customers.data[0].created,
+      customerMetadata: customers.data[0].metadata
     });
 
     // COMPREHENSIVE SUBSCRIPTION SEARCH
@@ -342,8 +403,9 @@ serve(async (req) => {
         debug: {
           subscriptionCategory,
           customerId,
+          customerEmail: customers.data[0].email,
           totalSubscriptionsFound: allSubscriptions.data.length,
-          searchStrategiesUsed: customers.data.length > 0 ? ["exact_email"] : ["session_recovery"]
+          searchStrategiesUsed: ["exact_email", "user_id_metadata", "case_insensitive", "previous_email"]
         }
       };
 
@@ -416,6 +478,7 @@ serve(async (req) => {
       debug: {
         reason: "no_valid_subscriptions",
         customerId,
+        customerEmail: customers.data[0].email,
         totalSubscriptions: allSubscriptions.data.length,
         subscriptionStatuses: allSubscriptions.data.map(sub => ({
           id: sub.id,

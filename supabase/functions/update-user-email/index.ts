@@ -68,7 +68,7 @@ serve(async (req: Request) => {
       newEmail 
     });
 
-    // === STRIPE CUSTOMER UPDATE ===
+    // === STRIPE CUSTOMER SEARCH AND UPDATE ===
     logStep("=== STRIPE UPDATE PHASE ===");
     
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
@@ -77,13 +77,14 @@ serve(async (req: Request) => {
         const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
         logStep("Stripe client initialized");
 
-        // Procurar cliente Stripe pelo email antigo
-        const customers = await stripe.customers.list({ 
+        // STRATEGY 1: Search by old email
+        logStep("Strategy 1: Searching customers by old email", { oldEmail });
+        let customers = await stripe.customers.list({ 
           email: oldEmail, 
           limit: 10 
         });
         
-        logStep("Stripe customer search results", { 
+        logStep("Old email search results", { 
           found: customers.data.length,
           customers: customers.data.map(c => ({ 
             id: c.id, 
@@ -92,8 +93,59 @@ serve(async (req: Request) => {
           }))
         });
 
+        // STRATEGY 2: If no customers found by email, search by user metadata or recent customers
+        if (customers.data.length === 0) {
+          logStep("Strategy 2: Searching all recent customers for matches");
+          const allRecentCustomers = await stripe.customers.list({ 
+            limit: 100,
+            created: { gte: Math.floor(Date.now() / 1000) - (90 * 24 * 60 * 60) } // Last 90 days
+          });
+          
+          logStep("Recent customers search results", { 
+            totalFound: allRecentCustomers.data.length
+          });
+
+          // Look for customers with matching email (case insensitive)
+          const matchingByEmail = allRecentCustomers.data.filter(c => 
+            c.email?.toLowerCase() === oldEmail?.toLowerCase()
+          );
+
+          if (matchingByEmail.length > 0) {
+            customers = { 
+              data: matchingByEmail, 
+              has_more: false, 
+              object: 'list', 
+              url: '' 
+            };
+            logStep("Found customers by case-insensitive email match", { 
+              count: matchingByEmail.length 
+            });
+          }
+        }
+
+        // STRATEGY 3: Search by Supabase user ID in metadata
+        if (customers.data.length === 0) {
+          logStep("Strategy 3: Searching by Supabase user ID in metadata");
+          const allCustomers = await stripe.customers.list({ limit: 100 });
+          const matchingByUserId = allCustomers.data.filter(c => 
+            c.metadata?.supabase_user_id === user.id
+          );
+
+          if (matchingByUserId.length > 0) {
+            customers = { 
+              data: matchingByUserId, 
+              has_more: false, 
+              object: 'list', 
+              url: '' 
+            };
+            logStep("Found customers by Supabase user ID", { 
+              count: matchingByUserId.length 
+            });
+          }
+        }
+
         if (customers.data.length > 0) {
-          // Atualizar todos os clientes encontrados com o email antigo
+          // Update all matching customers
           for (const customer of customers.data) {
             logStep("Updating Stripe customer", { 
               customerId: customer.id, 
@@ -101,31 +153,63 @@ serve(async (req: Request) => {
               newEmail 
             });
 
-            await stripe.customers.update(customer.id, {
+            // Check if customer has active subscriptions before updating
+            const subscriptions = await stripe.subscriptions.list({
+              customer: customer.id,
+              status: 'active',
+              limit: 10
+            });
+
+            logStep("Customer subscriptions found", {
+              customerId: customer.id,
+              activeSubscriptions: subscriptions.data.length,
+              subscriptions: subscriptions.data.map(s => ({
+                id: s.id,
+                status: s.status,
+                items: s.items.data.map(item => ({
+                  price_id: item.price.id,
+                  amount: item.price.unit_amount
+                }))
+              }))
+            });
+
+            // Update customer with new email and enhanced metadata
+            const updatedCustomer = await stripe.customers.update(customer.id, {
               email: newEmail,
               metadata: {
                 ...customer.metadata,
+                supabase_user_id: user.id,
                 email_updated_at: new Date().toISOString(),
-                previous_email: oldEmail
+                previous_email: oldEmail,
+                updated_by_function: 'update-user-email'
               }
             });
 
             logStep("Stripe customer updated successfully", { 
               customerId: customer.id,
-              newEmail
+              newEmail: updatedCustomer.email,
+              hasActiveSubscriptions: subscriptions.data.length > 0
             });
           }
+
+          logStep("All matching Stripe customers updated", { 
+            totalUpdated: customers.data.length 
+          });
         } else {
-          logStep("No Stripe customers found with old email", { oldEmail });
+          logStep("WARNING: No Stripe customers found for user", { 
+            oldEmail, 
+            userId: user.id 
+          });
         }
+
       } catch (stripeError: any) {
-        logStep("WARNING: Stripe update failed", { 
+        logStep("ERROR: Stripe update failed", { 
           error: stripeError.message,
           type: stripeError.type,
-          code: stripeError.code
+          code: stripeError.code,
+          details: stripeError
         });
-        // Não falhar todo o processo por erro do Stripe
-        // O usuário ainda terá o email atualizado no Supabase
+        // Don't fail the entire process for Stripe errors
       }
     } else {
       logStep("WARNING: STRIPE_SECRET_KEY not configured, skipping Stripe update");
@@ -134,14 +218,17 @@ serve(async (req: Request) => {
     // === SUPABASE UPDATES ===
     logStep("=== SUPABASE UPDATE PHASE ===");
 
-    // Atualizar o email na tabela auth.users usando o Admin API
-    const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(
+    // Update email in auth.users using Admin API
+    const { data: updatedUser, error: authError } = await supabaseAdmin.auth.admin.updateUserById(
       user.id,
       {
         email: newEmail,
+        email_confirm: true,
         user_metadata: {
           ...user.user_metadata,
           email: newEmail,
+          email_updated_at: new Date().toISOString(),
+          previous_email: oldEmail
         }
       }
     );
@@ -151,34 +238,31 @@ serve(async (req: Request) => {
       throw new Error(`Erro ao atualizar email de autenticação: ${authError.message}`);
     }
 
-    logStep("Auth email updated successfully");
+    logStep("Auth email updated successfully", { 
+      userId: updatedUser.user?.id,
+      newEmail: updatedUser.user?.email 
+    });
 
-    // Atualizar o perfil do usuário
+    // Update user profile
     const { error: profileError } = await supabaseAdmin
       .from('user_profiles')
-      .update({
-        email: newEmail,
-      })
+      .update({ email: newEmail })
       .eq('user_id', user.id);
 
     if (profileError) {
       logStep("WARNING: Failed to update user profile", { error: profileError });
-      // Não falhar aqui, pois o email de auth já foi atualizado
     } else {
       logStep("User profile updated successfully");
     }
 
-    // Atualizar informações da empresa se existirem
+    // Update company info if exists
     const { error: companyError } = await supabaseAdmin
       .from('company_info')
-      .update({
-        email: newEmail,
-      })
+      .update({ email: newEmail })
       .eq('user_id', user.id);
 
     if (companyError) {
       logStep("WARNING: Failed to update company info", { error: companyError });
-      // Não falhar aqui, pois o email de auth já foi atualizado
     } else {
       logStep("Company info updated successfully");
     }
@@ -195,7 +279,8 @@ serve(async (req: Request) => {
         message: 'Email atualizado com sucesso no Supabase e Stripe',
         oldEmail,
         newEmail,
-        stripeUpdated: !!stripeKey
+        stripeUpdated: !!stripeKey,
+        userId: user.id
       }),
       {
         headers: { "Content-Type": "application/json", ...corsHeaders },
