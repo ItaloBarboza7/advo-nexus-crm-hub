@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { KanbanView } from "./KanbanView";
 import { LeadsListView } from "./LeadsListView";
@@ -242,6 +241,25 @@ export function ClientsContent() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 rounded-lg border p-1">
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('list')}
+              className="h-8 px-2"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'kanban' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('kanban')}
+              className="h-8 px-2"
+            >
+              <Grid3X3 className="h-4 w-4" />
+            </Button>
+          </div>
+          
           <SubscriptionProtectedWrapper
             feature="create_lead"
             fallback={
@@ -256,25 +274,6 @@ export function ClientsContent() {
               Novo Lead
             </Button>
           </SubscriptionProtectedWrapper>
-          
-          <div className="flex items-center gap-1 rounded-lg border p-1">
-            <Button
-              variant={viewMode === 'kanban' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('kanban')}
-              className="h-8 px-2"
-            >
-              <Grid3X3 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('list')}
-              className="h-8 px-2"
-            >
-              <List className="h-4 w-4" />
-            </Button>
-          </div>
         </div>
       </div>
 
