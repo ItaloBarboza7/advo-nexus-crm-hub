@@ -31,6 +31,14 @@ interface LeadCreateData {
   description?: string;
 }
 
+interface LeadRecord {
+  id: string;
+  name: string;
+  phone: string;
+  created_at: string;
+  status?: string;
+}
+
 export function useEnhancedTenantLeadOperations() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -107,8 +115,9 @@ export function useEnhancedTenantLeadOperations() {
         return false;
       }
 
-      // Verify the lead was created
-      if (!data || !Array.isArray(data) || data.length === 0) {
+      // Type assertion and verification
+      const resultData = data as LeadRecord[];
+      if (!resultData || !Array.isArray(resultData) || resultData.length === 0) {
         endOperation('create_lead_enhanced', { error: 'No data returned', data }, false);
         toast({
           title: "Erro",
@@ -118,7 +127,7 @@ export function useEnhancedTenantLeadOperations() {
         return false;
       }
 
-      const createdLead = data[0];
+      const createdLead = resultData[0];
       
       // Double-check by querying the created lead
       const verificationSql = `SELECT id, name FROM ${schema}.leads WHERE id = '${createdLead.id}'`;
@@ -126,7 +135,8 @@ export function useEnhancedTenantLeadOperations() {
         sql: verificationSql 
       });
 
-      if (verificationError || !verificationData || verificationData.length === 0) {
+      const verificationResult = verificationData as LeadRecord[];
+      if (verificationError || !verificationResult || !Array.isArray(verificationResult) || verificationResult.length === 0) {
         endOperation('create_lead_enhanced', { 
           verificationError, 
           verificationData,
@@ -195,7 +205,8 @@ export function useEnhancedTenantLeadOperations() {
         return false;
       }
 
-      if (!existingLead || !Array.isArray(existingLead) || existingLead.length === 0) {
+      const existingLeadData = existingLead as LeadRecord[];
+      if (!existingLeadData || !Array.isArray(existingLeadData) || existingLeadData.length === 0) {
         endOperation('delete_lead_enhanced', { error: 'Lead not found', leadId }, false);
         addDebugLog('delete_lead_not_found', { leadId }, false);
         toast({
@@ -206,7 +217,7 @@ export function useEnhancedTenantLeadOperations() {
         return false;
       }
 
-      const leadInfo = existingLead[0];
+      const leadInfo = existingLeadData[0];
       addDebugLog('delete_lead_found', { leadInfo }, true);
 
       // Step 2: Check for any database triggers that might interfere
@@ -248,15 +259,18 @@ export function useEnhancedTenantLeadOperations() {
       const verify2Sql = `SELECT id, status FROM ${schema}.leads WHERE id = '${leadId}'`;
       const { data: verify2Data, error: verify2Error } = await supabase.rpc('exec_sql', { sql: verify2Sql });
 
-      const stillExists = !verify1Error && verify1Data && verify1Data[0]?.count > 0;
-      const statusChanged = !verify2Error && verify2Data && verify2Data.length > 0 && 
-                           verify2Data[0].status !== leadInfo.status;
+      const verify1Result = verify1Data as { count: number }[];
+      const verify2Result = verify2Data as LeadRecord[];
+
+      const stillExists = !verify1Error && verify1Result && Array.isArray(verify1Result) && verify1Result[0]?.count > 0;
+      const statusChanged = !verify2Error && verify2Result && Array.isArray(verify2Result) && verify2Result.length > 0 && 
+                           verify2Result[0].status !== leadInfo.status;
 
       addDebugLog('delete_verification', {
         stillExists,
         statusChanged,
         originalStatus: leadInfo.status,
-        currentStatus: verify2Data?.[0]?.status,
+        currentStatus: verify2Result?.[0]?.status,
         verify1Data,
         verify2Data
       }, !stillExists);
@@ -266,12 +280,12 @@ export function useEnhancedTenantLeadOperations() {
           endOperation('delete_lead_enhanced', { 
             error: 'Lead status changed instead of deleted',
             originalStatus: leadInfo.status,
-            newStatus: verify2Data[0].status 
+            newStatus: verify2Result[0].status 
           }, false);
           
           toast({
             title: "Erro",
-            description: `Lead não foi excluído. Status foi alterado para "${verify2Data[0].status}".`,
+            description: `Lead não foi excluído. Status foi alterado para "${verify2Result[0].status}".`,
             variant: "destructive"
           });
         } else {
@@ -336,8 +350,9 @@ export function useEnhancedTenantLeadOperations() {
           sql: getCurrentStatusSql 
         });
 
-        if (!getCurrentError && Array.isArray(currentData) && currentData.length > 0) {
-          currentStatus = currentData[0].status;
+        const currentStatusData = currentData as { status: string }[];
+        if (!getCurrentError && currentStatusData && Array.isArray(currentStatusData) && currentStatusData.length > 0) {
+          currentStatus = currentStatusData[0].status;
         }
       }
 

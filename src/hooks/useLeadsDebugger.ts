@@ -21,6 +21,16 @@ interface LeadsHealthCheck {
   lastOperation: DebugLog | null;
 }
 
+interface CountResult {
+  count: number;
+}
+
+interface TriggerResult {
+  trigger_name: string;
+  event_manipulation: string;
+  action_statement: string;
+}
+
 export function useLeadsDebugger() {
   const [debugLogs, setDebugLogs] = useState<DebugLog[]>([]);
   const [isDebugging, setIsDebugging] = useState(false);
@@ -54,7 +64,7 @@ export function useLeadsDebugger() {
   const testDatabaseConnection = useCallback(async () => {
     try {
       startOperation('database_connection_test');
-      const { data, error } = await supabase.from('profiles').select('count').limit(1);
+      const { data, error } = await supabase.from('user_profiles').select('count').limit(1);
       endOperation('database_connection_test', { error }, !error);
       return !error;
     } catch (error) {
@@ -93,8 +103,9 @@ export function useLeadsDebugger() {
         AND table_name = 'leads'
       `;
       const { data, error } = await supabase.rpc('exec_sql', { sql });
-      endOperation('triggers_status_test', { data, error }, !error);
-      return { active: !error, triggers: data || [] };
+      const triggersData = data as TriggerResult[];
+      endOperation('triggers_status_test', { data: triggersData, error }, !error);
+      return { active: !error, triggers: triggersData || [] };
     } catch (error) {
       endOperation('triggers_status_test', { error }, false);
       return { active: false, triggers: [] };
@@ -147,13 +158,14 @@ export function useLeadsDebugger() {
 
       const { data, error } = await supabase.rpc('exec_sql', { sql });
       
-      if (!error && data && data.length > 0) {
+      const resultData = data as { id: string; name: string }[];
+      if (!error && resultData && Array.isArray(resultData) && resultData.length > 0) {
         // Clean up test lead
-        const deleteId = data[0].id;
+        const deleteId = resultData[0].id;
         const deleteSql = `DELETE FROM ${tenantSchema}.leads WHERE id = '${deleteId}'`;
         await supabase.rpc('exec_sql', { sql: deleteSql });
         
-        endOperation('test_lead_creation', { success: true, testLead: data[0] }, true);
+        endOperation('test_lead_creation', { success: true, testLead: resultData[0] }, true);
         return true;
       } else {
         endOperation('test_lead_creation', { error, data }, false);
@@ -186,12 +198,13 @@ export function useLeadsDebugger() {
 
       const { data: createData, error: createError } = await supabase.rpc('exec_sql', { sql: createSql });
       
-      if (createError || !createData || createData.length === 0) {
+      const createResult = createData as { id: string }[];
+      if (createError || !createResult || !Array.isArray(createResult) || createResult.length === 0) {
         endOperation('test_lead_deletion', { createError }, false);
         return false;
       }
 
-      const leadId = createData[0].id;
+      const leadId = createResult[0].id;
 
       // Attempt to delete
       const deleteSql = `DELETE FROM ${tenantSchema}.leads WHERE id = '${leadId}'`;
@@ -201,14 +214,15 @@ export function useLeadsDebugger() {
       const verifySql = `SELECT COUNT(*) as count FROM ${tenantSchema}.leads WHERE id = '${leadId}'`;
       const { data: verifyData, error: verifyError } = await supabase.rpc('exec_sql', { sql: verifySql });
 
-      const actuallyDeleted = !verifyError && verifyData && verifyData[0]?.count === 0;
+      const verifyResult = verifyData as CountResult[];
+      const actuallyDeleted = !verifyError && verifyResult && Array.isArray(verifyResult) && verifyResult[0]?.count === 0;
 
       endOperation('test_lead_deletion', {
         leadId,
         deleteError,
         verifyError,
         actuallyDeleted,
-        remainingCount: verifyData?.[0]?.count
+        remainingCount: verifyResult?.[0]?.count
       }, actuallyDeleted);
 
       return actuallyDeleted;
