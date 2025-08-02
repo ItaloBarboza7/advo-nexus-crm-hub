@@ -319,12 +319,12 @@ export function ClientsContent() {
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
-        <div className="flex-1">
+      <div className="flex items-center gap-4 p-4 border rounded-lg bg-background">
+        <div className="w-full max-w-md">
           <GlobalSearch onLeadSelect={handleLeadSelect} />
         </div>
         
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <LeadFilters
             onFiltersChange={handleFiltersChange}
             activeFilters={activeFilters}
