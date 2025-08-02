@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -5,7 +6,7 @@ import { KanbanView } from "./KanbanView";
 import { LeadsListView } from "./LeadsListView";
 import { NewLeadForm } from "./NewLeadForm";
 import { EditLeadForm } from "./EditLeadForm";
-import { LeadFilters } from "./LeadFilters";
+import { LeadFilters, FilterOptions } from "./LeadFilters";
 import { GlobalSearch } from "./GlobalSearch";
 import { Button } from "./ui/button";
 import { Plus, Grid3X3, List, Download } from "lucide-react";
@@ -17,6 +18,12 @@ import { SubscriptionProtectedWrapper } from "./SubscriptionProtectedWrapper";
 import { BlockedContent } from "./BlockedContent";
 import { useToast } from "@/hooks/use-toast";
 
+// Transform Lead to match KanbanView expectations
+interface TransformedLead extends Lead {
+  originalId: string;
+  numericValue: number;
+}
+
 export function ClientsContent() {
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [showNewLeadForm, setShowNewLeadForm] = useState(false);
@@ -24,15 +31,12 @@ export function ClientsContent() {
   const [deletingLead, setDeletingLead] = useState<Lead | null>(null);
   const [lossReasonLead, setLossReasonLead] = useState<Lead | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedSource, setSelectedSource] = useState<string>("all");
-  const [selectedState, setSelectedState] = useState<string>("all");
-  const [selectedStatus, setSelectedStatus] = useState<string>("all");
-  const [selectedActionGroup, setSelectedActionGroup] = useState<string>("all");
-  const [selectedActionType, setSelectedActionType] = useState<string>("all");
-  const [selectedLossReason, setSelectedLossReason] = useState<string>("all");
-  const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
-    from: undefined,
-    to: undefined,
+  const [activeFilters, setActiveFilters] = useState<FilterOptions>({
+    status: [],
+    source: [],
+    valueRange: { min: null, max: null },
+    state: [],
+    actionType: []
   });
 
   const { canAccessFeature } = useSubscriptionControl();
@@ -42,8 +46,9 @@ export function ClientsContent() {
     data,
     isLoading,
     error,
+    refetch
   } = useQuery({
-    queryKey: ["leads", searchTerm, selectedSource, selectedState, selectedStatus, selectedActionGroup, selectedActionType, selectedLossReason, dateRange],
+    queryKey: ["leads", searchTerm, activeFilters],
     queryFn: async () => {
       let query = supabase
         .from("leads")
@@ -54,36 +59,29 @@ export function ClientsContent() {
         query = query.ilike("name", `%${searchTerm}%`);
       }
 
-      if (selectedSource !== "all") {
-        query = query.eq("source", selectedSource);
+      // Apply filters
+      if (activeFilters.status.length > 0) {
+        query = query.in("status", activeFilters.status);
       }
 
-      if (selectedState !== "all") {
-        query = query.eq("state", selectedState);
+      if (activeFilters.source.length > 0) {
+        query = query.in("source", activeFilters.source);
       }
 
-      if (selectedStatus !== "all") {
-        query = query.eq("status", selectedStatus);
+      if (activeFilters.state.length > 0) {
+        query = query.in("state", activeFilters.state);
       }
 
-      if (selectedActionGroup !== "all") {
-        query = query.eq("action_group", selectedActionGroup);
+      if (activeFilters.actionType.length > 0) {
+        query = query.in("action_type", activeFilters.actionType);
       }
 
-      if (selectedActionType !== "all") {
-        query = query.eq("action_type", selectedActionType);
+      if (activeFilters.valueRange.min !== null) {
+        query = query.gte("value", activeFilters.valueRange.min);
       }
 
-      if (selectedLossReason !== "all") {
-        query = query.eq("loss_reason", selectedLossReason);
-      }
-
-      if (dateRange.from) {
-        query = query.gte("created_at", dateRange.from.toISOString());
-      }
-
-      if (dateRange.to) {
-        query = query.lte("created_at", dateRange.to.toISOString());
+      if (activeFilters.valueRange.max !== null) {
+        query = query.lte("value", activeFilters.valueRange.max);
       }
 
       const { data, error } = await query;
@@ -100,6 +98,13 @@ export function ClientsContent() {
     const nameMatch = lead.name.toLowerCase().includes(searchTerm.toLowerCase());
     return nameMatch;
   });
+
+  // Transform leads to match component expectations
+  const transformedLeads: TransformedLead[] = filteredData?.map(lead => ({
+    ...lead,
+    originalId: lead.id,
+    numericValue: lead.value || 0
+  })) || [];
 
   const handleCreateLead = () => {
     if (!canAccessFeature('create_lead')) {
@@ -125,7 +130,7 @@ export function ClientsContent() {
     setEditingLead(lead);
   };
 
-  const handleDeleteLead = (lead: Lead) => {
+  const handleDeleteLead = (leadId: string, leadName: string) => {
     if (!canAccessFeature('delete_lead')) {
       toast({
         title: "Acesso Restrito",
@@ -134,7 +139,10 @@ export function ClientsContent() {
       });
       return;
     }
-    setDeletingLead(lead);
+    const lead = data?.find(l => l.id === leadId);
+    if (lead) {
+      setDeletingLead(lead);
+    }
   };
 
   const handleStatusChange = async (leadId: string, newStatus: string, lossReason?: string) => {
@@ -172,6 +180,7 @@ export function ClientsContent() {
           title: "Sucesso",
           description: "Status do lead atualizado com sucesso.",
         });
+        refetch();
       }
     } catch (error) {
       toast({
@@ -180,6 +189,19 @@ export function ClientsContent() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleLeadSelect = (lead: Lead) => {
+    setEditingLead(lead);
+  };
+
+  const handleLeadUpdated = () => {
+    refetch();
+    setEditingLead(null);
+  };
+
+  const handleFiltersChange = (filters: FilterOptions) => {
+    setActiveFilters(filters);
   };
 
   return (
@@ -229,26 +251,11 @@ export function ClientsContent() {
       </div>
 
       <div className="space-y-4">
-        <GlobalSearch 
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-        />
+        <GlobalSearch onLeadSelect={handleLeadSelect} />
         
         <LeadFilters
-          selectedSource={selectedSource}
-          setSelectedSource={setSelectedSource}
-          selectedState={selectedState}
-          setSelectedState={setSelectedState}
-          selectedStatus={selectedStatus}
-          setSelectedStatus={setSelectedStatus}
-          selectedActionGroup={selectedActionGroup}
-          setSelectedActionGroup={setSelectedActionGroup}
-          selectedActionType={selectedActionType}
-          setSelectedActionType={setSelectedActionType}
-          selectedLossReason={selectedLossReason}
-          setSelectedLossReason={setSelectedLossReason}
-          dateRange={dateRange}
-          setDateRange={setDateRange}
+          onFiltersChange={handleFiltersChange}
+          activeFilters={activeFilters}
         />
       </div>
 
@@ -267,14 +274,14 @@ export function ClientsContent() {
         >
           {viewMode === 'kanban' ? (
             <KanbanView
-              leads={filteredData}
+              leads={transformedLeads}
               onEditLead={handleEditLead}
               onDeleteLead={handleDeleteLead}
               onStatusChange={handleStatusChange}
             />
           ) : (
             <LeadsListView
-              leads={filteredData}
+              leads={transformedLeads}
               onEditLead={handleEditLead}
               onDeleteLead={handleDeleteLead}
             />
@@ -295,12 +302,14 @@ export function ClientsContent() {
           lead={editingLead}
           open={!!editingLead}
           onOpenChange={(open) => !open && setEditingLead(null)}
+          onLeadUpdated={handleLeadUpdated}
         />
       )}
 
       {deletingLead && (
         <DeleteLeadDialog
-          lead={deletingLead}
+          leadId={deletingLead.id}
+          leadName={deletingLead.name}
           open={!!deletingLead}
           onOpenChange={(open) => !open && setDeletingLead(null)}
         />
@@ -308,7 +317,8 @@ export function ClientsContent() {
 
       {lossReasonLead && (
         <LossReasonDialog
-          lead={lossReasonLead}
+          leadId={lossReasonLead.id}
+          leadName={lossReasonLead.name}
           open={!!lossReasonLead}
           onOpenChange={(open) => !open && setLossReasonLead(null)}
         />
