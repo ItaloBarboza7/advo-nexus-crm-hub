@@ -18,12 +18,6 @@ import { SubscriptionProtectedWrapper } from "./SubscriptionProtectedWrapper";
 import { BlockedContent } from "./BlockedContent";
 import { useToast } from "@/hooks/use-toast";
 
-// Transform Lead to match KanbanView expectations
-interface TransformedLead extends Lead {
-  originalId: string;
-  numericValue: number;
-}
-
 export function ClientsContent() {
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [showNewLeadForm, setShowNewLeadForm] = useState(false);
@@ -99,8 +93,8 @@ export function ClientsContent() {
     return nameMatch;
   });
 
-  // Transform leads to match component expectations
-  const transformedLeads: TransformedLead[] = filteredData?.map(lead => ({
+  // Transform leads for KanbanView which expects numeric id and value
+  const transformedLeads = filteredData?.map(lead => ({
     ...lead,
     originalId: lead.id,
     numericValue: lead.value || 0
@@ -204,6 +198,72 @@ export function ClientsContent() {
     setActiveFilters(filters);
   };
 
+  const handleDeleteConfirm = async () => {
+    if (!deletingLead) return;
+    
+    try {
+      const { error } = await supabase
+        .from("leads")
+        .delete()
+        .eq("id", deletingLead.id);
+
+      if (error) {
+        toast({
+          title: "Erro",
+          description: "Não foi possível deletar o lead.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Sucesso",
+          description: "Lead deletado com sucesso.",
+        });
+        refetch();
+      }
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao deletar o lead.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleLossReasonConfirm = (reason: string) => {
+    if (lossReasonLead) {
+      handleStatusChange(lossReasonLead.id, "Perdido", reason);
+    }
+  };
+
+  const handleLossReasonCancel = () => {
+    setLossReasonLead(null);
+  };
+
+  // Helper functions for LeadsListView
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "Novo": return "bg-blue-100 text-blue-800";
+      case "Contato": return "bg-yellow-100 text-yellow-800";
+      case "Qualificado": return "bg-purple-100 text-purple-800";
+      case "Proposta": return "bg-orange-100 text-orange-800";
+      case "Fechado": return "bg-green-100 text-green-800";
+      case "Perdido": return "bg-red-100 text-red-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('pt-BR');
+  };
+
+  const formatCurrency = (value: number | null) => {
+    if (!value) return "R$ 0,00";
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -281,9 +341,13 @@ export function ClientsContent() {
             />
           ) : (
             <LeadsListView
-              leads={transformedLeads}
-              onEditLead={handleEditLead}
+              leads={filteredData || []}
+              onViewDetails={handleEditLead}
+              onEditStatus={handleEditLead}
               onDeleteLead={handleDeleteLead}
+              getStatusColor={getStatusColor}
+              formatDate={formatDate}
+              formatCurrency={formatCurrency}
             />
           )}
         </SubscriptionProtectedWrapper>
@@ -308,19 +372,19 @@ export function ClientsContent() {
 
       {deletingLead && (
         <DeleteLeadDialog
-          leadId={deletingLead.id}
-          leadName={deletingLead.name}
           open={!!deletingLead}
           onOpenChange={(open) => !open && setDeletingLead(null)}
+          leadName={deletingLead.name}
+          onConfirm={handleDeleteConfirm}
         />
       )}
 
       {lossReasonLead && (
         <LossReasonDialog
-          leadId={lossReasonLead.id}
-          leadName={lossReasonLead.name}
           open={!!lossReasonLead}
           onOpenChange={(open) => !open && setLossReasonLead(null)}
+          onReasonSelected={handleLossReasonConfirm}
+          onCancel={handleLossReasonCancel}
         />
       )}
     </div>
