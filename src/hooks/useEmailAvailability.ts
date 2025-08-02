@@ -21,13 +21,21 @@ export function useEmailAvailability() {
     setIsChecking(true);
     
     try {
-      const { data, error } = await supabase.functions.invoke('check-email-availability', {
+      // Add timeout to email check as well
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Email check timeout')), 10000); // 10 seconds
+      });
+
+      const checkPromise = supabase.functions.invoke('check-email-availability', {
         body: { email: trimmedEmail }
       });
 
+      const { data, error } = await Promise.race([checkPromise, timeoutPromise]) as any;
+
       if (error) {
         console.error('Erro ao verificar disponibilidade do email:', error);
-        return { available: true, email: trimmedEmail, error: 'Erro ao verificar email' };
+        // Don't block user on email check failure - assume available
+        return { available: true, email: trimmedEmail, error: 'Erro ao verificar email (assumindo disponível)' };
       }
 
       return {
@@ -37,7 +45,8 @@ export function useEmailAvailability() {
       };
     } catch (error) {
       console.error('Erro inesperado ao verificar email:', error);
-      return { available: true, email: trimmedEmail, error: 'Erro inesperado' };
+      // Don't block user on email check failure - assume available
+      return { available: true, email: trimmedEmail, error: 'Erro ao verificar email (assumindo disponível)' };
     } finally {
       setIsChecking(false);
     }

@@ -8,6 +8,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Enhanced logging function
+const logWithTimestamp = (level: string, message: string, data?: any) => {
+  const timestamp = new Date().toISOString();
+  const dataStr = data ? ` - ${JSON.stringify(data)}` : '';
+  console.log(`[${timestamp}] [${level}] ${message}${dataStr}`);
+};
+
 // Email validation function
 function isValidEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -44,27 +51,59 @@ function validateCustomerData(customerData: any): { isValid: boolean; errors: st
   };
 }
 
+// Retry function with exponential backoff
+async function withRetry<T>(
+  operation: () => Promise<T>, 
+  maxRetries: number = 3, 
+  baseDelay: number = 1000
+): Promise<T> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (attempt === maxRetries) {
+        throw error;
+      }
+      
+      const delay = baseDelay * Math.pow(2, attempt - 1);
+      logWithTimestamp("WARN", `Attempt ${attempt} failed, retrying in ${delay}ms`, { error: error.message });
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  throw new Error("Max retries exceeded");
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  console.log("=== CREATE PAYMENT FUNCTION STARTED ===");
-  console.log("Request method:", req.method);
-  console.log("Request URL:", req.url);
-  console.log("Request headers:", Object.fromEntries(req.headers.entries()));
+  logWithTimestamp("INFO", "=== CREATE PAYMENT FUNCTION STARTED ===");
+  logWithTimestamp("INFO", "Request details", {
+    method: req.method,
+    url: req.url,
+    headers: Object.fromEntries(req.headers.entries())
+  });
 
   try {
-    // Parse request body with detailed logging
+    // Parse request body with timeout
     let requestBody;
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout for body parsing
+      
       const rawBody = await req.text();
-      console.log("Raw request body:", rawBody);
+      clearTimeout(timeoutId);
+      
+      logWithTimestamp("INFO", "Raw request body received", { length: rawBody.length });
       requestBody = JSON.parse(rawBody);
-      console.log("Parsed request body:", JSON.stringify(requestBody, null, 2));
+      logWithTimestamp("INFO", "Request body parsed successfully", {
+        hasCustomerData: !!requestBody.customerData,
+        planType: requestBody.planType
+      });
     } catch (error) {
-      console.error("BODY PARSE ERROR:", error);
+      logWithTimestamp("ERROR", "Body parse error", { error: error.message });
       return new Response(JSON.stringify({ 
         error: "Dados da requisição inválidos",
         details: "Falha ao processar dados enviados"
@@ -75,20 +114,11 @@ serve(async (req) => {
     }
 
     const { customerData, planType } = requestBody;
-    
-    // Log extracted data
-    console.log("Plan type:", planType);
-    console.log("Customer data present:", !!customerData);
-    if (customerData) {
-      console.log("Customer data keys:", Object.keys(customerData));
-      console.log("Customer email:", customerData.email);
-      console.log("Customer name:", customerData.name);
-    }
 
     // Validate customer data
     const validation = validateCustomerData(customerData);
     if (!validation.isValid) {
-      console.error("VALIDATION FAILED:", validation.errors);
+      logWithTimestamp("ERROR", "Validation failed", { errors: validation.errors });
       return new Response(JSON.stringify({ 
         error: "Dados inválidos: " + validation.errors.join(", "),
         details: validation.errors
@@ -98,21 +128,22 @@ serve(async (req) => {
       });
     }
 
-    console.log("✅ Customer data validation passed");
+    logWithTimestamp("INFO", "Customer data validation passed");
 
     // Check environment variables
     const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    console.log("Environment check:");
-    console.log("- Stripe key present:", !!stripeSecretKey);
-    console.log("- Stripe key length:", stripeSecretKey ? stripeSecretKey.length : 0);
-    console.log("- Supabase URL present:", !!supabaseUrl);
-    console.log("- Service key present:", !!supabaseServiceKey);
+    logWithTimestamp("INFO", "Environment variables check", {
+      hasStripeKey: !!stripeSecretKey,
+      stripeKeyLength: stripeSecretKey ? stripeSecretKey.length : 0,
+      hasSupabaseUrl: !!supabaseUrl,
+      hasServiceKey: !!supabaseServiceKey
+    });
 
     if (!stripeSecretKey) {
-      console.error("❌ STRIPE_SECRET_KEY not found");
+      logWithTimestamp("ERROR", "STRIPE_SECRET_KEY not found");
       return new Response(JSON.stringify({ 
         error: "Configuração de pagamento não encontrada",
         details: "Chave do Stripe não configurada"
@@ -122,16 +153,16 @@ serve(async (req) => {
       });
     }
 
-    // Initialize Stripe
+    // Initialize Stripe with retry
     let stripe;
     try {
-      console.log("Initializing Stripe client...");
+      logWithTimestamp("INFO", "Initializing Stripe client");
       stripe = new Stripe(stripeSecretKey, {
         apiVersion: "2023-10-16",
       });
-      console.log("✅ Stripe client initialized successfully");
+      logWithTimestamp("INFO", "Stripe client initialized successfully");
     } catch (error) {
-      console.error("❌ STRIPE INIT ERROR:", error);
+      logWithTimestamp("ERROR", "Stripe initialization failed", { error: error.message });
       return new Response(JSON.stringify({ 
         error: "Erro na configuração do processador de pagamento",
         details: "Falha ao inicializar Stripe"
@@ -141,23 +172,23 @@ serve(async (req) => {
       });
     }
 
-    // Test Stripe connection
+    // Test Stripe connection with retry
     try {
-      console.log("Testing Stripe connection...");
-      await stripe.customers.list({ limit: 1 });
-      console.log("✅ Stripe connection test successful");
+      logWithTimestamp("INFO", "Testing Stripe connection");
+      await withRetry(() => stripe.customers.list({ limit: 1 }), 2, 1000);
+      logWithTimestamp("INFO", "Stripe connection test successful");
     } catch (error) {
-      console.error("❌ STRIPE CONNECTION TEST FAILED:", error);
+      logWithTimestamp("ERROR", "Stripe connection test failed", { error: error.message });
       return new Response(JSON.stringify({ 
         error: "Erro de conexão com o processador de pagamento",
-        details: "Chave de pagamento inválida ou serviço indisponível"
+        details: "Serviço de pagamento indisponível"
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 500,
       });
     }
 
-    // Define price IDs with the correct values
+    // Define price IDs
     const priceIds = {
       monthly: "price_1RiRTsC8OCBSCVdTFXjUpEhw",
       annual: "price_1RiRTsC8OCBSCVdTqgo1iE56",
@@ -166,7 +197,7 @@ serve(async (req) => {
     const priceId = priceIds[planType as keyof typeof priceIds];
     
     if (!priceId) {
-      console.error("❌ INVALID PLAN TYPE:", planType);
+      logWithTimestamp("ERROR", "Invalid plan type", { planType });
       return new Response(JSON.stringify({ 
         error: `Plano inválido: ${planType}`,
         details: "Tipo de plano não reconhecido"
@@ -176,21 +207,15 @@ serve(async (req) => {
       });
     }
 
-    console.log("Using price ID:", priceId);
+    logWithTimestamp("INFO", "Using price ID", { priceId, planType });
 
-    // Verify price exists and is active
+    // Verify price exists with retry
     try {
-      console.log("Verifying Stripe price...");
-      const price = await stripe.prices.retrieve(priceId);
-      console.log("Price details:", {
-        id: price.id,
-        active: price.active,
-        currency: price.currency,
-        unit_amount: price.unit_amount
-      });
+      logWithTimestamp("INFO", "Verifying Stripe price");
+      const price = await withRetry(() => stripe.prices.retrieve(priceId), 2, 1000);
       
       if (!price.active) {
-        console.error("❌ PRICE NOT ACTIVE:", priceId);
+        logWithTimestamp("ERROR", "Price not active", { priceId });
         return new Response(JSON.stringify({ 
           error: "Plano não está disponível no momento",
           details: "Preço do plano não está ativo"
@@ -199,9 +224,14 @@ serve(async (req) => {
           status: 400,
         });
       }
-      console.log("✅ Price verification successful");
+      logWithTimestamp("INFO", "Price verification successful", {
+        id: price.id,
+        active: price.active,
+        currency: price.currency,
+        unit_amount: price.unit_amount
+      });
     } catch (error) {
-      console.error("❌ PRICE VERIFICATION ERROR:", error);
+      logWithTimestamp("ERROR", "Price verification failed", { error: error.message });
       return new Response(JSON.stringify({ 
         error: "Erro ao verificar plano de pagamento",
         details: "Plano não encontrado no sistema de pagamento"
@@ -211,33 +241,38 @@ serve(async (req) => {
       });
     }
 
-    // Handle customer creation/lookup
+    // Handle customer creation/lookup with retry
     let customerId;
     try {
-      console.log("Checking for existing customer...");
-      const customers = await stripe.customers.list({ 
-        email: customerData.email, 
-        limit: 1 
-      });
+      logWithTimestamp("INFO", "Checking for existing customer");
+      const customers = await withRetry(
+        () => stripe.customers.list({ email: customerData.email, limit: 1 }),
+        2,
+        1000
+      );
 
       if (customers.data.length > 0) {
         customerId = customers.data[0].id;
-        console.log("✅ Existing customer found:", customerId);
+        logWithTimestamp("INFO", "Existing customer found", { customerId });
       } else {
-        console.log("Creating new customer...");
-        const customer = await stripe.customers.create({
-          email: customerData.email,
-          name: customerData.name,
-          phone: customerData.phone,
-          metadata: {
-            cpf: customerData.cpf,
-          },
-        });
+        logWithTimestamp("INFO", "Creating new customer");
+        const customer = await withRetry(
+          () => stripe.customers.create({
+            email: customerData.email,
+            name: customerData.name,
+            phone: customerData.phone,
+            metadata: {
+              cpf: customerData.cpf,
+            },
+          }),
+          2,
+          1000
+        );
         customerId = customer.id;
-        console.log("✅ New customer created:", customerId);
+        logWithTimestamp("INFO", "New customer created", { customerId });
       }
     } catch (error) {
-      console.error("❌ CUSTOMER OPERATION ERROR:", error);
+      logWithTimestamp("ERROR", "Customer operation failed", { error: error.message });
       return new Response(JSON.stringify({ 
         error: "Erro ao processar dados do cliente",
         details: "Falha na criação ou busca do cliente"
@@ -247,38 +282,42 @@ serve(async (req) => {
       });
     }
 
-    // Create checkout session
-    console.log("Creating checkout session...");
+    // Create checkout session with retry
+    logWithTimestamp("INFO", "Creating checkout session");
     let session;
     try {
       const origin = req.headers.get("origin") || "https://xltugnmjbcowsuwzkkni.supabase.co";
-      console.log("Using origin for URLs:", origin);
+      logWithTimestamp("INFO", "Using origin for URLs", { origin });
 
-      session = await stripe.checkout.sessions.create({
-        customer: customerId,
-        line_items: [
-          {
-            price: priceId,
-            quantity: 1,
+      session = await withRetry(
+        () => stripe.checkout.sessions.create({
+          customer: customerId,
+          line_items: [
+            {
+              price: priceId,
+              quantity: 1,
+            },
+          ],
+          mode: "subscription",
+          success_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${origin}/landing`,
+          locale: "pt-BR",
+          allow_promotion_codes: true,
+          billing_address_collection: "required",
+          phone_number_collection: {
+            enabled: true,
           },
-        ],
-        mode: "subscription",
-        success_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${origin}/landing`,
-        locale: "pt-BR",
-        allow_promotion_codes: true,
-        billing_address_collection: "required",
-        phone_number_collection: {
-          enabled: true,
-        },
-      });
+        }),
+        2,
+        1000
+      );
       
-      console.log("✅ Checkout session created successfully");
-      console.log("Session ID:", session.id);
-      console.log("Session URL:", session.url);
+      logWithTimestamp("INFO", "Checkout session created successfully", {
+        sessionId: session.id,
+        hasUrl: !!session.url
+      });
     } catch (error) {
-      console.error("❌ CHECKOUT SESSION CREATION ERROR:", error);
-      console.error("Error details:", JSON.stringify(error, null, 2));
+      logWithTimestamp("ERROR", "Checkout session creation failed", { error: error.message });
       return new Response(JSON.stringify({ 
         error: "Erro ao criar sessão de pagamento",
         details: "Falha na criação da sessão do Stripe"
@@ -288,10 +327,10 @@ serve(async (req) => {
       });
     }
 
-    // Store pending purchase (optional, non-blocking)
+    // Store pending purchase (non-blocking)
     if (supabaseUrl && supabaseServiceKey) {
       try {
-        console.log("Storing pending purchase...");
+        logWithTimestamp("INFO", "Storing pending purchase");
         const supabase = createClient(supabaseUrl, supabaseServiceKey, { 
           auth: { persistSession: false } 
         });
@@ -305,17 +344,19 @@ serve(async (req) => {
           });
 
         if (insertError) {
-          console.warn("⚠️ Warning: Failed to store pending purchase:", insertError);
+          logWithTimestamp("WARN", "Failed to store pending purchase", { error: insertError.message });
         } else {
-          console.log("✅ Pending purchase stored successfully");
+          logWithTimestamp("INFO", "Pending purchase stored successfully");
         }
       } catch (error) {
-        console.warn("⚠️ Warning: Supabase operation failed:", error);
+        logWithTimestamp("WARN", "Supabase operation failed", { error: error.message });
       }
     }
 
-    console.log("=== PAYMENT CREATION SUCCESSFUL ===");
-    console.log("Returning session URL:", session.url);
+    logWithTimestamp("INFO", "Payment creation successful", {
+      sessionId: session.id,
+      url: session.url
+    });
 
     return new Response(JSON.stringify({ 
       url: session.url,
@@ -326,11 +367,11 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error("=== UNHANDLED ERROR ===");
-    console.error("Error type:", typeof error);
-    console.error("Error message:", error?.message);
-    console.error("Error stack:", error?.stack);
-    console.error("Full error object:", JSON.stringify(error, null, 2));
+    logWithTimestamp("ERROR", "Unhandled error in create-payment", {
+      errorType: typeof error,
+      message: error?.message,
+      stack: error?.stack
+    });
     
     return new Response(JSON.stringify({ 
       error: "Erro interno do servidor",

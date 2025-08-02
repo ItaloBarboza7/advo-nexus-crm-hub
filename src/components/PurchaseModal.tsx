@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useEmailAvailability } from "@/hooks/useEmailAvailability";
-import { supabase } from "@/integrations/supabase/client";
+import { usePurchaseFlow } from "@/hooks/usePurchaseFlow";
+import { Loader2 } from "lucide-react";
 
 interface PurchaseModalProps {
   isOpen: boolean;
@@ -24,11 +25,11 @@ export function PurchaseModal({ isOpen, onClose, planType, planPrice }: Purchase
     password: '',
     confirmPassword: ''
   });
-  const [isLoading, setIsLoading] = useState(false);
   const [emailError, setEmailError] = useState<string>('');
   const [previousEmail, setPreviousEmail] = useState<string>('');
   const { toast } = useToast();
   const { checkEmailAvailability, isChecking } = useEmailAvailability();
+  const { isLoading, handlePurchase } = usePurchaseFlow();
 
   // Verificar disponibilidade do email quando o usuário para de digitar
   useEffect(() => {
@@ -87,13 +88,12 @@ export function PurchaseModal({ isOpen, onClose, planType, planPrice }: Purchase
       return false;
     }
 
+    // Don't block purchase for email availability - just warn
     if (emailError) {
       toast({
-        title: "Email indisponível",
-        description: "Este email já está sendo usado. Escolha outro email.",
-        variant: "destructive"
+        title: "Aviso sobre email",
+        description: "Este email pode já estar em uso, mas prosseguiremos com a compra.",
       });
-      return false;
     }
 
     if (!customerData.phone.trim()) {
@@ -135,89 +135,10 @@ export function PurchaseModal({ isOpen, onClose, planType, planPrice }: Purchase
     return true;
   };
 
-  const handlePurchase = async () => {
+  const onPurchase = async () => {
     if (!validateForm()) return;
-
-    setIsLoading(true);
-
-    try {
-      console.log('🛒 Iniciando processo de compra:', { planType, email: customerData.email });
-      
-      const { data, error } = await supabase.functions.invoke('create-payment', {
-        body: {
-          customerData: {
-            name: customerData.name.trim(),
-            email: customerData.email.trim().toLowerCase(),
-            phone: customerData.phone.trim(),
-            cpf: customerData.cpf.trim(),
-            password: customerData.password
-          },
-          planType
-        }
-      });
-
-      console.log('📦 Resposta da função create-payment:', { data, error });
-
-      if (error) {
-        console.error('❌ Erro da Edge Function create-payment:', error);
-        toast({
-          title: "Erro no pagamento",
-          description: `Não foi possível processar o pagamento: ${error.message}`,
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // Verificar se houve erro na resposta da função
-      if (data?.error) {
-        console.error('❌ Erro retornado pela função create-payment:', data.error);
-        let errorMessage = "Erro desconhecido no processamento do pagamento";
-        
-        if (typeof data.error === 'string') {
-          errorMessage = data.error;
-        } else if (data.details) {
-          errorMessage = data.details;
-        }
-        
-        toast({
-          title: "Erro no pagamento",
-          description: errorMessage,
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // Verificar se a URL existe antes de redirecionar
-      if (!data?.url) {
-        console.error('❌ URL de pagamento não recebida:', data);
-        toast({
-          title: "Erro no redirecionamento",
-          description: "Não foi possível obter o link de pagamento. Tente novamente.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // Redirecionar para o Stripe Checkout
-      console.log('✅ Redirecionando para:', data.url);
-      window.location.href = data.url;
-
-    } catch (error) {
-      console.error('❌ Erro inesperado no processo de compra:', error);
-      
-      let errorMessage = "Ocorreu um erro inesperado. Tente novamente.";
-      if (error instanceof Error) {
-        errorMessage = `Erro: ${error.message}`;
-      }
-      
-      toast({
-        title: "Erro inesperado",
-        description: errorMessage,
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    
+    await handlePurchase(customerData, planType);
   };
 
   const resetForm = () => {
@@ -273,13 +194,13 @@ export function PurchaseModal({ isOpen, onClose, planType, planPrice }: Purchase
               onChange={(e) => handleInputChange('email', e.target.value)}
               placeholder="seu@email.com"
               disabled={isLoading}
-              className={emailError ? "border-red-500" : ""}
+              className={emailError ? "border-yellow-500" : ""}
             />
             {isChecking && customerData.email && (
               <p className="text-sm text-gray-500">Verificando disponibilidade...</p>
             )}
             {emailError && (
-              <p className="text-sm text-red-500">{emailError}</p>
+              <p className="text-sm text-yellow-600">{emailError} (prosseguiremos com a compra)</p>
             )}
           </div>
 
@@ -334,11 +255,18 @@ export function PurchaseModal({ isOpen, onClose, planType, planPrice }: Purchase
               Cancelar
             </Button>
             <Button 
-              onClick={handlePurchase} 
-              disabled={isLoading || !!emailError || isChecking}
+              onClick={onPurchase} 
+              disabled={isLoading}
               className="min-w-[120px]"
             >
-              {isLoading ? "Processando..." : "Finalizar Compra"}
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processando...
+                </>
+              ) : (
+                "Finalizar Compra"
+              )}
             </Button>
           </div>
         </div>
