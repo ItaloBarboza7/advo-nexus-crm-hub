@@ -8,7 +8,7 @@ import { EditLeadForm } from "./EditLeadForm";
 import { LeadFilters, FilterOptions } from "./LeadFilters";
 import { GlobalSearch } from "./GlobalSearch";
 import { Button } from "./ui/button";
-import { Plus, Grid3X3, List, Download } from "lucide-react";
+import { Plus, Grid3X3, List, Download, Target } from "lucide-react";
 import { Lead } from "@/types/lead";
 import { DeleteLeadDialog } from "./DeleteLeadDialog";
 import { LossReasonDialog } from "./LossReasonDialog";
@@ -130,6 +130,14 @@ export function ClientsContent() {
       return;
     }
     setShowNewLeadForm(true);
+  };
+
+  const handleOportunidadeClick = () => {
+    // Placeholder for opportunity functionality
+    toast({
+      title: "Oportunidades",
+      description: "Funcionalidade em desenvolvimento.",
+    });
   };
 
   const handleEditLead = (lead: Lead) => {
@@ -293,7 +301,28 @@ export function ClientsContent() {
             Gerencie seus leads e acompanhe o funil de vendas
           </p>
         </div>
-        <div className="flex items-center gap-2">
+      </div>
+
+      <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+        <div className="flex-1">
+          <GlobalSearch onLeadSelect={handleLeadSelect} />
+        </div>
+        
+        <div className="flex items-center gap-2 flex-wrap">
+          <LeadFilters
+            onFiltersChange={handleFiltersChange}
+            activeFilters={activeFilters}
+          />
+          
+          <Button 
+            variant="outline" 
+            onClick={handleOportunidadeClick}
+            className="flex items-center gap-2"
+          >
+            <Target className="h-4 w-4" />
+            Oportunidade
+          </Button>
+          
           <div className="flex items-center gap-1 rounded-lg border p-1">
             <Button
               variant={viewMode === 'kanban' ? 'default' : 'ghost'}
@@ -327,18 +356,6 @@ export function ClientsContent() {
               Novo Lead
             </Button>
           </SubscriptionProtectedWrapper>
-        </div>
-      </div>
-
-      <div className="flex flex-col lg:flex-row gap-4">
-        <div className="flex-1">
-          <GlobalSearch onLeadSelect={handleLeadSelect} />
-        </div>
-        <div className="lg:flex-shrink-0">
-          <LeadFilters
-            onFiltersChange={handleFiltersChange}
-            activeFilters={activeFilters}
-          />
         </div>
       </div>
 
