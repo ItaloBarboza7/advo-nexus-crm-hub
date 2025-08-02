@@ -301,6 +301,22 @@ export function ClientsContent() {
             Gerencie seus leads e acompanhe o funil de vendas
           </p>
         </div>
+        <div className="flex items-center gap-2">
+          <SubscriptionProtectedWrapper
+            feature="create_lead"
+            fallback={
+              <Button onClick={handleCreateLead} disabled className="opacity-50">
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Lead
+              </Button>
+            }
+          >
+            <Button onClick={handleCreateLead}>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Lead
+            </Button>
+          </SubscriptionProtectedWrapper>
+        </div>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
@@ -341,21 +357,6 @@ export function ClientsContent() {
               <List className="h-4 w-4" />
             </Button>
           </div>
-          
-          <SubscriptionProtectedWrapper
-            feature="create_lead"
-            fallback={
-              <Button onClick={handleCreateLead} disabled className="opacity-50">
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Lead
-              </Button>
-            }
-          >
-            <Button onClick={handleCreateLead}>
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Lead
-            </Button>
-          </SubscriptionProtectedWrapper>
         </div>
       </div>
 
