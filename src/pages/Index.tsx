@@ -1,4 +1,3 @@
-
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/AppSidebar"
 import { Header } from "@/components/Header"
@@ -9,6 +8,8 @@ import { CasesContent } from "@/components/CasesContent"
 import { ClientsContent } from "@/components/ClientsContent"
 import { SettingsContent } from "@/components/SettingsContent"
 import { CompanyInfoModal } from "@/components/CompanyInfoModal"
+import { SubscriptionWarningBanner } from "@/components/SubscriptionWarningBanner"
+import { SubscriptionProtectedWrapper } from "@/components/SubscriptionProtectedWrapper"
 import { useState, useEffect } from "react"
 import { supabase } from "@/integrations/supabase/client"
 import { User, Session } from "@supabase/supabase-js"
@@ -16,6 +17,7 @@ import { Button } from "@/components/ui/button"
 import { Link, useNavigate } from "react-router-dom"
 import { Lead } from "@/types/lead"
 import { useTenantSchema } from "@/hooks/useTenantSchema"
+import { useSubscriptionControl } from "@/hooks/useSubscriptionControl"
 
 export type ActiveView = 'dashboard' | 'clients' | 'cases' | 'calendar' | 'optimization' | 'settings'
 
@@ -25,8 +27,18 @@ const Index = () => {
   const [session, setSession] = useState<Session | null>(null)
   const [showCompanyModal, setShowCompanyModal] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
+  const [dismissedWarning, setDismissedWarning] = useState(false)
   const { ensureTenantSchema } = useTenantSchema()
   const navigate = useNavigate()
+  
+  // Subscription control
+  const { 
+    isBlocked, 
+    isLoading: subscriptionLoading, 
+    showWarning, 
+    blockReason,
+    canAccessFeature 
+  } = useSubscriptionControl()
 
   useEffect(() => {
     console.log('🔍 Index - Verificando URL para tokens de recovery...')
@@ -216,22 +228,57 @@ const Index = () => {
       case 'dashboard':
         return <DashboardContent />
       case 'cases':
-        return <CasesContent />
+        return (
+          <SubscriptionProtectedWrapper 
+            feature="analysis_access"
+            title="Análises Restritas"
+            description="As análises requerem uma assinatura ativa."
+          >
+            <CasesContent />
+          </SubscriptionProtectedWrapper>
+        )
       case 'clients':
-        return <ClientsContent />
+        return (
+          <SubscriptionProtectedWrapper 
+            feature="create_lead"
+            title="Gestão de Leads Restrita"
+            description="A gestão de leads requer uma assinatura ativa."
+          >
+            <ClientsContent />
+          </SubscriptionProtectedWrapper>
+        )
       case 'calendar':
-        return <CalendarContent />
+        return (
+          <SubscriptionProtectedWrapper 
+            feature="calendar_access"
+            title="Calendário Restrito"
+            description="O calendário requer uma assinatura ativa."
+          >
+            <CalendarContent />
+          </SubscriptionProtectedWrapper>
+        )
       case 'optimization':
         return <OptimizationContent />
       case 'settings':
         if (userRole === 'member') {
           return <DashboardContent />
         }
-        return <SettingsContent />
+        return (
+          <SubscriptionProtectedWrapper 
+            feature="settings_access"
+            title="Configurações Restritas"
+            description="As configurações requerem uma assinatura ativa."
+          >
+            <SettingsContent />
+          </SubscriptionProtectedWrapper>
+        )
       default:
         return <DashboardContent />
     }
   }
+
+  // Show subscription warning banner when needed
+  const shouldShowWarning = showWarning && !dismissedWarning && !subscriptionLoading
 
   return (
     <>
@@ -243,11 +290,19 @@ const Index = () => {
             onLogout={handleLogout}
             onLeadSelect={handleLeadSelect}
           />
-          <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+          <div className="flex flex-1 flex-col gap-4 p-4 pt-0" style={{ paddingBottom: shouldShowWarning ? '70px' : '16px' }}>
             {renderContent()}
           </div>
         </SidebarInset>
       </SidebarProvider>
+
+      {/* Subscription warning banner */}
+      {shouldShowWarning && (
+        <SubscriptionWarningBanner 
+          message={blockReason}
+          onDismiss={() => setDismissedWarning(true)}
+        />
+      )}
 
       <CompanyInfoModal 
         isOpen={showCompanyModal} 

@@ -1,5 +1,5 @@
 
-import { Home, Users, Flag, TrendingUp, Settings, Zap } from "lucide-react";
+import { Home, Users, Flag, TrendingUp, Settings, Zap, Lock } from "lucide-react";
 import { useState, useEffect } from "react";
 import {
   Sidebar,
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/sidebar";
 import { ActiveView } from "@/pages/Index";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { useSubscriptionControl } from "@/hooks/useSubscriptionControl";
 
 interface AppSidebarProps {
   activeView: ActiveView;
@@ -30,17 +31,20 @@ const menuItems = [
     title: "Leads",
     icon: Users,
     view: "clients" as ActiveView,
+    feature: "create_lead"
   },
   {
     title: "Análises",
     icon: TrendingUp,
     view: "cases" as ActiveView,
-    requiresPermission: 'analysis_access'
+    requiresPermission: 'analysis_access',
+    feature: "analysis_access"
   },
   {
     title: "Metas",
     icon: Flag,
     view: "calendar" as ActiveView,
+    feature: "calendar_access"
   },
   {
     title: "Otimização",
@@ -51,11 +55,13 @@ const menuItems = [
     title: "Configurações",
     icon: Settings,
     view: "settings" as ActiveView,
+    feature: "settings_access"
   },
 ];
 
 export function AppSidebar({ activeView, setActiveView, userRole }: AppSidebarProps) {
   const { getCurrentUserPermission } = useUserPermissions();
+  const { canAccessFeature } = useSubscriptionControl();
   const [hasAnalysisAccess, setHasAnalysisAccess] = useState(false);
 
   useEffect(() => {
@@ -99,22 +105,32 @@ export function AppSidebar({ activeView, setActiveView, userRole }: AppSidebarPr
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {visibleMenuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    isActive={activeView === item.view}
-                    onClick={() => setActiveView(item.view)}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-                      activeView === item.view
-                        ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-r-2 border-blue-600"
-                        : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-                    }`}
-                  >
-                    <item.icon className="h-5 w-5" />
-                    <span className="font-medium">{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {visibleMenuItems.map((item) => {
+                const hasFeatureAccess = !item.feature || canAccessFeature(item.feature);
+                const isBlocked = item.feature && !hasFeatureAccess;
+                
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      isActive={activeView === item.view}
+                      onClick={() => setActiveView(item.view)}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                        activeView === item.view
+                          ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-r-2 border-blue-600"
+                          : isBlocked
+                          ? "text-gray-400 dark:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-900"
+                          : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                      }`}
+                    >
+                      <item.icon className={`h-5 w-5 ${isBlocked ? 'opacity-50' : ''}`} />
+                      <span className={`font-medium ${isBlocked ? 'opacity-50' : ''}`}>
+                        {item.title}
+                      </span>
+                      {isBlocked && <Lock className="h-3 w-3 ml-auto opacity-50" />}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
