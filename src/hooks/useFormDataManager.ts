@@ -78,6 +78,11 @@ export function useFormDataManager() {
     });
   }, []);
 
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    updateField(name, value);
+  }, [updateField]);
+
   const resetFormData = useCallback(() => {
     console.log("🔄 useFormDataManager - Resetting form data");
     setFormData({
@@ -96,6 +101,24 @@ export function useFormDataManager() {
     originalDataRef.current = null;
   }, []);
 
+  const resetForm = useCallback(() => {
+    resetFormData();
+  }, [resetFormData]);
+
+  const validateForm = useCallback(() => {
+    const errors: string[] = [];
+    
+    if (!formData.name.trim()) {
+      errors.push("Nome é obrigatório");
+    }
+    
+    if (!formData.phone.trim()) {
+      errors.push("Telefone é obrigatório");
+    }
+    
+    return errors;
+  }, [formData]);
+
   const restoreOriginalData = useCallback(() => {
     if (originalDataRef.current) {
       console.log("🔄 useFormDataManager - Restoring original data");
@@ -105,9 +128,13 @@ export function useFormDataManager() {
 
   return {
     formData,
+    setFormData,
     initializeFormData,
     updateField,
+    handleInputChange,
     resetFormData,
+    resetForm,
+    validateForm,
     restoreOriginalData,
     originalData: originalDataRef.current
   };

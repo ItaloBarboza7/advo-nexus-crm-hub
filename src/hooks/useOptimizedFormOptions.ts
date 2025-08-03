@@ -13,6 +13,12 @@ export interface OptimizedFormOptions {
   getActionTypeOptions: (actionGroup: string) => Array<{ value: string; label: string }>;
   refreshData: () => void;
   addLossReason: (reason: string) => Promise<boolean>;
+  isReady: boolean;
+  // Additional properties for compatibility
+  sources: Array<{ name: string; label: string }>;
+  actionTypes: Array<{ id: string; name: string; action_group_id: string | null }>;
+  states: Array<{ value: string; label: string }>;
+  isLoading: boolean;
 }
 
 export function useOptimizedFormOptions() {
@@ -25,12 +31,21 @@ export function useOptimizedFormOptions() {
     actionGroupOptions, 
     getActionTypeOptions,
     actionGroups,
+    actionTypes,
+    stateOptions,
     loading: filterOptionsLoading,
     refreshData: refreshFilterData
   } = useFilterOptions();
   
   const { lossReasons, addLossReason } = useLossReasonsGlobal();
   const { columns: kanbanColumns, isLoading: kanbanLoading } = useKanbanColumns();
+
+  // Map sourceOptions to sources format for compatibility
+  const sources = useMemo(() => 
+    sourceOptions.map(option => ({
+      name: option.value,
+      label: option.label
+    })), [sourceOptions]);
 
   // Cache the data locally to prevent unnecessary re-renders
   const cachedOptions = useMemo(() => ({
@@ -41,7 +56,13 @@ export function useOptimizedFormOptions() {
     kanbanColumns,
     getActionTypeOptions,
     refreshData: refreshFilterData,
-    addLossReason
+    addLossReason,
+    isReady,
+    // Additional compatibility properties
+    sources,
+    actionTypes,
+    states: stateOptions,
+    isLoading: filterOptionsLoading || kanbanLoading
   }), [
     sourceOptions,
     actionGroupOptions,
@@ -50,7 +71,13 @@ export function useOptimizedFormOptions() {
     kanbanColumns,
     getActionTypeOptions,
     refreshFilterData,
-    addLossReason
+    addLossReason,
+    isReady,
+    sources,
+    actionTypes,
+    stateOptions,
+    filterOptionsLoading,
+    kanbanLoading
   ]);
 
   // Only set ready state once when all data is loaded
@@ -69,8 +96,5 @@ export function useOptimizedFormOptions() {
     }
   }, [filterOptionsLoading, kanbanLoading, sourceOptions.length, actionGroupOptions.length, lossReasons.length, kanbanColumns.length]);
 
-  return {
-    isReady,
-    ...cachedOptions
-  };
+  return cachedOptions;
 }

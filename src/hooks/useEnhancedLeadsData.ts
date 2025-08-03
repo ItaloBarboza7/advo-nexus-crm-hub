@@ -77,7 +77,10 @@ export function useEnhancedLeadsData() {
         return false;
       }
       
-      const count = Array.isArray(data) && data.length > 0 ? data[0].count : 0;
+      // Fix the typing issue by properly handling the JSON response
+      const count = Array.isArray(data) && data.length > 0 && typeof data[0] === 'object' && data[0] !== null 
+        ? (data[0] as any).count 
+        : 0;
       const exists = count > 0;
       
       console.log(`${exists ? '✅' : '❌'} useEnhancedLeadsData - Lead "${leadName}" ${exists ? 'encontrado' : 'não encontrado'} (count: ${count})`);

@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -6,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Textarea } from "./ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import { useOptimizedFormOptions } from "@/hooks/useOptimizedFormOptions";
-import { useNewOptionHandler } from "@/hooks/useNewOptionHandler";
+import { useNewLeadFormNewOptions } from "@/hooks/useNewLeadFormNewOptions";
 import { useFormDataManager } from "@/hooks/useFormDataManager";
 import { useToast } from "@/hooks/use-toast";
 import { useEnhancedTenantLeadOperations } from "@/hooks/useEnhancedTenantLeadOperations";
@@ -54,7 +55,7 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
     setNewSourceName,
     setNewActionGroupName,
     setNewActionTypeName
-  } = useNewOptionHandler();
+  } = useNewLeadFormNewOptions();
 
   const filteredActionTypes = actionTypes.filter(type => 
     type.action_group_id === actionGroups.find(group => group.name === formData.action_group)?.id
@@ -85,7 +86,7 @@ export function NewLeadForm({ open, onOpenChange, onLeadCreated }: NewLeadFormPr
         source: formData.source || undefined,
         action_group: formData.action_group || undefined,
         action_type: formData.action_type || undefined,
-        value: formData.value || undefined,
+        value: formData.value ? parseFloat(formData.value) : undefined, // Fix: Convert string to number
         description: formData.description ? formData.description.trim() : undefined,
       };
 
