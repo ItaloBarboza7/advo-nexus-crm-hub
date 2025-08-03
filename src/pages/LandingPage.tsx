@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -40,7 +39,7 @@ const LandingPage = () => {
             <img 
               src="/lovable-uploads/fe9b88f3-37c0-4d92-a1f5-c25818c8cd49.png" 
               alt="EVOjuris Logo" 
-              className="h-24 w-auto"
+              className="h-32 w-auto"
             />
           </div>
           
@@ -174,7 +173,7 @@ const LandingPage = () => {
                   <div className="flex items-center justify-center gap-2">
                     <Clock className="w-4 h-4 text-green-600" />
                     <span className="text-sm text-gray-600">30 dias de teste grátis</span>
-                    <span className="text-sm font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded">CUPOM: 1FREE</span>
+                    <span className="text-sm text-gray-600">Cupom: 1FREE</span>
                   </div>
                   <div className="flex items-center justify-center gap-2">
                     <X className="w-4 h-4 text-green-600" />
