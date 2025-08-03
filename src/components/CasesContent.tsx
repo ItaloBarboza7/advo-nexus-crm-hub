@@ -266,6 +266,9 @@ export function CasesContent() {
         onContractsViewChange={handleContractsViewChange}
         opportunitiesViewMode={opportunitiesViewMode}
         onOpportunitiesViewChange={handleOpportunitiesViewChange}
+        showLeadsChart={showLeadsChart}
+        showContractsChart={showContractsChart}
+        showOpportunitiesChart={showOpportunitiesChart}
       />
 
       <ChartsSection

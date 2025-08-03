@@ -21,6 +21,10 @@ interface SearchAndFiltersProps {
   onContractsViewChange?: (view: 'weekly' | 'monthly') => void;
   opportunitiesViewMode?: 'weekly' | 'monthly';
   onOpportunitiesViewChange?: (view: 'weekly' | 'monthly') => void;
+  // Props para estados ativos dos gráficos
+  showLeadsChart?: boolean;
+  showContractsChart?: boolean;
+  showOpportunitiesChart?: boolean;
 }
 
 export function SearchAndFilters({
@@ -36,7 +40,10 @@ export function SearchAndFilters({
   contractsViewMode = 'weekly',
   onContractsViewChange,
   opportunitiesViewMode = 'weekly',
-  onOpportunitiesViewChange
+  onOpportunitiesViewChange,
+  showLeadsChart = false,
+  showContractsChart = false,
+  showOpportunitiesChart = false
 }: SearchAndFiltersProps) {
 
   console.log(`🔍 SearchAndFilters - selectedCategory: ${selectedCategory}`);
@@ -109,6 +116,7 @@ export function SearchAndFilters({
                 onLeadsViewChange(view);
               }}
               label="Leads"
+              isActive={showLeadsChart}
             />
           )}
 
@@ -121,6 +129,7 @@ export function SearchAndFilters({
                 onContractsViewChange(view);
               }}
               label="Contratos"
+              isActive={showContractsChart}
             />
           )}
 
@@ -133,6 +142,7 @@ export function SearchAndFilters({
                 onOpportunitiesViewChange(view);
               }}
               label="Oportunidades"
+              isActive={showOpportunitiesChart}
             />
           )}
           
