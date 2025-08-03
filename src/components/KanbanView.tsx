@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
@@ -52,7 +53,7 @@ export function KanbanView({
   originalLeads 
 }: KanbanViewProps) {
   const [deletingLead, setDeletingLead] = useState<Lead | null>(null);
-  const { deleteLead } = useSimpleLeadOperations();
+  const { deleteLead, updateLead } = useSimpleLeadOperations();
   const { toast } = useToast();
   const { canAccessFeature } = useSubscriptionControl();
 
@@ -105,7 +106,6 @@ export function KanbanView({
     try {
       console.log(`🔄 KanbanView - Alterando status do lead ${leadId} para ${newStatus}`);
       
-      const { updateLead } = useSimpleLeadOperations();
       const success = await updateLead(leadId, { status: newStatus });
       
       if (success) {
@@ -160,7 +160,7 @@ export function KanbanView({
                   ({statusLeads.length})
                 </span>
               </div>
-              <div className="text-xs text-gray-500">
+              <div className="text-sm font-semibold text-green-600">
                 {new Intl.NumberFormat('pt-BR', {
                   style: 'currency',
                   currency: 'BRL'
