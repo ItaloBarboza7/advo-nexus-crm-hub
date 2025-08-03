@@ -12,18 +12,28 @@ interface ViewToggleDropdownProps {
   currentView: 'weekly' | 'monthly';
   onViewChange: (view: 'weekly' | 'monthly') => void;
   label?: string;
+  isActive?: boolean;
 }
 
 export function ViewToggleDropdown({ 
   currentView, 
   onViewChange, 
-  label = "Visualização" 
+  label = "Visualização",
+  isActive = false
 }: ViewToggleDropdownProps) {
   console.log(`🔍 ViewToggleDropdown (${label}) - currentView: ${currentView}, onViewChange: ${!!onViewChange}`);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8">
+        <Button 
+          variant={isActive ? "default" : "outline"} 
+          size="sm" 
+          className={`h-8 transition-all duration-200 ${
+            isActive 
+              ? "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/20" 
+              : "hover:bg-muted/50"
+          }`}
+        >
           <BarChart3 className="h-4 w-4 mr-2" />
           {currentView === 'weekly' ? 'Semanal' : 'Mensal'}
           <ChevronDown className="h-4 w-4 ml-2" />
