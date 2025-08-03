@@ -143,8 +143,8 @@ export function ChartsSection({
         />
       )}
 
-      {/* Gráficos de análise só aparecem quando NÃO há gráfico de leads sendo exibido E não estamos em Estados */}
-      {!showLeadsChart && !showContractsChart && !showOpportunitiesChart && !isEstadosView && (
+      {/* Gráficos de análise - CORRIGIDO: Mostrar quando a categoria específica está selecionada */}
+      {!isEstadosView && (
         <>
           {shouldShowLossReasonsChart && (
             <LossReasonsChart leads={leads} />
