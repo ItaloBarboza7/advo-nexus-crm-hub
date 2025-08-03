@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useKanbanColumns } from "@/hooks/useKanbanColumns";
 
 interface ActionGroup {
   id: string;
@@ -30,6 +31,9 @@ export const useFilterOptions = () => {
   const fetchingRef = useRef(false);
   const mountedRef = useRef(true);
   const lastFetchTimeRef = useRef(0);
+  
+  // Get Kanban columns for dynamic status options
+  const { columns: kanbanColumns, isLoading: columnsLoading } = useKanbanColumns();
 
   // Debounce mechanism to prevent rapid successive calls
   const FETCH_DEBOUNCE_MS = 1000;
@@ -123,14 +127,12 @@ export const useFilterOptions = () => {
     };
   }, []);
 
-  // Memoize static options to prevent recreation
-  const statusOptions = useMemo(() => [
-    { value: "Novo", label: "Novo" },
-    { value: "Reunião", label: "Reunião" },
-    { value: "Proposta", label: "Proposta" },
-    { value: "Contrato Fechado", label: "Contrato Fechado" },
-    { value: "Perdido", label: "Perdido" }
-  ], []);
+  // Dynamic status options from Kanban columns
+  const statusOptions = useMemo(() => 
+    kanbanColumns.map(column => ({
+      value: column.name,
+      label: column.name
+    })), [kanbanColumns]);
 
   const stateOptions = useMemo(() => [
     { value: "Acre", label: "Acre" },
@@ -218,7 +220,7 @@ export const useFilterOptions = () => {
     actionGroups,
     actionTypes,
     leadSources,
-    loading,
+    loading: loading || columnsLoading,
     refreshData
   }), [
     statusOptions,
@@ -231,6 +233,7 @@ export const useFilterOptions = () => {
     actionTypes,
     leadSources,
     loading,
+    columnsLoading,
     refreshData
   ]);
 };
