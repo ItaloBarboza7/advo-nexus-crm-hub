@@ -168,8 +168,8 @@ export function PurchaseModal({ isOpen, onClose, planType, planPrice }: Purchase
     }
   }, [isOpen]);
 
-  // Check if purchase button should be disabled
-  const isPurchaseDisabled = isLoading || isChecking || emailError || emailAvailable === false;
+  // Check if purchase button should be disabled - fix the type error
+  const isPurchaseDisabled = isLoading || isChecking || Boolean(emailError) || emailAvailable === false;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
