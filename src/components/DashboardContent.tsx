@@ -837,7 +837,7 @@ export function DashboardContent() {
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-lg text-gray-900">
                   <BarChart3 className="h-5 w-5 text-purple-600" />
-                  Oportunidades por {actionView === 'type' ? 'Tipo de Ação' : 'Grupo de Ação'}
+                  Oportunidades/Fechamentos por Tipo
                 </CardTitle>
                 <Select value={actionView} onValueChange={(value: 'type' | 'group') => setActionView(value)}>
                   <SelectTrigger className="w-[130px]">

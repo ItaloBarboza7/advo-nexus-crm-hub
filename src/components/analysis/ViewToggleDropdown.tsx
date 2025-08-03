@@ -19,6 +19,7 @@ export function ViewToggleDropdown({
   onViewChange, 
   label = "Visualização" 
 }: ViewToggleDropdownProps) {
+  console.log(`🔍 ViewToggleDropdown (${label}) - currentView: ${currentView}, onViewChange: ${!!onViewChange}`);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -30,14 +31,20 @@ export function ViewToggleDropdown({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="bg-white border shadow-lg z-50">
         <DropdownMenuItem 
-          onClick={() => onViewChange('weekly')}
+          onClick={() => {
+            console.log(`🎯 ViewToggleDropdown (${label}) - Clicando em weekly`);
+            onViewChange('weekly');
+          }}
           className="cursor-pointer"
         >
           <Calendar className="h-4 w-4 mr-2" />
           Visualização Semanal
         </DropdownMenuItem>
         <DropdownMenuItem 
-          onClick={() => onViewChange('monthly')}
+          onClick={() => {
+            console.log(`🎯 ViewToggleDropdown (${label}) - Clicando em monthly`);
+            onViewChange('monthly');
+          }}
           className="cursor-pointer"
         >
           <BarChart3 className="h-4 w-4 mr-2" />
