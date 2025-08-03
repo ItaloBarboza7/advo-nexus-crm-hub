@@ -16,8 +16,8 @@ interface ActionToggleDropdownProps {
 export function ActionToggleDropdown({ selectedCategory, onCategoryChange }: ActionToggleDropdownProps) {
   const mainCategory = selectedCategory.split('-')[0];
   
-  // Só mostrar o dropdown se estivermos em uma categoria válida (contratos, oportunidades, perdas)
-  if (!["contratos", "oportunidades", "perdas"].includes(mainCategory)) {
+  // Só mostrar o dropdown se estivermos em uma categoria válida (all, contratos, oportunidades, perdas)
+  if (!["all", "contratos", "oportunidades", "perdas"].includes(mainCategory)) {
     return null;
   }
 
