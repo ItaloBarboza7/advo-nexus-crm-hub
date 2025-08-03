@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -18,7 +19,7 @@ const LandingPage = () => {
   ];
 
   const stats = [
-    { icon: Users, value: "500+", label: "Clientes ativos" },
+    { icon: Users, value: "500+", label: "Empresas que confiam" },
     { icon: BarChart3, value: "40%+", label: "Conversão média" },
     { icon: Shield, value: "99.9%", label: "ajustes precisos" }
   ];
