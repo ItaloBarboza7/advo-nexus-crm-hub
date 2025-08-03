@@ -155,18 +155,30 @@ export function CasesContent() {
   );
 
   const handleCategoryChange = (category: string) => {
+    console.log(`🔄 handleCategoryChange: ${selectedCategory} -> ${category}`);
+    
+    // Extrair categorias principais para comparar
+    const oldMainCategory = selectedCategory.split('-')[0];
+    const newMainCategory = category.split('-')[0];
+    
+    // Só resetar chart states e filtros se mudou a categoria principal
+    if (oldMainCategory !== newMainCategory) {
+      console.log(`🔄 Categoria principal mudou: ${oldMainCategory} -> ${newMainCategory}, resetando states`);
+      resetChartStates();
+      // Limpar filtros avançados quando mudar de categoria principal
+      setAdvancedFilters({
+        status: [],
+        source: [],
+        actionType: [],
+        state: [],
+        lossReason: [],
+        valueRange: { min: null, max: null }
+      });
+    } else {
+      console.log(`🔄 Apenas subcategoria mudou, mantendo chart states`);
+    }
+    
     setSelectedCategory(category);
-    // Resetar estados dos gráficos quando mudar de categoria
-    resetChartStates();
-    // Limpar filtros avançados quando mudar de categoria
-    setAdvancedFilters({
-      status: [],
-      source: [],
-      actionType: [],
-      state: [],
-      lossReason: [],
-      valueRange: { min: null, max: null }
-    });
   };
 
   const handleRefresh = () => {
