@@ -91,11 +91,10 @@ export function useEnhancedTenantLeadOperations() {
         }
       });
 
-      // Create with RETURNING clause to get the created lead
+      // Create lead without RETURNING clause since exec_sql for INSERT doesn't support it properly
       const sql = `
         INSERT INTO ${schema}.leads (${fields.join(', ')})
         VALUES (${values.join(', ')})
-        RETURNING id, name, phone, created_at
       `;
 
       addDebugLog('create_lead_sql', { sql: sql.replace(/'\d+'/g, "'***'") }, true);
@@ -113,22 +112,30 @@ export function useEnhancedTenantLeadOperations() {
         return false;
       }
 
-      // Safe type conversion
-      const resultData = toLeadRecordArray(data);
-      if (resultData.length === 0) {
-        endOperation('create_lead_enhanced', { error: 'No data returned', data }, false);
+      // Check if INSERT was successful (exec_sql returns { affected_rows: number } for INSERTs)
+      if (!data || (typeof data === 'object' && 'affected_rows' in data && data.affected_rows === 0)) {
+        endOperation('create_lead_enhanced', { error: 'No rows affected', data }, false);
         toast({
           title: "Erro",
-          description: "Lead não foi criado corretamente.",
+          description: "Lead não foi criado.",
           variant: "destructive"
         });
         return false;
       }
 
-      const createdLead = resultData[0];
+      addDebugLog('create_lead_insert_result', { data }, true);
+
+      // Query the most recently created lead for this user to verify creation
+      const verificationSql = `
+        SELECT id, name, phone, created_at 
+        FROM ${schema}.leads 
+        WHERE user_id = '${user.id}' 
+        AND name = '${leadData.name.replace(/'/g, "''")}'
+        AND phone = '${leadData.phone.replace(/'/g, "''")}'
+        ORDER BY created_at DESC 
+        LIMIT 1
+      `;
       
-      // Double-check by querying the created lead
-      const verificationSql = `SELECT id, name FROM ${schema}.leads WHERE id = '${createdLead.id}'`;
       const { data: verificationData, error: verificationError } = await supabase.rpc('exec_sql', { 
         sql: verificationSql 
       });
@@ -143,11 +150,13 @@ export function useEnhancedTenantLeadOperations() {
         
         toast({
           title: "Aviso",
-          description: "Lead criado mas verificação falhou. Recarregue a página.",
+          description: "Lead pode ter sido criado mas verificação falhou. Recarregue a página.",
           variant: "destructive"
         });
         return false;
       }
+
+      const createdLead = verificationResult[0];
 
       endOperation('create_lead_enhanced', { 
         createdLead: { id: createdLead.id, name: createdLead.name },
