@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Check, ArrowRight, Users, BarChart3, Shield } from 'lucide-react';
+import { Check, ArrowRight, Users, BarChart3, Shield, Clock, X, Headphones } from 'lucide-react';
 import { PurchaseModal } from '@/components/PurchaseModal';
 
 const LandingPage = () => {
@@ -40,7 +40,7 @@ const LandingPage = () => {
             <img 
               src="/lovable-uploads/fe9b88f3-37c0-4d92-a1f5-c25818c8cd49.png" 
               alt="EVOjuris Logo" 
-              className="h-12 w-auto"
+              className="h-20 w-auto"
             />
           </div>
           
@@ -172,15 +172,15 @@ const LandingPage = () => {
                 
                 <div className="mt-6 pt-6 border-t text-center space-y-1">
                   <div className="flex items-center justify-center gap-2">
-                    <Check className="w-4 h-4 text-green-600" />
-                    <span className="text-sm text-gray-600">7 dias de teste grátis</span>
+                    <Clock className="w-4 h-4 text-green-600" />
+                    <span className="text-sm text-gray-600">30 dias de teste grátis</span>
                   </div>
                   <div className="flex items-center justify-center gap-2">
-                    <Check className="w-4 h-4 text-green-600" />
+                    <X className="w-4 h-4 text-green-600" />
                     <span className="text-sm text-gray-600">Cancele quando quiser</span>
                   </div>
                   <div className="flex items-center justify-center gap-2">
-                    <Check className="w-4 h-4 text-green-600" />
+                    <Headphones className="w-4 h-4 text-green-600" />
                     <span className="text-sm text-gray-600">Suporte especializado</span>
                   </div>
                 </div>
