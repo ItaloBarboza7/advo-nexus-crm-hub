@@ -1,356 +1,251 @@
-import { useState, useMemo } from "react";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Phone, Mail, MapPin, DollarSign, Eye, Trash2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+
+import React, { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import { Phone, Mail, MapPin, Eye, Trash2, Edit } from "lucide-react";
 import { Lead } from "@/types/lead";
-import { LossReasonDialog } from "@/components/LossReasonDialog";
-import { DeleteLeadDialog } from "@/components/DeleteLeadDialog";
-import { useLeadStatusHistory } from "@/hooks/useLeadStatusHistory";
-import { useFilterOptions } from "@/hooks/useFilterOptions";
-import { useTenantSchema } from "@/hooks/useTenantSchema";
-import { supabase } from "@/integrations/supabase/client";
+import { DeleteLeadDialog } from "./DeleteLeadDialog";
+import { useSimpleLeadOperations } from "@/hooks/useSimpleLeadOperations";
+import { useToast } from "@/hooks/use-toast";
+import { useSubscriptionControl } from "@/hooks/useSubscriptionControl";
 
-interface TransformedLead {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  company: string;
-  source: string;
-  status: string;
-  interest: string;
-  value: string;
-  lastContact: string;
-  avatar: string;
-  originalId: string;
-  numericValue: number;
-}
-
-interface StatusConfig {
+interface Status {
   id: string;
   title: string;
   color: string;
 }
 
+interface KanbanLead extends Lead {
+  value: string;
+  avatar: string;
+  lastContact: string;
+  numericValue: number;
+}
+
 interface KanbanViewProps {
-  leads: TransformedLead[];
-  statuses: StatusConfig[];
+  leads: KanbanLead[];
+  statuses: Status[];
   onLeadUpdated: () => void;
   onViewDetails: (lead: Lead) => void;
   originalLeads: Lead[];
 }
 
-export function KanbanView({ leads, statuses, onLeadUpdated, onViewDetails, originalLeads }: KanbanViewProps) {
+export function KanbanView({ 
+  leads, 
+  statuses, 
+  onLeadUpdated, 
+  onViewDetails,
+  originalLeads 
+}: KanbanViewProps) {
+  const [deletingLead, setDeletingLead] = useState<Lead | null>(null);
+  const { deleteLead } = useSimpleLeadOperations();
   const { toast } = useToast();
-  const [pendingStatusChange, setPendingStatusChange] = useState<{leadId: string, newStatus: string} | null>(null);
-  const [isLossReasonDialogOpen, setIsLossReasonDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [leadToDelete, setLeadToDelete] = useState<{ id: string; name: string } | null>(null);
-  const { hasLeadPassedThroughStatus } = useLeadStatusHistory();
-  const { actionGroupOptions } = useFilterOptions();
-  const { tenantSchema, ensureTenantSchema } = useTenantSchema();
+  const { canAccessFeature } = useSubscriptionControl();
 
-  // Extract valid action group names from the options
-  const validActionGroupNames = useMemo(() => {
-    return actionGroupOptions.map(option => option.value);
-  }, [actionGroupOptions]);
-
-  const getLeadsByStatus = (status: string) => {
-    return leads.filter(lead => lead.status === status);
-  };
-
-  const getStatusTotal = (status: string) => {
-    const statusLeads = getLeadsByStatus(status);
-    const total = statusLeads.reduce((sum, lead) => sum + (lead.numericValue || 0), 0);
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(total);
-  };
-
-  // Status que não devem mostrar o valor total
-  const statusesWithoutTotal = ["Novo", "Contrato Fechado", "Finalizado"];
-
-  const shouldShowTotal = (status: string) => {
-    return !statusesWithoutTotal.includes(status);
-  };
-
-  const updateLeadStatus = async (leadId: string, newStatus: string, lossReason?: string) => {
-    try {
-      console.log(`🔄 KanbanView - Atualizando status do lead ${leadId} para ${newStatus} no esquema do tenant...`);
-      
-      const schema = tenantSchema || await ensureTenantSchema();
-      if (!schema) {
-        console.error('❌ Não foi possível obter o esquema do tenant');
-        return;
-      }
-
-      // Construir a query de update
-      let setClause = `status = '${newStatus}', updated_at = now()`;
-      if (lossReason) {
-        setClause += `, loss_reason = '${lossReason}'`;
-      }
-
-      const { error } = await supabase.rpc('exec_sql' as any, {
-        sql: `UPDATE ${schema}.leads SET ${setClause} WHERE id = '${leadId}'`
-      });
-
-      if (error) {
-        console.error('❌ Erro ao atualizar status do lead:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível atualizar o status do lead.",
-          variant: "destructive"
-        });
-        return;
-      }
-
+  const handleDeleteLead = (leadId: string) => {
+    if (!canAccessFeature('delete_lead')) {
       toast({
-        title: "Sucesso",
-        description: "Status do lead atualizado com sucesso.",
+        title: "Acesso Restrito",
+        description: "Deletar leads requer uma assinatura ativa.",
+        variant: "destructive",
       });
-
-      onLeadUpdated();
-    } catch (error) {
-      console.error('❌ Erro inesperado ao atualizar status:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado.",
-        variant: "destructive"
-      });
+      return;
     }
-  };
 
-  const deleteLead = async (leadId: string) => {
-    try {
-      console.log(`🗑️ KanbanView - Deletando lead ${leadId} do esquema do tenant...`);
-      
-      const schema = tenantSchema || await ensureTenantSchema();
-      if (!schema) {
-        console.error('❌ Não foi possível obter o esquema do tenant');
-        return;
-      }
-
-      const { error } = await supabase.rpc('exec_sql' as any, {
-        sql: `DELETE FROM ${schema}.leads WHERE id = '${leadId}'`
-      });
-
-      if (error) {
-        console.error('❌ Erro ao excluir lead:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível excluir o lead.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      toast({
-        title: "Sucesso",
-        description: "Lead excluído com sucesso.",
-      });
-
-      onLeadUpdated();
-    } catch (error) {
-      console.error('❌ Erro inesperado ao excluir lead:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado ao excluir o lead.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Função para determinar o nome correto do grupo de ação
-  const getActionGroupLabel = (actionGroup: string | null) => {
-    if (!actionGroup || actionGroup.trim() === "") {
-      return "Outros";
-    }
-    if (!validActionGroupNames.includes(actionGroup)) {
-      return "Outros";
-    }
-    return actionGroup;
-  };
-
-  const handleViewDetails = (transformedLead: TransformedLead) => {
-    const originalLead = originalLeads.find(lead => lead.id === transformedLead.originalId);
+    const originalLead = originalLeads.find(l => l.id === leadId);
     if (originalLead) {
-      onViewDetails(originalLead);
+      setDeletingLead(originalLead);
     }
   };
 
-  const handleDeleteLead = (leadId: string, leadName: string) => {
-    setLeadToDelete({ id: leadId, name: leadName });
-    setIsDeleteDialogOpen(true);
+  const handleDeleteConfirm = async () => {
+    if (!deletingLead) return;
+
+    console.log('🗑️ KanbanView - Confirmando exclusão do lead:', deletingLead.id);
+    
+    // Use the unified simple deleteLead function
+    const success = await deleteLead(deletingLead.id);
+    
+    if (success) {
+      console.log('✅ KanbanView - Lead excluído com sucesso, atualizando dados...');
+      setDeletingLead(null);
+      onLeadUpdated(); // Força atualização imediata
+    }
+    // O toast já é mostrado pelo hook useSimpleLeadOperations
   };
 
-  const confirmDeleteLead = () => {
-    if (leadToDelete) {
-      deleteLead(leadToDelete.id);
-      setLeadToDelete(null);
+  const getLeadsByStatus = (statusId: string) => {
+    return leads.filter(lead => lead.status === statusId);
+  };
+
+  const handleStatusChange = async (leadId: string, newStatus: string) => {
+    if (!canAccessFeature('edit_lead')) {
+      toast({
+        title: "Acesso Restrito", 
+        description: "Alterar status requer uma assinatura ativa.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      console.log(`🔄 KanbanView - Alterando status do lead ${leadId} para ${newStatus}`);
+      
+      const { updateLead } = useSimpleLeadOperations();
+      const success = await updateLead(leadId, { status: newStatus });
+      
+      if (success) {
+        console.log(`✅ KanbanView - Status alterado com sucesso`);
+        onLeadUpdated();
+      }
+    } catch (error) {
+      console.error('❌ Erro ao alterar status:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível alterar o status do lead.",
+        variant: "destructive",
+      });
     }
   };
 
-  const handleDragStart = (e: React.DragEvent, lead: TransformedLead) => {
-    e.dataTransfer.setData('leadId', lead.originalId);
-    e.dataTransfer.setData('currentStatus', lead.status);
+  const onDragStart = (e: React.DragEvent, leadId: string) => {
+    e.dataTransfer.setData("text/plain", leadId);
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const onDragOver = (e: React.DragEvent) => {
     e.preventDefault();
   };
 
-  const handleDrop = async (e: React.DragEvent, newStatus: string) => {
+  const onDrop = async (e: React.DragEvent, newStatus: string) => {
     e.preventDefault();
-    const leadId = e.dataTransfer.getData('leadId');
-    const currentStatus = e.dataTransfer.getData('currentStatus');
-
-    if (leadId && currentStatus !== newStatus) {
-      // Verificar se está tentando mover para "Finalizado" um lead que passou por "Proposta" ou "Reunião"
-      if (newStatus === "Finalizado") {
-        const hasPassedThroughRestrictedStatuses = hasLeadPassedThroughStatus(leadId, ["Proposta", "Reunião"]);
-        
-        if (hasPassedThroughRestrictedStatuses) {
-          toast({
-            title: "Movimento não permitido",
-            description: "Leads que passaram por 'Proposta' ou 'Reunião' não podem ser movidos para 'Finalizado'.",
-            variant: "destructive"
-          });
-          return;
-        }
-      }
-
-      if (newStatus === "Perdido") {
-        setPendingStatusChange({ leadId, newStatus });
-        setIsLossReasonDialogOpen(true);
-      } else {
-        await updateLeadStatus(leadId, newStatus);
-      }
+    const leadId = e.dataTransfer.getData("text/plain");
+    if (leadId) {
+      await handleStatusChange(leadId, newStatus);
     }
-  };
-
-  const handleLossReasonSelected = async (reason: string) => {
-    if (pendingStatusChange) {
-      await updateLeadStatus(pendingStatusChange.leadId, pendingStatusChange.newStatus, reason);
-      setPendingStatusChange(null);
-    }
-  };
-
-  const handleLossReasonCancel = () => {
-    setPendingStatusChange(null);
   };
 
   return (
-    <>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        {statuses.map((status) => (
-          <div 
-            key={status.id} 
-            className="bg-gray-50 rounded-lg p-4 min-h-[200px]"
-            onDragOver={handleDragOver}
-            onDrop={(e) => handleDrop(e, status.id)}
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-4">
+      {statuses.map((status) => {
+        const statusLeads = getLeadsByStatus(status.id);
+        const totalValue = statusLeads.reduce((sum, lead) => sum + lead.numericValue, 0);
+        
+        return (
+          <div
+            key={status.id}
+            className="bg-gray-50 rounded-lg p-4 min-h-[500px]"
+            onDragOver={onDragOver}
+            onDrop={(e) => onDrop(e, status.id)}
           >
-            <div className="flex flex-col gap-2 mb-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-gray-900">{status.title}</h3>
-                <Badge className="bg-gray-100 text-gray-800">
-                  {getLeadsByStatus(status.id).length}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Badge className={status.color}>
+                  {status.title}
                 </Badge>
+                <span className="text-sm text-gray-600">
+                  ({statusLeads.length})
+                </span>
               </div>
-              {shouldShowTotal(status.id) && (
-                <div className="text-sm font-medium text-green-600">
-                  {getStatusTotal(status.id)}
-                </div>
-              )}
+              <div className="text-xs text-gray-500">
+                {new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL'
+                }).format(totalValue)}
+              </div>
             </div>
+
             <div className="space-y-3">
-              {getLeadsByStatus(status.id).map((lead) => {
-                // Força o campo interest a "Outros" se grupo de ação não for válido
-                const actionGroup = getActionGroupLabel(lead.interest);
-                return (
-                  <Card 
-                    key={lead.id} 
-                    className="p-3 cursor-grab hover:shadow-md transition-shadow active:cursor-grabbing"
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, lead)}
-                  >
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0">
-                        {lead.avatar}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-sm text-gray-900 truncate">{lead.name}</h4>
-                        <div className="flex items-center gap-1 text-xs">
-                          <DollarSign className="h-3 w-3 text-green-600 flex-shrink-0" />
-                          <span className="text-green-600 font-medium truncate">{lead.value}</span>
+              {statusLeads.map((lead) => (
+                <Card
+                  key={lead.id}
+                  className="cursor-move hover:shadow-md transition-shadow"
+                  draggable
+                  onDragStart={(e) => onDragStart(e, lead.id)}
+                >
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary font-medium text-sm">
+                          {lead.avatar}
+                        </div>
+                        <div>
+                          <CardTitle className="text-sm font-medium">
+                            {lead.name}
+                          </CardTitle>
                         </div>
                       </div>
-                    </div>
-                    <div className="space-y-1 text-xs text-gray-600">
-                      <div className="flex items-center gap-1">
-                        <Mail className="h-3 w-3 flex-shrink-0" />
-                        <span className="truncate">{lead.email}</span>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 w-6 p-0"
+                          onClick={() => {
+                            const originalLead = originalLeads.find(l => l.id === lead.id);
+                            if (originalLead) onViewDetails(originalLead);
+                          }}
+                        >
+                          <Eye className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                          onClick={() => handleDeleteLead(lead.id)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Phone className="h-3 w-3 flex-shrink-0" />
-                        <span className="truncate">{lead.phone}</span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="space-y-2">
+                      {lead.email && (
+                        <div className="flex items-center gap-1 text-xs text-gray-600">
+                          <Mail className="h-3 w-3" />
+                          <span className="truncate">{lead.email}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-1 text-xs text-gray-600">
+                        <Phone className="h-3 w-3" />
+                        <span>{lead.phone}</span>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3 flex-shrink-0" />
-                        <span className="truncate">{lead.company}</span>
+                      {lead.state && (
+                        <div className="flex items-center gap-1 text-xs text-gray-600">
+                          <MapPin className="h-3 w-3" />
+                          <span>{lead.state}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="text-sm font-medium text-green-600">
+                          {lead.value}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {lead.lastContact}
+                        </span>
                       </div>
+                      {lead.interest && (
+                        <Badge variant="outline" className="text-xs">
+                          {lead.interest}
+                        </Badge>
+                      )}
                     </div>
-                    <div className="mt-3 pt-2 border-t border-gray-200">
-                      {/* Mostra grupo de ação para ficar destacado */}
-                      <p className="text-xs text-gray-600">
-                        Grupo de ação: <span className="font-semibold">{actionGroup}</span>
-                      </p>
-                      <p className="text-xs text-gray-500 truncate">{lead.interest}</p>
-                      <p className="text-xs text-gray-400">Último contato: {lead.lastContact}</p>
-                    </div>
-                    <div className="mt-3 flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1 text-xs min-w-0 px-2"
-                        onClick={() => handleViewDetails(lead)}
-                      >
-                        <Eye className="h-3 w-3 flex-shrink-0" />
-                        <span className="ml-1 truncate hidden sm:inline">Ver</span>
-                      </Button>
-                      <Button 
-                        variant="destructive"
-                        size="sm" 
-                        className="flex-1 text-xs min-w-0 px-2"
-                        onClick={() => handleDeleteLead(lead.originalId, lead.name)}
-                      >
-                        <Trash2 className="h-3 w-3 flex-shrink-0" />
-                        <span className="ml-1 truncate hidden sm:inline">Excluir</span>
-                      </Button>
-                    </div>
-                  </Card>
-                )
-              })}
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           </div>
-        ))}
-      </div>
+        );
+      })}
 
-      <LossReasonDialog
-        open={isLossReasonDialogOpen}
-        onOpenChange={setIsLossReasonDialogOpen}
-        onReasonSelected={handleLossReasonSelected}
-        onCancel={handleLossReasonCancel}
-      />
-
-      <DeleteLeadDialog
-        open={isDeleteDialogOpen}
-        onOpenChange={setIsDeleteDialogOpen}
-        leadName={leadToDelete?.name || ""}
-        onConfirm={confirmDeleteLead}
-      />
-    </>
+      {deletingLead && (
+        <DeleteLeadDialog
+          open={!!deletingLead}
+          onOpenChange={(open) => !open && setDeletingLead(null)}
+          leadName={deletingLead.name}
+          onConfirm={handleDeleteConfirm}
+        />
+      )}
+    </div>
   );
 }

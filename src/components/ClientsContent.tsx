@@ -17,7 +17,7 @@ import { useLeadDialogs } from "@/hooks/useLeadDialogs";
 import { LeadDialogs } from "./analysis/LeadDialogs";
 import { useKanbanColumns } from "@/hooks/useKanbanColumns";
 import { useLeadsData } from "@/hooks/useLeadsData";
-import { useEnhancedTenantLeadOperations } from "@/hooks/useEnhancedTenantLeadOperations";
+import { useSimpleLeadOperations } from "@/hooks/useSimpleLeadOperations";
 
 export function ClientsContent() {
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
@@ -41,8 +41,8 @@ export function ClientsContent() {
   // Use the tenant-specific leads data hook
   const { leads, isLoading, updateLead, refreshData } = useLeadsData();
   
-  // Use enhanced tenant operations for proper lead deletion
-  const { deleteLead } = useEnhancedTenantLeadOperations();
+  // Use unified simple operations for all lead operations
+  const { deleteLead } = useSimpleLeadOperations();
   
   const {
     selectedLead,
@@ -55,7 +55,6 @@ export function ClientsContent() {
     handleLeadUpdated
   } = useLeadDialogs();
 
-  // Filter leads based on search term and active filters
   const filteredData = leads?.filter((lead) => {
     // Search filter
     const nameMatch = lead.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -82,7 +81,6 @@ export function ClientsContent() {
     return nameMatch && statusMatch && sourceMatch && stateMatch && actionTypeMatch && valueMatch && opportunityMatch;
   });
 
-  // Transform leads for KanbanView which expects numeric id and value
   const transformedLeads = filteredData?.map(lead => ({
     ...lead,
     id: lead.id, // Keep as string now since we fixed the interface
@@ -180,23 +178,17 @@ export function ClientsContent() {
   const handleDeleteConfirm = async () => {
     if (!deletingLead) return;
     
-    // Use the proper deleteLead function from enhanced operations
+    console.log('🗑️ ClientsContent - Confirmando exclusão do lead:', deletingLead.id);
+    
+    // Use the unified simple deleteLead function
     const success = await deleteLead(deletingLead.id);
     
     if (success) {
-      toast({
-        title: "Sucesso",
-        description: "Lead removido com sucesso.",
-      });
+      console.log('✅ ClientsContent - Lead excluído com sucesso, atualizando dados...');
       setDeletingLead(null);
-      refreshData();
-    } else {
-      toast({
-        title: "Erro",
-        description: "Não foi possível remover o lead.",
-        variant: "destructive",
-      });
+      refreshData(); // Força atualização imediata da lista
     }
+    // O toast já é mostrado pelo hook useSimpleLeadOperations
   };
 
   const handleLossReasonConfirm = (reason: string) => {
@@ -210,7 +202,6 @@ export function ClientsContent() {
     setLossReasonLead(null);
   };
 
-  // Helper functions for LeadsListView
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Novo": return "bg-blue-100 text-blue-800";
