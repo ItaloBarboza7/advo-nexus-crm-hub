@@ -49,7 +49,8 @@ export function CasesContent() {
     handleLeadsViewChange,
     handleContractsViewChange,
     handleOpportunitiesViewChange,
-    resetChartStates
+    resetChartStates,
+    closeSpecificChart
   } = useChartStates();
   
   const {
@@ -286,6 +287,7 @@ export function CasesContent() {
         showLeadsChart={showLeadsChart}
         showContractsChart={showContractsChart}
         showOpportunitiesChart={showOpportunitiesChart}
+        onCloseChart={closeSpecificChart}
       />
 
       <LeadsSection

@@ -7,15 +7,18 @@ import { ViewToggleDropdown } from "./ViewToggleDropdown";
 import { useState, useMemo, useEffect } from "react";
 import { format, startOfWeek, endOfWeek, getDay, getMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Button } from "@/components/ui/button";
+import { X } from "lucide-react";
 
 interface LeadsChartProps {
   leads: Lead[];
   title: string;
   filterFunction?: (lead: Lead) => boolean;
   viewMode?: 'weekly' | 'monthly';
+  onClose?: () => void;
 }
 
-export function LeadsChart({ leads, title, filterFunction, viewMode: externalViewMode }: LeadsChartProps) {
+export function LeadsChart({ leads, title, filterFunction, viewMode: externalViewMode, onClose }: LeadsChartProps) {
   const [internalViewMode, setInternalViewMode] = useState<'weekly' | 'monthly'>('weekly');
   
   // Se receber viewMode como prop, usar ele, senão usar o estado interno
@@ -95,13 +98,26 @@ export function LeadsChart({ leads, title, filterFunction, viewMode: externalVie
           <CardTitle className="text-lg font-semibold text-gray-900">
             {title} - {currentViewMode === 'weekly' ? 'Por Dia da Semana' : 'Por Mês'}
           </CardTitle>
-          {/* Só mostrar o dropdown interno se não receber viewMode como prop */}
-          {!externalViewMode && (
-            <ViewToggleDropdown 
-              currentView={currentViewMode}
-              onViewChange={handleViewChange}
-            />
-          )}
+          <div className="flex items-center gap-2">
+            {/* Só mostrar o dropdown interno se não receber viewMode como prop */}
+            {!externalViewMode && (
+              <ViewToggleDropdown 
+                currentView={currentViewMode}
+                onViewChange={handleViewChange}
+              />
+            )}
+            {/* Botão de fechar - sempre visível */}
+            {onClose && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onClose}
+                className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
       </CardHeader>
       

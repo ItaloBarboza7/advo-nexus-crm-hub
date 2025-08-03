@@ -50,6 +50,21 @@ export function useChartStates() {
     setShowOpportunitiesChart(false);
   };
 
+  const closeSpecificChart = (chartType: 'leads' | 'contracts' | 'opportunities') => {
+    console.log(`🔄 closeSpecificChart chamado para: ${chartType}`);
+    switch (chartType) {
+      case 'leads':
+        setShowLeadsChart(false);
+        break;
+      case 'contracts':
+        setShowContractsChart(false);
+        break;
+      case 'opportunities':
+        setShowOpportunitiesChart(false);
+        break;
+    }
+  };
+
   return {
     leadsViewMode,
     contractsViewMode,
@@ -60,6 +75,7 @@ export function useChartStates() {
     handleLeadsViewChange,
     handleContractsViewChange,
     handleOpportunitiesViewChange,
-    resetChartStates
+    resetChartStates,
+    closeSpecificChart
   };
 }

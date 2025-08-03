@@ -23,6 +23,8 @@ interface ChartsSectionProps {
   showLeadsChart?: boolean;
   showContractsChart?: boolean;
   showOpportunitiesChart?: boolean;
+  // Função para resetar estados dos gráficos
+  onCloseChart?: (chartType: 'leads' | 'contracts' | 'opportunities') => void;
 }
 
 export function ChartsSection({
@@ -39,7 +41,8 @@ export function ChartsSection({
   opportunitiesViewMode = 'weekly',
   showLeadsChart = false,
   showContractsChart = false,
-  showOpportunitiesChart = false
+  showOpportunitiesChart = false,
+  onCloseChart
 }: ChartsSectionProps) {
   if (!shouldShowChart) {
     return null;
@@ -109,6 +112,7 @@ export function ChartsSection({
               leads={leads}
               title="Todos os Leads"
               viewMode={leadsViewMode}
+              onClose={() => onCloseChart?.('leads')}
             />
           )}
 
@@ -119,6 +123,7 @@ export function ChartsSection({
               title="Novos Contratos"
               filterFunction={(lead) => lead.status === "Contrato Fechado"}
               viewMode={contractsViewMode}
+              onClose={() => onCloseChart?.('contracts')}
             />
           )}
 
@@ -129,6 +134,7 @@ export function ChartsSection({
               title="Oportunidades"
               filterFunction={isOpportunityLead}
               viewMode={opportunitiesViewMode}
+              onClose={() => onCloseChart?.('opportunities')}
             />
           )}
         </>
