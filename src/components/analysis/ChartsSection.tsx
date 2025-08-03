@@ -83,7 +83,7 @@ export function ChartsSection({
   console.log(`📅 ChartsSection - viewModes:`, { leadsViewMode, contractsViewMode, opportunitiesViewMode });
 
   // CORREÇÃO: Usar startsWith em vez de igualdade exata para permitir subcategorias
-  const isAllCategory = selectedCategory === "all";
+  const isAllCategory = selectedCategory.startsWith("all");
   const isContractsCategory = selectedCategory.startsWith("contratos");
   const isOpportunitiesCategory = selectedCategory.startsWith("oportunidades");
 
