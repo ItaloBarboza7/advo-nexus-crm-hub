@@ -331,7 +331,7 @@ export function ClientsContent() {
             <LeadsListView
               leads={filteredData || []}
               onViewDetails={handleViewDetails}
-              onEditStatus={handleViewDetails}
+              onEditStatus={handleEditLead}
               onDeleteLead={handleDeleteLead}
               getStatusColor={getStatusColor}
               formatDate={formatDate}

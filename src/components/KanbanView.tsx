@@ -160,12 +160,14 @@ export function KanbanView({
                   ({statusLeads.length})
                 </span>
               </div>
-              <div className="text-sm font-semibold text-green-600">
-                {new Intl.NumberFormat('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL'
-                }).format(totalValue)}
-              </div>
+              {(status.title === "Contrato Fechado" || status.title === "Finalizado") && (
+                <div className="text-sm font-semibold text-green-600">
+                  {new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL'
+                  }).format(totalValue)}
+                </div>
+              )}
             </div>
 
             <div className="space-y-3">
