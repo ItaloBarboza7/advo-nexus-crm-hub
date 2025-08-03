@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
@@ -16,11 +15,25 @@ interface Status {
   color: string;
 }
 
-interface KanbanLead extends Lead {
-  value: string;
-  avatar: string;
-  lastContact: string;
-  numericValue: number;
+// KanbanLead is a display-specific interface, not extending Lead
+interface KanbanLead {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  company: string;
+  source: string;
+  status: string;
+  interest: string;
+  value: string; // Formatted currency string for display
+  lastContact: string; // Formatted date string for display
+  avatar: string; // Generated initials
+  originalId: string;
+  numericValue: number; // Original numeric value for calculations
+  description: string | null;
+  state: string | null;
+  action_group: string | null;
+  action_type: string | null;
 }
 
 interface KanbanViewProps {

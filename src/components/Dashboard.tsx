@@ -87,7 +87,11 @@ export function Dashboard() {
       lastContact: new Intl.DateTimeFormat('pt-BR').format(new Date(lead.created_at)),
       avatar: lead.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
       originalId: lead.id,
-      numericValue: lead.value ? Number(lead.value) : 0
+      numericValue: lead.value ? Number(lead.value) : 0,
+      description: lead.description,
+      state: lead.state,
+      action_group: lead.action_group,
+      action_type: lead.action_type
     }));
   }, [filteredLeads]);
 
