@@ -19,7 +19,7 @@ const LandingPage = () => {
   ];
 
   const stats = [
-    { icon: Users, value: "100+", label: "Clientes ativos" },
+    { icon: Users, value: "500+", label: "Clientes ativos" },
     { icon: BarChart3, value: "40%+", label: "Conversão média" },
     { icon: Shield, value: "99.9%", label: "ajustes precisos" }
   ];
@@ -40,7 +40,7 @@ const LandingPage = () => {
             <img 
               src="/lovable-uploads/fe9b88f3-37c0-4d92-a1f5-c25818c8cd49.png" 
               alt="EVOjuris Logo" 
-              className="h-8 w-auto"
+              className="h-12 w-auto"
             />
           </div>
           
@@ -123,7 +123,7 @@ const LandingPage = () => {
           <div className="max-w-md mx-auto">
             <Card className="border-2 border-blue-200 shadow-lg relative overflow-hidden bg-white">
               <CardHeader className="text-center pb-8 pt-8">
-                <CardTitle className="text-2xl mb-2 text-gray-900">CRM inteligente</CardTitle>
+                <CardTitle className="text-2xl mb-2 text-gray-900">CRM Evojuris</CardTitle>
                 <CardDescription className="text-base text-gray-600">
                   Tudo que você precisa para dominar suas vendas
                 </CardDescription>
