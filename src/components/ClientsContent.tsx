@@ -17,6 +17,7 @@ import { useLeadDialogs } from "@/hooks/useLeadDialogs";
 import { LeadDialogs } from "./analysis/LeadDialogs";
 import { useKanbanColumns } from "@/hooks/useKanbanColumns";
 import { useLeadsData } from "@/hooks/useLeadsData";
+import { useEnhancedTenantLeadOperations } from "@/hooks/useEnhancedTenantLeadOperations";
 
 export function ClientsContent() {
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
@@ -39,6 +40,9 @@ export function ClientsContent() {
   
   // Use the tenant-specific leads data hook
   const { leads, isLoading, updateLead, refreshData } = useLeadsData();
+  
+  // Use enhanced tenant operations for proper lead deletion
+  const { deleteLead } = useEnhancedTenantLeadOperations();
   
   const {
     selectedLead,
@@ -176,8 +180,8 @@ export function ClientsContent() {
   const handleDeleteConfirm = async () => {
     if (!deletingLead) return;
     
-    // Use updateLead to mark as deleted or implement a proper delete function
-    const success = await updateLead(deletingLead.id, { status: "Finalizado" });
+    // Use the proper deleteLead function from enhanced operations
+    const success = await deleteLead(deletingLead.id);
     
     if (success) {
       toast({
