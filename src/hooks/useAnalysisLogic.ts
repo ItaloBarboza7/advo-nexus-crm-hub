@@ -62,8 +62,8 @@ export const useAnalysisLogic = (
     } else if (selectedCategory === "estados") {
       categoryFilteredLeads = leads;
     }
-    // Para categoria "all", retornar todos os leads
-    else if (selectedCategory === "all") {
+    // Para categoria "all" e suas variações, retornar todos os leads
+    else if (mainCategory === "all") {
       categoryFilteredLeads = leads;
     }
     
@@ -87,11 +87,11 @@ export const useAnalysisLogic = (
   const shouldShowActionTypesChart = () => {
     console.log(`🔍 shouldShowActionTypesChart - selectedCategory: ${selectedCategory}`);
     // CORREÇÃO: Mostrar gráfico de tipos de ação quando:
-    // 1. Categoria principal (contratos, oportunidades) OU
+    // 1. Categoria principal (all, contratos, oportunidades) OU
     // 2. Categoria com sufixo -tipo-acao
     // MAS NÃO quando for grupo de ação
     const mainCategory = selectedCategory.split('-')[0];
-    const isMainCategory = mainCategory === "contratos" || mainCategory === "oportunidades";
+    const isMainCategory = mainCategory === "all" || mainCategory === "contratos" || mainCategory === "oportunidades";
     const isTypeActionCategory = selectedCategory.includes("-tipo-acao");
     const isGroupActionCategory = selectedCategory.includes("-grupo-acao");
     
@@ -109,7 +109,8 @@ export const useAnalysisLogic = (
   
   const shouldShowActionGroupChart = () => {
     console.log(`🔍 shouldShowActionGroupChart - selectedCategory: ${selectedCategory}`);
-    const shouldShow = selectedCategory === "contratos-grupo-acao" || 
+    const shouldShow = selectedCategory === "all-grupo-acao" ||
+                       selectedCategory === "contratos-grupo-acao" || 
                        selectedCategory === "oportunidades-grupo-acao" ||
                        selectedCategory === "perdas-grupo-acao";
     console.log(`📊 shouldShowActionGroupChart - shouldShow: ${shouldShow} para ${selectedCategory}`);
