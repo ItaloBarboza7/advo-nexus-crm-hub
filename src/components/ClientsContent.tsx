@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLeadDialogs } from "@/hooks/useLeadDialogs";
 import { LeadDialogs } from "./analysis/LeadDialogs";
 import { useKanbanColumns } from "@/hooks/useKanbanColumns";
-import { useLeadsData } from "@/hooks/useLeadsData";
+import { useEnhancedLeadsData } from "@/hooks/useEnhancedLeadsData";
 import { useSimpleLeadOperations } from "@/hooks/useSimpleLeadOperations";
 
 export function ClientsContent() {
@@ -38,10 +38,10 @@ export function ClientsContent() {
   const { toast } = useToast();
   const { columns, isLoading: columnsLoading } = useKanbanColumns();
   
-  // Use the tenant-specific leads data hook
-  const { leads, isLoading, updateLead, refreshData } = useLeadsData();
+  // Use the enhanced leads data hook
+  const { leads, isLoading, updateLead, refreshData } = useEnhancedLeadsData();
   
-  // Use unified simple operations for all lead operations
+  // Use unified simple operations for delete operations only
   const { deleteLead } = useSimpleLeadOperations();
   
   const {
@@ -166,8 +166,23 @@ export function ClientsContent() {
     }
   };
 
+  // Enhanced callback for new lead creation with verification
+  const handleNewLeadCreated = async () => {
+    console.log('🎉 ClientsContent - New lead created callback triggered');
+    setShowNewLeadForm(false);
+    
+    // Enhanced refresh with verification support
+    await refreshData({ 
+      forceRefresh: true, 
+      source: 'new_lead_created'
+    });
+    
+    console.log('✅ ClientsContent - Data refresh completed after lead creation');
+  };
+
   const handleLeadUpdatedWrapper = () => {
-    refreshData();
+    console.log('🔄 ClientsContent - Lead updated, refreshing data');
+    refreshData({ forceRefresh: true, source: 'lead_updated' });
     handleLeadUpdated();
   };
 
@@ -178,17 +193,17 @@ export function ClientsContent() {
   const handleDeleteConfirm = async () => {
     if (!deletingLead) return;
     
-    console.log('🗑️ ClientsContent - Confirmando exclusão do lead:', deletingLead.id);
+    console.log('🗑️ ClientsContent - Confirming deletion of lead:', deletingLead.id);
     
     // Use the unified simple deleteLead function
     const success = await deleteLead(deletingLead.id);
     
     if (success) {
-      console.log('✅ ClientsContent - Lead excluído com sucesso, atualizando dados...');
+      console.log('✅ ClientsContent - Lead deleted successfully, refreshing data');
       setDeletingLead(null);
-      refreshData(); // Força atualização imediata da lista
+      refreshData({ forceRefresh: true, source: 'lead_deleted' });
     }
-    // O toast já é mostrado pelo hook useSimpleLeadOperations
+    // The toast is already shown by the hook useSimpleLeadOperations
   };
 
   const handleLossReasonConfirm = (reason: string) => {
@@ -308,7 +323,7 @@ export function ClientsContent() {
             <KanbanView
               leads={transformedLeads}
               statuses={kanbanStatuses}
-              onLeadUpdated={refreshData}
+              onLeadUpdated={() => refreshData({ forceRefresh: true, source: 'kanban_update' })}
               onViewDetails={handleViewDetails}
               originalLeads={filteredData || []}
             />
@@ -326,12 +341,11 @@ export function ClientsContent() {
         </SubscriptionProtectedWrapper>
       )}
 
-      {showNewLeadForm && (
-        <NewLeadForm
-          open={showNewLeadForm}
-          onOpenChange={setShowNewLeadForm}
-        />
-      )}
+      <NewLeadForm
+        open={showNewLeadForm}
+        onOpenChange={setShowNewLeadForm}
+        onLeadCreated={handleNewLeadCreated}
+      />
 
       <LeadDialogs
         selectedLead={selectedLead}

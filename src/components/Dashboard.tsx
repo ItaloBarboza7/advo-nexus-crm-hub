@@ -114,33 +114,52 @@ export function Dashboard() {
   };
 
   const handleDeleteLead = (leadId: string, leadName: string) => {
-    console.log(`🗑️ Dashboard - Iniciando exclusão do lead: ${leadName} (${leadId})`);
+    console.log(`🗑️ Dashboard - Initiating deletion of lead: ${leadName} (${leadId})`);
     setLeadToDelete({ id: leadId, name: leadName });
     setIsDeleteDialogOpen(true);
   };
 
   const handleLeadUpdated = async () => {
-    console.log("🔄 Dashboard - Atualizando dados após mudança no lead");
+    console.log("🔄 Dashboard - Lead updated, refreshing data");
     await refreshData({ forceRefresh: true, source: 'lead_updated' });
   };
 
   const handleNewLeadCreated = async () => {
-    console.log("🎉 Dashboard - Novo lead criado, executando refresh IMEDIATO");
+    console.log("🎉 Dashboard - New lead created callback triggered");
+    const startTime = Date.now();
+    
     setIsNewLeadDialogOpen(false);
     
-    // Enhanced refresh with immediate cache invalidation
-    await refreshData({ forceRefresh: true, source: 'new_lead_created' });
-    
-    toast({
-      title: "Sucesso",
-      description: "Lead criado com sucesso!",
-    });
+    // Enhanced refresh with aggressive cache invalidation and verification
+    try {
+      console.log("🔄 Dashboard - Starting enhanced refresh after lead creation");
+      
+      await refreshData({ 
+        forceRefresh: true, 
+        source: 'new_lead_created'
+      });
+      
+      const refreshTime = Date.now() - startTime;
+      console.log(`✅ Dashboard - Enhanced refresh completed in ${refreshTime}ms`);
+      
+      toast({
+        title: "Sucesso",
+        description: "Lead criado com sucesso!",
+      });
+    } catch (error) {
+      console.error("❌ Dashboard - Error during post-creation refresh:", error);
+      toast({
+        title: "Aviso",
+        description: "Lead criado, mas pode levar alguns segundos para aparecer na lista.",
+        variant: "default"
+      });
+    }
   };
 
   const handleDeleteConfirm = async () => {
     if (!leadToDelete) return;
     
-    console.log(`🗑️ Dashboard - Confirmando exclusão do lead: ${leadToDelete.name}`);
+    console.log(`🗑️ Dashboard - Confirming deletion of lead: ${leadToDelete.name}`);
     setIsDeletingLead(true);
     
     try {
@@ -152,26 +171,27 @@ export function Dashboard() {
         setLeadToDelete(null);
         
         // Enhanced refresh with immediate verification
+        console.log("🔄 Dashboard - Starting refresh after lead deletion");
         await refreshData({ forceRefresh: true, source: 'lead_deleted' });
         
-        console.log(`✅ Dashboard - Lead "${leadToDelete.name}" excluído com sucesso`);
+        console.log(`✅ Dashboard - Lead "${leadToDelete.name}" deleted successfully`);
         
         toast({
           title: "Sucesso",
           description: "Lead excluído com sucesso!",
         });
       } else {
-        console.log(`❌ Dashboard - Falha na exclusão do lead "${leadToDelete.name}"`);
+        console.log(`❌ Dashboard - Failed to delete lead "${leadToDelete.name}"`);
       }
     } catch (error) {
-      console.error('❌ Dashboard - Erro ao excluir lead:', error);
+      console.error('❌ Dashboard - Error deleting lead:', error);
     } finally {
       setIsDeletingLead(false);
     }
   };
 
   const handleDeleteCancel = () => {
-    console.log("❌ Dashboard - Cancelando exclusão de lead");
+    console.log("❌ Dashboard - Canceling lead deletion");
     setLeadToDelete(null);
     setIsDeleteDialogOpen(false);
     setIsDeletingLead(false);

@@ -28,12 +28,12 @@ export function useEnhancedLeadsData() {
   const pollingInterval = useRef<NodeJS.Timeout | null>(null);
   const versionRef = useRef(0);
 
-  // Intelligent caching system
+  // Enhanced intelligent caching system
   const getCachedData = useCallback(() => {
     if (!cacheRef.current) return null;
     
     const age = Date.now() - cacheRef.current.timestamp;
-    const maxAge = 30000; // 30 seconds
+    const maxAge = 15000; // Reduced to 15 seconds for better responsiveness
     
     if (age > maxAge) {
       addDebugLog('cache_expired', { age, maxAge }, false);
@@ -54,27 +54,73 @@ export function useEnhancedLeadsData() {
     addDebugLog('cache_updated', { dataLength: data.length, version: versionRef.current }, true);
   }, [addDebugLog]);
 
+  // Aggressive cache invalidation
+  const invalidateCache = useCallback(() => {
+    console.log('💥 useEnhancedLeadsData - Invalidating cache aggressively');
+    cacheRef.current = null;
+    versionRef.current += 1;
+    addDebugLog('cache_invalidated', { version: versionRef.current }, true);
+  }, [addDebugLog]);
+
+  // Post-creation verification with retry logic
+  const verifyLeadExists = useCallback(async (leadName: string, retries = 5): Promise<boolean> => {
+    if (!tenantSchema) return false;
+    
+    console.log(`🔍 useEnhancedLeadsData - Verificando existência do lead "${leadName}" (tentativa ${6 - retries})`);
+    
+    try {
+      const sql = `SELECT COUNT(*) as count FROM ${tenantSchema}.leads WHERE name = '${leadName.replace(/'/g, "''")}'`;
+      const { data, error } = await supabase.rpc('exec_sql', { sql });
+      
+      if (error) {
+        console.error('❌ useEnhancedLeadsData - Erro na verificação:', error);
+        return false;
+      }
+      
+      const count = Array.isArray(data) && data.length > 0 ? data[0].count : 0;
+      const exists = count > 0;
+      
+      console.log(`${exists ? '✅' : '❌'} useEnhancedLeadsData - Lead "${leadName}" ${exists ? 'encontrado' : 'não encontrado'} (count: ${count})`);
+      
+      if (!exists && retries > 0) {
+        console.log(`⏳ useEnhancedLeadsData - Lead não encontrado, aguardando 1s antes de tentar novamente (${retries} tentativas restantes)`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return verifyLeadExists(leadName, retries - 1);
+      }
+      
+      return exists;
+    } catch (error) {
+      console.error('❌ useEnhancedLeadsData - Erro inesperado na verificação:', error);
+      return false;
+    }
+  }, [tenantSchema]);
+
   // Enhanced fetch with better error handling and caching
   const fetchLeads = useCallback(async (options: {
     forceRefresh?: boolean;
     skipCache?: boolean;
     source?: string;
+    verifyLead?: string;
   } = {}) => {
-    const { forceRefresh = false, skipCache = false, source = 'manual' } = options;
+    const { forceRefresh = false, skipCache = false, source = 'manual', verifyLead } = options;
+    
+    console.log(`🔄 useEnhancedLeadsData - fetchLeads called with options:`, options);
     
     // Check cache first unless skipping or forcing
     if (!skipCache && !forceRefresh) {
       const cachedData = getCachedData();
       if (cachedData) {
+        console.log('📦 useEnhancedLeadsData - Using cached data, skipping fetch');
         setLeads(cachedData);
         setIsLoading(false);
         return cachedData;
       }
     }
 
-    // Debounce protection
+    // Debounce protection with shorter interval for new lead creation
     const now = Date.now();
-    if (!forceRefresh && (now - lastFetchTime.current) < 500) {
+    const debounceInterval = source === 'new_lead_created' ? 100 : 500;
+    if (!forceRefresh && (now - lastFetchTime.current) < debounceInterval) {
       addDebugLog('fetch_debounced', { timeSinceLastFetch: now - lastFetchTime.current, source }, false);
       return leads;
     }
@@ -89,16 +135,20 @@ export function useEnhancedLeadsData() {
       setIsLoading(true);
       
       startOperation(`fetch_leads_${source}`);
+      console.log(`🚀 useEnhancedLeadsData - Starting fetch for source: ${source}`);
       
-      // Add cache buster to prevent RPC caching
-      const cacheBuster = `-- CB:${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      // Add more aggressive cache buster for new lead creation
+      const cacheBuster = source === 'new_lead_created' 
+        ? `-- NEW_LEAD_CB:${Date.now()}_${Math.random().toString(36).substr(2, 12)}`
+        : `-- CB:${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
       const sql = `SELECT * FROM ${tenantSchema}.leads ORDER BY created_at DESC ${cacheBuster}`;
       
       const { data, error } = await supabase.rpc('exec_sql', { sql });
 
       if (error) {
         endOperation(`fetch_leads_${source}`, { error, sql }, false);
-        console.error('❌ Erro ao buscar leads:', error);
+        console.error('❌ useEnhancedLeadsData - Erro ao buscar leads:', error);
         if (mountedRef.current) {
           toast({
             title: "Erro",
@@ -119,10 +169,30 @@ export function useEnhancedLeadsData() {
         closed_by_user_id: lead.closed_by_user_id || null
       }));
 
+      console.log(`📊 useEnhancedLeadsData - Fetched ${transformedLeads.length} leads for source: ${source}`);
+      
+      // Post-creation verification
+      if (verifyLead && source === 'new_lead_created') {
+        console.log(`🔍 useEnhancedLeadsData - Verificando se o lead "${verifyLead}" está presente nos dados`);
+        const leadExists = transformedLeads.some(lead => lead.name === verifyLead);
+        console.log(`${leadExists ? '✅' : '❌'} useEnhancedLeadsData - Lead "${verifyLead}" ${leadExists ? 'encontrado' : 'não encontrado'} nos dados`);
+        
+        if (!leadExists) {
+          console.log('⚠️ useEnhancedLeadsData - Lead não encontrado, tentando verificação adicional');
+          const verified = await verifyLeadExists(verifyLead);
+          if (verified) {
+            console.log('🔄 useEnhancedLeadsData - Lead existe no banco, forçando nova busca');
+            // Recursive call with force refresh
+            return fetchLeads({ forceRefresh: true, source: 'verification_retry', skipCache: true });
+          }
+        }
+      }
+
       endOperation(`fetch_leads_${source}`, { 
         count: transformedLeads.length, 
         schema: tenantSchema,
-        forceRefresh 
+        forceRefresh,
+        verifyLead: verifyLead || 'none'
       }, true);
       
       if (mountedRef.current) {
@@ -133,7 +203,7 @@ export function useEnhancedLeadsData() {
       return transformedLeads;
     } catch (error: any) {
       endOperation(`fetch_leads_${source}`, { error: error.message }, false);
-      console.error('❌ Erro inesperado ao buscar leads:', error);
+      console.error('❌ useEnhancedLeadsData - Erro inesperado ao buscar leads:', error);
       if (mountedRef.current) {
         toast({
           title: "Erro",
@@ -147,32 +217,36 @@ export function useEnhancedLeadsData() {
         setIsLoading(false);
       }
     }
-  }, [tenantSchema, toast, leads, getCachedData, setCachedData, addDebugLog, startOperation, endOperation]);
+  }, [tenantSchema, toast, leads, getCachedData, setCachedData, addDebugLog, startOperation, endOperation, verifyLeadExists]);
 
-  // Intelligent polling system as fallback
+  // Enhanced intelligent polling system
   const startPolling = useCallback(() => {
     if (pollingInterval.current) return;
     
-    addDebugLog('polling_started', { interval: 5000 }, true);
+    addDebugLog('polling_started', { interval: 3000 }, true);
+    console.log('🔔 useEnhancedLeadsData - Starting enhanced polling every 3 seconds');
     
     pollingInterval.current = setInterval(() => {
-      fetchLeads({ source: 'polling', skipCache: true });
-    }, 5000); // Poll every 5 seconds
+      console.log('📡 useEnhancedLeadsData - Polling tick, fetching latest data');
+      fetchLeads({ source: 'polling', skipCache: true, forceRefresh: true });
+    }, 3000); // More frequent polling
   }, [fetchLeads, addDebugLog]);
 
   const stopPolling = useCallback(() => {
     if (pollingInterval.current) {
       clearInterval(pollingInterval.current);
       pollingInterval.current = null;
+      console.log('🔔 useEnhancedLeadsData - Polling stopped');
       addDebugLog('polling_stopped', {}, true);
     }
   }, [addDebugLog]);
 
-  // Enhanced real-time subscription with fallback
+  // Enhanced real-time subscription with better fallback
   const setupRealtimeSubscription = useCallback(() => {
     if (!tenantSchema || realtimeChannel.current) return;
 
     startOperation('setup_realtime');
+    console.log(`🔗 useEnhancedLeadsData - Setting up realtime subscription for schema: ${tenantSchema}`);
     
     try {
       realtimeChannel.current = supabase
@@ -185,23 +259,35 @@ export function useEnhancedLeadsData() {
             table: 'leads'
           },
           (payload) => {
+            console.log('⚡ useEnhancedLeadsData - Realtime change detected:', payload);
             addDebugLog('realtime_change', { 
               event: payload.eventType,
               table: payload.table,
               schema: payload.schema 
             }, true);
             
-            // Fetch fresh data on any change
-            fetchLeads({ forceRefresh: true, skipCache: true, source: 'realtime' });
+            // Invalidate cache immediately on any change
+            invalidateCache();
+            
+            // Fetch fresh data with aggressive refresh
+            fetchLeads({ 
+              forceRefresh: true, 
+              skipCache: true, 
+              source: 'realtime',
+              verifyLead: payload.eventType === 'INSERT' ? payload.new?.name : undefined
+            });
           }
         )
         .subscribe((status) => {
+          console.log(`🔗 useEnhancedLeadsData - Realtime subscription status: ${status}`);
           endOperation('setup_realtime', { status, schema: tenantSchema }, status === 'SUBSCRIBED');
           
           if (status === 'SUBSCRIBED') {
             addDebugLog('realtime_subscribed', { schema: tenantSchema }, true);
+            console.log('✅ useEnhancedLeadsData - Realtime subscription successful');
           } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
             addDebugLog('realtime_failed', { status, schema: tenantSchema }, false);
+            console.log('❌ useEnhancedLeadsData - Realtime subscription failed, starting polling fallback');
             // Start polling as fallback
             startPolling();
           }
@@ -209,33 +295,37 @@ export function useEnhancedLeadsData() {
     } catch (error) {
       endOperation('setup_realtime', { error }, false);
       addDebugLog('realtime_setup_error', { error }, false);
+      console.error('❌ useEnhancedLeadsData - Realtime setup error:', error);
       // Start polling as fallback
       startPolling();
     }
-  }, [tenantSchema, fetchLeads, addDebugLog, startOperation, endOperation, startPolling]);
+  }, [tenantSchema, fetchLeads, addDebugLog, startOperation, endOperation, startPolling, invalidateCache]);
 
-  // Enhanced refresh function
+  // Enhanced refresh function with post-creation support
   const refreshData = useCallback((options: {
     forceRefresh?: boolean;
     source?: string;
+    verifyLead?: string;
   } = {}) => {
-    const { forceRefresh = false, source = 'manual_refresh' } = options;
+    const { forceRefresh = false, source = 'manual_refresh', verifyLead } = options;
     
-    addDebugLog('refresh_requested', { forceRefresh, source }, true);
+    console.log(`🔄 useEnhancedLeadsData - refreshData called with options:`, options);
+    addDebugLog('refresh_requested', { forceRefresh, source, verifyLead }, true);
     
-    // Invalidate cache on force refresh
-    if (forceRefresh) {
-      cacheRef.current = null;
+    // Invalidate cache on force refresh or new lead creation
+    if (forceRefresh || source === 'new_lead_created') {
+      invalidateCache();
     }
     
-    return fetchLeads({ forceRefresh, skipCache: forceRefresh, source });
-  }, [fetchLeads, addDebugLog]);
+    return fetchLeads({ forceRefresh, skipCache: forceRefresh, source, verifyLead });
+  }, [fetchLeads, addDebugLog, invalidateCache]);
 
   // Enhanced update function with optimistic updates
   const updateLead = useCallback(async (leadId: string, updates: Partial<Lead>) => {
     try {
       startOperation('update_lead');
       addDebugLog('update_lead_start', { leadId, updates }, true);
+      console.log(`🔄 useEnhancedLeadsData - Updating lead ${leadId}:`, updates);
       
       const schema = tenantSchema || await ensureTenantSchema();
       if (!schema) {
@@ -289,7 +379,7 @@ export function useEnhancedLeadsData() {
       }
 
       // Invalidate cache
-      cacheRef.current = null;
+      invalidateCache();
 
       endOperation('update_lead', { leadId, updatedFields: Object.keys(validUpdates) }, true);
       
@@ -315,11 +405,12 @@ export function useEnhancedLeadsData() {
       });
       return false;
     }
-  }, [tenantSchema, ensureTenantSchema, toast, refreshData, addDebugLog, startOperation, endOperation]);
+  }, [tenantSchema, ensureTenantSchema, toast, refreshData, addDebugLog, startOperation, endOperation, invalidateCache]);
 
   // Initial setup and cleanup
   useEffect(() => {
     if (tenantSchema) {
+      console.log(`🚀 useEnhancedLeadsData - Initial setup for tenant schema: ${tenantSchema}`);
       fetchLeads({ source: 'initial_load' });
       setupRealtimeSubscription();
     }
@@ -327,6 +418,7 @@ export function useEnhancedLeadsData() {
 
   useEffect(() => {
     return () => {
+      console.log('🧹 useEnhancedLeadsData - Cleanup on unmount');
       mountedRef.current = false;
       if (realtimeChannel.current) {
         supabase.removeChannel(realtimeChannel.current);
@@ -346,6 +438,9 @@ export function useEnhancedLeadsData() {
     // Debug information
     cacheInfo: cacheRef.current,
     isPolling: !!pollingInterval.current,
-    hasRealtimeConnection: !!realtimeChannel.current
-  }), [leads, lossReasons, isLoading, fetchLeads, refreshData, updateLead]);
+    hasRealtimeConnection: !!realtimeChannel.current,
+    // Enhanced methods
+    invalidateCache,
+    verifyLeadExists
+  }), [leads, lossReasons, isLoading, fetchLeads, refreshData, updateLead, invalidateCache, verifyLeadExists]);
 }
