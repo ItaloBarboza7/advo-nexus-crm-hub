@@ -58,9 +58,9 @@ export function SearchAndFilters({
       return false;
     }
     
-    // Sempre mostrar para "all"
+    // Sempre mostrar para "all" e suas variações (all-tipo-acao, all-grupo-acao)
     if (category === "all") {
-      return selectedCategory === "all";
+      return mainCategory === "all";
     }
     
     // Para contratos: mostrar quando categoria é "contratos" ou suas subcategorias

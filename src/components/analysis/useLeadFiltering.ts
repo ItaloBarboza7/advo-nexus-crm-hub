@@ -9,6 +9,7 @@ export const useLeadFiltering = (
   advancedFilters: FilterOptions,
   isOpportunityLead: (lead: Lead) => boolean
 ) => {
+  console.log(`🔍 useLeadFiltering - selectedCategory: ${selectedCategory}`);
   const filteredLeads = leads.filter(lead => {
     const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (lead.email && lead.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -16,13 +17,16 @@ export const useLeadFiltering = (
     
     // Extrair categoria principal para filtros
     const mainCategory = selectedCategory.split('-')[0];
+    console.log(`🔍 useLeadFiltering - mainCategory: ${mainCategory}`);
     
     // LÓGICA CORRIGIDA: usar a mesma regra do useAnalysisLogic
-    const matchesCategory = selectedCategory === "all" || 
+    const matchesCategory = mainCategory === "all" || 
       (mainCategory === "contratos" && lead.status === "Contrato Fechado") ||
       (mainCategory === "oportunidades" && isOpportunityLead(lead)) ||
       (mainCategory === "perdas" && lead.status === "Perdido") ||
       (selectedCategory === "estados" || selectedCategory.endsWith("-estados"));
+      
+    console.log(`🔍 useLeadFiltering - lead ${lead.name}: matchesCategory = ${matchesCategory}`);
 
     // Aplicar filtros avançados para todas as categorias exceto "estados"
     const matchesAdvancedFilters = selectedCategory === "estados" || selectedCategory.endsWith("-estados") || (
