@@ -160,7 +160,7 @@ export function KanbanView({
                   ({statusLeads.length})
                 </span>
               </div>
-              {(status.title === "Contrato Fechado" || status.title === "Finalizado") && (
+              {(status.title !== "Contrato Fechado" && status.title !== "Finalizado") && (
                 <div className="text-sm font-semibold text-green-600">
                   {new Intl.NumberFormat('pt-BR', {
                     style: 'currency',
