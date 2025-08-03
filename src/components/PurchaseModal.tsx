@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useEmailAvailability } from "@/hooks/useEmailAvailability";
 import { usePurchaseFlow } from "@/hooks/usePurchaseFlow";
-import { Loader2 } from "lucide-react";
+import { Loader2, Check, X } from "lucide-react";
 
 interface PurchaseModalProps {
   isOpen: boolean;
@@ -26,6 +26,7 @@ export function PurchaseModal({ isOpen, onClose, planType, planPrice }: Purchase
     confirmPassword: ''
   });
   const [emailError, setEmailError] = useState<string>('');
+  const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null);
   const [previousEmail, setPreviousEmail] = useState<string>('');
   const { toast } = useToast();
   const { checkEmailAvailability, isChecking } = useEmailAvailability();
@@ -39,12 +40,15 @@ export function PurchaseModal({ isOpen, onClose, planType, planPrice }: Purchase
         
         if (!result.available) {
           setEmailError('Email indisponível');
+          setEmailAvailable(false);
         } else {
           setEmailError('');
+          setEmailAvailable(true);
         }
         setPreviousEmail(customerData.email);
       } else if (!customerData.email || !customerData.email.includes('@')) {
         setEmailError('');
+        setEmailAvailable(null);
         setPreviousEmail('');
       }
     };
@@ -60,11 +64,11 @@ export function PurchaseModal({ isOpen, onClose, planType, planPrice }: Purchase
       [field]: value
     }));
 
-    // Apenas limpar erro de email se o campo email mudou e não está vazio
+    // Reset email validation when email changes
     if (field === 'email' && value !== customerData.email) {
-      // Só limpar o erro se o novo valor for diferente do anterior
       if (value !== previousEmail) {
         setEmailError('');
+        setEmailAvailable(null);
       }
     }
   };
@@ -88,12 +92,14 @@ export function PurchaseModal({ isOpen, onClose, planType, planPrice }: Purchase
       return false;
     }
 
-    // Don't block purchase for email availability - just warn
-    if (emailError) {
+    // Block purchase if email is unavailable
+    if (emailError || emailAvailable === false) {
       toast({
-        title: "Aviso sobre email",
-        description: "Este email pode já estar em uso, mas prosseguiremos com a compra.",
+        title: "Email indisponível",
+        description: "Este email já está sendo usado. Por favor, use outro email.",
+        variant: "destructive"
       });
+      return false;
     }
 
     if (!customerData.phone.trim()) {
@@ -151,6 +157,7 @@ export function PurchaseModal({ isOpen, onClose, planType, planPrice }: Purchase
       confirmPassword: ''
     });
     setEmailError('');
+    setEmailAvailable(null);
     setPreviousEmail('');
   };
 
@@ -160,6 +167,9 @@ export function PurchaseModal({ isOpen, onClose, planType, planPrice }: Purchase
       resetForm();
     }
   }, [isOpen]);
+
+  // Check if purchase button should be disabled
+  const isPurchaseDisabled = isLoading || isChecking || emailError || emailAvailable === false;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -187,20 +197,43 @@ export function PurchaseModal({ isOpen, onClose, planType, planPrice }: Purchase
 
           <div className="space-y-2">
             <Label htmlFor="email">Email *</Label>
-            <Input
-              id="email"
-              type="email"
-              value={customerData.email}
-              onChange={(e) => handleInputChange('email', e.target.value)}
-              placeholder="seu@email.com"
-              disabled={isLoading}
-              className={emailError ? "border-yellow-500" : ""}
-            />
+            <div className="relative">
+              <Input
+                id="email"
+                type="email"
+                value={customerData.email}
+                onChange={(e) => handleInputChange('email', e.target.value)}
+                placeholder="seu@email.com"
+                disabled={isLoading}
+                className={
+                  emailError ? "border-red-500 pr-10" : 
+                  emailAvailable ? "border-green-500 pr-10" : ""
+                }
+              />
+              {isChecking && customerData.email && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                </div>
+              )}
+              {!isChecking && emailAvailable === true && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <Check className="h-4 w-4 text-green-600" />
+                </div>
+              )}
+              {!isChecking && emailAvailable === false && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <X className="h-4 w-4 text-red-600" />
+                </div>
+              )}
+            </div>
             {isChecking && customerData.email && (
               <p className="text-sm text-gray-500">Verificando disponibilidade...</p>
             )}
             {emailError && (
-              <p className="text-sm text-yellow-600">{emailError} (prosseguiremos com a compra)</p>
+              <p className="text-sm text-red-600">{emailError}</p>
+            )}
+            {emailAvailable === true && !emailError && (
+              <p className="text-sm text-green-600">Email disponível</p>
             )}
           </div>
 
@@ -256,7 +289,7 @@ export function PurchaseModal({ isOpen, onClose, planType, planPrice }: Purchase
             </Button>
             <Button 
               onClick={onPurchase} 
-              disabled={isLoading}
+              disabled={isPurchaseDisabled}
               className="min-w-[120px]"
             >
               {isLoading ? (
