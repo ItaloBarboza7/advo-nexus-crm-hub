@@ -82,8 +82,9 @@ export function ChartsSection({
   console.log(`📊 ChartsSection - showLeadsChart: ${showLeadsChart}, showContractsChart: ${showContractsChart}, showOpportunitiesChart: ${showOpportunitiesChart}`);
   console.log(`📅 ChartsSection - viewModes:`, { leadsViewMode, contractsViewMode, opportunitiesViewMode });
 
-  // CORREÇÃO: Usar startsWith em vez de igualdade exata para permitir subcategorias
+  // CORREÇÃO: Lógica para permitir subcategorias mas controlar exibição
   const isAllCategory = selectedCategory.startsWith("all");
+  const isMainAllCategory = selectedCategory === "all"; // Categoria principal "all" sem subcategorias
   const isContractsCategory = selectedCategory.startsWith("contratos");
   const isOpportunitiesCategory = selectedCategory.startsWith("oportunidades");
 
@@ -103,8 +104,8 @@ export function ChartsSection({
       {/* CORREÇÃO: Só mostrar gráficos se NÃO estivermos em visualização de Estados */}
       {!isEstadosView && (
         <>
-          {/* Gráfico de Leads Gerais - só aparece na categoria "all" e quando showLeadsChart for true */}
-          {isAllCategory && showLeadsChart && (
+          {/* Gráfico de Leads Gerais - só aparece na categoria principal "all" (sem subcategorias) e quando showLeadsChart for true */}
+          {isMainAllCategory && showLeadsChart && (
             <LeadsChart 
               leads={leads}
               title="Todos os Leads"
