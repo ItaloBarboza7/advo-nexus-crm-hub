@@ -326,6 +326,7 @@ export function ClientsContent() {
               onLeadUpdated={() => refreshData({ forceRefresh: true, source: 'kanban_update' })}
               onViewDetails={handleViewDetails}
               originalLeads={filteredData || []}
+              onStatusChange={handleStatusChange}
             />
           ) : (
             <LeadsListView

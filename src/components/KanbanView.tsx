@@ -43,6 +43,7 @@ interface KanbanViewProps {
   onLeadUpdated: () => void;
   onViewDetails: (lead: Lead) => void;
   originalLeads: Lead[];
+  onStatusChange?: (leadId: string, newStatus: string) => void;
 }
 
 export function KanbanView({ 
@@ -50,7 +51,8 @@ export function KanbanView({
   statuses, 
   onLeadUpdated, 
   onViewDetails,
-  originalLeads 
+  originalLeads,
+  onStatusChange 
 }: KanbanViewProps) {
   const [deletingLead, setDeletingLead] = useState<Lead | null>(null);
   const { deleteLead, updateLead } = useSimpleLeadOperations();
@@ -106,6 +108,13 @@ export function KanbanView({
     try {
       console.log(`🔄 KanbanView - Alterando status do lead ${leadId} para ${newStatus}`);
       
+      // If there's a custom status change handler (for loss reason logic), use it
+      if (onStatusChange) {
+        onStatusChange(leadId, newStatus);
+        return;
+      }
+      
+      // Otherwise, proceed with direct update
       const success = await updateLead(leadId, { status: newStatus });
       
       if (success) {
