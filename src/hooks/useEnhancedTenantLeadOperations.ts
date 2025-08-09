@@ -349,20 +349,6 @@ export function useEnhancedTenantLeadOperations() {
         return false;
       }
 
-      // Get current status for history tracking
-      let currentStatus = null;
-      if (leadData.status) {
-        const getCurrentStatusSql = `SELECT status FROM ${schema}.leads WHERE id = '${leadId}'`;
-        const { data: currentData, error: getCurrentError } = await supabase.rpc('exec_sql', { 
-          sql: getCurrentStatusSql 
-        });
-
-        const statusResult = toStatusResult(currentData);
-        if (!getCurrentError && statusResult) {
-          currentStatus = statusResult.status;
-        }
-      }
-
       // Build update query
       const updates: string[] = [];
       
@@ -392,39 +378,23 @@ export function useEnhancedTenantLeadOperations() {
         return false;
       }
 
-      // Handle status change history
-      if (leadData.status && currentStatus && currentStatus !== leadData.status) {
-        const historyInsertSql = `
-          INSERT INTO ${schema}.lead_status_history (lead_id, old_status, new_status, changed_at)
-          VALUES ('${leadId}', '${currentStatus.replace(/'/g, "''")}', '${leadData.status.replace(/'/g, "''")}', now())
-        `;
-        
-        const { error: historyError } = await supabase.rpc('exec_sql', { sql: historyInsertSql });
-        
-        if (historyError) {
-          addDebugLog('update_history_error', { historyError }, false);
-        } else {
-          addDebugLog('update_history_success', { 
-            leadId, 
-            statusChange: `${currentStatus} → ${leadData.status}` 
-          }, true);
-        }
+      // ⚠️ REMOVIDO: Não inserir manualmente no histórico de status
+      // O trigger track_lead_status_changes_trigger já cuida disso automaticamente
 
-        // Handle contract closure tracking
-        if (leadData.status === "Contrato Fechado") {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) {
-            const { data: tenantIdData } = await supabase.rpc('get_tenant_id');
-            const tenantId = tenantIdData || user.id;
+      // Handle contract closure tracking apenas se status mudou para "Contrato Fechado"
+      if (leadData.status === "Contrato Fechado") {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: tenantIdData } = await supabase.rpc('get_tenant_id');
+          const tenantId = tenantIdData || user.id;
 
-            const contractClosureSql = `
-              INSERT INTO public.contract_closures (lead_id, closed_by_user_id, tenant_id, closed_at)
-              VALUES ('${leadId}', '${user.id}', '${tenantId}', now())
-              ON CONFLICT DO NOTHING
-            `;
-            
-            await supabase.rpc('exec_sql', { sql: contractClosureSql });
-          }
+          const contractClosureSql = `
+            INSERT INTO public.contract_closures (lead_id, closed_by_user_id, tenant_id, closed_at)
+            VALUES ('${leadId}', '${user.id}', '${tenantId}', now())
+            ON CONFLICT DO NOTHING
+          `;
+          
+          await supabase.rpc('exec_sql', { sql: contractClosureSql });
         }
       }
 

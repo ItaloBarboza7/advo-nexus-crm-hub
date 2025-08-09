@@ -151,21 +151,6 @@ export function useTenantLeadOperations() {
         return false;
       }
 
-      // Primeiro, buscar o status atual do lead para registro no histórico
-      let currentStatus = null;
-      if (leadData.status) {
-        const getCurrentStatusSql = `SELECT status FROM ${schema}.leads WHERE id = '${leadId}'`;
-        console.log('🔍 Buscando status atual:', getCurrentStatusSql);
-        
-        const { data: currentData, error: getCurrentError } = await supabase.rpc('exec_sql' as any, {
-          sql: getCurrentStatusSql
-        });
-
-        if (!getCurrentError && Array.isArray(currentData) && currentData.length > 0) {
-          currentStatus = currentData[0].status;
-        }
-      }
-
       // Construir a query de update
       const updates = [];
       
@@ -198,47 +183,31 @@ export function useTenantLeadOperations() {
         return false;
       }
 
-      // Se o status mudou, registrar no histórico manualmente
-      if (leadData.status && currentStatus && currentStatus !== leadData.status) {
-        const historyInsertSql = `
-          INSERT INTO ${schema}.lead_status_history (lead_id, old_status, new_status, changed_at)
-          VALUES ('${leadId}', '${currentStatus.replace(/'/g, "''")}', '${leadData.status.replace(/'/g, "''")}', now())
-        `;
-        console.log('📝 Inserindo histórico de status:', historyInsertSql);
+      // ⚠️ REMOVIDO: Não inserir manualmente no histórico de status
+      // O trigger track_lead_status_changes_trigger já cuida disso automaticamente
 
-        const { error: historyError } = await supabase.rpc('exec_sql' as any, {
-          sql: historyInsertSql
-        });
+      // Se mudou para "Contrato Fechado", registrar também na tabela global
+      if (leadData.status === "Contrato Fechado") {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: tenantIdData } = await supabase.rpc('get_tenant_id');
+          const tenantId = tenantIdData || user.id;
 
-        if (historyError) {
-          console.error('⚠️ Erro ao inserir histórico:', historyError);
-        } else {
-          console.log('✅ Histórico de status inserido com sucesso');
-        }
+          const contractClosureSql = `
+            INSERT INTO public.contract_closures (lead_id, closed_by_user_id, tenant_id, closed_at)
+            VALUES ('${leadId}', '${user.id}', '${tenantId}', now())
+            ON CONFLICT DO NOTHING
+          `;
+          console.log('📊 Registrando fechamento de contrato:', contractClosureSql);
 
-        // Se mudou para "Contrato Fechado", registrar também na tabela global
-        if (leadData.status === "Contrato Fechado") {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) {
-            const { data: tenantIdData } = await supabase.rpc('get_tenant_id');
-            const tenantId = tenantIdData || user.id;
+          const { error: closureError } = await supabase.rpc('exec_sql' as any, {
+            sql: contractClosureSql
+          });
 
-            const contractClosureSql = `
-              INSERT INTO public.contract_closures (lead_id, closed_by_user_id, tenant_id, closed_at)
-              VALUES ('${leadId}', '${user.id}', '${tenantId}', now())
-              ON CONFLICT DO NOTHING
-            `;
-            console.log('📊 Registrando fechamento de contrato:', contractClosureSql);
-
-            const { error: closureError } = await supabase.rpc('exec_sql' as any, {
-              sql: contractClosureSql
-            });
-
-            if (closureError) {
-              console.error('⚠️ Erro ao registrar fechamento de contrato:', closureError);
-            } else {
-              console.log('✅ Fechamento de contrato registrado com sucesso');
-            }
+          if (closureError) {
+            console.error('⚠️ Erro ao registrar fechamento de contrato:', closureError);
+          } else {
+            console.log('✅ Fechamento de contrato registrado com sucesso');
           }
         }
       }

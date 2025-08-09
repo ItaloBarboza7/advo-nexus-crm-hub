@@ -84,23 +84,9 @@ export function useLeadStatusUpdate() {
         return false;
       }
 
-      // Registrar manualmente no histórico de status (caso os triggers não estejam funcionando)
-      const historyInsertSql = `
-        INSERT INTO ${schema}.lead_status_history (lead_id, old_status, new_status, changed_at)
-        VALUES ('${leadId}', ${currentStatus ? `'${currentStatus.replace(/'/g, "''")}'` : 'NULL'}, '${newStatus.replace(/'/g, "''")}', now())
-      `;
-      console.log('📝 Inserindo no histórico:', historyInsertSql);
-
-      const { error: historyError } = await supabase.rpc('exec_sql' as any, {
-        sql: historyInsertSql
-      });
-
-      if (historyError) {
-        console.error('⚠️ Erro ao inserir histórico (pode já ter sido inserido pelo trigger):', historyError);
-        // Não falhar por causa do histórico, pois o status foi atualizado com sucesso
-      } else {
-        console.log('✅ Histórico de status inserido com sucesso');
-      }
+      // ⚠️ REMOVIDO: Não inserir manualmente no histórico pois o trigger já faz isso
+      // O trigger track_lead_status_changes_trigger já cuida da inserção no histórico
+      console.log('✅ Status atualizado com sucesso - histórico será inserido automaticamente pelo trigger');
 
       // Se for "Contrato Fechado", registrar também na tabela global
       if (newStatus === "Contrato Fechado") {
