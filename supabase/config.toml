@@ -12,3 +12,21 @@ verify_jwt = false
 
 [functions.update-user-email]
 verify_jwt = true
+
+[functions.create-user-from-payment]
+verify_jwt = false
+
+[functions.update-member]
+verify_jwt = true
+
+[functions.create-member]
+verify_jwt = true
+
+[functions.delete-member]
+verify_jwt = true
+
+[functions.get-stripe-details]
+verify_jwt = true
+
+[functions.check-subscription]
+verify_jwt = true
