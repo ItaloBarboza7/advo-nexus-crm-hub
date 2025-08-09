@@ -35,8 +35,15 @@ export function useDataIntegrityValidator() {
       }
 
       console.log('✅ Validação de integridade concluída:', data);
-      setLastValidation(data);
-      return data;
+      
+      // Type guard to ensure data is the correct type
+      if (data && typeof data === 'object' && !Array.isArray(data)) {
+        const validationResults = data as ValidationResults;
+        setLastValidation(validationResults);
+        return validationResults;
+      }
+      
+      return null;
     } catch (error: any) {
       console.error('❌ Erro inesperado na validação:', error);
       toast({

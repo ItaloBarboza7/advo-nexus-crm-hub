@@ -4,11 +4,34 @@ import { useLeadsDebugger } from '@/hooks/useLeadsDebugger';
 import { useTenantSecurityMonitor } from '@/hooks/useTenantSecurityMonitor';
 
 export function useLeadOperationsMonitoring() {
-  const { addDebugLog, startOperation, endOperation } = useLeadsDebugger();
+  const { addDebugLog } = useLeadsDebugger();
   const { reportSecurityEvent } = useTenantSecurityMonitor();
 
+  const trackCreation = useCallback((leadData: any) => {
+    addDebugLog('LEAD_CREATION_TRACKED', {
+      leadName: leadData.name,
+      source: leadData.source,
+      timestamp: new Date().toISOString()
+    }, true);
+  }, [addDebugLog]);
+
+  const trackUpdate = useCallback((leadId: string, updates: any) => {
+    addDebugLog('LEAD_UPDATE_TRACKED', {
+      leadId,
+      updates,
+      timestamp: new Date().toISOString()
+    }, true);
+  }, [addDebugLog]);
+
+  const trackDeletion = useCallback((leadId: string) => {
+    addDebugLog('LEAD_DELETION_TRACKED', {
+      leadId,
+      timestamp: new Date().toISOString()
+    }, true);
+  }, [addDebugLog]);
+
   const monitorLeadCreation = useCallback(async (leadData: any, operation: () => Promise<any>) => {
-    const operationId = startOperation('CREATE_LEAD', { leadName: leadData.name });
+    const startTime = Date.now();
     
     try {
       addDebugLog('LEAD_CREATE_START', {
@@ -18,19 +41,23 @@ export function useLeadOperationsMonitoring() {
       }, true);
 
       const result = await operation();
+      const duration = Date.now() - startTime;
       
       addDebugLog('LEAD_CREATE_SUCCESS', {
         leadId: result?.id,
-        leadName: leadData.name
-      }, true);
+        leadName: leadData.name,
+        duration
+      }, true, duration);
 
-      endOperation(operationId, { leadId: result?.id }, true);
+      trackCreation(leadData);
       return result;
     } catch (error: any) {
+      const duration = Date.now() - startTime;
       addDebugLog('LEAD_CREATE_ERROR', {
         error: error.message,
-        leadName: leadData.name
-      }, false);
+        leadName: leadData.name,
+        duration
+      }, false, duration);
 
       // Reportar erro de segurança se for relevante
       if (error.message.includes('SECURITY') || error.message.includes('TENANT')) {
@@ -41,13 +68,12 @@ export function useLeadOperationsMonitoring() {
         });
       }
 
-      endOperation(operationId, { error: error.message }, false);
       throw error;
     }
-  }, [addDebugLog, startOperation, endOperation, reportSecurityEvent]);
+  }, [addDebugLog, reportSecurityEvent, trackCreation]);
 
   const monitorLeadUpdate = useCallback(async (leadId: string, updates: any, operation: () => Promise<any>) => {
-    const operationId = startOperation('UPDATE_LEAD', { leadId, updates });
+    const startTime = Date.now();
     
     try {
       addDebugLog('LEAD_UPDATE_START', {
@@ -57,20 +83,24 @@ export function useLeadOperationsMonitoring() {
       }, true);
 
       const result = await operation();
+      const duration = Date.now() - startTime;
       
       addDebugLog('LEAD_UPDATE_SUCCESS', {
         leadId,
-        updateFields: Object.keys(updates)
-      }, true);
+        updateFields: Object.keys(updates),
+        duration
+      }, true, duration);
 
-      endOperation(operationId, { success: true }, true);
+      trackUpdate(leadId, updates);
       return result;
     } catch (error: any) {
+      const duration = Date.now() - startTime;
       addDebugLog('LEAD_UPDATE_ERROR', {
         error: error.message,
         leadId,
-        updates
-      }, false);
+        updates,
+        duration
+      }, false, duration);
 
       if (error.message.includes('SECURITY') || error.message.includes('TENANT')) {
         reportSecurityEvent('LEAD_OPERATION_SECURITY_ERROR', {
@@ -80,13 +110,12 @@ export function useLeadOperationsMonitoring() {
         });
       }
 
-      endOperation(operationId, { error: error.message }, false);
       throw error;
     }
-  }, [addDebugLog, startOperation, endOperation, reportSecurityEvent]);
+  }, [addDebugLog, reportSecurityEvent, trackUpdate]);
 
   const monitorLeadFetch = useCallback(async (filters: any, operation: () => Promise<any>) => {
-    const operationId = startOperation('FETCH_LEADS', { filters });
+    const startTime = Date.now();
     
     try {
       addDebugLog('LEADS_FETCH_START', {
@@ -96,19 +125,22 @@ export function useLeadOperationsMonitoring() {
 
       const result = await operation();
       const leadCount = Array.isArray(result) ? result.length : 0;
+      const duration = Date.now() - startTime;
       
       addDebugLog('LEADS_FETCH_SUCCESS', {
         leadCount,
-        filters
-      }, true);
+        filters,
+        duration
+      }, true, duration);
 
-      endOperation(operationId, { leadCount }, true);
       return result;
     } catch (error: any) {
+      const duration = Date.now() - startTime;
       addDebugLog('LEADS_FETCH_ERROR', {
         error: error.message,
-        filters
-      }, false);
+        filters,
+        duration
+      }, false, duration);
 
       if (error.message.includes('SECURITY') || error.message.includes('TENANT')) {
         reportSecurityEvent('LEAD_OPERATION_SECURITY_ERROR', {
@@ -118,14 +150,16 @@ export function useLeadOperationsMonitoring() {
         });
       }
 
-      endOperation(operationId, { error: error.message }, false);
       throw error;
     }
-  }, [addDebugLog, startOperation, endOperation, reportSecurityEvent]);
+  }, [addDebugLog, reportSecurityEvent]);
 
   return {
     monitorLeadCreation,
     monitorLeadUpdate,
-    monitorLeadFetch
+    monitorLeadFetch,
+    trackCreation,
+    trackUpdate,
+    trackDeletion
   };
 }

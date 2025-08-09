@@ -28,9 +28,16 @@ export function useSessionMonitor() {
       }
 
       console.log('✅ Informações da sessão obtidas:', data);
-      setSessionInfo(data);
-      setLastCheck(new Date());
-      return data;
+      
+      // Type guard to ensure data is the correct type
+      if (data && typeof data === 'object' && !Array.isArray(data)) {
+        const sessionData = data as SessionInfo;
+        setSessionInfo(sessionData);
+        setLastCheck(new Date());
+        return sessionData;
+      }
+      
+      return null;
     } catch (error: any) {
       console.error('❌ Erro inesperado ao obter sessão:', error);
       return null;
