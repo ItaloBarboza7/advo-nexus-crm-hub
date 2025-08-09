@@ -1,6 +1,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { AuthChangeEvent } from '@supabase/supabase-js';
 
 // Cache global para evitar múltiplas chamadas
 let globalTenantSchema: string | null = null;
@@ -19,6 +20,48 @@ const notifySubscribers = () => {
   });
 };
 
+// 🔒 FUNÇÃO CRÍTICA DE SEGURANÇA: Reset completo do cache quando usuário troca
+const resetTenantCache = (reason: string) => {
+  console.log(`🔒 SEGURANÇA - Resetando cache do tenant por: ${reason}`);
+  
+  // Limpar todos os estados globais
+  globalTenantSchema = null;
+  globalIsLoading = false;
+  globalError = null;
+  schemaPromise = null;
+  processedSchemas.clear();
+  
+  console.log('✅ Cache do tenant completamente limpo para evitar contaminação entre contas');
+  
+  // Notificar todos os subscribers sobre o reset
+  notifySubscribers();
+};
+
+// Inicializar listener de autenticação apenas uma vez
+let authListenerInitialized = false;
+const initializeAuthListener = () => {
+  if (authListenerInitialized) return;
+  
+  console.log('🔒 Inicializando listener de autenticação para proteção de dados entre contas');
+  
+  supabase.auth.onAuthStateChange((event: AuthChangeEvent, session) => {
+    console.log(`🔒 EVENTO DE AUTH: ${event}`, session?.user?.id ? `Usuário: ${session.user.id}` : 'Sem usuário');
+    
+    // Resetar cache em TODAS as mudanças críticas de autenticação
+    if (event === 'SIGNED_IN') {
+      resetTenantCache(`Login de usuário: ${session?.user?.id}`);
+    } else if (event === 'SIGNED_OUT') {
+      resetTenantCache('Logout do usuário');
+    } else if (event === 'USER_UPDATED') {
+      resetTenantCache('Dados do usuário atualizados');
+    } else if (event === 'TOKEN_REFRESHED') {
+      resetTenantCache('Token refreshed - pode ser troca de conta');
+    }
+  });
+  
+  authListenerInitialized = true;
+};
+
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export function useTenantSchema() {
@@ -26,6 +69,11 @@ export function useTenantSchema() {
   const [isLoading, setIsLoading] = useState<boolean>(globalIsLoading);
   const [error, setError] = useState<string | null>(globalError);
   const subscriberRef = useRef<Subscriber>();
+
+  // Inicializar o listener de auth na primeira execução do hook
+  useEffect(() => {
+    initializeAuthListener();
+  }, []);
 
   const ensureCompletedFollowupsTable = async (schema: string) => {
     // Evitar criar a tabela múltiplas vezes para o mesmo schema
