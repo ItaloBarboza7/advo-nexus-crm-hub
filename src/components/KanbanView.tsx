@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -58,6 +58,9 @@ export function KanbanView({
   const { deleteLead, updateLead } = useSimpleLeadOperations();
   const { toast } = useToast();
   const { canAccessFeature } = useSubscriptionControl();
+  
+  // 🎯 NOVO: Ref para controlar se está arrastando
+  const isDragging = useRef(false);
 
   // Sincronizar leads quando props mudarem
   React.useEffect(() => {
@@ -176,7 +179,13 @@ export function KanbanView({
 
   const onDragStart = (e: React.DragEvent, leadId: string) => {
     console.log(`🎯 KanbanView - Drag iniciado para lead: ${leadId}`);
+    isDragging.current = true; // 🎯 Marcar que está arrastando
     e.dataTransfer.setData("text/plain", leadId);
+  };
+
+  const onDragEnd = (e: React.DragEvent) => {
+    // 🎯 Resetar flag de arraste quando terminar
+    isDragging.current = false;
   };
 
   const onDragOver = (e: React.DragEvent) => {
@@ -185,10 +194,20 @@ export function KanbanView({
 
   const onDrop = async (e: React.DragEvent, newStatus: string) => {
     e.preventDefault();
+    isDragging.current = false; // 🎯 Garantir que flag seja resetada
     const leadId = e.dataTransfer.getData("text/plain");
     if (leadId) {
       console.log(`🎯 KanbanView - Drop executado para lead: ${leadId} -> status: ${newStatus}`);
       await handleStatusChange(leadId, newStatus);
+    }
+  };
+
+  // 🎯 NOVO: Handler para clique no card
+  const handleCardClick = (leadId: string) => {
+    // Só abrir detalhes se não estiver arrastando
+    if (!isDragging.current) {
+      console.log(`🔍 KanbanView - Card clicado para lead: ${leadId}`);
+      handleViewDetails(leadId);
     }
   };
 
@@ -259,25 +278,30 @@ export function KanbanView({
                   className="cursor-move hover:shadow-md transition-shadow"
                   draggable
                   onDragStart={(e) => onDragStart(e, lead.id)}
+                  onDragEnd={onDragEnd}
+                  onClick={() => handleCardClick(lead.id)}
                 >
                   <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary font-medium text-sm">
+                    <div className="flex items-center justify-between min-w-0">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary font-medium text-sm shrink-0">
                           {lead.avatar}
                         </div>
-                        <div>
-                          <CardTitle className="text-sm font-medium">
+                        <div className="min-w-0">
+                          <CardTitle className="text-sm font-medium truncate">
                             {lead.name}
                           </CardTitle>
                         </div>
                       </div>
-                      <div className="flex gap-1">
+                      <div className="flex gap-1 shrink-0">
                         <Button
                           size="sm"
                           variant="ghost"
                           className="h-6 w-6 p-0"
-                          onClick={() => handleViewDetails(lead.id)}
+                          onClick={(e) => {
+                            e.stopPropagation(); // Evitar conflito com click do card
+                            handleViewDetails(lead.id);
+                          }}
                         >
                           <Eye className="h-3 w-3" />
                         </Button>
@@ -285,7 +309,10 @@ export function KanbanView({
                           size="sm"
                           variant="ghost"
                           className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                          onClick={() => handleDeleteLead(lead.id)}
+                          onClick={(e) => {
+                            e.stopPropagation(); // Evitar conflito com click do card
+                            handleDeleteLead(lead.id);
+                          }}
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>
@@ -295,18 +322,18 @@ export function KanbanView({
                   <CardContent className="pt-0">
                     <div className="space-y-2">
                       {lead.email && (
-                        <div className="flex items-center gap-1 text-xs text-gray-600">
-                          <Mail className="h-3 w-3" />
+                        <div className="flex items-center gap-1 text-xs text-gray-600 min-w-0">
+                          <Mail className="h-3 w-3 shrink-0" />
                           <span className="truncate">{lead.email}</span>
                         </div>
                       )}
                       <div className="flex items-center gap-1 text-xs text-gray-600">
-                        <Phone className="h-3 w-3" />
+                        <Phone className="h-3 w-3 shrink-0" />
                         <span>{lead.phone}</span>
                       </div>
                       {lead.state && (
                         <div className="flex items-center gap-1 text-xs text-gray-600">
-                          <MapPin className="h-3 w-3" />
+                          <MapPin className="h-3 w-3 shrink-0" />
                           <span>{lead.state}</span>
                         </div>
                       )}

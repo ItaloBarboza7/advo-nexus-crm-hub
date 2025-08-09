@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenantSchema } from '@/hooks/useTenantSchema';
@@ -132,18 +131,19 @@ export function useUserLeadsForDate() {
       setError(null);
       
       console.log("📅 Buscando leads cadastrados em:", BrazilTimezone.formatDateForDisplay(selectedDate));
-      console.log("👤 Filtrado para o usuário:", currentUser.name);
+      console.log("👤 Filtrado para o usuário:", currentUser.name, "ID:", currentUser.id);
 
       const dateString = BrazilTimezone.formatDateForQuery(selectedDate);
       console.log("📅 Data formatada para query:", dateString);
       
-      // CORREÇÃO: Removido o filtro user_id pois essa coluna não existe no esquema do tenant
+      // 🎯 CORREÇÃO: Adicionar filtro por user_id para mostrar apenas leads do usuário logado
       const sql = `
         SELECT 
           id, name, phone, email, source, status, created_at, updated_at, value,
-          action_type, action_group, description, state, loss_reason, closed_by_user_id
+          action_type, action_group, description, state, loss_reason, closed_by_user_id, user_id
         FROM ${tenantSchema}.leads
         WHERE DATE(created_at AT TIME ZONE 'America/Sao_Paulo') = '${dateString}'
+        AND user_id = '${currentUser.id}'
         ORDER BY created_at DESC
       `;
 
@@ -153,7 +153,7 @@ export function useUserLeadsForDate() {
       
       if (Array.isArray(data)) {
         leadsData = data;
-        console.log("✅ Query retornou array com", data.length, "itens");
+        console.log("✅ Query retornou array com", data.length, "itens para o usuário", currentUser.name);
       } else {
         console.log("⚠️ Query não retornou um array:", typeof data, data);
         leadsData = [];
@@ -168,7 +168,7 @@ export function useUserLeadsForDate() {
           return true;
         })
         .map((lead: any) => {
-          console.log("🔄 Processando lead:", lead);
+          console.log("🔄 Processando lead:", lead.name, "do usuário:", lead.user_id);
           
           return {
             id: lead.id || 'unknown',
@@ -180,7 +180,7 @@ export function useUserLeadsForDate() {
             created_at: lead.created_at || new Date().toISOString(),
             updated_at: lead.updated_at || new Date().toISOString(),
             value: lead.value ? Number(lead.value) : null,
-            user_id: currentUser.id, // Definir como o usuário atual
+            user_id: lead.user_id || currentUser.id, // 🎯 Usar user_id do banco, não sobrescrever
             action_type: lead.action_type || null,
             action_group: lead.action_group || null,
             description: lead.description || null,
@@ -190,7 +190,7 @@ export function useUserLeadsForDate() {
           } as Lead;
         });
 
-      console.log(`✅ ${transformedLeads.length} leads processados:`, transformedLeads);
+      console.log(`✅ ${transformedLeads.length} leads processados para o usuário ${currentUser.name}:`, transformedLeads);
       setLeads(transformedLeads);
       
     } catch (error: any) {
