@@ -1,10 +1,11 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Lead } from '@/types/lead';
 import { useToast } from '@/hooks/use-toast';
 import { useTenantSchema } from '@/hooks/useTenantSchema';
 import { useLeadsDebugger } from '@/hooks/useLeadsDebugger';
+import { toLeadRecordArray } from '@/utils/typeGuards';
 
 export function useEnhancedLeadsData() {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -63,25 +64,8 @@ export function useEnhancedLeadsData() {
         return;
       }
 
-      // Converter dados para Lead[] com todos os campos necessários
-      const leadsData = Array.isArray(data) ? data.map((item: any): Lead => ({
-        id: String(item.id || ''),
-        name: String(item.name || ''),
-        email: item.email ? String(item.email) : null,
-        phone: String(item.phone || ''),
-        description: item.description ? String(item.description) : null,
-        source: item.source ? String(item.source) : null,
-        status: String(item.status || 'Novo'),
-        state: item.state ? String(item.state) : null,
-        action_group: item.action_group ? String(item.action_group) : null,
-        action_type: item.action_type ? String(item.action_type) : null,
-        loss_reason: item.loss_reason ? String(item.loss_reason) : null,
-        value: item.value ? Number(item.value) : null,
-        user_id: String(item.user_id || ''),
-        closed_by_user_id: item.closed_by_user_id ? String(item.closed_by_user_id) : null,
-        created_at: String(item.created_at || ''),
-        updated_at: String(item.updated_at || '')
-      })).filter(lead => lead.id && lead.name && lead.phone) : [];
+      // Converter dados para Lead[] usando o type guard
+      const leadsData = toLeadRecordArray(data);
 
       console.log(`✅ useEnhancedLeadsData - ${leadsData.length} leads carregados`);
       
@@ -119,10 +103,134 @@ export function useEnhancedLeadsData() {
     fetchLeads();
   }, [fetchLeads]);
 
+  // Função para refresh compatível com componentes antigos
+  const refreshData = useCallback((options?: { forceRefresh?: boolean; source?: string }) => {
+    console.log('🔄 useEnhancedLeadsData - refreshData called with options:', options);
+    refetch();
+  }, [refetch]);
+
+  // Função updateLead para compatibilidade com componentes antigos
+  const updateLead = useCallback(async (leadId: string, updates: Partial<Lead>) => {
+    if (!tenantSchema) {
+      console.error('❌ updateLead - Tenant schema não disponível');
+      return false;
+    }
+
+    try {
+      console.log('🔄 useEnhancedLeadsData - Updating lead:', leadId, updates);
+
+      // Construir a query de update dinamicamente
+      const updateFields = Object.keys(updates)
+        .filter(key => updates[key as keyof Lead] !== undefined)
+        .map(key => `${key} = $${Object.keys(updates).indexOf(key) + 2}`)
+        .join(', ');
+
+      if (!updateFields) {
+        console.warn('⚠️ updateLead - Nenhum campo para atualizar');
+        return false;
+      }
+
+      const sql = `
+        UPDATE ${tenantSchema}.leads 
+        SET ${updateFields}, updated_at = now()
+        WHERE id = $1
+        RETURNING *
+      `;
+
+      const values = [leadId, ...Object.values(updates).filter(v => v !== undefined)];
+      
+      const { data, error: updateError } = await supabase.rpc('exec_sql', {
+        sql,
+        params: values
+      });
+
+      if (updateError) {
+        console.error('❌ Erro ao atualizar lead:', updateError);
+        toast({
+          title: "Erro",
+          description: "Não foi possível atualizar o lead.",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      // Atualizar o lead local
+      const updatedLeadData = toLeadRecordArray(data);
+      if (updatedLeadData.length > 0) {
+        setLeads(prevLeads => 
+          prevLeads.map(lead => 
+            lead.id === leadId ? updatedLeadData[0] : lead
+          )
+        );
+      }
+
+      console.log('✅ Lead atualizado com sucesso');
+      return true;
+    } catch (error: any) {
+      console.error('❌ Erro inesperado ao atualizar lead:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado ao atualizar o lead.",
+        variant: "destructive"
+      });
+      return false;
+    }
+  }, [tenantSchema, toast]);
+
+  // Memoizar stats para evitar recálculos desnecessários
+  const stats = useMemo(() => {
+    if (!leads.length) {
+      return {
+        totalLeads: 0,
+        totalProposals: 0,
+        totalSales: 0,
+        totalLosses: 0,
+        conversionRate: 0
+      };
+    }
+
+    const totalLeads = leads.length;
+    const totalProposals = leads.filter(lead => 
+      ['Proposta', 'Reunião'].includes(lead.status)
+    ).length;
+    const totalSales = leads.filter(lead => 
+      lead.status === 'Contrato Fechado'
+    ).length;
+    const totalLosses = leads.filter(lead => 
+      lead.status === 'Perdido'
+    ).length;
+    const conversionRate = totalLeads > 0 ? (totalSales / totalLeads) * 100 : 0;
+
+    return {
+      totalLeads,
+      totalProposals,
+      totalSales,
+      totalLosses,
+      conversionRate
+    };
+  }, [leads]);
+
+  // Array de loss reasons para compatibilidade
+  const lossReasons = useMemo(() => {
+    return Array.from(new Set(
+      leads
+        .filter(lead => lead.loss_reason)
+        .map(lead => lead.loss_reason!)
+    ));
+  }, [leads]);
+
   return {
     leads,
     isLoading: isLoading || schemaLoading, // Considerar ambos os loadings
     error: error || schemaError, // Considerar ambos os erros
-    refetch
+    refetch,
+    refreshData, // Para compatibilidade
+    updateLead, // Para compatibilidade
+    stats,
+    lossReasons, // Para compatibilidade
+    // Propriedades para compatibilidade com Dashboard
+    cacheInfo: null,
+    isPolling: false,
+    hasRealtimeConnection: false
   };
 }

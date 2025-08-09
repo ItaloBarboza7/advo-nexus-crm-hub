@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { DateRange } from "react-day-picker";
 import { DateFilter } from "@/components/DateFilter";
@@ -35,7 +34,8 @@ export function CasesContent() {
   const [isInitialized, setIsInitialized] = useState(false);
   
   // Use team data hook for analysis
-  const { leads: allLeads, isLoading, lossReasons } = useLeadsData();
+  const { leads: allLeads, isLoading } = useLeadsData();
+  const { lossReasons } = useLossReasonsGlobal();
   const { statusHistory, hasLeadPassedThroughStatus } = useLeadStatusHistory();
   const { isOpportunityLead } = useOpportunityLogic(hasLeadPassedThroughStatus);
   
