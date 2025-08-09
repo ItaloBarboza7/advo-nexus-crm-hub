@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Lead } from '@/types/lead';
@@ -120,12 +119,12 @@ export function useEnhancedLeadsData() {
       console.log('🔄 useEnhancedLeadsData - Updating lead:', leadId, updates);
 
       // Construir a query de update dinamicamente
-      const updateFields = [];
-      const values = [leadId];
-      
+      const updateFields: string[] = [];
+      const values: (string | number | null)[] = [leadId];
+
       Object.entries(updates).forEach(([key, value]) => {
         if (value !== undefined) {
-          values.push(value);
+          values.push(value as string | number | null);
           updateFields.push(`${key} = $${values.length}`);
         }
       });
@@ -147,12 +146,13 @@ export function useEnhancedLeadsData() {
       for (let i = values.length - 1; i >= 0; i--) {
         const value = values[i];
         const placeholder = `$${i + 1}`;
-        const literalValue = value === null ? 'NULL' : `'${String(value).replace(/'/g, "''")}'`;
+        const literalValue =
+          value === null ? 'NULL' : `'${String(value).replace(/'/g, "''")}'`;
         finalSql = finalSql.replace(new RegExp(`\\${placeholder}`, 'g'), literalValue);
       }
-      
+
       const { data, error: updateError } = await supabase.rpc('exec_sql', {
-        sql: finalSql
+        sql: finalSql,
       });
 
       if (updateError) {
@@ -168,8 +168,8 @@ export function useEnhancedLeadsData() {
       // Atualizar o lead local
       const updatedLeadData = toLeadRecordArray(data);
       if (updatedLeadData.length > 0) {
-        setLeads(prevLeads => 
-          prevLeads.map(lead => 
+        setLeads(prevLeads =>
+          prevLeads.map(lead =>
             lead.id === leadId ? updatedLeadData[0] : lead
           )
         );
