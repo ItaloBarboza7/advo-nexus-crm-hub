@@ -36,9 +36,9 @@ export function useDataIntegrityValidator() {
 
       console.log('✅ Validação de integridade concluída:', data);
       
-      // Type guard to ensure data is the correct type
+      // Type guard and proper conversion
       if (data && typeof data === 'object' && !Array.isArray(data)) {
-        const validationResults = data as ValidationResults;
+        const validationResults = data as unknown as ValidationResults;
         setLastValidation(validationResults);
         return validationResults;
       }

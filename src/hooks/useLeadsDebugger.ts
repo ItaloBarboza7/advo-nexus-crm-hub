@@ -46,6 +46,16 @@ export function useLeadsDebugger() {
     setDebugLogs([]);
   }, []);
 
+  const startOperation = useCallback((name: string, details?: any): string => {
+    const operationId = `op_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    addDebugLog('OPERATION_START', { operationId, name, details }, true);
+    return operationId;
+  }, [addDebugLog]);
+
+  const endOperation = useCallback((operationId: string, result?: any, success: boolean = true) => {
+    addDebugLog('OPERATION_END', { operationId, result, success }, success);
+  }, [addDebugLog]);
+
   const performHealthCheck = useCallback(async () => {
     const startTime = Date.now();
     setIsDebugging(true);
@@ -427,6 +437,8 @@ export function useLeadsDebugger() {
     testLeadCreation,
     testLeadDeletion,
     clearDebugLogs,
-    addDebugLog
+    addDebugLog,
+    startOperation,
+    endOperation
   };
 }

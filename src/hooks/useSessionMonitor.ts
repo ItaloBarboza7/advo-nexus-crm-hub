@@ -29,9 +29,9 @@ export function useSessionMonitor() {
 
       console.log('✅ Informações da sessão obtidas:', data);
       
-      // Type guard to ensure data is the correct type
+      // Type guard and proper conversion
       if (data && typeof data === 'object' && !Array.isArray(data)) {
-        const sessionData = data as SessionInfo;
+        const sessionData = data as unknown as SessionInfo;
         setSessionInfo(sessionData);
         setLastCheck(new Date());
         return sessionData;
