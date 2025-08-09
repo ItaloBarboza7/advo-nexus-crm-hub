@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -20,6 +19,9 @@ const BLOCKED_FEATURES = [
   'team_management',
   'calendar_access'
 ];
+
+// Whitelist para contas de teste - apenas teste6@gmail.com
+const ALLOWLIST_EMAILS = new Set(["teste6@gmail.com"]);
 
 export function useSubscriptionControl(): SubscriptionControlState {
   const [isBlocked, setIsBlocked] = useState(false);
@@ -45,6 +47,16 @@ export function useSubscriptionControl(): SubscriptionControlState {
         }
 
         console.log("👤 Usuário autenticado:", user.email);
+
+        // Verificar se está na whitelist de teste
+        if (user.email && ALLOWLIST_EMAILS.has(user.email)) {
+          console.log("✅ Usuário na whitelist de teste - liberando acesso:", user.email);
+          setIsBlocked(false);
+          setShowWarning(false);
+          setBlockReason("");
+          setIsLoading(false);
+          return;
+        }
 
         // Determine effective user ID (admin for members)
         const { data: userProfile } = await supabase

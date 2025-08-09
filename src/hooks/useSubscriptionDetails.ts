@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -15,6 +14,9 @@ interface SubscriptionDetails {
   isPending?: boolean;
   debugInfo?: any;
 }
+
+// Mesma whitelist do useSubscriptionControl - apenas teste6@gmail.com
+const ALLOWLIST_EMAILS = new Set(["teste6@gmail.com"]);
 
 export function useSubscriptionDetails() {
   const [details, setDetails] = useState<SubscriptionDetails>({
@@ -49,6 +51,27 @@ export function useSubscriptionDetails() {
       }
 
       console.log("👤 Usuário autenticado:", user.email);
+
+      // Verificar se está na whitelist de teste
+      if (user.email && ALLOWLIST_EMAILS.has(user.email)) {
+        console.log("✅ Usuário na whitelist de teste - definindo detalhes liberados:", user.email);
+        setDetails({
+          plan: "Conta de Teste (Liberada)",
+          amount: 0,
+          cardBrand: "",
+          cardLast4: "",
+          cardExp: "",
+          status: "active",
+          isLoading: false,
+          error: undefined,
+          debugInfo: {
+            source: "test_allowlist",
+            is_test_account: true,
+            email: user.email
+          }
+        });
+        return;
+      }
 
       // Determine effective user ID (admin for members)
       const { data: userProfile } = await supabase
