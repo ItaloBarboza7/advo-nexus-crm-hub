@@ -30,7 +30,7 @@ export function useSubscriptionDetails() {
   const [refreshCount, setRefreshCount] = useState(0);
 
   const getSubDetails = useCallback(async () => {
-    console.log("💳 useSubscriptionDetails - Iniciando busca de detalhes da assinatura...");
+    console.log("💳 useSubscriptionDetails - Iniciando verificação local de assinatura...");
     
     setDetails(d => ({ ...d, isLoading: true, error: undefined }));
 
@@ -59,26 +59,154 @@ export function useSubscriptionDetails() {
       }
 
       console.log("👤 Usuário autenticado:", user.email);
-      console.log("📊 Metadados do usuário:", user.user_metadata);
 
-      // Chamar função edge melhorada 'get-stripe-details'
-      const { data, error } = await supabase.functions.invoke('get-stripe-details');
-      
-      console.log("📊 Resposta da função get-stripe-details:", { data, error });
-      
-      if (error) {
-        console.error("❌ Erro ao buscar detalhes do Stripe:", error);
-        setDetails(d => ({ 
-          ...d, 
-          isLoading: false, 
-          error: `Erro ao carregar dados da assinatura: ${error.message}`,
-          debugInfo: { error, timestamp: new Date().toISOString() }
-        }));
+      // 1. Primeiro, tentar buscar dados locais na tabela subscribers
+      console.log("📊 Buscando dados locais da assinatura...");
+      const { data: localSubscription, error: localError } = await supabase
+        .from('subscribers')
+        .select('*')
+        .single();
+
+      if (localError) {
+        console.log("⚠️ Dados locais não encontrados:", localError.message);
+      }
+
+      // Verificar se os dados locais são recentes (menos de 5 minutos)
+      const isDataFresh = localSubscription && 
+        new Date(localSubscription.last_checked).getTime() > Date.now() - (5 * 60 * 1000);
+
+      if (localSubscription && isDataFresh) {
+        console.log("✅ Usando dados locais da assinatura:", localSubscription);
+        
+        // Se tem assinatura ativa localmente
+        if (localSubscription.subscribed) {
+          // Buscar detalhes do cartão via Stripe (apenas se necessário)
+          let cardBrand = "";
+          let cardLast4 = "";
+          let cardExpMonth = "";
+          let cardExpYear = "";
+
+          try {
+            const { data: stripeData } = await supabase.functions.invoke('get-stripe-details');
+            if (stripeData?.success && stripeData.card_brand) {
+              cardBrand = stripeData.card_brand;
+              cardLast4 = stripeData.card_last4;
+              cardExpMonth = stripeData.exp_month;
+              cardExpYear = stripeData.exp_year;
+            }
+          } catch (error) {
+            console.log("⚠️ Erro ao buscar detalhes do cartão:", error);
+          }
+
+          setDetails({
+            plan: localSubscription.subscription_tier || "Plano Ativo",
+            amount: localSubscription.subscription_tier?.includes("Mensal") ? 15700 : 9900,
+            cardBrand,
+            cardLast4,
+            cardExp: cardExpMonth && cardExpYear ? `${cardExpMonth}/${cardExpYear}` : "",
+            status: "active",
+            isLoading: false,
+            error: undefined,
+            debugInfo: {
+              source: "local_data",
+              last_checked: localSubscription.last_checked,
+              is_member_delegated: false // Será determinado pelo RLS automaticamente
+            }
+          });
+          return;
+        } else {
+          // Dados locais indicam que não há assinatura
+          setDetails({
+            plan: "Nenhum plano ativo",
+            amount: 0,
+            cardBrand: "",
+            cardLast4: "",
+            cardExp: "",
+            status: "inactive",
+            isLoading: false,
+            error: undefined,
+            debugInfo: {
+              source: "local_data",
+              last_checked: localSubscription.last_checked
+            }
+          });
+          return;
+        }
+      }
+
+      // 2. Se não há dados locais ou estão desatualizados, atualizar via check-subscription
+      console.log("🔄 Atualizando dados da assinatura via Stripe...");
+      const { data: checkResult, error: checkError } = await supabase.functions.invoke('check-subscription');
+
+      if (checkError) {
+        console.error("❌ Erro ao verificar assinatura:", checkError);
+        setDetails({
+          plan: "Erro ao carregar",
+          amount: 0,
+          cardBrand: "",
+          cardLast4: "",
+          cardExp: "",
+          status: "error",
+          isLoading: false,
+          error: "Erro ao verificar assinatura. Tente novamente.",
+          debugInfo: { error: checkError, source: "check_subscription_error" }
+        });
         return;
       }
 
-      if (!data || typeof data !== 'object') {
-        console.log("📝 Dados de assinatura não encontrados");
+      if (!checkResult?.success) {
+        console.error("❌ Falha na verificação:", checkResult);
+        setDetails({
+          plan: "Erro ao carregar",
+          amount: 0,
+          cardBrand: "",
+          cardLast4: "",
+          cardExp: "",
+          status: "error",
+          isLoading: false,
+          error: checkResult?.error || "Falha na verificação da assinatura",
+          debugInfo: { checkResult, source: "check_subscription_failed" }
+        });
+        return;
+      }
+
+      // 3. Dados atualizados com sucesso - usar resultado
+      if (checkResult.subscribed) {
+        // Buscar detalhes do cartão se necessário
+        let cardBrand = "";
+        let cardLast4 = "";
+        let cardExpMonth = "";
+        let cardExpYear = "";
+
+        try {
+          const { data: stripeData } = await supabase.functions.invoke('get-stripe-details');
+          if (stripeData?.success && stripeData.card_brand) {
+            cardBrand = stripeData.card_brand;
+            cardLast4 = stripeData.card_last4;
+            cardExpMonth = stripeData.exp_month;
+            cardExpYear = stripeData.exp_year;
+          }
+        } catch (error) {
+          console.log("⚠️ Erro ao buscar detalhes do cartão:", error);
+        }
+
+        setDetails({
+          plan: checkResult.subscription_tier || "Plano Ativo",
+          amount: checkResult.subscription_tier?.includes("Mensal") ? 15700 : 9900,
+          cardBrand,
+          cardLast4,
+          cardExp: cardExpMonth && cardExpYear ? `${cardExpMonth}/${cardExpYear}` : "",
+          status: "active",
+          isLoading: false,
+          error: undefined,
+          debugInfo: {
+            source: "fresh_check",
+            is_member_delegated: checkResult.is_member,
+            effective_user_id: checkResult.effective_user_id,
+            last_checked: checkResult.last_checked
+          }
+        });
+      } else {
         setDetails({
           plan: "Nenhum plano ativo",
           amount: 0,
@@ -88,72 +216,17 @@ export function useSubscriptionDetails() {
           status: "inactive",
           isLoading: false,
           error: undefined,
-          debugInfo: { noData: true, timestamp: new Date().toISOString() }
+          debugInfo: {
+            source: "fresh_check",
+            is_member_delegated: checkResult.is_member,
+            effective_user_id: checkResult.effective_user_id,
+            last_checked: checkResult.last_checked
+          }
         });
-        return;
       }
-
-      // Store debug information
-      const debugInfo = {
-        rawResponse: data,
-        timestamp: new Date().toISOString(),
-        userMetadata: user.user_metadata
-      };
-
-      // Handle pending/processing state
-      if (data.isPending) {
-        console.log("⏳ Assinatura sendo processada:", data);
-        setDetails({
-          plan: data.plan_name || "Processando...",
-          amount: data.amount || 0,
-          cardBrand: data.card_brand || "",
-          cardLast4: data.card_last4 || "",
-          cardExp: data.exp_month && data.exp_year ? `${data.exp_month}/${data.exp_year}` : "",
-          status: data.status || "processing",
-          isLoading: false,
-          subscriptionId: data.subscription_id,
-          isPending: true,
-          error: undefined,
-          debugInfo
-        });
-        return;
-      }
-
-      // Tratar resposta da função melhorada
-      if (!data.success || !data.hasSubscription) {
-        console.log("📝 Sem assinatura ativa:", data.message || "Usuário sem plano ativo");
-        setDetails({
-          plan: data.plan_name || "Nenhum plano ativo",
-          amount: data.amount || 0,
-          cardBrand: data.card_brand || "",
-          cardLast4: data.card_last4 || "",
-          cardExp: data.exp_month && data.exp_year ? `${data.exp_month}/${data.exp_year}` : "",
-          status: data.status || "inactive",
-          isLoading: false,
-          error: undefined,
-          debugInfo
-        });
-        return;
-      }
-
-      console.log("✅ Detalhes da assinatura carregados com sucesso:", data);
-      
-      setDetails({
-        plan: data.plan_name || "Plano não identificado",
-        amount: data.amount || 0,
-        cardBrand: data.card_brand || "",
-        cardLast4: data.card_last4 || "",
-        cardExp: data.exp_month && data.exp_year ? `${data.exp_month}/${data.exp_year}` : "",
-        status: data.status || "unknown",
-        isLoading: false,
-        subscriptionId: data.subscription_id,
-        isPending: false,
-        error: undefined,
-        debugInfo
-      });
       
     } catch (error) {
-      console.error("❌ Erro inesperado ao buscar detalhes da assinatura:", error);
+      console.error("❌ Erro inesperado ao verificar assinatura:", error);
       
       setDetails({
         plan: "Erro ao carregar",
@@ -166,7 +239,7 @@ export function useSubscriptionDetails() {
         error: "Erro de conexão. Tente novamente.",
         debugInfo: { 
           error: error instanceof Error ? error.message : String(error),
-          timestamp: new Date().toISOString()
+          source: "unexpected_error"
         }
       });
     }
@@ -182,22 +255,6 @@ export function useSubscriptionDetails() {
   useEffect(() => {
     getSubDetails();
   }, [getSubDetails, refreshCount]);
-
-  // Auto-refresh for pending subscriptions - IMPROVED TIMING
-  useEffect(() => {
-    if (details.isPending || details.status === 'processing') {
-      console.log("⏰ Setting up auto-refresh for pending subscription");
-      const interval = setInterval(() => {
-        console.log("🔄 Auto-refresh triggered for pending subscription");
-        getSubDetails();
-      }, 15000); // Increased to 15 seconds to reduce API calls
-
-      return () => {
-        console.log("🛑 Clearing auto-refresh interval");
-        clearInterval(interval);
-      };
-    }
-  }, [details.isPending, details.status, getSubDetails]);
 
   return {
     ...details,

@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { useSubscriptionDetails } from "./useSubscriptionDetails";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SubscriptionControlState {
   isBlocked: boolean;
@@ -22,86 +22,93 @@ const BLOCKED_FEATURES = [
 ];
 
 export function useSubscriptionControl(): SubscriptionControlState {
-  const {
-    status,
-    isLoading,
-    error,
-    isPending,
-    plan
-  } = useSubscriptionDetails();
-
   const [isBlocked, setIsBlocked] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [showWarning, setShowWarning] = useState(false);
   const [blockReason, setBlockReason] = useState("");
 
   useEffect(() => {
-    if (isLoading || isPending) {
-      setIsBlocked(false);
-      setShowWarning(false);
-      return;
+    async function checkSubscriptionStatus() {
+      console.log("🔒 Verificando controle de acesso por assinatura...");
+      
+      try {
+        // Verificar status da assinatura localmente
+        const { data: localSubscription, error: localError } = await supabase
+          .from('subscribers')
+          .select('subscribed, subscription_end, last_checked')
+          .single();
+
+        if (localError) {
+          console.log("⚠️ Dados locais não encontrados, atualizando...");
+          
+          // Tentar atualizar via check-subscription
+          const { data: checkResult } = await supabase.functions.invoke('check-subscription');
+          
+          if (checkResult?.success) {
+            // Usar resultado da verificação
+            const hasActiveSubscription = checkResult.subscribed;
+            
+            setIsBlocked(!hasActiveSubscription);
+            setShowWarning(!hasActiveSubscription);
+            setBlockReason(hasActiveSubscription ? "" : "Nenhuma assinatura ativa encontrada. Ative seu plano para continuar.");
+            setIsLoading(false);
+            return;
+          }
+        }
+
+        if (localSubscription) {
+          const hasActiveSubscription = localSubscription.subscribed;
+          
+          // Verificar se a assinatura não expirou (se houver data de fim)
+          const isExpired = localSubscription.subscription_end && 
+            new Date(localSubscription.subscription_end) < new Date();
+          
+          const isActiveAndNotExpired = hasActiveSubscription && !isExpired;
+          
+          setIsBlocked(!isActiveAndNotExpired);
+          setShowWarning(!isActiveAndNotExpired);
+          
+          if (!hasActiveSubscription) {
+            setBlockReason("Nenhuma assinatura ativa encontrada. Ative seu plano para continuar.");
+          } else if (isExpired) {
+            setBlockReason("Sua assinatura expirou. Renove seu plano para continuar.");
+          } else {
+            setBlockReason("");
+          }
+          
+          setIsLoading(false);
+        } else {
+          // Sem dados locais e falha na verificação
+          setIsBlocked(true);
+          setShowWarning(true);
+          setBlockReason("Não foi possível verificar o status da assinatura. Tente novamente.");
+          setIsLoading(false);
+        }
+        
+      } catch (error) {
+        console.error("❌ Erro ao verificar controle de assinatura:", error);
+        setIsBlocked(true);
+        setShowWarning(true);
+        setBlockReason("Erro ao verificar assinatura. Entre em contato com o suporte.");
+        setIsLoading(false);
+      }
     }
 
-    // Determine if user should be blocked
-    let blocked = false;
-    let warning = false;
-    let reason = "";
-
-    switch (status) {
-      case "inactive":
-      case "canceled":
-      case "unpaid":
-        blocked = true;
-        warning = true;
-        reason = "Sua assinatura está inativa. Regularize para continuar usando o sistema.";
-        break;
-      
-      case "past_due":
-        blocked = true;
-        warning = true;
-        reason = "Seu pagamento está em atraso. Atualize seu método de pagamento para continuar.";
-        break;
-      
-      case "error":
-        if (error) {
-          blocked = true;
-          warning = true;
-          reason = "Erro ao verificar assinatura. Entre em contato com o suporte.";
-        }
-        break;
-      
-      case "active":
-      case "trialing":
-        blocked = false;
-        warning = false;
-        break;
-      
-      default:
-        // For unknown status, show warning but don't block
-        if (!plan || plan === "Nenhum plano ativo") {
-          blocked = true;
-          warning = true;
-          reason = "Nenhuma assinatura ativa encontrada. Ative seu plano para usar o sistema.";
-        }
-        break;
-    }
-
-    setIsBlocked(blocked);
-    setShowWarning(warning);
-    setBlockReason(reason);
-  }, [status, isLoading, isPending, error, plan]);
+    checkSubscriptionStatus();
+  }, []);
 
   const canAccessFeature = (feature: string): boolean => {
-    // If subscription is loading or pending, allow access temporarily
-    if (isLoading || isPending) {
+    // Se ainda está carregando, permitir acesso temporário
+    if (isLoading) {
       return true;
     }
 
-    // If not blocked, allow all access
+    // Se não está bloqueado, permitir acesso total
     if (!isBlocked) {
       return true;
     }
 
-    // If blocked, check if this specific feature should be blocked
+    // Se está bloqueado, verificar se este recurso específico deve ser bloqueado
     return !BLOCKED_FEATURES.includes(feature);
   };
 
