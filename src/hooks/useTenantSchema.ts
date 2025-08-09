@@ -5,15 +5,18 @@ import { supabase } from '@/integrations/supabase/client';
 export function useTenantSchema() {
   const [tenantSchema, setTenantSchema] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const ensureTenantSchema = useCallback(async (): Promise<string | null> => {
     try {
       console.log("🏗️ useTenantSchema - Obtendo esquema do tenant...");
+      setError(null);
       
-      const { data, error } = await supabase.rpc('ensure_tenant_schema');
+      const { data, error: rpcError } = await supabase.rpc('ensure_tenant_schema');
       
-      if (error) {
-        console.error('❌ Erro ao garantir esquema do tenant:', error);
+      if (rpcError) {
+        console.error('❌ Erro ao garantir esquema do tenant:', rpcError);
+        setError(rpcError.message || "Erro ao obter esquema do tenant");
         return null;
       }
       
@@ -25,8 +28,9 @@ export function useTenantSchema() {
       
       setTenantSchema(schema);
       return schema;
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erro inesperado ao obter esquema do tenant:', error);
+      setError(error.message || "Erro inesperado");
       return null;
     } finally {
       setIsLoading(false);
@@ -74,6 +78,7 @@ export function useTenantSchema() {
   return {
     tenantSchema,
     isLoading,
+    error,
     ensureTenantSchema
   };
 }
