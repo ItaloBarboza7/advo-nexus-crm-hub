@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +59,11 @@ export function WeeklyFollowUpTask({ userName }: WeeklyFollowUpTaskProps) {
         threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
         const threeDaysAgoStr = threeDaysAgo.toISOString();
 
+        // Calcular data de 3 dias atrás para follow-ups concluídos
+        const threeDaysAgoForCompleted = BrazilTimezone.now();
+        threeDaysAgoForCompleted.setDate(threeDaysAgoForCompleted.getDate() - 3);
+        const threeDaysAgoForCompletedStr = threeDaysAgoForCompleted.toISOString();
+
         const { data, error } = await supabase.rpc('exec_sql', {
           sql: `
             SELECT l.id, l.name, l.phone, l.status, l.updated_at
@@ -67,6 +73,18 @@ export function WeeklyFollowUpTask({ userName }: WeeklyFollowUpTaskProps) {
                 (l.status IN ('Finalizado', 'Perdido') AND l.updated_at >= '${oneWeekAgoStr}')
                 OR
                 (l.status IN ('Proposta', 'Reunião') AND l.updated_at <= '${threeDaysAgoStr}')
+              )
+              AND NOT EXISTS (
+                SELECT 1 FROM ${tenantSchema}.completed_followups cf
+                WHERE cf.lead_id = l.id 
+                  AND cf.user_id = '${currentUser.id}'
+                  AND (
+                    -- Se o lead está "Perdido", nunca mostrar novamente após concluído
+                    (l.status = 'Perdido') 
+                    OR 
+                    -- Para outros status, só mostrar se passou mais de 3 dias desde a conclusão
+                    (l.status != 'Perdido' AND cf.completed_at > '${threeDaysAgoForCompletedStr}')
+                  )
               )
             ORDER BY l.updated_at DESC
             LIMIT 20
@@ -91,9 +109,35 @@ export function WeeklyFollowUpTask({ userName }: WeeklyFollowUpTaskProps) {
     fetchFollowUpLeads();
   }, [tenantSchema, currentUser]);
 
-  const handleConcludeTask = async (leadId: string) => {
+  const handleConcludeTask = async (leadId: string, leadStatus: string) => {
     try {
-      console.log(`✅ Concluindo tarefa de follow up para lead ${leadId}`);
+      console.log(`✅ Concluindo tarefa de follow up para lead ${leadId} com status ${leadStatus}`);
+      
+      if (!tenantSchema || !currentUser) {
+        console.error("❌ Schema do tenant ou usuário não disponível");
+        return;
+      }
+
+      // Registrar o follow up como concluído
+      const { error: insertError } = await supabase.rpc('exec_sql', {
+        sql: `
+          INSERT INTO ${tenantSchema}.completed_followups (lead_id, user_id, lead_status_at_completion, completed_at)
+          VALUES ('${leadId}', '${currentUser.id}', '${leadStatus.replace(/'/g, "''")}', now())
+          ON CONFLICT (lead_id, user_id) DO UPDATE SET
+            completed_at = now(),
+            lead_status_at_completion = '${leadStatus.replace(/'/g, "''")}'
+        `
+      });
+
+      if (insertError) {
+        console.error("❌ Erro ao registrar follow up concluído:", insertError);
+        toast({
+          title: "Erro",
+          description: "Erro ao marcar follow up como concluído.",
+          variant: "destructive"
+        });
+        return;
+      }
       
       // Remove o lead da lista local
       setLeads(prevLeads => prevLeads.filter(lead => lead.id !== leadId));
@@ -167,7 +211,7 @@ export function WeeklyFollowUpTask({ userName }: WeeklyFollowUpTaskProps) {
                   </div>
                   <Button
                     size="sm"
-                    onClick={() => handleConcludeTask(lead.id)}
+                    onClick={() => handleConcludeTask(lead.id, lead.status)}
                     className="bg-green-600 hover:bg-green-700 text-white"
                   >
                     <Check className="h-4 w-4 mr-1" />
