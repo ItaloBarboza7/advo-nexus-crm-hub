@@ -2,6 +2,7 @@
 // Type guard utilities for safe type conversions from Supabase RPC responses
 
 import { Json } from '@/integrations/supabase/types';
+import { Lead } from '@/types/lead';
 
 export interface LeadRecord {
   id: string;
@@ -31,8 +32,8 @@ export function isObject(value: Json): value is Record<string, Json> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-// Safe converter for LeadRecord arrays
-export function toLeadRecordArray(data: Json): LeadRecord[] {
+// Safe converter for Lead arrays (updated to return full Lead objects)
+export function toLeadRecordArray(data: Json): Lead[] {
   if (!isArray(data)) {
     console.warn('Expected array but got:', typeof data);
     return [];
@@ -40,12 +41,23 @@ export function toLeadRecordArray(data: Json): LeadRecord[] {
 
   return data
     .filter((item): item is Record<string, Json> => isObject(item))
-    .map((item): LeadRecord => ({
+    .map((item): Lead => ({
       id: String(item.id || ''),
       name: String(item.name || ''),
+      email: item.email ? String(item.email) : null,
       phone: String(item.phone || ''),
+      description: item.description ? String(item.description) : null,
+      source: item.source ? String(item.source) : null,
+      status: String(item.status || 'Novo'),
+      state: item.state ? String(item.state) : null,
+      action_group: item.action_group ? String(item.action_group) : null,
+      action_type: item.action_type ? String(item.action_type) : null,
+      loss_reason: item.loss_reason ? String(item.loss_reason) : null,
+      value: item.value ? Number(item.value) : null,
+      user_id: String(item.user_id || ''),
+      closed_by_user_id: item.closed_by_user_id ? String(item.closed_by_user_id) : null,
       created_at: String(item.created_at || ''),
-      status: item.status ? String(item.status) : undefined,
+      updated_at: String(item.updated_at || '')
     }))
     .filter(lead => lead.id && lead.name && lead.phone);
 }

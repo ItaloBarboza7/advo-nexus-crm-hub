@@ -48,8 +48,26 @@ export function useLeadsData() {
         return;
       }
 
-      // Converter dados para array de leads
-      const leadsArray = Array.isArray(data) ? data : [];
+      // Converter dados para array de leads com todos os campos necessários
+      const leadsArray = Array.isArray(data) ? data.map((item: any): Lead => ({
+        id: String(item.id || ''),
+        name: String(item.name || ''),
+        email: item.email ? String(item.email) : null,
+        phone: String(item.phone || ''),
+        description: item.description ? String(item.description) : null,
+        source: item.source ? String(item.source) : null,
+        status: String(item.status || 'Novo'),
+        state: item.state ? String(item.state) : null,
+        action_group: item.action_group ? String(item.action_group) : null,
+        action_type: item.action_type ? String(item.action_type) : null,
+        loss_reason: item.loss_reason ? String(item.loss_reason) : null,
+        value: item.value ? Number(item.value) : null,
+        user_id: String(item.user_id || ''),
+        closed_by_user_id: item.closed_by_user_id ? String(item.closed_by_user_id) : null,
+        created_at: String(item.created_at || ''),
+        updated_at: String(item.updated_at || '')
+      })).filter(lead => lead.id && lead.name && lead.phone) : [];
+
       console.log(`✅ useLeadsData - ${leadsArray.length} leads carregados`);
       
       setLeads(leadsArray);
@@ -76,6 +94,20 @@ export function useLeadsData() {
     setIsLoading(true);
     fetchLeads();
   }, [fetchLeads]);
+
+  // Função para refresh compatível com componentes antigos
+  const refreshData = useCallback(() => {
+    refetch();
+  }, [refetch]);
+
+  // Função updateLead para compatibilidade com componentes antigos
+  const updateLead = useCallback((updatedLead: Lead) => {
+    setLeads(prevLeads => 
+      prevLeads.map(lead => 
+        lead.id === updatedLead.id ? updatedLead : lead
+      )
+    );
+  }, []);
 
   // Memoizar stats para evitar recálculos desnecessários
   const stats = useMemo(() => {
@@ -110,11 +142,27 @@ export function useLeadsData() {
     };
   }, [leads]);
 
+  // Array de loss reasons para compatibilidade
+  const lossReasons = useMemo(() => {
+    return Array.from(new Set(
+      leads
+        .filter(lead => lead.loss_reason)
+        .map(lead => lead.loss_reason!)
+    ));
+  }, [leads]);
+
   return {
     leads,
     isLoading: isLoading || schemaLoading, // Considerar ambos os loadings
     error: error || schemaError, // Considerar ambos os erros
     refetch,
-    stats
+    refreshData, // Para compatibilidade
+    updateLead, // Para compatibilidade
+    stats,
+    lossReasons, // Para compatibilidade
+    // Propriedades para compatibilidade com Dashboard
+    cacheInfo: null,
+    isPolling: false,
+    hasRealtimeConnection: false
   };
 }

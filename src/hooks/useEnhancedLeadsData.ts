@@ -5,7 +5,6 @@ import { Lead } from '@/types/lead';
 import { useToast } from '@/hooks/use-toast';
 import { useTenantSchema } from '@/hooks/useTenantSchema';
 import { useLeadsDebugger } from '@/hooks/useLeadsDebugger';
-import { toLeadRecordArray } from '@/utils/typeGuards';
 
 export function useEnhancedLeadsData() {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -64,8 +63,26 @@ export function useEnhancedLeadsData() {
         return;
       }
 
-      // Converter dados usando type guard
-      const leadsData = toLeadRecordArray(data || []);
+      // Converter dados para Lead[] com todos os campos necessários
+      const leadsData = Array.isArray(data) ? data.map((item: any): Lead => ({
+        id: String(item.id || ''),
+        name: String(item.name || ''),
+        email: item.email ? String(item.email) : null,
+        phone: String(item.phone || ''),
+        description: item.description ? String(item.description) : null,
+        source: item.source ? String(item.source) : null,
+        status: String(item.status || 'Novo'),
+        state: item.state ? String(item.state) : null,
+        action_group: item.action_group ? String(item.action_group) : null,
+        action_type: item.action_type ? String(item.action_type) : null,
+        loss_reason: item.loss_reason ? String(item.loss_reason) : null,
+        value: item.value ? Number(item.value) : null,
+        user_id: String(item.user_id || ''),
+        closed_by_user_id: item.closed_by_user_id ? String(item.closed_by_user_id) : null,
+        created_at: String(item.created_at || ''),
+        updated_at: String(item.updated_at || '')
+      })).filter(lead => lead.id && lead.name && lead.phone) : [];
+
       console.log(`✅ useEnhancedLeadsData - ${leadsData.length} leads carregados`);
       
       addDebugLog('fetch_leads_success', { 
