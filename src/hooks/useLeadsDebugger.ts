@@ -1,249 +1,121 @@
 
 import { useState, useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useTenantSchema } from '@/hooks/useTenantSchema';
-import { useToast } from '@/hooks/use-toast';
-import { 
-  toCountResultArray, 
-  toTriggerResultArray, 
-  toLeadRecordArray 
-} from '@/utils/typeGuards';
 
-interface DebugLog {
-  timestamp: string;
-  operation: string;
-  data: any;
+interface DebugEvent {
+  id: string;
+  type: string;
+  details: any;
+  timestamp: Date;
   success: boolean;
-  duration?: number;
 }
 
-interface LeadsHealthCheck {
-  databaseConnection: boolean;
-  tenantSchema: string | null;
-  leadsTableExists: boolean;
-  realtimeSubscription: boolean;
-  triggersActive: boolean;
-  lastOperation: DebugLog | null;
+interface Operation {
+  id: string;
+  name: string;
+  startTime: Date;
+  endTime?: Date;
+  success?: boolean;
+  details?: any;
 }
 
 export function useLeadsDebugger() {
-  const [debugLogs, setDebugLogs] = useState<DebugLog[]>([]);
-  const [isDebugging, setIsDebugging] = useState(false);
-  const { tenantSchema } = useTenantSchema();
-  const { toast } = useToast();
-  const operationStartTime = useRef<number>(0);
+  const [debugEvents, setDebugEvents] = useState<DebugEvent[]>([]);
+  const [operations, setOperations] = useState<Operation[]>([]);
+  const [isEnabled, setIsEnabled] = useState(false);
+  const operationsRef = useRef<Map<string, Operation>>(new Map());
 
-  const addDebugLog = useCallback((operation: string, data: any, success: boolean, duration?: number) => {
-    const log: DebugLog = {
-      timestamp: new Date().toISOString(),
-      operation,
-      data,
-      success,
-      duration
+  const addDebugLog = useCallback((type: string, details: any, success: boolean = true) => {
+    if (!isEnabled) return;
+
+    const event: DebugEvent = {
+      id: `debug_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type,
+      details,
+      timestamp: new Date(),
+      success
     };
+
+    setDebugEvents(prev => [event, ...prev].slice(0, 100)); // Manter apenas os 100 mais recentes
     
-    console.log(`🔍 DEBUG [${operation}]:`, log);
-    setDebugLogs(prev => [log, ...prev.slice(0, 49)]); // Keep last 50 logs
+    console.log(`🐛 [LEADS DEBUGGER] ${type}:`, details);
+  }, [isEnabled]);
+
+  const startOperation = useCallback((name: string, details?: any) => {
+    if (!isEnabled) return null;
+
+    const operationId = `op_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const operation: Operation = {
+      id: operationId,
+      name,
+      startTime: new Date(),
+      details
+    };
+
+    operationsRef.current.set(operationId, operation);
+    setOperations(prev => [operation, ...prev].slice(0, 50)); // Manter apenas 50 operações
+
+    addDebugLog(`OPERATION_START_${name}`, { operationId, details }, true);
+    return operationId;
+  }, [isEnabled, addDebugLog]);
+
+  const endOperation = useCallback((operationId: string | null, result?: any, success: boolean = true) => {
+    if (!isEnabled || !operationId) return;
+
+    const operation = operationsRef.current.get(operationId);
+    if (!operation) return;
+
+    const completedOperation = {
+      ...operation,
+      endTime: new Date(),
+      success,
+      details: { ...operation.details, result }
+    };
+
+    operationsRef.current.set(operationId, completedOperation);
+    
+    setOperations(prev => 
+      prev.map(op => op.id === operationId ? completedOperation : op)
+    );
+
+    const duration = completedOperation.endTime.getTime() - completedOperation.startTime.getTime();
+    
+    addDebugLog(`OPERATION_END_${operation.name}`, {
+      operationId,
+      duration: `${duration}ms`,
+      success,
+      result
+    }, success);
+  }, [isEnabled, addDebugLog]);
+
+  const clearLogs = useCallback(() => {
+    setDebugEvents([]);
+    setOperations([]);
+    operationsRef.current.clear();
   }, []);
 
-  const startOperation = useCallback((operation: string) => {
-    operationStartTime.current = Date.now();
-    console.log(`⏱️ Starting operation: ${operation}`);
-  }, []);
-
-  const endOperation = useCallback((operation: string, data: any, success: boolean) => {
-    const duration = Date.now() - operationStartTime.current;
-    addDebugLog(operation, data, success, duration);
-  }, [addDebugLog]);
-
-  const testDatabaseConnection = useCallback(async () => {
-    try {
-      startOperation('database_connection_test');
-      const { data, error } = await supabase.from('user_profiles').select('count').limit(1);
-      endOperation('database_connection_test', { error }, !error);
-      return !error;
-    } catch (error) {
-      endOperation('database_connection_test', { error }, false);
-      return false;
+  const toggleDebugger = useCallback(() => {
+    setIsEnabled(prev => !prev);
+    if (!isEnabled) {
+      addDebugLog('DEBUGGER_ENABLED', { timestamp: new Date().toISOString() }, true);
+    } else {
+      addDebugLog('DEBUGGER_DISABLED', { timestamp: new Date().toISOString() }, true);
     }
-  }, [startOperation, endOperation]);
+  }, [isEnabled, addDebugLog]);
 
-  const testTenantSchema = useCallback(async () => {
-    if (!tenantSchema) return null;
-    
-    try {
-      startOperation('tenant_schema_test');
-      const sql = `SELECT COUNT(*) as count FROM ${tenantSchema}.leads LIMIT 1`;
-      const { data, error } = await supabase.rpc('exec_sql', { sql });
-      endOperation('tenant_schema_test', { tenantSchema, error, data }, !error);
-      return !error;
-    } catch (error) {
-      endOperation('tenant_schema_test', { tenantSchema, error }, false);
-      return false;
-    }
-  }, [tenantSchema, startOperation, endOperation]);
-
-  const testTriggersStatus = useCallback(async () => {
-    if (!tenantSchema) return null;
-    
-    try {
-      startOperation('triggers_status_test');
-      const sql = `
-        SELECT 
-          trigger_name, 
-          event_manipulation, 
-          action_statement 
-        FROM information_schema.triggers 
-        WHERE trigger_schema = '${tenantSchema}'
-        AND table_name = 'leads'
-      `;
-      const { data, error } = await supabase.rpc('exec_sql', { sql });
-      const triggersData = toTriggerResultArray(data || []);
-      endOperation('triggers_status_test', { data: triggersData, error }, !error);
-      return { active: !error, triggers: triggersData };
-    } catch (error) {
-      endOperation('triggers_status_test', { error }, false);
-      return { active: false, triggers: [] };
-    }
-  }, [tenantSchema, startOperation, endOperation]);
-
-  const performHealthCheck = useCallback(async (): Promise<LeadsHealthCheck> => {
-    setIsDebugging(true);
-    
-    try {
-      const [dbConnection, schemaTest, triggersTest] = await Promise.all([
-        testDatabaseConnection(),
-        testTenantSchema(),
-        testTriggersStatus()
-      ]);
-
-      const healthCheck: LeadsHealthCheck = {
-        databaseConnection: dbConnection,
-        tenantSchema,
-        leadsTableExists: schemaTest ?? false,
-        realtimeSubscription: false, // Will be updated by realtime test
-        triggersActive: triggersTest?.active ?? false,
-        lastOperation: debugLogs[0] || null
-      };
-
-      console.log('🏥 Health Check Result:', healthCheck);
-      return healthCheck;
-    } finally {
-      setIsDebugging(false);
-    }
-  }, [testDatabaseConnection, testTenantSchema, testTriggersStatus, tenantSchema, debugLogs]);
-
-  const testLeadCreation = useCallback(async () => {
-    if (!tenantSchema) return false;
-
-    try {
-      startOperation('test_lead_creation');
-      
-      const testLead = {
-        name: `Test Lead ${Date.now()}`,
-        phone: '999999999',
-        user_id: (await supabase.auth.getUser()).data.user?.id
-      };
-
-      const sql = `
-        INSERT INTO ${tenantSchema}.leads (name, phone, user_id)
-        VALUES ('${testLead.name}', '${testLead.phone}', '${testLead.user_id}')
-        RETURNING id, name
-      `;
-
-      const { data, error } = await supabase.rpc('exec_sql', { sql });
-      
-      const resultData = toLeadRecordArray(data || []);
-      if (!error && resultData.length > 0) {
-        // Clean up test lead
-        const deleteId = resultData[0].id;
-        const deleteSql = `DELETE FROM ${tenantSchema}.leads WHERE id = '${deleteId}'`;
-        await supabase.rpc('exec_sql', { sql: deleteSql });
-        
-        endOperation('test_lead_creation', { success: true, testLead: resultData[0] }, true);
-        return true;
-      } else {
-        endOperation('test_lead_creation', { error, data }, false);
-        return false;
-      }
-    } catch (error) {
-      endOperation('test_lead_creation', { error }, false);
-      return false;
-    }
-  }, [tenantSchema, startOperation, endOperation]);
-
-  const testLeadDeletion = useCallback(async () => {
-    if (!tenantSchema) return false;
-
-    try {
-      startOperation('test_lead_deletion');
-      
-      const testLead = {
-        name: `Test Delete Lead ${Date.now()}`,
-        phone: '888888888',
-        user_id: (await supabase.auth.getUser()).data.user?.id
-      };
-
-      // Create test lead
-      const createSql = `
-        INSERT INTO ${tenantSchema}.leads (name, phone, user_id)
-        VALUES ('${testLead.name}', '${testLead.phone}', '${testLead.user_id}')
-        RETURNING id
-      `;
-
-      const { data: createData, error: createError } = await supabase.rpc('exec_sql', { sql: createSql });
-      
-      const createResult = toLeadRecordArray(createData || []);
-      if (createError || createResult.length === 0) {
-        endOperation('test_lead_deletion', { createError }, false);
-        return false;
-      }
-
-      const leadId = createResult[0].id;
-
-      // Attempt to delete
-      const deleteSql = `DELETE FROM ${tenantSchema}.leads WHERE id = '${leadId}'`;
-      const { error: deleteError } = await supabase.rpc('exec_sql', { sql: deleteSql });
-
-      // Verify deletion
-      const verifySql = `SELECT COUNT(*) as count FROM ${tenantSchema}.leads WHERE id = '${leadId}'`;
-      const { data: verifyData, error: verifyError } = await supabase.rpc('exec_sql', { sql: verifySql });
-
-      const verifyResult = toCountResultArray(verifyData || []);
-      const actuallyDeleted = !verifyError && verifyResult.length > 0 && verifyResult[0].count === 0;
-
-      endOperation('test_lead_deletion', {
-        leadId,
-        deleteError,
-        verifyError,
-        actuallyDeleted,
-        remainingCount: verifyResult?.[0]?.count
-      }, actuallyDeleted);
-
-      return actuallyDeleted;
-    } catch (error) {
-      endOperation('test_lead_deletion', { error }, false);
-      return false;
-    }
-  }, [tenantSchema, startOperation, endOperation]);
-
-  const clearDebugLogs = useCallback(() => {
-    setDebugLogs([]);
-    console.log('🧹 Debug logs cleared');
+  const getOperationDuration = useCallback((operation: Operation): number => {
+    if (!operation.endTime) return 0;
+    return operation.endTime.getTime() - operation.startTime.getTime();
   }, []);
 
   return {
-    debugLogs,
-    isDebugging,
-    performHealthCheck,
-    testLeadCreation,
-    testLeadDeletion,
-    testDatabaseConnection,
-    testTenantSchema,
-    testTriggersStatus,
-    clearDebugLogs,
+    debugEvents,
+    operations,
+    isEnabled,
     addDebugLog,
     startOperation,
-    endOperation
+    endOperation,
+    clearLogs,
+    toggleDebugger,
+    getOperationDuration
   };
 }

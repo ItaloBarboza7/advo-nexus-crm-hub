@@ -574,6 +574,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_user_session_info: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       get_visible_action_groups: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -636,6 +640,10 @@ export type Database = {
       update_tenant_closed_contracts: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      validate_tenant_data_integrity: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
       }
     }
     Enums: {
