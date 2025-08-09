@@ -7,13 +7,46 @@ export function useLeadDialogs(leads?: Lead[]) {
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
 
-  // 🎯 ATUALIZAR selectedLead quando leads mudarem (para refletir mudanças de status)
+  // 🎯 EXPANDIDO: Atualizar selectedLead quando leads mudarem para qualquer campo alterado
   useEffect(() => {
     if (selectedLead && leads) {
       const updatedLead = leads.find(lead => lead.id === selectedLead.id);
-      if (updatedLead && updatedLead.status !== selectedLead.status) {
-        console.log(`🔄 useLeadDialogs - Atualizando selectedLead: ${selectedLead.name}, status: ${selectedLead.status} -> ${updatedLead.status}`);
-        setSelectedLead(updatedLead);
+      if (updatedLead) {
+        // Verificar se qualquer campo relevante mudou
+        const fieldsToCheck = [
+          'status', 'action_group', 'action_type', 'loss_reason', 
+          'source', 'state', 'value', 'updated_at'
+        ] as const;
+        
+        const hasChanges = fieldsToCheck.some(field => {
+          const oldValue = selectedLead[field];
+          const newValue = updatedLead[field];
+          return oldValue !== newValue;
+        });
+
+        if (hasChanges) {
+          console.log(`🔄 useLeadDialogs - Sync selectedLead: ${selectedLead.name}, mudanças detectadas:`, {
+            old: {
+              status: selectedLead.status,
+              action_group: selectedLead.action_group,
+              action_type: selectedLead.action_type,
+              loss_reason: selectedLead.loss_reason,
+              source: selectedLead.source,
+              state: selectedLead.state,
+              value: selectedLead.value
+            },
+            new: {
+              status: updatedLead.status,
+              action_group: updatedLead.action_group,
+              action_type: updatedLead.action_type,
+              loss_reason: updatedLead.loss_reason,
+              source: updatedLead.source,
+              state: updatedLead.state,
+              value: updatedLead.value
+            }
+          });
+          setSelectedLead(updatedLead);
+        }
       }
     }
   }, [leads, selectedLead]);

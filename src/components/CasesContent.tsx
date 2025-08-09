@@ -34,7 +34,7 @@ export function CasesContent() {
   const [isInitialized, setIsInitialized] = useState(false);
   
   // Use team data hook for analysis
-  const { leads: allLeads, isLoading } = useLeadsData();
+  const { leads: allLeads, isLoading, refreshData } = useLeadsData();
   const { lossReasons } = useLossReasonsGlobal();
   const { statusHistory, hasLeadPassedThroughStatus } = useLeadStatusHistory();
   const { isOpportunityLead } = useOpportunityLogic(hasLeadPassedThroughStatus);
@@ -60,10 +60,10 @@ export function CasesContent() {
     isEditFormOpen,
     setIsEditFormOpen,
     handleViewDetails,
-    handleEditLead
-  } = useLeadDialogs();
+    handleEditLead,
+    handleLeadUpdated
+  } = useLeadDialogs(allLeads);
 
-  // Filter team leads by date range
   const getFilteredLeads = useCallback(() => {
     if (!allLeads || allLeads.length === 0) return [];
     
@@ -183,8 +183,14 @@ export function CasesContent() {
   };
 
   const handleRefresh = () => {
-    // Refresh is handled automatically by useLeadsData
-    console.log("🔄 CasesContent - Refresh solicitado");
+    console.log("🔄 CasesContent - Refresh solicitado, forçando atualização dos dados");
+    refreshData({ forceRefresh: true, source: 'cases_content_refresh' });
+  };
+
+  const handleLeadUpdatedWrapper = () => {
+    console.log("🔄 CasesContent - Lead updated, forçando refresh dos dados para refletir mudanças imediatamente");
+    refreshData({ forceRefresh: true, source: 'lead_updated_cases' });
+    handleLeadUpdated(); // Chama o callback original que fecha os modais
   };
 
   console.log("📊 CasesContent - Estado atual:", {
@@ -306,7 +312,7 @@ export function CasesContent() {
         isEditFormOpen={isEditFormOpen}
         setIsEditFormOpen={setIsEditFormOpen}
         onEditLead={handleEditLead}
-        onLeadUpdated={handleRefresh}
+        onLeadUpdated={handleLeadUpdatedWrapper}
       />
     </div>
   );
