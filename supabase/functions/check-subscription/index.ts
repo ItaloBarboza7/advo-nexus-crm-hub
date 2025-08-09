@@ -101,19 +101,41 @@ serve(async (req: Request) => {
         stripeCustomer = customers.data[0];
         logStep("Customer found", { customerId: stripeCustomer.id });
 
-        // Check for active subscriptions
+        // Check for active AND trial subscriptions (including canceled ones still in period)
         const subscriptions = await stripe.subscriptions.list({
           customer: stripeCustomer.id,
-          status: 'active',
           limit: 10
         });
 
-        if (subscriptions.data.length > 0) {
-          const subscription = subscriptions.data[0];
-          hasActiveSubscription = true;
-          subscriptionEnd = new Date(subscription.current_period_end * 1000);
+        // Find the best subscription (active, trialing, or canceled but still in period)
+        let bestSubscription = null;
+        for (const sub of subscriptions.data) {
+          const periodEnd = new Date(sub.current_period_end * 1000);
+          const now = new Date();
           
-          const plan = subscription.items.data[0]?.price;
+          logStep("Checking subscription", {
+            subscriptionId: sub.id,
+            status: sub.status,
+            cancelAtPeriodEnd: sub.cancel_at_period_end,
+            currentPeriodEnd: periodEnd,
+            isInActivePeriod: periodEnd > now
+          });
+
+          // Consider subscription active if:
+          // 1. Status is 'active' or 'trialing'
+          // 2. OR if it's canceled but still in the paid period
+          if (sub.status === 'active' || sub.status === 'trialing' || 
+             (sub.status === 'canceled' && periodEnd > now)) {
+            bestSubscription = sub;
+            break;
+          }
+        }
+
+        if (bestSubscription) {
+          hasActiveSubscription = true;
+          subscriptionEnd = new Date(bestSubscription.current_period_end * 1000);
+          
+          const plan = bestSubscription.items.data[0]?.price;
           if (plan?.unit_amount === 15700) {
             subscriptionTier = "CRM Profissional - Mensal";
           } else if (plan?.unit_amount === 9900) {
@@ -123,7 +145,9 @@ serve(async (req: Request) => {
           }
 
           logStep("Active subscription found", {
-            subscriptionId: subscription.id,
+            subscriptionId: bestSubscription.id,
+            status: bestSubscription.status,
+            cancelAtPeriodEnd: bestSubscription.cancel_at_period_end,
             tier: subscriptionTier,
             periodEnd: subscriptionEnd
           });
