@@ -1,10 +1,10 @@
-
 import { useSubscriptionDetails } from "@/hooks/useSubscriptionDetails";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
-import { AlertCircle, CheckCircle, XCircle, Clock, RefreshCw } from "lucide-react";
+import { AlertCircle, CheckCircle, XCircle, Clock, RefreshCw, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function SubscriptionAndPaymentPanel() {
   const {
@@ -17,19 +17,24 @@ export function SubscriptionAndPaymentPanel() {
     isLoading,
     error,
     isPending,
-    refreshSubscription
+    refreshSubscription,
+    debugInfo
   } = useSubscriptionDetails();
   const { toast } = useToast();
   const [showCardInfo, setShowCardInfo] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isOpeningPortal, setIsOpeningPortal] = useState(false);
 
+  // Check if user is a member based on debug info
+  const isMember = debugInfo?.is_member_delegated;
+  const adminEmail = debugInfo?.admin_email;
+
   async function handleChangeCard() {
     console.log("🔄 handleChangeCard: Iniciando chamada à customer-portal Edge Function...");
     setIsOpeningPortal(true);
     
     try {
-      const { data, error } = await supabase.functions.invoke('customer-portal', { 
+      const { data, error } = await supabase.functions.invoke('customer-portal', {
         body: {},
         headers: {
           'Content-Type': 'application/json'
@@ -76,6 +81,16 @@ export function SubscriptionAndPaymentPanel() {
       if (!data.success) {
         console.error("❌ Função retornou erro:", data);
         const errorMessage = data.error || "Erro desconhecido do portal de pagamentos";
+        
+        // Special handling for member access error
+        if (data.is_member) {
+          toast({
+            title: "Acesso Restrito",
+            description: data.message || "Contas de membros não podem gerenciar assinaturas",
+            variant: "destructive",
+          });
+          return;
+        }
         
         toast({
           title: "Erro ao acessar portal do Stripe",
@@ -214,6 +229,14 @@ export function SubscriptionAndPaymentPanel() {
           <div className="flex-1">
             <p className="text-sm text-yellow-800 mb-1">Nenhum plano ativo encontrado</p>
             <p className="text-xs text-yellow-600">Entre em contato para ativar sua assinatura</p>
+            {isMember && adminEmail && (
+              <div className="mt-2 flex items-center gap-1">
+                <Info className="h-3 w-3 text-blue-500" />
+                <p className="text-xs text-blue-600">
+                  Conta membro vinculada ao administrador: {adminEmail}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -236,18 +259,32 @@ export function SubscriptionAndPaymentPanel() {
                   <StatusIcon className="h-3 w-3" />
                   {statusDisplay.text}
                 </div>
+                {isMember && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Info className="h-4 w-4 text-blue-500" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Conta membro - assinatura gerenciada pelo administrador: {adminEmail}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
               </div>
               <span className="block text-sm text-muted-foreground">
                 R$ {(amount/100).toFixed(2)} / mês
               </span>
             </div>
             <div className="flex gap-2">
-              <Button 
-                size="sm" 
-                onClick={() => setShowCardInfo(true)}
-              >
-                Configurar Pagamento
-              </Button>
+              {!isMember && (
+                <Button 
+                  size="sm" 
+                  onClick={() => setShowCardInfo(true)}
+                >
+                  Configurar Pagamento
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -271,39 +308,73 @@ export function SubscriptionAndPaymentPanel() {
                 <span className="mr-2 uppercase font-medium">{cardBrand}</span>
                 <span>•••• {cardLast4}</span>
                 <span className="text-xs text-muted-foreground ml-2">Venc: {cardExp}</span>
-                <Button 
-                  size="sm" 
-                  className="ml-auto" 
-                  onClick={handleChangeCard}
-                  disabled={isOpeningPortal}
-                >
-                  {isOpeningPortal ? (
-                    <>
-                      <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                      Abrindo...
-                    </>
-                  ) : (
-                    "Alterar forma de pagamento"
-                  )}
-                </Button>
+                {!isMember ? (
+                  <Button 
+                    size="sm" 
+                    className="ml-auto" 
+                    onClick={handleChangeCard}
+                    disabled={isOpeningPortal}
+                  >
+                    {isOpeningPortal ? (
+                      <>
+                        <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                        Abrindo...
+                      </>
+                    ) : (
+                      "Alterar forma de pagamento"
+                    )}
+                  </Button>
+                ) : (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="ml-auto">
+                          <Button size="sm" disabled className="cursor-not-allowed">
+                            Alterar forma de pagamento
+                          </Button>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Apenas o administrador ({adminEmail}) pode alterar a forma de pagamento</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
               </div>
             ) : (
               <div className="py-3">
                 <p className="text-sm text-muted-foreground mb-2">Não há cartão cadastrado.</p>
-                <Button 
-                  size="sm" 
-                  onClick={handleChangeCard}
-                  disabled={isOpeningPortal}
-                >
-                  {isOpeningPortal ? (
-                    <>
-                      <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                      Abrindo...
-                    </>
-                  ) : (
-                    "Adicionar pagamento"
-                  )}
-                </Button>
+                {!isMember ? (
+                  <Button 
+                    size="sm" 
+                    onClick={handleChangeCard}
+                    disabled={isOpeningPortal}
+                  >
+                    {isOpeningPortal ? (
+                      <>
+                        <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                        Abrindo...
+                      </>
+                    ) : (
+                      "Adicionar pagamento"
+                    )}
+                  </Button>
+                ) : (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div>
+                          <Button size="sm" disabled className="cursor-not-allowed">
+                            Adicionar pagamento
+                          </Button>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Apenas o administrador ({adminEmail}) pode gerenciar pagamentos</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
               </div>
             )}
           </div>

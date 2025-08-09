@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
@@ -149,6 +148,14 @@ serve(async (req: Request) => {
 
     // Initialize Supabase client
     const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+    
+    // 🔑 Create admin client for member access control
+    const supabaseAdmin = createClient(
+      supabaseUrl,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
+    );
+    
     logStep("Supabase client initialized successfully");
 
     // Extract and validate auth token
@@ -189,6 +196,47 @@ serve(async (req: Request) => {
       email: user.email,
       emailVerified: user.email_confirmed_at 
     });
+
+    // 🚫 Check if user is a member - members cannot access customer portal
+    logStep("=== MEMBER ACCESS CHECK ===");
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('user_profiles')
+      .select('parent_user_id, email as profile_email')
+      .eq('user_id', user.id)
+      .single();
+
+    if (profileError) {
+      logStep("Profile not found, treating as admin/standalone user", { error: profileError });
+    } else if (userProfile?.parent_user_id) {
+      // User is a member - deny access to portal
+      logStep("Member account detected - blocking portal access", {
+        memberId: user.id,
+        memberEmail: user.email,
+        adminId: userProfile.parent_user_id
+      });
+
+      // Get admin email for message
+      const { data: adminProfile } = await supabaseAdmin
+        .from('user_profiles')
+        .select('email')
+        .eq('user_id', userProfile.parent_user_id)
+        .single();
+
+      const adminEmail = adminProfile?.email || 'administrador';
+
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Acesso negado",
+        message: `Contas de membros não podem gerenciar assinaturas. Apenas o administrador (${adminEmail}) pode acessar o portal de pagamentos.`,
+        is_member: true,
+        admin_email: adminEmail
+      }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    } else {
+      logStep("User is administrator - allowing portal access", { userId: user.id });
+    }
 
     // Initialize Stripe client
     logStep("Initializing Stripe client");

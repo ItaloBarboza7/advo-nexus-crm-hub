@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
@@ -124,6 +123,13 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_ANON_KEY") ?? ""
     );
 
+    // 🔑 Create admin client for member delegation
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
+    );
+
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       logStep("ERROR: No authorization header");
@@ -146,6 +152,55 @@ serve(async (req) => {
       emailVerified: user.email_confirmed_at 
     });
 
+    // 🔍 Check if user is a member - get effective user for subscription check
+    logStep("=== MEMBER DELEGATION CHECK ===");
+    const { data: userProfile, error: profileError } = await supabaseAdmin
+      .from('user_profiles')
+      .select('parent_user_id, email as profile_email')
+      .eq('user_id', user.id)
+      .single();
+
+    let effectiveUserId = user.id;
+    let effectiveUserEmail = user.email;
+    let isMemberDelegated = false;
+    let adminEmail = null;
+
+    if (profileError) {
+      logStep("Profile not found or error fetching profile", { error: profileError });
+    } else if (userProfile?.parent_user_id) {
+      // User is a member - use parent (admin) user for subscription check
+      isMemberDelegated = true;
+      effectiveUserId = userProfile.parent_user_id;
+      
+      logStep("Member account detected, delegating to admin", {
+        memberId: user.id,
+        memberEmail: user.email,
+        adminId: userProfile.parent_user_id
+      });
+
+      // Get admin user details
+      const { data: adminProfile, error: adminProfileError } = await supabaseAdmin
+        .from('user_profiles')
+        .select('email')
+        .eq('user_id', userProfile.parent_user_id)
+        .single();
+
+      if (adminProfileError) {
+        logStep("ERROR: Could not fetch admin profile", { error: adminProfileError });
+        throw new Error("Erro ao buscar dados do administrador");
+      }
+
+      effectiveUserEmail = adminProfile.email;
+      adminEmail = adminProfile.email;
+      
+      logStep("Using admin for subscription check", {
+        adminId: effectiveUserId,
+        adminEmail: effectiveUserEmail
+      });
+    } else {
+      logStep("User is administrator or standalone user", { userId: user.id });
+    }
+
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) {
       logStep("ERROR: STRIPE_SECRET_KEY not configured");
@@ -155,15 +210,19 @@ serve(async (req) => {
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
     logStep("Stripe client initialized successfully");
 
-    // COMPREHENSIVE CUSTOMER SEARCH - Estratégias múltiplas aprimoradas
-    logStep("=== CUSTOMER SEARCH PHASE ===");
+    // COMPREHENSIVE CUSTOMER SEARCH - Using effective user email
+    logStep("=== CUSTOMER SEARCH PHASE ===", { 
+      effectiveUserEmail, 
+      effectiveUserId,
+      isMemberDelegated 
+    });
     
     const allFoundCustomers = new Map<string, any>();
     
-    // Estratégia 1: Busca por email exato
-    logStep("Strategy 1: Searching by exact email", { email: user.email });
+    // Estratégia 1: Busca por email exato (usando email efetivo)
+    logStep("Strategy 1: Searching by exact email", { email: effectiveUserEmail });
     try {
-      let customers = await stripe.customers.list({ email: user.email, limit: 10 });
+      let customers = await stripe.customers.list({ email: effectiveUserEmail, limit: 10 });
       logStep("Exact email search results", { 
         found: customers.data.length,
         customers: customers.data.map(c => ({ 
@@ -181,7 +240,7 @@ serve(async (req) => {
       logStep("Strategy 1 failed", { error });
     }
 
-    // Estratégia 2: Busca por Supabase user ID nos metadados
+    // Estratégia 2: Busca por Supabase user ID nos metadados (usando ID efetivo)
     logStep("Strategy 2: Searching by Supabase user ID in metadata");
     try {
       const allRecentCustomers = await stripe.customers.list({ 
@@ -190,7 +249,7 @@ serve(async (req) => {
       });
       
       const matchingByUserId = allRecentCustomers.data.filter(c => 
-        c.metadata?.supabase_user_id === user.id
+        c.metadata?.supabase_user_id === effectiveUserId
       );
       
       logStep("User ID metadata search results", { 
@@ -215,9 +274,9 @@ serve(async (req) => {
     try {
       const allCustomers = await stripe.customers.list({ limit: 100 });
       const matchingByPreviousEmail = allCustomers.data.filter(c => 
-        c.metadata?.previous_email?.toLowerCase() === user.email.toLowerCase() ||
-        c.email?.toLowerCase() !== user.email.toLowerCase() && 
-        c.metadata?.supabase_user_id === user.id
+        c.metadata?.previous_email?.toLowerCase() === effectiveUserEmail.toLowerCase() ||
+        c.email?.toLowerCase() !== effectiveUserEmail.toLowerCase() && 
+        c.metadata?.supabase_user_id === effectiveUserId
       );
       
       logStep("Previous email metadata search results", { 
@@ -243,7 +302,7 @@ serve(async (req) => {
       try {
         const allCustomers = await stripe.customers.list({ limit: 100 });
         const matchingCustomers = allCustomers.data.filter(c => 
-          c.email?.toLowerCase() === user.email.toLowerCase()
+          c.email?.toLowerCase() === effectiveUserEmail.toLowerCase()
         );
         
         logStep("Case-insensitive search results", { 
@@ -270,20 +329,33 @@ serve(async (req) => {
       candidateIds: candidateCustomers.map(c => c.id)
     });
 
-    // Se não encontrou clientes mas tem indicação de pagamento nos metadados do usuário
+    // Se não encontrou clientes mas tem indicação de pagamento nos metadados do usuário efetivo
     if (candidateCustomers.length === 0) {
       logStep("=== NO CUSTOMER FOUND - CHECKING USER METADATA ===");
       
-      const userPlanType = user.user_metadata?.plan_type;
-      const isPaymentConfirmed = user.user_metadata?.payment_confirmed;
-      const subscriptionCreatedAt = user.user_metadata?.subscription_created_at;
-      const stripeSessionId = user.user_metadata?.stripe_session_id;
+      // Para membros, verificar metadados do admin
+      let userToCheck = user;
+      if (isMemberDelegated) {
+        const { data: { user: adminUser }, error: adminUserError } = await supabaseAdmin.auth.admin.getUserById(effectiveUserId);
+        if (adminUserError) {
+          logStep("ERROR: Could not fetch admin user", { error: adminUserError });
+        } else {
+          userToCheck = adminUser;
+        }
+      }
+      
+      const userPlanType = userToCheck.user_metadata?.plan_type;
+      const isPaymentConfirmed = userToCheck.user_metadata?.payment_confirmed;
+      const subscriptionCreatedAt = userToCheck.user_metadata?.subscription_created_at;
+      const stripeSessionId = userToCheck.user_metadata?.stripe_session_id;
       
       logStep("User metadata analysis", { 
         userPlanType, 
         isPaymentConfirmed, 
         subscriptionCreatedAt,
-        stripeSessionId
+        stripeSessionId,
+        isMemberDelegated,
+        checkedUserId: userToCheck.id
       });
       
       // Tentar recuperar via session ID
@@ -322,6 +394,10 @@ serve(async (req) => {
           plan_name: userPlanType === 'monthly' ? "Plano Mensal (Processando)" : "Plano Anual (Processando)",
           amount: userPlanType === 'monthly' ? 15700 : 9900,
           status: "processing",
+          is_member_delegated: isMemberDelegated,
+          effective_user_id: effectiveUserId,
+          effective_user_email: effectiveUserEmail,
+          admin_email: adminEmail,
           debug: {
             reason: "payment_confirmed_no_customer",
             userPlanType,
@@ -341,10 +417,16 @@ serve(async (req) => {
       return new Response(JSON.stringify({
         success: true,
         hasSubscription: false,
-        message: "Usuário ainda não possui assinatura ativa",
+        message: isMemberDelegated 
+          ? `Conta membro - sem assinatura encontrada para o administrador (${adminEmail})`
+          : "Usuário ainda não possui assinatura ativa",
         plan_name: "Nenhum plano ativo",
         amount: 0,
         status: "inactive",
+        is_member_delegated: isMemberDelegated,
+        effective_user_id: effectiveUserId,
+        effective_user_email: effectiveUserEmail,
+        admin_email: adminEmail,
         debug: {
           reason: "no_customers_found",
           searchStrategiesUsed: ["exact_email", "user_id_metadata", "previous_email", "case_insensitive"]
@@ -356,7 +438,7 @@ serve(async (req) => {
     }
 
     // Encontrar o melhor cliente entre os candidatos
-    const bestCustomer = await findBestCustomer(stripe, candidateCustomers, user.id);
+    const bestCustomer = await findBestCustomer(stripe, candidateCustomers, effectiveUserId);
     if (!bestCustomer) {
       throw new Error("Falha ao determinar o melhor cliente");
     }
@@ -366,7 +448,9 @@ serve(async (req) => {
       customerId, 
       customerEmail: bestCustomer.email,
       customerCreated: bestCustomer.created,
-      customerMetadata: bestCustomer.metadata
+      customerMetadata: bestCustomer.metadata,
+      isMemberDelegated,
+      effectiveUserId
     });
 
     // COMPREHENSIVE SUBSCRIPTION SEARCH
@@ -434,7 +518,9 @@ serve(async (req) => {
         status: selectedSubscription.status,
         category: subscriptionCategory,
         currentPeriodEnd: selectedSubscription.current_period_end,
-        currentPeriodStart: selectedSubscription.current_period_start
+        currentPeriodStart: selectedSubscription.current_period_start,
+        isMemberDelegated,
+        effectiveUserId
       });
 
       const item = selectedSubscription.items.data[0];
@@ -503,7 +589,9 @@ serve(async (req) => {
       const responseData = {
         success: true,
         hasSubscription: true,
-        plan_name: getPlanName(plan.unit_amount || 0, plan.nickname),
+        plan_name: isMemberDelegated 
+          ? `${getPlanName(plan.unit_amount || 0, plan.nickname)} (Conta Administradora)`
+          : getPlanName(plan.unit_amount || 0, plan.nickname),
         amount: plan.unit_amount || 0,
         card_brand: cardBrand,
         card_last4: cardLast4,
@@ -512,6 +600,10 @@ serve(async (req) => {
         status: selectedSubscription.status,
         subscription_id: selectedSubscription.id,
         current_period_end: selectedSubscription.current_period_end,
+        is_member_delegated: isMemberDelegated,
+        effective_user_id: effectiveUserId,
+        effective_user_email: effectiveUserEmail,
+        admin_email: adminEmail,
         debug: {
           subscriptionCategory,
           customerId,
@@ -519,6 +611,7 @@ serve(async (req) => {
           totalSubscriptionsFound: allSubscriptions.data.length,
           totalCustomerCandidates: candidateCustomers.length,
           consolidationUsed: true,
+          memberDelegation: isMemberDelegated,
           searchStrategiesUsed: ["exact_email", "user_id_metadata", "previous_email", "case_insensitive"]
         }
       };
@@ -552,6 +645,10 @@ serve(async (req) => {
         amount: plan.unit_amount || 0,
         status: "processing",
         subscription_id: incompleteSubscription.id,
+        is_member_delegated: isMemberDelegated,
+        effective_user_id: effectiveUserId,
+        effective_user_email: effectiveUserEmail,
+        admin_email: adminEmail,
         debug: {
           reason: "incomplete_subscription",
           subscriptionId: incompleteSubscription.id,
@@ -569,10 +666,16 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       success: true,
       hasSubscription: false,
-      message: "Nenhuma assinatura ativa encontrada",
+      message: isMemberDelegated 
+        ? `Conta membro - nenhuma assinatura ativa encontrada para o administrador (${adminEmail})`
+        : "Nenhuma assinatura ativa encontrada",
       plan_name: "Nenhum plano ativo",
       amount: 0,
       status: "inactive",
+      is_member_delegated: isMemberDelegated,
+      effective_user_id: effectiveUserId,
+      effective_user_email: effectiveUserEmail,
+      admin_email: adminEmail,
       debug: {
         reason: "no_valid_subscriptions",
         customerId,
