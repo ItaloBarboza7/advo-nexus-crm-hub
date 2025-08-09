@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { AuthChangeEvent } from '@supabase/supabase-js';
@@ -82,38 +81,10 @@ export function useTenantSchema() {
       return;
     }
 
-    try {
-      console.log(`🏗️ Garantindo tabela completed_followups no esquema ${schema}...`);
-      
-      const { error } = await supabase.rpc('exec_sql', {
-        sql: `
-          CREATE TABLE IF NOT EXISTS ${schema}.completed_followups (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            lead_id UUID NOT NULL,
-            user_id UUID NOT NULL,
-            lead_status_at_completion TEXT NOT NULL,
-            completed_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-            created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-            UNIQUE(lead_id, user_id)
-          );
-          
-          CREATE INDEX IF NOT EXISTS idx_completed_followups_lead_user 
-          ON ${schema}.completed_followups(lead_id, user_id);
-          
-          CREATE INDEX IF NOT EXISTS idx_completed_followups_completed_at 
-          ON ${schema}.completed_followups(completed_at);
-        `
-      });
-
-      if (error) {
-        console.error('❌ Erro ao criar tabela completed_followups:', error);
-      } else {
-        console.log(`✅ Tabela completed_followups garantida no esquema ${schema}`);
-        processedSchemas.add(schema);
-      }
-    } catch (error) {
-      console.error('❌ Erro inesperado ao criar tabela completed_followups:', error);
-    }
+    // A partir do endurecimento do exec_sql (somente SELECT), DDL deve ser feito no backend.
+    // O ensure_tenant_schema já garante a existência desta tabela. Mantemos apenas o marcador local.
+    console.log(`🔒 Skipping client-side DDL for completed_followups; ensured by ensure_tenant_schema on backend for schema ${schema}.`);
+    processedSchemas.add(schema);
   };
 
   const ensureTenantSchema = useCallback(async (retryAttempt: number = 0): Promise<string | null> => {
@@ -161,9 +132,6 @@ export function useTenantSchema() {
         
         const schema = data as string;
         console.log(`✅ useTenantSchema - Esquema do tenant: ${schema}`);
-        
-        // Garantir que a tabela completed_followups existe no esquema do tenant
-        await ensureCompletedFollowupsTable(schema);
         
         // Atualizar cache global
         globalTenantSchema = schema;

@@ -81,21 +81,24 @@ export function useUserPermissions() {
         .eq('permission_type', permissionType)
         .single();
 
-      if (error) {
-        // Se não encontrar a permissão, verifica se é admin
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('parent_user_id')
-          .eq('user_id', user.id)
-          .single();
-
-        // Se não tem parent_user_id, é admin e tem todas as permissões
-        return !profile?.parent_user_id;
+      // Se a permissão existe, retornar seu valor explicitamente
+      if (data && typeof data.granted === 'boolean') {
+        return data.granted;
       }
 
-      return data?.granted || false;
+      // Caso não exista permissão específica, verificar se é admin via perfil
+      // IMPORTANTE: Só concede se o perfil existir e indicar admin (parent_user_id NULL)
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('parent_user_id')
+        .eq('user_id', user.id)
+        .single();
+
+      const isAdmin = !!profile && profile.parent_user_id === null;
+      return isAdmin;
     } catch (error) {
       console.error('Erro ao verificar permissão do usuário atual:', error);
+      // Em erro, negar por padrão para evitar escalonamento de privilégio
       return false;
     }
   };
@@ -113,3 +116,4 @@ export function useUserPermissions() {
     refreshPermissions: fetchPermissions
   };
 }
+

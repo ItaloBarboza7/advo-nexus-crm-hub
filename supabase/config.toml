@@ -2,7 +2,7 @@
 project_id = "xltugnmjbcowsuwzkkni"
 
 [functions.customer-portal]
-verify_jwt = false
+verify_jwt = true
 
 [functions.create-payment]
 verify_jwt = false
@@ -11,4 +11,4 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.update-user-email]
-verify_jwt = false
+verify_jwt = true
