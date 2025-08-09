@@ -120,28 +120,39 @@ export function useEnhancedLeadsData() {
       console.log('🔄 useEnhancedLeadsData - Updating lead:', leadId, updates);
 
       // Construir a query de update dinamicamente
-      const updateFields = Object.keys(updates)
-        .filter(key => updates[key as keyof Lead] !== undefined)
-        .map(key => `${key} = $${Object.keys(updates).indexOf(key) + 2}`)
-        .join(', ');
+      const updateFields = [];
+      const values = [leadId];
+      
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value !== undefined) {
+          values.push(value);
+          updateFields.push(`${key} = $${values.length}`);
+        }
+      });
 
-      if (!updateFields) {
+      if (updateFields.length === 0) {
         console.warn('⚠️ updateLead - Nenhum campo para atualizar');
         return false;
       }
 
       const sql = `
         UPDATE ${tenantSchema}.leads 
-        SET ${updateFields}, updated_at = now()
+        SET ${updateFields.join(', ')}, updated_at = now()
         WHERE id = $1
         RETURNING *
       `;
 
-      const values = [leadId, ...Object.values(updates).filter(v => v !== undefined)];
+      // Para exec_sql, precisamos construir a query com valores literais
+      let finalSql = sql;
+      for (let i = values.length - 1; i >= 0; i--) {
+        const value = values[i];
+        const placeholder = `$${i + 1}`;
+        const literalValue = value === null ? 'NULL' : `'${String(value).replace(/'/g, "''")}'`;
+        finalSql = finalSql.replace(new RegExp(`\\${placeholder}`, 'g'), literalValue);
+      }
       
       const { data, error: updateError } = await supabase.rpc('exec_sql', {
-        sql,
-        params: values
+        sql: finalSql
       });
 
       if (updateError) {
