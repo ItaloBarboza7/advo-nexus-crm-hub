@@ -50,11 +50,28 @@ export function useSubscriptionDetails() {
 
       console.log("👤 Usuário autenticado:", user.email);
 
-      // Check local subscription data
+      // Determine effective user ID (admin for members)
+      const { data: userProfile } = await supabase
+        .from('user_profiles')
+        .select('parent_user_id, email')
+        .eq('user_id', user.id)
+        .single();
+
+      const effectiveUserId = userProfile?.parent_user_id || user.id;
+      const isMember = !!userProfile?.parent_user_id;
+
+      console.log("📊 Determinando usuário efetivo:", {
+        originalUserId: user.id,
+        effectiveUserId,
+        isMember
+      });
+
+      // Check local subscription data using effective user ID
       console.log("📊 Buscando dados locais da assinatura...");
       const { data: localSubscription, error: localError } = await supabase
         .from('subscribers')
         .select('*')
+        .eq('user_id', effectiveUserId)
         .single();
 
       const now = new Date();
@@ -106,7 +123,10 @@ export function useSubscriptionDetails() {
         const hasActiveAccess = checkResult.subscribed || 
           (subscriptionEnd && subscriptionEnd > now);
 
-        await updateDetailsWithData(checkResult, hasActiveAccess, "fresh_check");
+        await updateDetailsWithData(checkResult, hasActiveAccess, "fresh_check", {
+          is_member: checkResult.is_member,
+          effective_user_id: checkResult.effective_user_id
+        });
       } else {
         // Use local data
         const subscriptionEnd = localSubscription.subscription_end ? 
@@ -117,10 +137,15 @@ export function useSubscriptionDetails() {
         console.log("✅ Usando dados locais:", {
           subscribed: localSubscription.subscribed,
           subscription_end: subscriptionEnd,
-          hasActiveAccess
+          hasActiveAccess,
+          effectiveUserId,
+          isMember
         });
 
-        await updateDetailsWithData(localSubscription, hasActiveAccess, "local_data");
+        await updateDetailsWithData(localSubscription, hasActiveAccess, "local_data", {
+          is_member: isMember,
+          effective_user_id: effectiveUserId
+        });
       }
       
     } catch (error) {
@@ -143,7 +168,7 @@ export function useSubscriptionDetails() {
     }
   }, []);
 
-  const updateDetailsWithData = async (subscriptionData: any, hasActiveAccess: boolean, source: string) => {
+  const updateDetailsWithData = async (subscriptionData: any, hasActiveAccess: boolean, source: string, extraInfo?: any) => {
     if (hasActiveAccess) {
       // Get card details if subscription is active
       let cardBrand = "";
@@ -176,7 +201,8 @@ export function useSubscriptionDetails() {
           source,
           subscribed: subscriptionData.subscribed,
           subscription_end: subscriptionData.subscription_end,
-          is_member_delegated: subscriptionData.is_member || false,
+          is_member_delegated: extraInfo?.is_member || false,
+          effective_user_id: extraInfo?.effective_user_id,
           last_checked: subscriptionData.last_checked
         }
       });
@@ -194,6 +220,8 @@ export function useSubscriptionDetails() {
           source,
           subscribed: subscriptionData.subscribed,
           subscription_end: subscriptionData.subscription_end,
+          is_member_delegated: extraInfo?.is_member || false,
+          effective_user_id: extraInfo?.effective_user_id,
           last_checked: subscriptionData.last_checked
         }
       });

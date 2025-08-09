@@ -46,10 +46,27 @@ export function useSubscriptionControl(): SubscriptionControlState {
 
         console.log("👤 Usuário autenticado:", user.email);
 
-        // Check local subscription status
+        // Determine effective user ID (admin for members)
+        const { data: userProfile } = await supabase
+          .from('user_profiles')
+          .select('parent_user_id')
+          .eq('user_id', user.id)
+          .single();
+
+        const effectiveUserId = userProfile?.parent_user_id || user.id;
+        const isMember = !!userProfile?.parent_user_id;
+
+        console.log("📊 Determinando usuário efetivo:", {
+          originalUserId: user.id,
+          effectiveUserId,
+          isMember
+        });
+
+        // Check local subscription status using effective user ID
         const { data: localSubscription, error: localError } = await supabase
           .from('subscribers')
           .select('subscribed, subscription_end, last_checked')
+          .eq('user_id', effectiveUserId)
           .single();
 
         const now = new Date();
@@ -74,7 +91,8 @@ export function useSubscriptionControl(): SubscriptionControlState {
             subscription_end: subscriptionEnd,
             hasActivePeriod,
             isDataStale,
-            isInconsistent
+            isInconsistent,
+            effectiveUserId
           });
 
           if (isDataStale || isInconsistent) {
@@ -112,7 +130,9 @@ export function useSubscriptionControl(): SubscriptionControlState {
           console.log("✅ Dados atualizados:", {
             subscribed: checkResult.subscribed,
             subscription_end: checkResult.subscription_end,
-            hasActiveAccess
+            hasActiveAccess,
+            is_member: checkResult.is_member,
+            effective_user_id: checkResult.effective_user_id
           });
 
           setIsBlocked(!hasActiveAccess);
@@ -128,7 +148,9 @@ export function useSubscriptionControl(): SubscriptionControlState {
           console.log("✅ Usando dados locais:", {
             subscribed: localSubscription.subscribed,
             subscription_end: subscriptionEnd,
-            hasActiveAccess
+            hasActiveAccess,
+            effectiveUserId,
+            isMember
           });
 
           setIsBlocked(!hasActiveAccess);

@@ -48,10 +48,10 @@ serve(async (req: Request) => {
 
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    // Get effective user ID (admin for members)
+    // Get effective user ID and email (admin for members)
     const { data: userProfile } = await supabaseAdmin
       .from('user_profiles')
-      .select('parent_user_id, email as profile_email')
+      .select('parent_user_id, email')
       .eq('user_id', user.id)
       .single();
 
@@ -161,7 +161,7 @@ serve(async (req: Request) => {
       logStep("Stripe search failed", { error: stripeError });
     }
 
-    // Update subscribers table
+    // Update subscribers table using EFFECTIVE user ID (always admin)
     const subscriberData = {
       user_id: effectiveUserId,
       email: effectiveUserEmail,
@@ -183,6 +183,19 @@ serve(async (req: Request) => {
     if (upsertError) {
       logStep("Failed to update subscribers table", { error: upsertError });
       throw new Error("Failed to update subscription status");
+    }
+
+    // Clean up any stale member-specific records if this is a member
+    if (isMember) {
+      logStep("Cleaning up stale member records", { memberId: user.id });
+      const { error: cleanupError } = await supabaseAdmin
+        .from('subscribers')
+        .delete()
+        .eq('user_id', user.id);
+      
+      if (cleanupError && !cleanupError.message.includes('No rows')) {
+        logStep("Warning: Failed to cleanup member records", { error: cleanupError });
+      }
     }
 
     logStep("Subscription status updated successfully", subscriberData);
