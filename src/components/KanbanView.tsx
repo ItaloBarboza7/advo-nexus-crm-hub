@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
@@ -62,6 +61,7 @@ export function KanbanView({
 
   // Sincronizar leads quando props mudarem
   React.useEffect(() => {
+    console.log(`🔄 KanbanView - Sincronizando localLeads com props, ${leads.length} leads recebidos`);
     setLocalLeads(leads);
   }, [leads]);
 
@@ -101,6 +101,7 @@ export function KanbanView({
     return localLeads.filter(lead => lead.status === statusId);
   };
 
+  // 🎯 FUNÇÃO CORRIGIDA: handleStatusChange com logs detalhados e evitar dupla atualização otimista
   const handleStatusChange = async (leadId: string, newStatus: string) => {
     if (!canAccessFeature('edit_lead')) {
       toast({
@@ -112,24 +113,29 @@ export function KanbanView({
     }
 
     try {
-      console.log(`🔄 KanbanView - Alterando status do lead ${leadId} para ${newStatus}`);
+      console.log(`🔄 KanbanView.handleStatusChange - Lead: ${leadId}, Status: ${newStatus}, barbozaeribeiro@gmail.com debug`);
       
-      // Atualizar o estado local imediatamente para feedback visual instantâneo
-      setLocalLeads(prevLeads => 
-        prevLeads.map(lead => 
-          lead.id === leadId 
-            ? { ...lead, status: newStatus }
-            : lead
-        )
-      );
+      // 🎯 APENAS atualizar localLeads se NÃO há custom handler (para evitar dupla atualização otimista)
+      if (!onStatusChange) {
+        console.log(`✨ KanbanView - Atualizando localLeads otimisticamente (sem custom handler)`);
+        setLocalLeads(prevLeads => 
+          prevLeads.map(lead => 
+            lead.id === leadId 
+              ? { ...lead, status: newStatus }
+              : lead
+          )
+        );
+      }
       
       // If there's a custom status change handler (for loss reason logic), use it
       if (onStatusChange) {
+        console.log(`🔄 KanbanView - Delegando para custom onStatusChange handler`);
         onStatusChange(leadId, newStatus);
         return;
       }
       
       // Otherwise, proceed with direct update
+      console.log(`🔄 KanbanView - Executando update direto via useSimpleLeadOperations`);
       const success = await updateLead(leadId, { status: newStatus });
       
       if (success) {
@@ -149,14 +155,16 @@ export function KanbanView({
     } catch (error) {
       console.error('❌ Erro ao alterar status:', error);
       
-      // Reverter a mudança local em caso de erro
-      setLocalLeads(prevLeads => 
-        prevLeads.map(lead => 
-          lead.id === leadId 
-            ? { ...lead, status: leads.find(l => l.id === leadId)?.status || lead.status }
-            : lead
-        )
-      );
+      // Reverter a mudança local em caso de erro (apenas se não há custom handler)
+      if (!onStatusChange) {
+        setLocalLeads(prevLeads => 
+          prevLeads.map(lead => 
+            lead.id === leadId 
+              ? { ...lead, status: leads.find(l => l.id === leadId)?.status || lead.status }
+              : lead
+          )
+        );
+      }
       
       toast({
         title: "Erro",
@@ -167,6 +175,7 @@ export function KanbanView({
   };
 
   const onDragStart = (e: React.DragEvent, leadId: string) => {
+    console.log(`🎯 KanbanView - Drag iniciado para lead: ${leadId}`);
     e.dataTransfer.setData("text/plain", leadId);
   };
 
@@ -178,7 +187,36 @@ export function KanbanView({
     e.preventDefault();
     const leadId = e.dataTransfer.getData("text/plain");
     if (leadId) {
+      console.log(`🎯 KanbanView - Drop executado para lead: ${leadId} -> status: ${newStatus}`);
       await handleStatusChange(leadId, newStatus);
+    }
+  };
+
+  // 🎯 FUNÇÃO CORRIGIDA: handleViewDetails com merge do status atual do localLeads
+  const handleViewDetails = (leadId: string) => {
+    console.log(`🔍 KanbanView.handleViewDetails - Abrindo detalhes para lead: ${leadId}, barbozaeribeiro@gmail.com debug`);
+    
+    const originalLead = originalLeads.find(l => l.id === leadId);
+    const localLead = localLeads.find(l => l.id === leadId);
+    
+    if (originalLead && localLead) {
+      // 🎯 MERGE: Usar dados originais mas com status atualizado do localLeads
+      const mergedLead: Lead = {
+        ...originalLead,
+        status: localLead.status, // Usar status atualizado do Kanban
+        updated_at: new Date().toISOString() // Simular atualização recente
+      };
+      
+      console.log(`🔄 KanbanView - Lead mesclado para detalhes:`, {
+        originalStatus: originalLead.status,
+        localStatus: localLead.status,
+        finalStatus: mergedLead.status,
+        leadName: mergedLead.name
+      });
+      
+      onViewDetails(mergedLead);
+    } else {
+      console.error(`❌ KanbanView - Lead não encontrado para detalhes: ${leadId}`);
     }
   };
 
@@ -239,10 +277,7 @@ export function KanbanView({
                           size="sm"
                           variant="ghost"
                           className="h-6 w-6 p-0"
-                          onClick={() => {
-                            const originalLead = originalLeads.find(l => l.id === lead.id);
-                            if (originalLead) onViewDetails(originalLead);
-                          }}
+                          onClick={() => handleViewDetails(lead.id)}
                         >
                           <Eye className="h-3 w-3" />
                         </Button>

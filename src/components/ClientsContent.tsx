@@ -44,6 +44,7 @@ export function ClientsContent() {
   // Use unified simple operations for delete operations only
   const { deleteLead } = useSimpleLeadOperations();
   
+  // 🎯 PASSAR leads para useLeadDialogs para permitir atualizações do selectedLead
   const {
     selectedLead,
     isDetailsDialogOpen,
@@ -53,7 +54,7 @@ export function ClientsContent() {
     handleViewDetails,
     handleEditLead,
     handleLeadUpdated
-  } = useLeadDialogs();
+  } = useLeadDialogs(leads);
 
   const filteredData = leads?.filter((lead) => {
     // Search filter
@@ -138,6 +139,7 @@ export function ClientsContent() {
     }
   };
 
+  // 🎯 FUNÇÃO CORRIGIDA: handleStatusChange com logs detalhados e atualização do selectedLead
   const handleStatusChange = async (leadId: string, newStatus: string, lossReason?: string) => {
     if (!canAccessFeature('edit_lead')) {
       toast({
@@ -147,17 +149,26 @@ export function ClientsContent() {
       });
       return;
     }
+
+    console.log(`🔄 ClientsContent.handleStatusChange - Lead: ${leadId}, Status: ${newStatus}, LossReason: ${lossReason}, barbozaeribeiro@gmail.com debug`);
     
     if (newStatus === "Perdido" && !lossReason) {
       const lead = filteredData?.find(l => l.id === leadId);
       if (lead) {
+        console.log(`❓ ClientsContent - Solicitando motivo de perda para lead: ${lead.name}`);
         setLossReasonLead(lead);
         return;
       }
     }
     
     const success = await updateLead(leadId, { status: newStatus, loss_reason: lossReason });
-    if (!success) {
+    if (success) {
+      console.log(`✅ ClientsContent - Status atualizado com sucesso, refreshing data`);
+      
+      // Note: selectedLead será atualizado automaticamente pelo useLeadDialogs quando leads mudar via useEffect
+      refreshData({ forceRefresh: true, source: 'status_change_clientscontent' });
+    } else {
+      console.error(`❌ ClientsContent - Falha ao atualizar status do lead ${leadId}`);
       toast({
         title: "Erro",
         description: "Não foi possível atualizar o status do lead.",
@@ -208,12 +219,14 @@ export function ClientsContent() {
 
   const handleLossReasonConfirm = (reason: string) => {
     if (lossReasonLead) {
+      console.log(`🎯 ClientsContent - Confirmando motivo de perda para lead ${lossReasonLead.name}: ${reason}`);
       handleStatusChange(lossReasonLead.id, "Perdido", reason);
       setLossReasonLead(null);
     }
   };
 
   const handleLossReasonCancel = () => {
+    console.log(`❌ ClientsContent - Cancelando alteração de status para Perdido`);
     setLossReasonLead(null);
   };
 

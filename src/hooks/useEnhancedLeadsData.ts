@@ -108,7 +108,7 @@ export function useEnhancedLeadsData() {
     refetch();
   }, [refetch]);
 
-  // Função updateLead para compatibilidade com componentes antigos
+  // Função updateLead OTIMISTA para compatibilidade com componentes antigos
   const updateLead = useCallback(async (leadId: string, updates: Partial<Lead>) => {
     if (!tenantSchema) {
       console.error('❌ updateLead - Tenant schema não disponível');
@@ -116,7 +116,19 @@ export function useEnhancedLeadsData() {
     }
 
     try {
-      console.log('🔄 useEnhancedLeadsData - Updating lead:', leadId, updates);
+      console.log('🔄 useEnhancedLeadsData - Updating lead OPTIMISTICALLY:', leadId, updates);
+
+      // 🎯 ATUALIZAÇÃO OTIMISTA IMEDIATA - Atualizar estado local primeiro
+      const previousLeads = leads;
+      setLeads(prevLeads =>
+        prevLeads.map(lead =>
+          lead.id === leadId 
+            ? { ...lead, ...updates, updated_at: new Date().toISOString() }
+            : lead
+        )
+      );
+      
+      console.log('✨ Estado local atualizado otimisticamente para lead:', leadId, 'barbozaeribeiro@gmail.com debug');
 
       // Construir a query de update dinamicamente
       const updateFields: string[] = [];
@@ -131,14 +143,13 @@ export function useEnhancedLeadsData() {
 
       if (updateFields.length === 0) {
         console.warn('⚠️ updateLead - Nenhum campo para atualizar');
-        return false;
+        return true; // Retorna sucesso pois não há nada para atualizar
       }
 
       const sql = `
         UPDATE ${tenantSchema}.leads 
         SET ${updateFields.join(', ')}, updated_at = now()
         WHERE id = $1
-        RETURNING *
       `;
 
       // Para exec_sql, precisamos construir a query com valores literais
@@ -151,12 +162,16 @@ export function useEnhancedLeadsData() {
         finalSql = finalSql.replace(new RegExp(`\\${placeholder}`, 'g'), literalValue);
       }
 
-      const { data, error: updateError } = await supabase.rpc('exec_sql', {
+      const { error: updateError } = await supabase.rpc('exec_sql', {
         sql: finalSql,
       });
 
       if (updateError) {
-        console.error('❌ Erro ao atualizar lead:', updateError);
+        console.error('❌ Erro ao atualizar lead no backend, revertendo estado local:', updateError);
+        
+        // ❌ ROLLBACK: Reverter estado local em caso de erro
+        setLeads(previousLeads);
+        
         toast({
           title: "Erro",
           description: "Não foi possível atualizar o lead.",
@@ -165,20 +180,20 @@ export function useEnhancedLeadsData() {
         return false;
       }
 
-      // Atualizar o lead local
-      const updatedLeadData = toLeadRecordArray(data);
-      if (updatedLeadData.length > 0) {
-        setLeads(prevLeads =>
-          prevLeads.map(lead =>
-            lead.id === leadId ? updatedLeadData[0] : lead
-          )
-        );
-      }
-
-      console.log('✅ Lead atualizado com sucesso');
+      console.log('✅ Lead atualizado com sucesso no backend e estado local já está correto');
       return true;
     } catch (error: any) {
-      console.error('❌ Erro inesperado ao atualizar lead:', error);
+      console.error('❌ Erro inesperado ao atualizar lead, revertendo estado local:', error);
+      
+      // ❌ ROLLBACK: Reverter para estado anterior em caso de erro
+      setLeads(prevLeads =>
+        prevLeads.map(lead =>
+          lead.id === leadId && leads.find(l => l.id === leadId)
+            ? leads.find(l => l.id === leadId)!
+            : lead
+        )
+      );
+      
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado ao atualizar o lead.",
@@ -186,7 +201,7 @@ export function useEnhancedLeadsData() {
       });
       return false;
     }
-  }, [tenantSchema, toast]);
+  }, [tenantSchema, toast, leads]);
 
   // Memoizar stats para evitar recálculos desnecessários
   const stats = useMemo(() => {

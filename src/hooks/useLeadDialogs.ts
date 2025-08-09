@@ -1,14 +1,25 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Lead } from "@/types/lead";
 
-export function useLeadDialogs() {
+export function useLeadDialogs(leads?: Lead[]) {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
 
+  // 🎯 ATUALIZAR selectedLead quando leads mudarem (para refletir mudanças de status)
+  useEffect(() => {
+    if (selectedLead && leads) {
+      const updatedLead = leads.find(lead => lead.id === selectedLead.id);
+      if (updatedLead && updatedLead.status !== selectedLead.status) {
+        console.log(`🔄 useLeadDialogs - Atualizando selectedLead: ${selectedLead.name}, status: ${selectedLead.status} -> ${updatedLead.status}`);
+        setSelectedLead(updatedLead);
+      }
+    }
+  }, [leads, selectedLead]);
+
   const handleViewDetails = (lead: Lead) => {
-    console.log("🔍 handleViewDetails chamado com lead:", lead.name);
+    console.log("🔍 handleViewDetails chamado com lead:", lead.name, "status:", lead.status);
     setSelectedLead(lead);
     setIsDetailsDialogOpen(true);
   };
