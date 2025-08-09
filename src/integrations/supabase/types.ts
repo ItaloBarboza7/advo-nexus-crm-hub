@@ -625,6 +625,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_strict_rls_enabled: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      log_security_event: {
+        Args: { event_type: string; details?: Json }
+        Returns: undefined
+      }
       update_tenant_closed_contracts: {
         Args: Record<PropertyKey, never>
         Returns: undefined
