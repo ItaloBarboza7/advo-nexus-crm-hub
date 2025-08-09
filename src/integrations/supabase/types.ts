@@ -645,6 +645,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      validate_tenant_operation: {
+        Args: { operation_name: string; target_tenant_schema?: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "member"
