@@ -55,9 +55,15 @@ export function KanbanView({
   onStatusChange 
 }: KanbanViewProps) {
   const [deletingLead, setDeletingLead] = useState<Lead | null>(null);
+  const [localLeads, setLocalLeads] = useState<KanbanLead[]>(leads);
   const { deleteLead, updateLead } = useSimpleLeadOperations();
   const { toast } = useToast();
   const { canAccessFeature } = useSubscriptionControl();
+
+  // Sincronizar leads quando props mudarem
+  React.useEffect(() => {
+    setLocalLeads(leads);
+  }, [leads]);
 
   const handleDeleteLead = (leadId: string) => {
     if (!canAccessFeature('delete_lead')) {
@@ -92,7 +98,7 @@ export function KanbanView({
   };
 
   const getLeadsByStatus = (statusId: string) => {
-    return leads.filter(lead => lead.status === statusId);
+    return localLeads.filter(lead => lead.status === statusId);
   };
 
   const handleStatusChange = async (leadId: string, newStatus: string) => {
@@ -108,6 +114,15 @@ export function KanbanView({
     try {
       console.log(`🔄 KanbanView - Alterando status do lead ${leadId} para ${newStatus}`);
       
+      // Atualizar o estado local imediatamente para feedback visual instantâneo
+      setLocalLeads(prevLeads => 
+        prevLeads.map(lead => 
+          lead.id === leadId 
+            ? { ...lead, status: newStatus }
+            : lead
+        )
+      );
+      
       // If there's a custom status change handler (for loss reason logic), use it
       if (onStatusChange) {
         onStatusChange(leadId, newStatus);
@@ -120,9 +135,29 @@ export function KanbanView({
       if (success) {
         console.log(`✅ KanbanView - Status alterado com sucesso`);
         onLeadUpdated();
+      } else {
+        // Se falhou, reverter a mudança local
+        console.log(`❌ KanbanView - Falha ao alterar status, revertendo mudança local`);
+        setLocalLeads(prevLeads => 
+          prevLeads.map(lead => 
+            lead.id === leadId 
+              ? { ...lead, status: leads.find(l => l.id === leadId)?.status || lead.status }
+              : lead
+          )
+        );
       }
     } catch (error) {
       console.error('❌ Erro ao alterar status:', error);
+      
+      // Reverter a mudança local em caso de erro
+      setLocalLeads(prevLeads => 
+        prevLeads.map(lead => 
+          lead.id === leadId 
+            ? { ...lead, status: leads.find(l => l.id === leadId)?.status || lead.status }
+            : lead
+        )
+      );
+      
       toast({
         title: "Erro",
         description: "Não foi possível alterar o status do lead.",
