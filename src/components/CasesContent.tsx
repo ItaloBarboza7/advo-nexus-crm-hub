@@ -184,12 +184,12 @@ export function CasesContent() {
 
   const handleRefresh = () => {
     console.log("🔄 CasesContent - Refresh solicitado, forçando atualização dos dados");
-    refreshData({ forceRefresh: true, source: 'cases_content_refresh' });
+    refreshData();
   };
 
   const handleLeadUpdatedWrapper = () => {
     console.log("🔄 CasesContent - Lead updated, forçando refresh dos dados para refletir mudanças imediatamente");
-    refreshData({ forceRefresh: true, source: 'lead_updated_cases' });
+    refreshData();
     handleLeadUpdated(); // Chama o callback original que fecha os modais
   };
 
