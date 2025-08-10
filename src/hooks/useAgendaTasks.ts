@@ -1,7 +1,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { AgendaTask, CreateAgendaTaskRequest, UpdateAgendaTaskRequest } from "@/types/agenda";
+import { AgendaTask, CreateAgendaTaskRequest, updateAgendaTaskRequest } from "@/types/agenda";
 import { useToast } from "@/hooks/use-toast";
 
 export function useAgendaTasks(date?: string) {
@@ -32,7 +32,11 @@ export function useAgendaTasks(date?: string) {
         throw error;
       }
       
-      return data as AgendaTask[];
+      return (data || []).map(task => ({
+        ...task,
+        assigned_to: task.assigned_to || { name: 'Unknown User' },
+        created_by: task.created_by || { name: 'Unknown User' }
+      })) as AgendaTask[];
     },
   });
 

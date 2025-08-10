@@ -20,7 +20,6 @@ import { AtendimentoContent } from "@/components/AtendimentoContent";
 
 export default function Index() {
   const location = useLocation();
-  const [view, setView] = useState<'kanban' | 'list'>('kanban');
 
   const renderContent = () => {
     switch (location.pathname) {
@@ -35,7 +34,7 @@ export default function Index() {
       case "/leads":
         return (
           <SubscriptionProtectedWrapper fallback={<BlockedContent />}>
-            <LeadsListView view={view} onViewChange={setView} />
+            <LeadsListView />
           </SubscriptionProtectedWrapper>
         );
       case "/clientes":

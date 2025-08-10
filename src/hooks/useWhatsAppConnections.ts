@@ -29,7 +29,7 @@ export function useWhatsAppConnections() {
     mutationFn: async (connectionData: CreateWhatsAppConnectionRequest) => {
       const { data, error } = await supabase
         .from('whatsapp_connections')
-        .insert([connectionData])
+        .insert(connectionData)
         .select()
         .single();
 

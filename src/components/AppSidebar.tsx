@@ -96,7 +96,7 @@ export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const { canAccessOptimization } = useUserPermissions();
+  const { hasPermission } = useUserPermissions();
 
   const isActive = (url: string, exact = false) => {
     if (exact) {
@@ -105,12 +105,8 @@ export function AppSidebar() {
     return location.pathname.startsWith(url);
   };
 
-  const filteredMenuItems = menuItems.filter(item => {
-    if (item.url === "/otimizacao" && !canAccessOptimization) {
-      return false;
-    }
-    return true;
-  });
+  // For now, we'll show all menu items - optimization check can be added later if needed
+  const filteredMenuItems = menuItems;
 
   return (
     <Sidebar collapsible="icon">
