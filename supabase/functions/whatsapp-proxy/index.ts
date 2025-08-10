@@ -8,11 +8,7 @@ serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { 
-      headers: {
-        ...corsHeaders,
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
-      }
+      headers: corsHeaders
     })
   }
 
@@ -34,7 +30,22 @@ serve(async (req) => {
       })
 
       if (!response.ok) {
-        throw new Error(`Gateway responded with ${response.status}: ${response.statusText}`)
+        console.error(`SSE Gateway error: ${response.status} - ${response.statusText}`)
+        return new Response(
+          JSON.stringify({ 
+            error: 'SSE Gateway error', 
+            status: response.status,
+            statusText: response.statusText,
+            timestamp: new Date().toISOString()
+          }),
+          {
+            status: response.status,
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'application/json',
+            }
+          }
+        )
       }
 
       // Create a new ReadableStream for SSE
@@ -73,7 +84,7 @@ serve(async (req) => {
       })
     }
 
-    // Handle regular HTTP requests
+    // Handle regular HTTP requests (GET, POST, etc.)
     const headers: Record<string, string> = {}
     
     // Copy relevant headers from original request
@@ -82,14 +93,19 @@ serve(async (req) => {
       headers['Content-Type'] = contentType
     }
 
-    const authHeader = req.headers.get('authorization')
-    if (authHeader) {
-      headers['Authorization'] = authHeader
-    }
-
+    // For requests that need authentication, we could forward auth headers
+    // but for this gateway, we'll make all requests without auth since
+    // the gateway itself doesn't require auth for basic endpoints
+    
     const requestBody = req.method !== 'GET' && req.method !== 'HEAD' 
       ? await req.text() 
       : undefined
+
+    console.log(`Making request to gateway: ${req.method} ${targetUrl}`)
+    console.log(`Request headers:`, headers)
+    if (requestBody) {
+      console.log(`Request body:`, requestBody)
+    }
 
     const response = await fetch(targetUrl, {
       method: req.method,
@@ -97,11 +113,32 @@ serve(async (req) => {
       body: requestBody,
     })
 
+    console.log(`Gateway response status: ${response.status}`)
+    
     if (!response.ok) {
-      throw new Error(`Gateway responded with ${response.status}: ${response.statusText}`)
+      const errorText = await response.text()
+      console.error(`Gateway error response: ${response.status} - ${errorText}`)
+      
+      return new Response(
+        JSON.stringify({ 
+          error: 'Gateway error', 
+          status: response.status,
+          statusText: response.statusText,
+          details: errorText,
+          timestamp: new Date().toISOString()
+        }),
+        {
+          status: response.status,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+          }
+        }
+      )
     }
 
     const responseBody = await response.text()
+    console.log(`Gateway response body:`, responseBody)
     
     // Parse JSON if possible, otherwise return as text
     let parsedBody
@@ -124,7 +161,7 @@ serve(async (req) => {
     
     return new Response(
       JSON.stringify({ 
-        error: 'Gateway connection failed', 
+        error: 'Proxy connection failed', 
         details: error.message,
         timestamp: new Date().toISOString()
       }),

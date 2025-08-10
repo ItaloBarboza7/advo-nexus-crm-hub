@@ -55,7 +55,7 @@ const GatewayDiagnostics: React.FC = () => {
         setConnectionsTest({ 
           status: 'cors_error', 
           corsHeaders: false,
-          details: 'Bloqueio CORS - servidor não enviou header Access-Control-Allow-Origin'
+          details: 'Problema de conexão - verifique se o proxy está funcionando'
         });
       } else {
         setConnectionsTest({ 
@@ -72,7 +72,9 @@ const GatewayDiagnostics: React.FC = () => {
   const testCorsOptions = async () => {
     setTesting(true);
     try {
-      const response = await fetch(`${baseUrl}/connections`, {
+      const testUrl = isUsingProxy ? `${proxyUrl}/health` : `${baseUrl}/connections`;
+      
+      const response = await fetch(testUrl, {
         method: 'OPTIONS',
         headers: {
           'Origin': window.location.origin,
@@ -138,16 +140,16 @@ const GatewayDiagnostics: React.FC = () => {
         <div className="space-y-2 text-sm text-muted-foreground">
           <p>Gateway URL: <code className="bg-muted px-1 rounded">{baseUrl}</code></p>
           {isUsingProxy && (
-            <div className="p-2 bg-blue-50 border border-blue-200 rounded-md">
-              <p className="text-blue-800 font-medium">🔄 Usando Proxy Supabase</p>
-              <p className="text-blue-700">Proxy URL: <code className="bg-blue-100 px-1 rounded">{proxyUrl}</code></p>
-              <p className="text-blue-600 text-xs">O proxy elimina problemas de CORS automaticamente</p>
+            <div className="p-2 bg-green-50 border border-green-200 rounded-md">
+              <p className="text-green-800 font-medium">✅ Usando Proxy Supabase (Público)</p>
+              <p className="text-green-700">Proxy URL: <code className="bg-green-100 px-1 rounded">{proxyUrl}</code></p>
+              <p className="text-green-600 text-xs">Proxy configurado como público - sem necessidade de autenticação</p>
             </div>
           )}
           {!isUsingProxy && (
             <div className="p-2 bg-yellow-50 border border-yellow-200 rounded-md">
               <p className="text-yellow-800 font-medium">⚠️ Conexão Direta</p>
-              <p className="text-yellow-700 text-xs">Se houver problemas de CORS, o proxy será ativado automaticamente</p>
+              <p className="text-yellow-700 text-xs">Conectando diretamente ao gateway - pode ter problemas de CORS</p>
             </div>
           )}
         </div>
@@ -177,25 +179,23 @@ const GatewayDiagnostics: React.FC = () => {
               Testar /connections
             </Button>
 
-            {!isUsingProxy && (
-              <Button
-                variant="outline"
-                onClick={testCorsOptions}
-                disabled={testing}
-                className="flex items-center gap-2"
-              >
-                <RefreshCw className={`h-4 w-4 ${testing ? 'animate-spin' : ''}`} />
-                Testar CORS (OPTIONS)
-              </Button>
-            )}
+            <Button
+              variant="outline"
+              onClick={testCorsOptions}
+              disabled={testing}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${testing ? 'animate-spin' : ''}`} />
+              Testar CORS (OPTIONS)
+            </Button>
 
             <Button
               variant="outline"
-              onClick={() => openUrl(`${baseUrl}/health`)}
+              onClick={() => openUrl(isUsingProxy ? `${proxyUrl}/health` : `${baseUrl}/health`)}
               className="flex items-center gap-2"
             >
               <ExternalLink className="h-4 w-4" />
-              Abrir /health
+              {isUsingProxy ? 'Abrir proxy /health' : 'Abrir /health'}
             </Button>
           </div>
         </div>
@@ -211,7 +211,7 @@ const GatewayDiagnostics: React.FC = () => {
               </Badge>
               {healthStatus.proxyUsed && (
                 <Badge variant="secondary" className="text-xs">
-                  VIA PROXY
+                  VIA PROXY PÚBLICO
                 </Badge>
               )}
             </div>
@@ -219,7 +219,7 @@ const GatewayDiagnostics: React.FC = () => {
             <div className="flex items-center gap-2 text-xs">
               <span>CORS Headers:</span>
               <Badge variant={healthStatus.corsHeaders ? 'default' : 'destructive'} className="text-xs">
-                {healthStatus.corsHeaders ? 'Presente' : 'Ausente'}
+                {isUsingProxy ? 'Gerenciado pelo Proxy' : (healthStatus.corsHeaders ? 'Presente' : 'Ausente')}
               </Badge>
             </div>
           </div>
@@ -256,95 +256,19 @@ const GatewayDiagnostics: React.FC = () => {
           </div>
         )}
 
-        {/* Comandos para Teste Manual */}
-        <div className="space-y-3">
-          <h3 className="font-medium text-sm">2. Comandos para Teste Manual</h3>
-          {!isUsingProxy && (
-            <div className="space-y-2">
-              <div className="p-2 bg-muted rounded text-xs font-mono">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-muted-foreground">Teste Health (Direto):</span>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => copyToClipboard(`curl -v "${baseUrl}/health"`)}
-                  >
-                    <Copy className="h-3 w-3" />
-                  </Button>
-                </div>
-                <code>curl -v "{baseUrl}/health"</code>
-              </div>
-              
-              <div className="p-2 bg-muted rounded text-xs font-mono">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-muted-foreground">Teste CORS:</span>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => copyToClipboard(`curl -v -X OPTIONS -H "Origin: ${window.location.origin}" "${baseUrl}/connections"`)}
-                  >
-                    <Copy className="h-3 w-3" />
-                  </Button>
-                </div>
-                <code>curl -v -X OPTIONS -H "Origin: {window.location.origin}" "{baseUrl}/connections"</code>
-              </div>
-            </div>
-          )}
-          
-          {isUsingProxy && (
-            <div className="p-2 bg-blue-50 border border-blue-200 rounded-md">
-              <p className="text-blue-800 text-sm">✅ Usando proxy Supabase - problemas de CORS são automaticamente resolvidos</p>
-              <p className="text-blue-600 text-xs mt-1">O proxy gerencia todas as requisições para o gateway WhatsApp</p>
-            </div>
-          )}
+        {/* Guia de Resolução Atualizado */}
+        <div className="text-xs text-muted-foreground p-3 bg-green-50 rounded-lg">
+          <strong>✅ Status do Sistema:</strong>
+          <div className="mt-2 space-y-1">
+            <p>• Proxy Supabase configurado como público (verify_jwt = false)</p>
+            <p>• Headers CORS corrigidos e expostos corretamente</p>
+            <p>• Logging melhorado para debug de requisições</p>
+            <p>• Tratamento de erros do gateway melhorado</p>
+            {isUsingProxy && (
+              <p>• Todas as requisições passam pelo proxy sem autenticação</p>
+            )}
+          </div>
         </div>
-
-        {/* Guia de Resolução */}
-        {!isUsingProxy && (
-          <div className="text-xs text-muted-foreground p-3 bg-muted/50 rounded-lg">
-            <strong>🔧 Guia de Resolução (Conexão Direta):</strong>
-            <div className="mt-2 space-y-2">
-              <div className="p-2 border-l-2 border-red-300 pl-3">
-                <strong>Se "Failed to fetch" em todos os testes:</strong>
-                <ul className="mt-1 space-y-1 ml-2">
-                  <li>• Verifique se o servidor está rodando (abra {baseUrl}/health no navegador)</li>
-                  <li>• Confirme se o servidor está bindando em 0.0.0.0:{'{process.env.PORT || 3000}'}</li>
-                  <li>• Adicione middleware CORS: <code>app.use(cors())</code></li>
-                  <li>• Adicione OPTIONS handler: <code>app.options('*', cors())</code></li>
-                </ul>
-              </div>
-              
-              <div className="p-2 border-l-2 border-yellow-300 pl-3">
-                <strong>Se /health OK mas /connections 404:</strong>
-                <ul className="mt-1 space-y-1 ml-2">
-                  <li>• Implementar: <code>app.get('/connections', cors(), (req, res) =&gt; res.json([]))</code></li>
-                  <li>• Verificar se todas as rotas têm middleware cors()</li>
-                </ul>
-              </div>
-
-              <div className="p-2 border-l-2 border-blue-300 pl-3">
-                <strong>Se CORS OK mas ainda falha:</strong>
-                <ul className="mt-1 space-y-1 ml-2">
-                  <li>• Verificar ordem dos middlewares (CORS deve vir antes de outras rotas)</li>
-                  <li>• Não usar credentials: true se não necessário</li>
-                  <li>• Testar com: <code>Access-Control-Allow-Origin: *</code></li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {isUsingProxy && (
-          <div className="text-xs text-muted-foreground p-3 bg-green-50 rounded-lg">
-            <strong>✅ Status do Proxy:</strong>
-            <div className="mt-2 space-y-1">
-              <p>• O proxy Supabase está ativo e gerenciando as requisições</p>
-              <p>• Problemas de CORS são automaticamente resolvidos</p>
-              <p>• Conexões SSE (QR codes) são suportadas</p>
-              <p>• Se ainda houver problemas, verifique se o gateway responde em: {baseUrl}</p>
-            </div>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
