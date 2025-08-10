@@ -14,10 +14,11 @@ const GatewayDiagnostics: React.FC = () => {
   const [testing, setTesting] = useState(false);
   const [corsTest, setCorsTest] = useState<{success: boolean, details: string} | null>(null);
 
-  const baseUrl = import.meta.env.VITE_WHATSAPP_GATEWAY_URL || 'https://evojuris-whatsapp.onrender.com';
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const isUsingProxy = !!supabaseUrl;
-  const proxyUrl = supabaseUrl ? `${supabaseUrl}/functions/v1/whatsapp-proxy` : null;
+  // Hardcoded URLs to avoid import.meta.env issues
+  const baseUrl = 'https://evojuris-whatsapp.onrender.com';
+  const supabaseUrl = 'https://xltugnmjbcowsuwzkkni.supabase.co';
+  const isUsingProxy = true;
+  const proxyUrl = `${supabaseUrl}/functions/v1/whatsapp-proxy`;
 
   const testHealth = async () => {
     setTesting(true);
@@ -74,7 +75,7 @@ const GatewayDiagnostics: React.FC = () => {
         setConnectionsTest({ 
           status: 'server_error', 
           corsHeaders: false,
-          details: message
+          details: message.substring(0, 200)
         });
       }
     } finally {
@@ -85,7 +86,7 @@ const GatewayDiagnostics: React.FC = () => {
   const testCorsOptions = async () => {
     setTesting(true);
     try {
-      const testUrl = isUsingProxy ? `${proxyUrl}/health` : `${baseUrl}/connections`;
+      const testUrl = `${proxyUrl}/health`;
       
       const response = await fetch(testUrl, {
         method: 'OPTIONS',
@@ -158,25 +159,17 @@ const GatewayDiagnostics: React.FC = () => {
           <CardTitle className="text-lg">Diagnóstico Básico do Gateway</CardTitle>
           <div className="space-y-2 text-sm text-muted-foreground">
             <p>Gateway URL: <code className="bg-muted px-1 rounded">{baseUrl}</code></p>
-            {isUsingProxy && (
-              <div className="p-2 bg-green-50 border border-green-200 rounded-md">
-                <p className="text-green-800 font-medium">✅ Proxy Supabase Autenticado Ativo</p>
-                <p className="text-green-700">Proxy URL: <code className="bg-green-100 px-1 rounded">{proxyUrl}</code></p>
-                <div className="text-green-600 text-xs mt-1 space-y-1">
-                  <p>• Roteamento de paths corrigido (/health, /connections, etc.)</p>
-                  <p>• Headers de autenticação e Origin configurados</p>
-                  <p>• CORS gerenciado automaticamente pelo proxy</p>
-                  <p>• Logging detalhado habilitado para debug</p>
-                  <p>• Endpoint /_debug disponível para diagnóstico completo</p>
-                </div>
+            <div className="p-2 bg-green-50 border border-green-200 rounded-md">
+              <p className="text-green-800 font-medium">✅ Proxy Supabase Autenticado Ativo</p>
+              <p className="text-green-700">Proxy URL: <code className="bg-green-100 px-1 rounded">{proxyUrl}</code></p>
+              <div className="text-green-600 text-xs mt-1 space-y-1">
+                <p>• Roteamento de paths corrigido (/health, /connections, etc.)</p>
+                <p>• Headers de autenticação e Origin configurados</p>
+                <p>• CORS gerenciado automaticamente pelo proxy</p>
+                <p>• Logging detalhado habilitado para debug</p>
+                <p>• Endpoint /_debug disponível para diagnóstico completo</p>
               </div>
-            )}
-            {!isUsingProxy && (
-              <div className="p-2 bg-yellow-50 border border-yellow-200 rounded-md">
-                <p className="text-yellow-800 font-medium">⚠️ Conexão Direta (Não Recomendado)</p>
-                <p className="text-yellow-700 text-xs">Conectando diretamente ao gateway - pode ter problemas de CORS e autenticação</p>
-              </div>
-            )}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -216,11 +209,11 @@ const GatewayDiagnostics: React.FC = () => {
 
               <Button
                 variant="outline"
-                onClick={() => openUrl(isUsingProxy ? `${proxyUrl}/health` : `${baseUrl}/health`)}
+                onClick={() => openUrl(`${proxyUrl}/health`)}
                 className="flex items-center gap-2"
               >
                 <ExternalLink className="h-4 w-4" />
-                {isUsingProxy ? 'Abrir proxy /health' : 'Abrir /health'}
+                Abrir proxy /health
               </Button>
             </div>
           </div>
@@ -295,17 +288,11 @@ const GatewayDiagnostics: React.FC = () => {
           <div className="text-xs text-muted-foreground p-3 bg-green-50 rounded-lg">
             <strong>🚀 Funcionalidades Implementadas:</strong>
             <div className="mt-2 space-y-1">
+              <p>• ✅ URL Supabase hardcodada para evitar problemas com import.meta.env</p>
               <p>• ✅ Endpoint /_debug para diagnóstico completo de conectividade</p>
-              <p>• ✅ Testes automáticos com diferentes combinações de headers</p>
-              <p>• ✅ Roteamento de paths corrigido no proxy (remove prefix corretamente)</p>
-              <p>• ✅ Header Origin limpo (remove valores múltiplos separados por vírgula)</p>
-              <p>• ✅ Autenticação Bearer token configurada automaticamente</p>
-              <p>• ✅ Logging detalhado para debug de requisições e respostas</p>
-              <p>• ✅ Tratamento melhorado de erros 401, 404 e conexão</p>
-              <p>• ✅ Suporte completo a Server-Sent Events (SSE) para QR codes</p>
-              {isUsingProxy && (
-                <p>• ✅ Todas as requisições autenticadas via proxy Supabase</p>
-              )}
+              <p>• ✅ Tratamento melhorado de erros JSON e exibição de resposta bruta</p>
+              <p>• ✅ Logs detalhados do proxy para debug de requisições e respostas</p>
+              <p>• ✅ Todas as requisições autenticadas via proxy Supabase</p>
             </div>
           </div>
         </CardContent>

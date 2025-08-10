@@ -30,12 +30,15 @@ const ProxyDebugPanel: React.FC = () => {
   const { toast } = useToast();
   const [debugResult, setDebugResult] = useState<DebugResponse | null>(null);
   const [testing, setTesting] = useState(false);
+  const [rawResponse, setRawResponse] = useState<string | null>(null);
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  // Hardcoded Supabase URL to avoid import.meta.env issues
+  const supabaseUrl = 'https://xltugnmjbcowsuwzkkni.supabase.co';
   const debugUrl = `${supabaseUrl}/functions/v1/whatsapp-proxy/_debug`;
 
   const runDebugTest = async () => {
     setTesting(true);
+    setRawResponse(null);
     try {
       const response = await fetch(debugUrl, {
         method: 'GET',
@@ -44,20 +47,42 @@ const ProxyDebugPanel: React.FC = () => {
         }
       });
 
-      const result = await response.json();
-      setDebugResult(result);
+      const responseText = await response.text();
+      setRawResponse(responseText);
 
-      if (result.error) {
+      if (!response.ok) {
         toast({
-          title: 'Erro no Debug',
-          description: result.error,
+          title: 'Erro HTTP',
+          description: `Status ${response.status}: ${responseText.substring(0, 200)}`,
           variant: 'destructive'
         });
-      } else {
+        setDebugResult(null);
+        return;
+      }
+
+      try {
+        const result = JSON.parse(responseText);
+        setDebugResult(result);
+
+        if (result.error) {
+          toast({
+            title: 'Erro no Debug',
+            description: result.error,
+            variant: 'destructive'
+          });
+        } else {
+          toast({
+            title: 'Debug Concluído',
+            description: `${result.tests?.length || 0} testes executados`
+          });
+        }
+      } catch (parseError) {
         toast({
-          title: 'Debug Concluído',
-          description: `${result.tests.length} testes executados`
+          title: 'Erro de Parse JSON',
+          description: `Resposta não é JSON válido. Primeira parte: ${responseText.substring(0, 100)}...`,
+          variant: 'destructive'
         });
+        setDebugResult(null);
       }
     } catch (error: any) {
       toast({
@@ -127,6 +152,16 @@ const ProxyDebugPanel: React.FC = () => {
             Copiar URL Debug
           </Button>
         </div>
+
+        {/* Mostrar resposta bruta em caso de erro */}
+        {rawResponse && !debugResult && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+            <h3 className="font-medium text-red-800 mb-2">Resposta Bruta (Não-JSON)</h3>
+            <pre className="text-xs text-red-700 whitespace-pre-wrap bg-red-100 p-2 rounded max-h-40 overflow-y-auto">
+              {rawResponse.substring(0, 1000)}{rawResponse.length > 1000 ? '...' : ''}
+            </pre>
+          </div>
+        )}
 
         {debugResult && (
           <div className="space-y-4">

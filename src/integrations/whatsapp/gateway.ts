@@ -24,28 +24,21 @@ export type GatewayHealthStatus = {
 };
 
 const getBaseUrl = () => {
-  // Try proxy first, fallback to direct gateway
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  if (supabaseUrl) {
-    return `${supabaseUrl}/functions/v1/whatsapp-proxy`;
-  }
-  return import.meta.env.VITE_WHATSAPP_GATEWAY_URL || 'https://evojuris-whatsapp.onrender.com';
+  // Always use hardcoded proxy URL to avoid import.meta.env issues
+  return 'https://xltugnmjbcowsuwzkkni.supabase.co/functions/v1/whatsapp-proxy';
 };
 
 const isUsingProxy = () => {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  return !!supabaseUrl;
+  return true; // Always using proxy now
 };
 
 const getHeaders = () => {
   const headers: Record<string, string> = {};
   
-  if (isUsingProxy()) {
-    // Add Supabase headers when using proxy
-    const apiKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-    if (apiKey) {
-      headers['apikey'] = apiKey;
-    }
+  // Add Supabase headers when using proxy
+  const apiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsdHVnbm1qYmNvd3N1d3pra25pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4MDkyNjAsImV4cCI6MjA2NDM4NTI2MH0.g-dg8YF0mK0LkDBvTzUlW8po9tT0VC-s47PFbDScmN8';
+  if (apiKey) {
+    headers['apikey'] = apiKey;
   }
   
   return headers;
@@ -68,7 +61,7 @@ export const whatsappGateway = {
         const text = await res.text();
         return {
           status: 'error',
-          message: `Health check failed: ${res.status} ${text}`,
+          message: `Health check failed: ${res.status} ${text.substring(0, 200)}`,
           corsHeaders,
           proxyUsed,
           timestamp: new Date().toISOString()
@@ -104,7 +97,7 @@ export const whatsappGateway = {
       
       if (!res.ok) {
         const text = await res.text();
-        throw new Error(`Falha ao listar conexões: ${res.status} ${text}`);
+        throw new Error(`Falha ao listar conexões: ${res.status} ${text.substring(0, 200)}`);
       }
       
       const data = await res.json();
@@ -132,7 +125,7 @@ export const whatsappGateway = {
       
       if (!res.ok) {
         const text = await res.text();
-        throw new Error(`Falha ao criar conexão: ${res.status} ${text}`);
+        throw new Error(`Falha ao criar conexão: ${res.status} ${text.substring(0, 200)}`);
       }
       
       return res.json();
