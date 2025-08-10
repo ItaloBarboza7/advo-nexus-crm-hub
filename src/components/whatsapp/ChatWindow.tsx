@@ -4,8 +4,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Send, UserPlus, Tag, MoreVertical } from "lucide-react";
+import { Send, Paperclip, Zap, MoreVertical } from "lucide-react";
 import { Chat, User } from './types';
 
 interface ChatWindowProps {
@@ -22,27 +21,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   onAddTag 
 }) => {
   const [message, setMessage] = useState('');
-  const [selectedUser, setSelectedUser] = useState('');
-  const [newTag, setNewTag] = useState('');
 
   const handleSendMessage = () => {
     if (message.trim()) {
       console.log('Sending message:', message);
       setMessage('');
-    }
-  };
-
-  const handleTransfer = () => {
-    if (selectedUser) {
-      onTransferChat(chat.id, selectedUser);
-      setSelectedUser('');
-    }
-  };
-
-  const handleAddTag = () => {
-    if (newTag.trim()) {
-      onAddTag(chat.id, newTag.trim());
-      setNewTag('');
     }
   };
 
@@ -106,73 +89,35 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         </div>
       </div>
 
-      {/* Actions Bar */}
+      {/* Message Input Area */}
       <div className="p-4 border-t border-gray-200 bg-white">
-        <div className="flex items-center space-x-2 mb-3">
-          {/* Transfer */}
-          <div className="flex items-center space-x-2">
-            <Select value={selectedUser} onValueChange={setSelectedUser}>
-              <SelectTrigger className="w-40 h-8 text-xs">
-                <SelectValue placeholder="Transferir para..." />
-              </SelectTrigger>
-              <SelectContent>
-                {users.filter(user => user.isOnline && user.id !== chat.assignedTo).map((user) => (
-                  <SelectItem key={user.id} value={user.id} className="text-xs">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span>{user.name}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={handleTransfer}
-              disabled={!selectedUser}
-              className="h-8 px-3 text-xs"
-            >
-              <UserPlus className="h-3 w-3 mr-1" />
-              Transferir
-            </Button>
-          </div>
-
-          {/* Add Tag */}
-          <div className="flex items-center space-x-2">
-            <Input
-              placeholder="Nova tag..."
-              value={newTag}
-              onChange={(e) => setNewTag(e.target.value)}
-              className="w-32 h-8 text-xs"
-              onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
-            />
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={handleAddTag}
-              disabled={!newTag.trim()}
-              className="h-8 px-3 text-xs"
-            >
-              <Tag className="h-3 w-3 mr-1" />
-              Tag
-            </Button>
-          </div>
-        </div>
-
-        {/* Message Input */}
         <div className="flex items-center space-x-2">
-          <Input
-            placeholder="Digite sua mensagem..."
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            className="flex-1"
-            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-          />
+          {/* Attach Button */}
+          <Button variant="ghost" size="sm" className="p-2">
+            <Paperclip className="h-4 w-4 text-gray-500" />
+          </Button>
+          
+          {/* Message Input */}
+          <div className="flex-1 relative">
+            <Input
+              placeholder="Digite sua mensagem..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              className="pr-12 rounded-full border-gray-300"
+              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+            />
+          </div>
+          
+          {/* Quick Replies Button */}
+          <Button variant="ghost" size="sm" className="p-2">
+            <Zap className="h-4 w-4 text-gray-500" />
+          </Button>
+          
+          {/* Send Button - Round */}
           <Button 
             onClick={handleSendMessage}
             disabled={!message.trim()}
-            className="px-4"
+            className="rounded-full w-10 h-10 p-0 bg-green-500 hover:bg-green-600"
           >
             <Send className="h-4 w-4" />
           </Button>
