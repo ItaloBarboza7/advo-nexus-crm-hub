@@ -2,17 +2,45 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { corsHeaders } from "../_shared/cors.ts"
 
-const GATEWAY_BASE_URL = Deno.env.get('WHATSAPP_GATEWAY_URL') || 'https://evojuris-whatsapp.onrender.com'
+// Carregar e validar variáveis de ambiente
+const RAW_BASE = Deno.env.get('WHATSAPP_GATEWAY_URL')?.trim()
+const GATEWAY_BASE_URL = RAW_BASE && RAW_BASE !== '' ? RAW_BASE : 'https://evojuris-whatsapp.onrender.com'
 const GATEWAY_TOKEN = Deno.env.get('WHATSAPP_GATEWAY_TOKEN')
-const GATEWAY_ORIGIN_RAW = Deno.env.get('WHATSAPP_GATEWAY_ORIGIN') || 'https://evojuris-whatsapp.onrender.com'
+const GATEWAY_ORIGIN_RAW = Deno.env.get('WHATSAPP_GATEWAY_ORIGIN') || GATEWAY_BASE_URL
 
-// Clean origin - take only the first value if comma-separated
+// Limpar origin - pegar apenas o primeiro valor se vier separado por vírgula
 const GATEWAY_ORIGIN = GATEWAY_ORIGIN_RAW.split(',')[0].trim()
 
+// Validar URL base
+let parsedBase: URL | null = null
+try {
+  parsedBase = new URL(GATEWAY_BASE_URL.endsWith('/') ? GATEWAY_BASE_URL : GATEWAY_BASE_URL + '/')
+} catch {
+  console.error("❌ Invalid WHATSAPP_GATEWAY_URL:", GATEWAY_BASE_URL)
+  // Não lançamos aqui para permitir resposta amigável no handler
+}
+
 console.log(`Proxy configuration:`)
-console.log(`- Gateway URL: ${GATEWAY_BASE_URL}`)
+console.log(`- Gateway URL: ${parsedBase ? parsedBase.toString() : 'INVALID'}`)
 console.log(`- Gateway Origin (cleaned): ${GATEWAY_ORIGIN}`)
 console.log(`- Has Token: ${!!GATEWAY_TOKEN}`)
+
+// Utilitário: normalizar o path removendo prefixos do proxy
+function normalizeProxyPath(pathname: string): string {
+  const prefixes = [
+    '/functions/v1/whatsapp-proxy',
+    '/whatsapp-proxy',
+  ]
+  let out = pathname
+  for (const prefix of prefixes) {
+    if (out.startsWith(prefix)) {
+      out = out.substring(prefix.length)
+      break
+    }
+  }
+  if (!out.startsWith('/')) out = '/' + out
+  return out
+}
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -23,21 +51,41 @@ serve(async (req) => {
   }
 
   try {
+    // Validar base antes de prosseguir
+    if (!parsedBase) {
+      return new Response(
+        JSON.stringify({
+          error: 'Proxy encountered an error',
+          details: `Invalid WHATSAPP_GATEWAY_URL: "${GATEWAY_BASE_URL}"`,
+          hint: 'Configure o secret WHATSAPP_GATEWAY_URL com uma URL válida (ex.: https://evojuris-whatsapp.onrender.com)',
+          timestamp: new Date().toISOString(),
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     const url = new URL(req.url)
-    
-    // Extract path correctly - remove /functions/v1/whatsapp-proxy prefix
-    let path = url.pathname
-    const proxyPrefix = '/functions/v1/whatsapp-proxy'
-    if (path.startsWith(proxyPrefix)) {
-      path = path.substring(proxyPrefix.length)
+
+    // Extrair e normalizar caminho (remove prefixos do proxy)
+    const rawPath = url.pathname
+    let path = normalizeProxyPath(rawPath)
+
+    // Construir URL alvo de forma segura
+    let targetUrl: string
+    try {
+      const target = new URL(path + url.search, parsedBase)
+      targetUrl = target.toString()
+    } catch (e) {
+      console.error("❌ Failed to build target URL:", e)
+      return new Response(
+        JSON.stringify({
+          error: 'Proxy encountered an error',
+          details: `Invalid URL: base="${parsedBase.toString()}" path="${path}" search="${url.search}"`,
+          timestamp: new Date().toISOString(),
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
-    
-    // Ensure path starts with /
-    if (!path.startsWith('/')) {
-      path = '/' + path
-    }
-    
-    const targetUrl = `${GATEWAY_BASE_URL}${path}${url.search}`
 
     console.log(`=== PROXY REQUEST ===`)
     console.log(`Original URL: ${req.url}`)
@@ -45,13 +93,12 @@ serve(async (req) => {
     console.log(`Target URL: ${targetUrl}`)
     console.log(`Method: ${req.method}`)
 
-    // Prepare headers for gateway request
+    // Preparar headers para o gateway
     const gatewayHeaders: Record<string, string> = {
       'Origin': GATEWAY_ORIGIN,
-      'User-Agent': 'Supabase-WhatsApp-Proxy/1.0'
+      'User-Agent': 'Supabase-WhatsApp-Proxy/1.1'
     }
 
-    // Add authorization if token is available
     if (GATEWAY_TOKEN) {
       gatewayHeaders['Authorization'] = `Bearer ${GATEWAY_TOKEN}`
       console.log('✅ Authorization header added')
@@ -59,13 +106,11 @@ serve(async (req) => {
       console.log('⚠️ WARNING: No WHATSAPP_GATEWAY_TOKEN configured')
     }
 
-    // Handle Server-Sent Events (SSE) for QR codes
+    // SSE para QR codes
     if (path.includes('/qr') && req.method === 'GET') {
       console.log('🔄 Handling SSE request for QR codes')
-      
       gatewayHeaders['Accept'] = 'text/event-stream'
       gatewayHeaders['Cache-Control'] = 'no-cache'
-
       console.log(`SSE Headers:`, gatewayHeaders)
 
       const response = await fetch(targetUrl, {
@@ -76,9 +121,8 @@ serve(async (req) => {
       console.log(`SSE Response status: ${response.status}`)
 
       if (!response.ok) {
-        const errorText = await response.text()
+        const errorText = await response.text().catch(() => '')
         console.error(`❌ SSE Gateway error: ${response.status} - ${errorText}`)
-        
         return new Response(
           JSON.stringify({ 
             error: 'SSE Gateway error', 
@@ -88,17 +132,10 @@ serve(async (req) => {
             timestamp: new Date().toISOString(),
             target_url: targetUrl
           }),
-          {
-            status: response.status,
-            headers: {
-              ...corsHeaders,
-              'Content-Type': 'application/json',
-            }
-          }
+          { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
 
-      // Create a new ReadableStream for SSE
       const stream = new ReadableStream({
         start(controller) {
           const reader = response.body?.getReader()
@@ -107,7 +144,6 @@ serve(async (req) => {
             controller.close()
             return
           }
-
           async function pump() {
             try {
               while (true) {
@@ -138,13 +174,12 @@ serve(async (req) => {
       })
     }
 
-    // Handle regular HTTP requests (GET, POST, etc.)
-    // Copy relevant headers from original request
+    // Requisições HTTP regulares
     const contentType = req.headers.get('content-type')
     if (contentType) {
       gatewayHeaders['Content-Type'] = contentType
     }
-    
+
     const requestBody = req.method !== 'GET' && req.method !== 'HEAD' 
       ? await req.text() 
       : undefined
@@ -162,11 +197,10 @@ serve(async (req) => {
 
     console.log(`✅ Gateway response status: ${response.status}`)
     console.log(`Gateway response headers:`, Object.fromEntries(response.headers.entries()))
-    
+
     if (!response.ok) {
-      const errorText = await response.text()
+      const errorText = await response.text().catch(() => '')
       console.error(`❌ Gateway error response: ${response.status} - ${errorText}`)
-      
       return new Response(
         JSON.stringify({ 
           error: 'Gateway error', 
@@ -178,51 +212,41 @@ serve(async (req) => {
           proxy_path: path,
           original_url: req.url
         }),
-        {
-          status: response.status,
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'application/json',
-          }
-        }
+        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    const responseBody = await response.text()
+    const responseBody = await response.text().catch(() => '')
     console.log(`Gateway response body:`, responseBody.substring(0, 300) + (responseBody.length > 300 ? '...' : ''))
-    
-    // Parse JSON if possible, otherwise return as text
-    let parsedBody
+
+    // Tentar parsear JSON, senão devolver como texto
+    let parsedBody: unknown = null
     try {
       parsedBody = JSON.parse(responseBody)
     } catch {
       parsedBody = responseBody
     }
 
-    return new Response(JSON.stringify(parsedBody), {
-      status: response.status,
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json',
+    return new Response(
+      typeof parsedBody === 'string' ? parsedBody : JSON.stringify(parsedBody),
+      {
+        status: response.status,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': typeof parsedBody === 'string' ? (response.headers.get('content-type') || 'text/plain') : 'application/json',
+        }
       }
-    })
+    )
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Proxy connection error:', error)
-    
     return new Response(
       JSON.stringify({ 
         error: 'Proxy connection failed', 
-        details: error.message,
+        details: error?.message || String(error),
         timestamp: new Date().toISOString()
       }),
-      {
-        status: 502,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json',
-        }
-      }
+      { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
 })
