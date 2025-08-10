@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,7 +46,13 @@ const GatewayDiagnostics: React.FC = () => {
       const message = error?.message || 'Erro desconhecido';
       let details = '';
       
-      if (message.includes('Rota não encontrada')) {
+      if (message.includes('401')) {
+        setConnectionsTest({ 
+          status: 'auth_error', 
+          corsHeaders: false,
+          details: 'Erro de autenticação - verifique se o token está configurado corretamente'
+        });
+      } else if (message.includes('Rota não encontrada')) {
         setConnectionsTest({ 
           status: 'route_not_found', 
           corsHeaders: false,
@@ -116,6 +123,7 @@ const GatewayDiagnostics: React.FC = () => {
       case 'error':
       case 'cors_error':
       case 'server_error':
+      case 'auth_error':
         return <XCircle className="h-4 w-4 text-red-600" />;
       case 'route_not_found':
         return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
@@ -141,15 +149,15 @@ const GatewayDiagnostics: React.FC = () => {
           <p>Gateway URL: <code className="bg-muted px-1 rounded">{baseUrl}</code></p>
           {isUsingProxy && (
             <div className="p-2 bg-green-50 border border-green-200 rounded-md">
-              <p className="text-green-800 font-medium">✅ Usando Proxy Supabase (Público)</p>
+              <p className="text-green-800 font-medium">✅ Usando Proxy Supabase Autenticado</p>
               <p className="text-green-700">Proxy URL: <code className="bg-green-100 px-1 rounded">{proxyUrl}</code></p>
-              <p className="text-green-600 text-xs">Proxy configurado como público - sem necessidade de autenticação</p>
+              <p className="text-green-600 text-xs">Proxy configurado com autenticação e headers corretos</p>
             </div>
           )}
           {!isUsingProxy && (
             <div className="p-2 bg-yellow-50 border border-yellow-200 rounded-md">
               <p className="text-yellow-800 font-medium">⚠️ Conexão Direta</p>
-              <p className="text-yellow-700 text-xs">Conectando diretamente ao gateway - pode ter problemas de CORS</p>
+              <p className="text-yellow-700 text-xs">Conectando diretamente ao gateway - pode ter problemas de CORS e autenticação</p>
             </div>
           )}
         </div>
@@ -211,7 +219,7 @@ const GatewayDiagnostics: React.FC = () => {
               </Badge>
               {healthStatus.proxyUsed && (
                 <Badge variant="secondary" className="text-xs">
-                  VIA PROXY PÚBLICO
+                  VIA PROXY AUTENTICADO
                 </Badge>
               )}
             </div>
@@ -233,6 +241,11 @@ const GatewayDiagnostics: React.FC = () => {
               <Badge variant={connectionsTest.status === 'success' ? 'default' : 'destructive'}>
                 {connectionsTest.status === 'success' ? 'OK' : 'ERRO'}
               </Badge>
+              {connectionsTest.status === 'auth_error' && (
+                <Badge variant="destructive" className="text-xs">
+                  ERRO 401
+                </Badge>
+              )}
             </div>
             <p className="text-sm text-muted-foreground">
               {connectionsTest.details || 'Teste realizado'}
@@ -262,10 +275,12 @@ const GatewayDiagnostics: React.FC = () => {
           <div className="mt-2 space-y-1">
             <p>• Proxy Supabase configurado como público (verify_jwt = false)</p>
             <p>• Headers CORS corrigidos e expostos corretamente</p>
+            <p>• Autenticação configurada com token Bearer</p>
+            <p>• Headers Origin e User-Agent configurados</p>
             <p>• Logging melhorado para debug de requisições</p>
             <p>• Tratamento de erros do gateway melhorado</p>
             {isUsingProxy && (
-              <p>• Todas as requisições passam pelo proxy sem autenticação</p>
+              <p>• Todas as requisições passam pelo proxy com autenticação</p>
             )}
           </div>
         </div>

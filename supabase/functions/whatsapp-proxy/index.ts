@@ -3,6 +3,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { corsHeaders } from "../_shared/cors.ts"
 
 const GATEWAY_BASE_URL = Deno.env.get('WHATSAPP_GATEWAY_URL') || 'https://evojuris-whatsapp.onrender.com'
+const GATEWAY_TOKEN = Deno.env.get('WHATSAPP_GATEWAY_TOKEN')
+const GATEWAY_ORIGIN = Deno.env.get('WHATSAPP_GATEWAY_ORIGIN') || 'https://evojuris-whatsapp.onrender.com'
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -19,23 +21,39 @@ serve(async (req) => {
 
     console.log(`Proxying request: ${req.method} ${targetUrl}`)
 
+    // Prepare headers for gateway request
+    const gatewayHeaders: Record<string, string> = {
+      'Origin': GATEWAY_ORIGIN,
+      'User-Agent': 'Supabase-WhatsApp-Proxy/1.0'
+    }
+
+    // Add authorization if token is available
+    if (GATEWAY_TOKEN) {
+      gatewayHeaders['Authorization'] = `Bearer ${GATEWAY_TOKEN}`
+      console.log('Added Authorization header to gateway request')
+    } else {
+      console.log('WARNING: No WHATSAPP_GATEWAY_TOKEN configured')
+    }
+
     // Handle Server-Sent Events (SSE) for QR codes
     if (path.includes('/qr') && req.method === 'GET') {
+      gatewayHeaders['Accept'] = 'text/event-stream'
+      gatewayHeaders['Cache-Control'] = 'no-cache'
+
       const response = await fetch(targetUrl, {
         method: req.method,
-        headers: {
-          'Accept': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-        },
+        headers: gatewayHeaders,
       })
 
       if (!response.ok) {
         console.error(`SSE Gateway error: ${response.status} - ${response.statusText}`)
+        const errorText = await response.text()
         return new Response(
           JSON.stringify({ 
             error: 'SSE Gateway error', 
             status: response.status,
             statusText: response.statusText,
+            details: errorText,
             timestamp: new Date().toISOString()
           }),
           {
@@ -85,31 +103,25 @@ serve(async (req) => {
     }
 
     // Handle regular HTTP requests (GET, POST, etc.)
-    const headers: Record<string, string> = {}
-    
     // Copy relevant headers from original request
     const contentType = req.headers.get('content-type')
     if (contentType) {
-      headers['Content-Type'] = contentType
+      gatewayHeaders['Content-Type'] = contentType
     }
-
-    // For requests that need authentication, we could forward auth headers
-    // but for this gateway, we'll make all requests without auth since
-    // the gateway itself doesn't require auth for basic endpoints
     
     const requestBody = req.method !== 'GET' && req.method !== 'HEAD' 
       ? await req.text() 
       : undefined
 
     console.log(`Making request to gateway: ${req.method} ${targetUrl}`)
-    console.log(`Request headers:`, headers)
+    console.log(`Request headers:`, gatewayHeaders)
     if (requestBody) {
       console.log(`Request body:`, requestBody)
     }
 
     const response = await fetch(targetUrl, {
       method: req.method,
-      headers,
+      headers: gatewayHeaders,
       body: requestBody,
     })
 
@@ -125,7 +137,8 @@ serve(async (req) => {
           status: response.status,
           statusText: response.statusText,
           details: errorText,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          gateway_url: targetUrl
         }),
         {
           status: response.status,
