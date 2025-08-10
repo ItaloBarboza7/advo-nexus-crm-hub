@@ -1,6 +1,6 @@
 
 import { useMemo, useState } from "react";
-import { addMonths, format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays, isSameMonth, isToday, parseISO } from "date-fns";
+import { addMonths, format, startOfMonth, endOfMonth, addDays, isToday, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -55,18 +55,22 @@ export function AgendaContent() {
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
-  const gridStart = startOfWeek(monthStart, { locale: ptBR });
-  const gridEnd = endOfWeek(monthEnd, { locale: ptBR });
 
+  // Create array of all days in the current month only
+  const monthDays: Date[] = [];
+  let day = monthStart;
+  while (day <= monthEnd) {
+    monthDays.push(day);
+    day = addDays(day, 1);
+  }
+
+  // Group days into weeks for grid display
   const weeks: Date[][] = [];
-  let day = gridStart;
-  while (day <= gridEnd) {
-    const week: Date[] = [];
-    for (let i = 0; i < 7; i++) {
-      week.push(day);
-      day = addDays(day, 1);
-    }
-    weeks.push(week);
+  const daysOfWeek = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  
+  // Create weeks from month days
+  for (let i = 0; i < monthDays.length; i += 7) {
+    weeks.push(monthDays.slice(i, i + 7));
   }
 
   function onAddTask(date: Date) {
@@ -138,20 +142,19 @@ export function AgendaContent() {
           <Separator />
 
           <div className="grid grid-cols-7 gap-1.5 md:gap-2.5">
-            {weeks[0].map((d) => (
-              <div key={d.toISOString()} className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                {format(d, "EEEEEE", { locale: ptBR })}
+            {daysOfWeek.map((dayName) => (
+              <div key={dayName} className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                {dayName}
               </div>
             ))}
 
-            {weeks.flat().map((d) => {
+            {monthDays.map((d) => {
               const key = dateKey(d);
               const dayTasks = tasksByDay[key] || [];
-              const muted = !isSameMonth(d, currentMonth);
               const today = isToday(d);
 
               return (
-                <div key={d.toISOString()} className={(muted ? "opacity-60 " : "") + "space-y-1"}>
+                <div key={d.toISOString()} className="space-y-1">
                   <div className="flex items-baseline justify-between pl-0.5">
                     <button
                       className="text-lg md:text-xl font-bold leading-none text-foreground hover:text-[hsl(var(--brand-1))] transition-colors"
@@ -166,11 +169,11 @@ export function AgendaContent() {
                   </div>
                   <Card
                     className={
-                      "group relative min-h-[120px] p-2 border border-[hsl(var(--brand-1))]/10 hover:ring-1 hover:ring-[hsl(var(--brand-1))]/15 transition-all duration-300 rounded-lg elevation-soft hover:elevation-float bg-background"
+                      "group relative min-h-[180px] p-3 border border-[hsl(var(--brand-1))]/10 hover:ring-1 hover:ring-[hsl(var(--brand-1))]/15 transition-all duration-300 rounded-lg elevation-soft hover:elevation-float bg-background"
                     }
                     onDoubleClick={() => onAddTask(d)}
                   >
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       {dayTasks.map((t) => (
                         <div
                           key={t.id}
@@ -191,7 +194,7 @@ export function AgendaContent() {
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-2 min-w-0">
                                 {t.time && <span className="text-xs font-medium shrink-0" style={{ color: t.color || "hsl(var(--brand-1))" }}>{t.time}</span>}
-                                <span className="truncate font-medium text-xs">{t.title}</span>
+                                <span className="truncate font-medium">{t.title}</span>
                               </div>
                               {t.owner && (
                                 <span className="text-xs text-muted-foreground truncate">{t.owner}</span>
@@ -202,7 +205,7 @@ export function AgendaContent() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6 opacity-0 group-hover/task:opacity-100 transition-opacity"
+                            className="h-7 w-7 opacity-0 group-hover/task:opacity-100 transition-opacity"
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedDate(t.date);
@@ -211,7 +214,7 @@ export function AgendaContent() {
                             }}
                             aria-label="Editar tarefa"
                           >
-                            <Pencil className="h-3 w-3" />
+                            <Pencil className="h-3.5 w-3.5" />
                           </Button>
                         </div>
                       ))}
