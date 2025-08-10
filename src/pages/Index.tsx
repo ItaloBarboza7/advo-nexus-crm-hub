@@ -20,9 +20,7 @@ import { AtendimentoContent } from "@/components/AtendimentoContent";
 
 export default function Index() {
   const location = useLocation();
-
-  // Evita conflito de tipagem do LeadsListView exigindo props: usamos any localmente
-  const LeadsView = LeadsListView as any;
+  const [view, setView] = useState<'kanban' | 'list'>('kanban');
 
   const renderContent = () => {
     switch (location.pathname) {
@@ -37,7 +35,7 @@ export default function Index() {
       case "/leads":
         return (
           <SubscriptionProtectedWrapper fallback={<BlockedContent />}>
-            <LeadsView />
+            <LeadsListView view={view} onViewChange={setView} />
           </SubscriptionProtectedWrapper>
         );
       case "/clientes":

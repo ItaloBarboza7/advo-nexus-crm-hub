@@ -32,21 +32,15 @@ export function useAgendaTasks(date?: string) {
         throw error;
       }
       
-      return (data || []).map(task => ({
-        ...task,
-        assigned_to: task.assigned_to || { name: 'Unknown User' },
-        created_by: task.created_by || { name: 'Unknown User' }
-      })) as AgendaTask[];
+      return data as AgendaTask[];
     },
   });
 
   const createTaskMutation = useMutation({
     mutationFn: async (taskData: CreateAgendaTaskRequest) => {
-      // Usamos um cast para satisfazer os tipos gerados do Supabase,
-      // já que tenant_id e created_by_user_id são preenchidos via trigger no banco.
       const { data, error } = await supabase
         .from('agenda_tasks')
-        .insert(taskData as any)
+        .insert([taskData])
         .select()
         .single();
 
