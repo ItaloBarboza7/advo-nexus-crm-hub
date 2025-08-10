@@ -7,6 +7,8 @@ import { CalendarContent } from "@/components/CalendarContent"
 import { CasesContent } from "@/components/CasesContent"
 import { ClientsContent } from "@/components/ClientsContent"
 import { SettingsContent } from "@/components/SettingsContent"
+import { AgendaContent } from "@/components/AgendaContent"
+import { AtendimentoContent } from "@/components/AtendimentoContent"
 import { CompanyInfoModal } from "@/components/CompanyInfoModal"
 import { SubscriptionWarningBanner } from "@/components/SubscriptionWarningBanner"
 import { SubscriptionProtectedWrapper } from "@/components/SubscriptionProtectedWrapper"
@@ -19,7 +21,7 @@ import { Lead } from "@/types/lead"
 import { useTenantSchema } from "@/hooks/useTenantSchema"
 import { useSubscriptionControl } from "@/hooks/useSubscriptionControl"
 
-export type ActiveView = 'dashboard' | 'clients' | 'cases' | 'calendar' | 'optimization' | 'settings'
+export type ActiveView = 'dashboard' | 'atendimento' | 'clients' | 'cases' | 'agenda' | 'calendar' | 'optimization' | 'settings'
 
 const Index = () => {
   const [activeView, setActiveView] = useState<ActiveView>('dashboard')
@@ -227,6 +229,8 @@ const Index = () => {
     switch (activeView) {
       case 'dashboard':
         return <DashboardContent />
+      case 'atendimento':
+        return <AtendimentoContent />
       case 'cases':
         return (
           <SubscriptionProtectedWrapper 
@@ -237,6 +241,8 @@ const Index = () => {
             <CasesContent />
           </SubscriptionProtectedWrapper>
         )
+      case 'agenda':
+        return <AgendaContent />
       case 'clients':
         return (
           <SubscriptionProtectedWrapper 

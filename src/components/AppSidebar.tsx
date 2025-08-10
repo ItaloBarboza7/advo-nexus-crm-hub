@@ -1,5 +1,5 @@
 
-import { Home, Users, Flag, TrendingUp, Settings, Zap, Lock } from "lucide-react";
+import { Home, Users, Flag, TrendingUp, Settings, Zap, Lock, Calendar, MessageSquare } from "lucide-react";
 import { useState, useEffect } from "react";
 import {
   Sidebar,
@@ -28,6 +28,11 @@ const menuItems = [
     view: "dashboard" as ActiveView,
   },
   {
+    title: "Atendimento",
+    icon: MessageSquare,
+    view: "atendimento" as ActiveView,
+  },
+  {
     title: "Leads",
     icon: Users,
     view: "clients" as ActiveView,
@@ -39,6 +44,11 @@ const menuItems = [
     view: "cases" as ActiveView,
     requiresPermission: 'analysis_access',
     feature: "analysis_access"
+  },
+  {
+    title: "Agenda",
+    icon: Calendar,
+    view: "agenda" as ActiveView,
   },
   {
     title: "Metas",
