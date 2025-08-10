@@ -103,8 +103,7 @@ export function AgendaContent() {
     <main className="min-h-screen bg-background">
       <section className="container max-w-screen-2xl py-4 space-y-4">
         <header className="space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">Agenda da Equipe — Calendário de Tarefas</h1>
-          <p className="text-muted-foreground">Clique em um dia para adicionar tarefas com descrição e responsável. Dê um duplo clique em qualquer célula para criar rapidamente.</p>
+          <h1 className="text-3xl font-bold tracking-tight">Agenda</h1>
         </header>
         
         <section className="space-y-6">
@@ -167,11 +166,11 @@ export function AgendaContent() {
                   </div>
                   <Card
                     className={
-                      "group relative min-h-[180px] p-3 border border-[hsl(var(--brand-1))]/10 hover:ring-1 hover:ring-[hsl(var(--brand-1))]/15 transition-all duration-300 rounded-lg elevation-soft hover:elevation-float bg-background"
+                      "group relative min-h-[120px] p-2 border border-[hsl(var(--brand-1))]/10 hover:ring-1 hover:ring-[hsl(var(--brand-1))]/15 transition-all duration-300 rounded-lg elevation-soft hover:elevation-float bg-background"
                     }
                     onDoubleClick={() => onAddTask(d)}
                   >
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       {dayTasks.map((t) => (
                         <div
                           key={t.id}
@@ -192,7 +191,7 @@ export function AgendaContent() {
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-2 min-w-0">
                                 {t.time && <span className="text-xs font-medium shrink-0" style={{ color: t.color || "hsl(var(--brand-1))" }}>{t.time}</span>}
-                                <span className="truncate font-medium">{t.title}</span>
+                                <span className="truncate font-medium text-xs">{t.title}</span>
                               </div>
                               {t.owner && (
                                 <span className="text-xs text-muted-foreground truncate">{t.owner}</span>
@@ -203,7 +202,7 @@ export function AgendaContent() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 opacity-0 group-hover/task:opacity-100 transition-opacity"
+                            className="h-6 w-6 opacity-0 group-hover/task:opacity-100 transition-opacity"
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedDate(t.date);
@@ -212,7 +211,7 @@ export function AgendaContent() {
                             }}
                             aria-label="Editar tarefa"
                           >
-                            <Pencil className="h-3.5 w-3.5" />
+                            <Pencil className="h-3 w-3" />
                           </Button>
                         </div>
                       ))}
