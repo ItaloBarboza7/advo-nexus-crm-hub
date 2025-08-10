@@ -1,101 +1,315 @@
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
+import { AppSidebar } from "@/components/AppSidebar"
+import { Header } from "@/components/Header"
+import { DashboardContent } from "@/components/DashboardContent"
+import { OptimizationContent } from "@/components/OptimizationContent"
+import { CalendarContent } from "@/components/CalendarContent"
+import { CasesContent } from "@/components/CasesContent"
+import { ClientsContent } from "@/components/ClientsContent"
+import { SettingsContent } from "@/components/SettingsContent"
+import { CompanyInfoModal } from "@/components/CompanyInfoModal"
+import { SubscriptionWarningBanner } from "@/components/SubscriptionWarningBanner"
+import { SubscriptionProtectedWrapper } from "@/components/SubscriptionProtectedWrapper"
+import { useState, useEffect } from "react"
+import { supabase } from "@/integrations/supabase/client"
+import { User, Session } from "@supabase/supabase-js"
+import { Button } from "@/components/ui/button"
+import { Link, useNavigate } from "react-router-dom"
+import { Lead } from "@/types/lead"
+import { useTenantSchema } from "@/hooks/useTenantSchema"
+import { useSubscriptionControl } from "@/hooks/useSubscriptionControl"
 
-import { useState } from "react";
-import { useLocation } from "react-router-dom";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
-import { Header } from "@/components/Header";
-import { DashboardContent } from "@/components/DashboardContent";
-import { LeadsListView } from "@/components/LeadsListView";
-import { SettingsContent } from "@/components/SettingsContent";
-import { CalendarContent } from "@/components/CalendarContent";
-import { CasesContent } from "@/components/CasesContent";
-import { ClientsContent } from "@/components/ClientsContent";
-import { GlobalSearch } from "@/components/GlobalSearch";
-import { TeamGoalsSettings } from "@/components/TeamGoalsSettings";
-import { SubscriptionProtectedWrapper } from "@/components/SubscriptionProtectedWrapper";
-import { BlockedContent } from "@/components/BlockedContent";
-import { OptimizationContent } from "@/components/OptimizationContent";
-import { AgendaContent } from "@/components/AgendaContent";
-import { AtendimentoContent } from "@/components/AtendimentoContent";
+export type ActiveView = 'dashboard' | 'clients' | 'cases' | 'calendar' | 'optimization' | 'settings'
 
-export default function Index() {
-  const location = useLocation();
-  const [view, setView] = useState<'kanban' | 'list'>('kanban');
+const Index = () => {
+  const [activeView, setActiveView] = useState<ActiveView>('dashboard')
+  const [user, setUser] = useState<User | null>(null)
+  const [session, setSession] = useState<Session | null>(null)
+  const [showCompanyModal, setShowCompanyModal] = useState(false)
+  const [userRole, setUserRole] = useState<string | null>(null)
+  const [dismissedWarning, setDismissedWarning] = useState(false)
+  const { ensureTenantSchema } = useTenantSchema()
+  const navigate = useNavigate()
+  
+  // Subscription control
+  const { 
+    isBlocked, 
+    isLoading: subscriptionLoading, 
+    showWarning, 
+    blockReason,
+    canAccessFeature 
+  } = useSubscriptionControl()
+
+  useEffect(() => {
+    console.log('🔍 Index - Verificando URL para tokens de recovery...')
+    console.log('Current URL:', window.location.href)
+    console.log('Hash:', window.location.hash)
+
+    // Check for recovery tokens in URL hash and redirect to reset password page
+    const handleRecoveryRedirect = () => {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1))
+      const accessToken = hashParams.get('access_token')
+      const refreshToken = hashParams.get('refresh_token')
+      const type = hashParams.get('type')
+      
+      console.log('Hash params:', { 
+        hasAccessToken: !!accessToken, 
+        hasRefreshToken: !!refreshToken, 
+        type 
+      })
+      
+      if (accessToken && refreshToken && type === 'recovery') {
+        console.log('🔄 Recovery tokens detected, redirecting to reset password page')
+        navigate('/reset-password')
+        return true
+      }
+      return false
+    }
+
+    // If we're handling a recovery redirect, don't set up auth listeners yet
+    if (handleRecoveryRedirect()) {
+      return
+    }
+
+    // Set up normal auth state management
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        console.log('🔄 Auth state change:', event, !!session)
+        setSession(session)
+        setUser(session?.user ?? null)
+        
+        if (session?.user) {
+          checkFirstLoginAndCompanyInfo(session.user)
+        } else {
+          setUserRole(null)
+        }
+      }
+    )
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('📋 Initial session check:', !!session)
+      setSession(session)
+      setUser(session?.user ?? null)
+      
+      if (session?.user) {
+        checkFirstLoginAndCompanyInfo(session.user)
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [navigate])
+
+  const checkFirstLoginAndCompanyInfo = async (user: User) => {
+    try {
+      console.log("🔍 Index - Verificando primeiro login e informações da empresa para:", user.email);
+      
+      // Primeiro, garantir que o esquema do tenant exists
+      console.log("🏗️ Index - Garantindo esquema do tenant...");
+      const tenantSchema = await ensureTenantSchema();
+
+      const { data: userRoleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (roleError) {
+        console.error('❌ Erro ao verificar cargo do usuário:', roleError)
+        setUserRole(null)
+        return
+      }
+
+      let role = userRoleData?.role
+
+      if (!role) {
+        const { data: profileData, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('parent_user_id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (profileData && !profileData.parent_user_id && !profileError) {
+          console.log(`👤 Usuário ${user.id} está sem cargo. Atribuindo cargo 'admin'.`);
+          const { error: insertError } = await supabase
+            .from('user_roles')
+            .insert({ user_id: user.id, role: 'admin' });
+
+          if (insertError) {
+            console.error('❌ Erro ao atribuir cargo de admin:', insertError);
+          } else {
+            role = 'admin';
+            console.log(`✅ Cargo 'admin' atribuído com sucesso para o usuário ${user.id}.`);
+          }
+        }
+      }
+
+      setUserRole(role || null)
+
+      // Se é membro, não mostrar modal de empresa
+      if (role === 'member') {
+        console.log("👥 Usuário é membro, não mostrando modal de empresa");
+        return
+      }
+
+      // Verificar se já existe informação da empresa na tabela public.company_info
+      console.log("🏢 Verificando se já existem informações da empresa...");
+      const { data: companyInfo, error: companyError } = await supabase
+        .from('company_info')
+        .select('id, company_name')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (companyError) {
+        console.error('❌ Erro ao verificar informações da empresa:', companyError)
+        return
+      }
+
+      const hasCompanyInfo = !!companyInfo;
+      console.log("🏢 Status das informações da empresa:", {
+        hasCompanyInfo,
+        companyName: companyInfo?.company_name,
+        companyInfoId: companyInfo?.id
+      });
+
+      // Se já tem informações da empresa, não mostrar o modal
+      if (hasCompanyInfo) {
+        console.log("✅ Usuário já possui informações da empresa cadastradas, não mostrando modal");
+        
+        // Garantir que os metadados estão atualizados
+        const currentMetadata = user.user_metadata || {};
+        if (!currentMetadata.company_info_completed) {
+          console.log("🔄 Atualizando metadados para marcar informações como completas");
+          await supabase.auth.updateUser({
+            data: { 
+              ...currentMetadata,
+              company_info_completed: true,
+              is_first_login: false 
+            }
+          });
+        }
+        return;
+      }
+
+      // Só mostrar o modal se NÃO tem informações da empresa
+      console.log("📋 Usuário não possui informações da empresa, mostrando modal");
+      setShowCompanyModal(true);
+      
+    } catch (error) {
+      console.error('❌ Erro ao verificar primeiro login e informações da empresa:', error)
+      // Em caso de erro, não mostrar o modal para evitar bloqueio
+    }
+  }
+
+  const handleLogout = async () => {
+    console.log('🔄 Fazendo logout...')
+    await supabase.auth.signOut()
+  }
+
+  const handleLeadSelect = (lead: Lead) => {
+    console.log('🎯 Lead selected:', lead)
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <h1 className="text-4xl font-bold">Bem-vindo ao CRM</h1>
+          <p className="text-lg text-muted-foreground">Faça login para acessar o sistema</p>
+          <Link to="/login">
+            <Button size="lg">Fazer Login</Button>
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   const renderContent = () => {
-    switch (location.pathname) {
-      case "/":
-        return <DashboardContent />;
-      case "/atendimento":
+    switch (activeView) {
+      case 'dashboard':
+        return <DashboardContent />
+      case 'cases':
         return (
-          <SubscriptionProtectedWrapper fallback={<BlockedContent />}>
-            <AtendimentoContent />
-          </SubscriptionProtectedWrapper>
-        );
-      case "/leads":
-        return (
-          <SubscriptionProtectedWrapper fallback={<BlockedContent />}>
-            <LeadsListView view={view} onViewChange={setView} />
-          </SubscriptionProtectedWrapper>
-        );
-      case "/clientes":
-        return (
-          <SubscriptionProtectedWrapper fallback={<BlockedContent />}>
-            <ClientsContent />
-          </SubscriptionProtectedWrapper>
-        );
-      case "/casos":
-        return (
-          <SubscriptionProtectedWrapper fallback={<BlockedContent />}>
+          <SubscriptionProtectedWrapper 
+            feature="analysis_access"
+            title="Análises Restritas"
+            description="As análises requerem uma assinatura ativa."
+          >
             <CasesContent />
           </SubscriptionProtectedWrapper>
-        );
-      case "/calendario":
+        )
+      case 'clients':
         return (
-          <SubscriptionProtectedWrapper fallback={<BlockedContent />}>
+          <SubscriptionProtectedWrapper 
+            feature="create_lead"
+            title="Gestão de Leads Restrita"
+            description="A gestão de leads requer uma assinatura ativa."
+          >
+            <ClientsContent />
+          </SubscriptionProtectedWrapper>
+        )
+      case 'calendar':
+        return (
+          <SubscriptionProtectedWrapper 
+            feature="calendar_access"
+            title="Calendário Restrito"
+            description="O calendário requer uma assinatura ativa."
+          >
             <CalendarContent />
           </SubscriptionProtectedWrapper>
-        );
-      case "/pesquisa-global":
+        )
+      case 'optimization':
+        return <OptimizationContent />
+      case 'settings':
+        if (userRole === 'member') {
+          return <DashboardContent />
+        }
         return (
-          <SubscriptionProtectedWrapper fallback={<BlockedContent />}>
-            <GlobalSearch />
+          <SubscriptionProtectedWrapper 
+            feature="settings_access"
+            title="Configurações Restritas"
+            description="As configurações requerem uma assinatura ativa."
+          >
+            <SettingsContent />
           </SubscriptionProtectedWrapper>
-        );
-      case "/metas":
-        return (
-          <SubscriptionProtectedWrapper fallback={<BlockedContent />}>
-            <TeamGoalsSettings />
-          </SubscriptionProtectedWrapper>
-        );
-      case "/agenda":
-        return (
-          <SubscriptionProtectedWrapper fallback={<BlockedContent />}>
-            <AgendaContent />
-          </SubscriptionProtectedWrapper>
-        );
-      case "/otimizacao":
-        return (
-          <SubscriptionProtectedWrapper fallback={<BlockedContent />}>
-            <OptimizationContent />
-          </SubscriptionProtectedWrapper>
-        );
-      case "/configuracoes":
-        return <SettingsContent />;
+        )
       default:
-        return <DashboardContent />;
+        return <DashboardContent />
     }
-  };
+  }
+
+  // Show subscription warning banner when needed
+  const shouldShowWarning = showWarning && !dismissedWarning && !subscriptionLoading
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <Header />
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-          {renderContent()}
-        </div>
-      </SidebarInset>
-    </SidebarProvider>
-  );
+    <>
+      <SidebarProvider>
+        <AppSidebar activeView={activeView} setActiveView={setActiveView} userRole={userRole} />
+        <SidebarInset>
+          <Header 
+            user={user}
+            onLogout={handleLogout}
+            onLeadSelect={handleLeadSelect}
+          />
+          <div className="flex flex-1 flex-col gap-4 p-4 pt-0" style={{ paddingBottom: shouldShowWarning ? '70px' : '16px' }}>
+            {renderContent()}
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
+
+      {/* Subscription warning banner */}
+      {shouldShowWarning && (
+        <SubscriptionWarningBanner 
+          message={blockReason}
+          onDismiss={() => setDismissedWarning(true)}
+        />
+      )}
+
+      <CompanyInfoModal 
+        isOpen={showCompanyModal} 
+        onClose={() => setShowCompanyModal(false)} 
+      />
+    </>
+  )
 }
+
+export default Index
