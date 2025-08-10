@@ -1,19 +1,37 @@
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { QrCode, Smartphone, Wifi, WifiOff, Plus } from "lucide-react";
+import { Plus, Smartphone, WifiOff, Settings } from "lucide-react";
 
 const ConnectionsPanel: React.FC = () => {
-  const [isConnected, setIsConnected] = useState(true);
+  const [connections] = useState([
+    { 
+      id: '1', 
+      name: 'WhatsApp Principal', 
+      phone: '+55 11 99999-9999', 
+      status: 'disconnected', 
+      lastSeen: '34 min atrás' 
+    },
+    { 
+      id: '2', 
+      name: 'teste1', 
+      phone: null, 
+      status: 'disconnected', 
+      lastSeen: 'Nunca conectado' 
+    }
+  ]);
+
+  const handleConnect = (id: string) => {
+    console.log('Connecting:', id);
+  };
+
+  const handleSettings = (id: string) => {
+    console.log('Settings for:', id);
+  };
 
   const handleNewConnection = () => {
     console.log('Creating new connection');
-  };
-
-  const handleDisconnect = () => {
-    setIsConnected(false);
   };
 
   return (
@@ -26,80 +44,56 @@ const ConnectionsPanel: React.FC = () => {
         </Button>
       </div>
 
-      <Card className="border border-gray-100">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                <Smartphone className="h-6 w-6 text-green-600" />
+      <div className="space-y-4">
+        {connections.map((connection) => (
+          <div
+            key={connection.id}
+            className="rounded-xl border border-gray-200 bg-white px-6 py-4 shadow-[0_1px_2px_rgba(16,24,40,0.05)] hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center justify-between">
+              {/* Left side - Avatar and info */}
+              <div className="flex items-center space-x-4">
+                <div className="w-10 h-10 bg-gray-100 border border-gray-200 rounded-full flex items-center justify-center">
+                  <WifiOff className="h-5 w-5 text-gray-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">{connection.name}</h3>
+                  <div className="flex items-center space-x-1 text-sm text-gray-500">
+                    <Smartphone className="h-4 w-4" />
+                    <span>{connection.phone || 'Não configurado'}</span>
+                  </div>
+                  <p className="text-xs text-gray-400">{connection.lastSeen}</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-medium text-gray-900">WhatsApp Business</h3>
-                <p className="text-sm text-gray-500">+55 11 99999-9999</p>
-              </div>
-            </div>
-            
-            <Badge 
-              variant={isConnected ? "default" : "destructive"}
-              className={isConnected ? "bg-green-100 text-green-800 border-green-200" : ""}
-            >
-              {isConnected ? (
-                <>
-                  <Wifi className="h-3 w-3 mr-1" />
-                  Conectado
-                </>
-              ) : (
-                <>
-                  <WifiOff className="h-3 w-3 mr-1" />
+
+              {/* Right side - Badge and buttons */}
+              <div className="flex items-center space-x-3">
+                <Badge 
+                  className="bg-sky-50 text-sky-700 border-sky-200 rounded-full px-3 py-1 text-xs font-medium"
+                >
                   Desconectado
-                </>
-              )}
-            </Badge>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-gray-900">98%</p>
-              <p className="text-sm text-gray-500">Uptime</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-gray-900">24h</p>
-              <p className="text-sm text-gray-500">Online</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-gray-900">156</p>
-              <p className="text-sm text-gray-500">Mensagens hoje</p>
-            </div>
-          </div>
-
-          {isConnected ? (
-            <div className="flex justify-center">
-              <Button 
-                variant="outline" 
-                onClick={handleDisconnect}
-                className="text-red-600 border-red-200 hover:bg-red-50"
-              >
-                Desconectar
-              </Button>
-            </div>
-          ) : (
-            <div className="text-center">
-              <div className="w-48 h-48 mx-auto bg-gray-50 border-2 border-dashed border-gray-200 rounded-lg flex items-center justify-center mb-4">
-                <QrCode className="h-16 w-16 text-gray-400" />
+                </Badge>
+                
+                <Button 
+                  onClick={() => handleConnect(connection.id)}
+                  className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 text-sm"
+                >
+                  Conectar
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={() => handleSettings(connection.id)}
+                  className="border-gray-200 bg-white hover:bg-gray-50 h-9 w-9"
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
               </div>
-              <p className="text-sm text-gray-600 mb-2">
-                Escaneie o QR Code com seu WhatsApp
-              </p>
-              <p className="text-xs text-gray-500">
-                1. Abra o WhatsApp no seu celular<br/>
-                2. Toque em Mais opções → Dispositivos conectados<br/>
-                3. Toque em Conectar um dispositivo<br/>
-                4. Aponte seu celular para esta tela
-              </p>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
