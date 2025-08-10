@@ -1,214 +1,302 @@
 
-import { useState } from "react";
-import { Card } from "@/components/ui/card";
+import React, { useState, useEffect } from 'react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { MessageSquare, Search, Settings, Users, MessageCircle, Phone } from "lucide-react";
-
-interface Conversation {
-  id: string;
-  name: string;
-  lastMessage: string;
-  time: string;
-  unread: number;
-  tag: string;
-  initials: string;
-  isActive?: boolean;
-}
+import { Input } from "@/components/ui/input";
+import { MessageCircle, Users, Settings, Phone, Wifi, Search } from "lucide-react";
+import ChatsList from "./whatsapp/ChatsList";
+import QueueList from "./whatsapp/QueueList";
+import ContactsList from "./whatsapp/ContactsList";
+import ChatWindow from "./whatsapp/ChatWindow";
+import ConnectionsPanel from "./whatsapp/ConnectionsPanel";
+import SettingsPanel from "./whatsapp/SettingsPanel";
+import { Chat, User, Contact, Message } from "./whatsapp/types";
+import { useToast } from "@/hooks/use-toast";
+import "./whatsapp/scope.css";
 
 export function AtendimentoContent() {
-  const [activeTab, setActiveTab] = useState('chats');
-  const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
-  const [conversations] = useState<Conversation[]>([
-    {
-      id: '1',
-      name: 'Maria Santos',
-      lastMessage: 'Olá, gostaria de saber mais sobre os serviços jurídicos...',
-      time: '23:24',
-      unread: 1,
-      tag: 'suporte',
-      initials: 'MS'
-    },
-    {
-      id: '2',
-      name: 'João Silva',
-      lastMessage: 'Obrigado pelo atendimento!',
-      time: '22:15',
-      unread: 0,
-      tag: 'vendas',
-      initials: 'JS'
-    }
-  ]);
+  const [activeView, setActiveView] = useState<'chats' | 'connections' | 'settings'>('chats');
+  const [activeChat, setActiveChat] = useState<Chat | null>(null);
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentUser] = useState<User>({
+    id: '1',
+    name: 'Usuário Admin',
+    email: 'admin@empresa.com',
+    department: 'Atendimento',
+    isOnline: true
+  });
+  const { toast } = useToast();
+
+  // Mock data initialization
+  useEffect(() => {
+    const mockChats: Chat[] = [
+      {
+        id: '1',
+        contact: { id: '1', name: 'João Silva', phone: '+5511999999999' },
+        messages: [
+          {
+            id: '1',
+            text: 'Olá, preciso de ajuda com meu pedido',
+            timestamp: new Date(),
+            isFromMe: false,
+            status: 'read'
+          }
+        ],
+        lastMessage: {
+          id: '1',
+          text: 'Olá, preciso de ajuda com meu pedido',
+          timestamp: new Date(),
+          isFromMe: false,
+          status: 'read'
+        },
+        unreadCount: 1,
+        tags: ['vendas'],
+        status: 'queue',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: '2',
+        contact: { id: '2', name: 'Maria Santos', phone: '+5511888888888' },
+        messages: [
+          {
+            id: '2',
+            text: 'Qual o horário de funcionamento?',
+            timestamp: new Date(),
+            isFromMe: false,
+            status: 'delivered'
+          }
+        ],
+        lastMessage: {
+          id: '2',
+          text: 'Qual o horário de funcionamento?',
+          timestamp: new Date(),
+          isFromMe: false,
+          status: 'delivered'
+        },
+        unreadCount: 1,
+        assignedTo: currentUser.id,
+        tags: ['suporte'],
+        status: 'active',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    ];
+
+    const mockUsers: User[] = [
+      currentUser,
+      {
+        id: '2',
+        name: 'Ana Costa',
+        email: 'ana@empresa.com',
+        department: 'Vendas',
+        isOnline: true
+      },
+      {
+        id: '3',
+        name: 'Carlos Lima',
+        email: 'carlos@empresa.com',
+        department: 'Suporte',
+        isOnline: false
+      }
+    ];
+
+    setChats(mockChats);
+    setUsers(mockUsers);
+  }, []);
+
+  const handleChatSelect = (chat: Chat) => {
+    setActiveChat(chat);
+  };
+
+  const handleTransferChat = (chatId: string, userId: string) => {
+    setChats(prev => prev.map(chat => 
+      chat.id === chatId 
+        ? { ...chat, assignedTo: userId, status: 'active' as const }
+        : chat
+    ));
+    toast({
+      title: "Conversa Transferida",
+      description: "A conversa foi transferida com sucesso.",
+    });
+  };
+
+  const handleAddTag = (chatId: string, tag: string) => {
+    setChats(prev => prev.map(chat => 
+      chat.id === chatId 
+        ? { ...chat, tags: [...chat.tags, tag] }
+        : chat
+    ));
+  };
+
+  // Filter chats based on search query
+  const filterChatsBySearch = (chatsToFilter: Chat[]) => {
+    if (!searchQuery.trim()) return chatsToFilter;
+    
+    return chatsToFilter.filter(chat => 
+      chat.contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      chat.contact.phone.includes(searchQuery)
+    );
+  };
+
+  const myChats = filterChatsBySearch(chats.filter(chat => chat.assignedTo === currentUser.id && chat.status === 'active'));
+  const queueChats = filterChatsBySearch(chats.filter(chat => chat.status === 'queue'));
+  const allContacts = chats.map(chat => chat.contact);
 
   return (
-    <div className="flex-1 space-y-6 p-4 md:p-8 pt-6">
-      {/* Local Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-2">
-            <MessageSquare className="h-6 w-6 text-green-500" />
-            <h2 className="text-2xl font-bold">WhatsApp Manager</h2>
-            <Badge className="bg-green-100 text-green-800 border-green-200">Sistema Ativo</Badge>
+    <div className="wecf-scope min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <MessageCircle className="h-8 w-8 text-green-600" />
+              <h1 className="text-2xl font-bold text-gray-900">WhatsApp Manager</h1>
+            </div>
+            <Badge variant="secondary" className="bg-green-100 text-green-800">
+              Sistema Ativo
+            </Badge>
           </div>
-        </div>
-        
-        <div className="flex items-center space-x-1 bg-muted rounded-lg p-1">
-          <Button
-            variant={activeTab === 'connections' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setActiveTab('connections')}
-            className="text-xs"
-          >
-            Conexões
-          </Button>
-          <Button
-            variant={activeTab === 'chats' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setActiveTab('chats')}
-            className="text-xs"
-          >
-            Chats
-          </Button>
-          <Button
-            variant={activeTab === 'settings' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setActiveTab('settings')}
-            className="text-xs"
-          >
-            Configurações
-          </Button>
-        </div>
-      </div>
-
-      {/* Main Layout */}
-      <Card className="flex h-[600px] overflow-hidden">
-        {/* Left Column - Conversations */}
-        <div className="w-80 border-r border-border flex flex-col">
-          {/* Search Bar */}
-          <div className="p-4 border-b border-border">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar conversas..."
-                className="pl-10 bg-muted/50"
-              />
+          
+          {/* Navigation Buttons */}
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 bg-gray-100 rounded-lg p-1">
+              <Button
+                variant={activeView === 'connections' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setActiveView('connections')}
+                className="flex items-center space-x-2"
+              >
+                <Wifi className="h-4 w-4" />
+                <span>Conexões</span>
+              </Button>
+              <Button
+                variant={activeView === 'chats' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setActiveView('chats')}
+                className="flex items-center space-x-2"
+              >
+                <MessageCircle className="h-4 w-4" />
+                <span>Chats</span>
+              </Button>
+            </div>
+            
+            <div className="flex items-center space-x-4 border-l pl-4">
+              <span className="text-sm text-gray-600">
+                {currentUser.name}
+              </span>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setActiveView('settings')}
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Configurações
+              </Button>
             </div>
           </div>
+        </div>
+      </header>
 
-          {/* Tabs */}
-          <div className="flex border-b border-border">
-            <button className="flex-1 px-4 py-3 text-sm font-medium text-primary border-b-2 border-primary bg-muted/30">
-              Chats (1)
-            </button>
-            <button className="flex-1 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground">
-              Fila (1)
-            </button>
-            <button className="flex-1 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground">
-              Contatos (2)
-            </button>
+      {/* Content Area */}
+      <div className="h-[calc(100vh-80px)]">
+        {activeView === 'connections' ? (
+          <div className="p-6">
+            <ConnectionsPanel />
           </div>
-
-          {/* Conversations List */}
-          <div className="flex-1 overflow-y-auto">
-            {conversations.map((conversation) => (
-              <div
-                key={conversation.id}
-                onClick={() => setSelectedConversation(conversation.id)}
-                className={`flex items-center space-x-3 p-4 cursor-pointer hover:bg-muted/50 transition-colors ${
-                  selectedConversation === conversation.id ? 'bg-muted border-r-2 border-primary' : ''
-                }`}
-              >
-                <Avatar className="h-12 w-12">
-                  <AvatarFallback className="bg-primary/10 text-primary font-medium">
-                    {conversation.initials}
-                  </AvatarFallback>
-                </Avatar>
-                
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-1">
-                    <h4 className="font-medium text-sm truncate">{conversation.name}</h4>
-                    <span className="text-xs text-muted-foreground">{conversation.time}</span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground truncate flex-1 mr-2">
-                      {conversation.lastMessage}
-                    </p>
-                    <div className="flex items-center space-x-2">
-                      <Badge 
-                        variant="outline" 
-                        className="text-xs px-2 py-0 h-5"
-                      >
-                        {conversation.tag}
-                      </Badge>
-                      {conversation.unread > 0 && (
-                        <Badge className="bg-primary text-primary-foreground text-xs h-5 w-5 p-0 flex items-center justify-center rounded-full">
-                          {conversation.unread}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
+        ) : activeView === 'settings' ? (
+          <SettingsPanel />
+        ) : (
+          <div className="flex h-full">
+            {/* Sidebar */}
+            <div className="w-1/3 bg-white border-r border-gray-200 flex flex-col">
+              {/* Search Bar */}
+              <div className="p-4 border-b border-gray-200">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Buscar conversas..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Right Column - Chat Area */}
-        <div className="flex-1 flex items-center justify-center bg-muted/20">
-          <div className="text-center space-y-3">
-            <div className="mx-auto h-16 w-16 rounded-full bg-muted flex items-center justify-center">
-              <MessageCircle className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <div>
-              <h3 className="font-medium text-lg mb-1">Selecione uma conversa</h3>
-              <p className="text-sm text-muted-foreground">
-                Escolha uma conversa da lista para começar a responder
-              </p>
-            </div>
-          </div>
-        </div>
-      </Card>
+              <Tabs defaultValue="chats" className="flex-1 flex flex-col">
+                <TabsList className="grid w-full grid-cols-3 m-4">
+                  <TabsTrigger value="chats" className="flex items-center space-x-2">
+                    <MessageCircle className="h-4 w-4" />
+                    <span>Chats ({myChats.length})</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="queue" className="flex items-center space-x-2">
+                    <Users className="h-4 w-4" />
+                    <span>Fila ({queueChats.length})</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="contacts" className="flex items-center space-x-2">
+                    <Phone className="h-4 w-4" />
+                    <span>Contatos ({allContacts.length})</span>
+                  </TabsTrigger>
+                </TabsList>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <MessageSquare className="h-5 w-5 text-green-600" />
+                <div className="flex-1 overflow-hidden">
+                  <TabsContent value="chats" className="h-full m-0">
+                    <ChatsList 
+                      chats={myChats}
+                      onChatSelect={handleChatSelect}
+                      activeChat={activeChat}
+                    />
+                  </TabsContent>
+
+                  <TabsContent value="queue" className="h-full m-0">
+                    <QueueList 
+                      chats={queueChats}
+                      users={users}
+                      onTransferChat={handleTransferChat}
+                      onChatSelect={handleChatSelect}
+                      activeChat={activeChat}
+                    />
+                  </TabsContent>
+
+                  <TabsContent value="contacts" className="h-full m-0">
+                    <ContactsList 
+                      contacts={allContacts}
+                      chats={chats}
+                      onChatSelect={handleChatSelect}
+                    />
+                  </TabsContent>
+                </div>
+              </Tabs>
             </div>
-            <div>
-              <p className="text-2xl font-bold">2</p>
-              <p className="text-sm text-muted-foreground">Conversas Ativas</p>
+
+            {/* Chat Area */}
+            <div className="flex-1 flex flex-col">
+              {activeChat ? (
+                <ChatWindow 
+                  chat={activeChat}
+                  users={users}
+                  onTransferChat={handleTransferChat}
+                  onAddTag={handleAddTag}
+                />
+              ) : (
+                <div className="flex-1 flex items-center justify-center bg-gray-50">
+                  <div className="text-center">
+                    <MessageCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      Selecione uma conversa
+                    </h3>
+                    <p className="text-gray-500">
+                      Escolha uma conversa da lista para começar a responder
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Phone className="h-5 w-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">12</p>
-              <p className="text-sm text-muted-foreground">Mensagens Hoje</p>
-            </div>
-          </div>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <Users className="h-5 w-5 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">1</p>
-              <p className="text-sm text-muted-foreground">Números Conectados</p>
-            </div>
-          </div>
-        </Card>
+        )}
       </div>
     </div>
   );
