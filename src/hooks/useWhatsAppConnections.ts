@@ -27,9 +27,10 @@ export function useWhatsAppConnections() {
 
   const createConnectionMutation = useMutation({
     mutationFn: async (connectionData: CreateWhatsAppConnectionRequest) => {
+      // Cast para alinhar com tipos do Supabase; tenant_id e created_by_user_id são atribuídos via trigger.
       const { data, error } = await supabase
         .from('whatsapp_connections')
-        .insert(connectionData)
+        .insert(connectionData as any)
         .select()
         .single();
 

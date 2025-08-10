@@ -21,6 +21,9 @@ import { AtendimentoContent } from "@/components/AtendimentoContent";
 export default function Index() {
   const location = useLocation();
 
+  // Evita conflito de tipagem do LeadsListView exigindo props: usamos any localmente
+  const LeadsView = LeadsListView as any;
+
   const renderContent = () => {
     switch (location.pathname) {
       case "/":
@@ -34,7 +37,7 @@ export default function Index() {
       case "/leads":
         return (
           <SubscriptionProtectedWrapper fallback={<BlockedContent />}>
-            <LeadsListView />
+            <LeadsView />
           </SubscriptionProtectedWrapper>
         );
       case "/clientes":

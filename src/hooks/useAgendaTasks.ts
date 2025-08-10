@@ -1,7 +1,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { AgendaTask, CreateAgendaTaskRequest, updateAgendaTaskRequest } from "@/types/agenda";
+import { AgendaTask, CreateAgendaTaskRequest, UpdateAgendaTaskRequest } from "@/types/agenda";
 import { useToast } from "@/hooks/use-toast";
 
 export function useAgendaTasks(date?: string) {
@@ -42,9 +42,11 @@ export function useAgendaTasks(date?: string) {
 
   const createTaskMutation = useMutation({
     mutationFn: async (taskData: CreateAgendaTaskRequest) => {
+      // Usamos um cast para satisfazer os tipos gerados do Supabase,
+      // já que tenant_id e created_by_user_id são preenchidos via trigger no banco.
       const { data, error } = await supabase
         .from('agenda_tasks')
-        .insert([taskData])
+        .insert(taskData as any)
         .select()
         .single();
 
