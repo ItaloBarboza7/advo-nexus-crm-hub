@@ -4,7 +4,15 @@ import { corsHeaders } from "../_shared/cors.ts"
 
 const GATEWAY_BASE_URL = Deno.env.get('WHATSAPP_GATEWAY_URL') || 'https://evojuris-whatsapp.onrender.com'
 const GATEWAY_TOKEN = Deno.env.get('WHATSAPP_GATEWAY_TOKEN')
-const GATEWAY_ORIGIN = Deno.env.get('WHATSAPP_GATEWAY_ORIGIN') || 'https://evojuris-whatsapp.onrender.com'
+const GATEWAY_ORIGIN_RAW = Deno.env.get('WHATSAPP_GATEWAY_ORIGIN') || 'https://evojuris-whatsapp.onrender.com'
+
+// Clean origin - take only the first value if comma-separated
+const GATEWAY_ORIGIN = GATEWAY_ORIGIN_RAW.split(',')[0].trim()
+
+console.log(`Proxy configuration:`)
+console.log(`- Gateway URL: ${GATEWAY_BASE_URL}`)
+console.log(`- Gateway Origin (cleaned): ${GATEWAY_ORIGIN}`)
+console.log(`- Has Token: ${!!GATEWAY_TOKEN}`)
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -16,10 +24,26 @@ serve(async (req) => {
 
   try {
     const url = new URL(req.url)
-    const path = url.pathname.replace('/functions/v1/whatsapp-proxy', '')
+    
+    // Extract path correctly - remove /functions/v1/whatsapp-proxy prefix
+    let path = url.pathname
+    const proxyPrefix = '/functions/v1/whatsapp-proxy'
+    if (path.startsWith(proxyPrefix)) {
+      path = path.substring(proxyPrefix.length)
+    }
+    
+    // Ensure path starts with /
+    if (!path.startsWith('/')) {
+      path = '/' + path
+    }
+    
     const targetUrl = `${GATEWAY_BASE_URL}${path}${url.search}`
 
-    console.log(`Proxying request: ${req.method} ${targetUrl}`)
+    console.log(`=== PROXY REQUEST ===`)
+    console.log(`Original URL: ${req.url}`)
+    console.log(`Extracted path: ${path}`)
+    console.log(`Target URL: ${targetUrl}`)
+    console.log(`Method: ${req.method}`)
 
     // Prepare headers for gateway request
     const gatewayHeaders: Record<string, string> = {
@@ -30,31 +54,39 @@ serve(async (req) => {
     // Add authorization if token is available
     if (GATEWAY_TOKEN) {
       gatewayHeaders['Authorization'] = `Bearer ${GATEWAY_TOKEN}`
-      console.log('Added Authorization header to gateway request')
+      console.log('✅ Authorization header added')
     } else {
-      console.log('WARNING: No WHATSAPP_GATEWAY_TOKEN configured')
+      console.log('⚠️ WARNING: No WHATSAPP_GATEWAY_TOKEN configured')
     }
 
     // Handle Server-Sent Events (SSE) for QR codes
     if (path.includes('/qr') && req.method === 'GET') {
+      console.log('🔄 Handling SSE request for QR codes')
+      
       gatewayHeaders['Accept'] = 'text/event-stream'
       gatewayHeaders['Cache-Control'] = 'no-cache'
+
+      console.log(`SSE Headers:`, gatewayHeaders)
 
       const response = await fetch(targetUrl, {
         method: req.method,
         headers: gatewayHeaders,
       })
 
+      console.log(`SSE Response status: ${response.status}`)
+
       if (!response.ok) {
-        console.error(`SSE Gateway error: ${response.status} - ${response.statusText}`)
         const errorText = await response.text()
+        console.error(`❌ SSE Gateway error: ${response.status} - ${errorText}`)
+        
         return new Response(
           JSON.stringify({ 
             error: 'SSE Gateway error', 
             status: response.status,
             statusText: response.statusText,
             details: errorText,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            target_url: targetUrl
           }),
           {
             status: response.status,
@@ -71,6 +103,7 @@ serve(async (req) => {
         start(controller) {
           const reader = response.body?.getReader()
           if (!reader) {
+            console.error('❌ No reader available for SSE stream')
             controller.close()
             return
           }
@@ -79,12 +112,15 @@ serve(async (req) => {
             try {
               while (true) {
                 const { done, value } = await reader.read()
-                if (done) break
+                if (done) {
+                  console.log('✅ SSE stream completed')
+                  break
+                }
                 controller.enqueue(value)
               }
               controller.close()
             } catch (error) {
-              console.error('SSE Stream error:', error)
+              console.error('❌ SSE Stream error:', error)
               controller.error(error)
             }
           }
@@ -113,10 +149,9 @@ serve(async (req) => {
       ? await req.text() 
       : undefined
 
-    console.log(`Making request to gateway: ${req.method} ${targetUrl}`)
-    console.log(`Request headers:`, gatewayHeaders)
+    console.log(`Request headers to gateway:`, gatewayHeaders)
     if (requestBody) {
-      console.log(`Request body:`, requestBody)
+      console.log(`Request body:`, requestBody.substring(0, 200) + (requestBody.length > 200 ? '...' : ''))
     }
 
     const response = await fetch(targetUrl, {
@@ -125,11 +160,12 @@ serve(async (req) => {
       body: requestBody,
     })
 
-    console.log(`Gateway response status: ${response.status}`)
+    console.log(`✅ Gateway response status: ${response.status}`)
+    console.log(`Gateway response headers:`, Object.fromEntries(response.headers.entries()))
     
     if (!response.ok) {
       const errorText = await response.text()
-      console.error(`Gateway error response: ${response.status} - ${errorText}`)
+      console.error(`❌ Gateway error response: ${response.status} - ${errorText}`)
       
       return new Response(
         JSON.stringify({ 
@@ -138,7 +174,9 @@ serve(async (req) => {
           statusText: response.statusText,
           details: errorText,
           timestamp: new Date().toISOString(),
-          gateway_url: targetUrl
+          target_url: targetUrl,
+          proxy_path: path,
+          original_url: req.url
         }),
         {
           status: response.status,
@@ -151,7 +189,7 @@ serve(async (req) => {
     }
 
     const responseBody = await response.text()
-    console.log(`Gateway response body:`, responseBody)
+    console.log(`Gateway response body:`, responseBody.substring(0, 300) + (responseBody.length > 300 ? '...' : ''))
     
     // Parse JSON if possible, otherwise return as text
     let parsedBody
@@ -170,7 +208,7 @@ serve(async (req) => {
     })
 
   } catch (error) {
-    console.error('Proxy error:', error)
+    console.error('❌ Proxy connection error:', error)
     
     return new Response(
       JSON.stringify({ 
