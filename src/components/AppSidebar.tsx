@@ -1,140 +1,206 @@
 
-import { Home, Users, Flag, TrendingUp, Settings, Zap, Lock } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import {
+  Calendar,
+  ChevronDown,
+  Home,
+  MessageSquare,
+  Settings,
+  Users,
+  BarChart3,
+  Building2,
+  Briefcase,
+  Search,
+  Goal,
+} from "lucide-react";
+
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarHeader,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+  SidebarRail,
 } from "@/components/ui/sidebar";
-import { ActiveView } from "@/pages/Index";
+import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { UserProfileModal } from "@/components/UserProfileModal";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
-import { useSubscriptionControl } from "@/hooks/useSubscriptionControl";
-
-interface AppSidebarProps {
-  activeView: ActiveView;
-  setActiveView: (view: ActiveView) => void;
-  userRole: string | null;
-}
 
 const menuItems = [
   {
     title: "Dashboard",
+    url: "/",
     icon: Home,
-    view: "dashboard" as ActiveView,
+    exact: true,
+  },
+  {
+    title: "Atendimento",
+    url: "/atendimento",
+    icon: MessageSquare,
   },
   {
     title: "Leads",
+    url: "/leads",
     icon: Users,
-    view: "clients" as ActiveView,
-    feature: "create_lead"
+  },
+  {
+    title: "Clientes",
+    url: "/clientes",
+    icon: Building2,
+  },
+  {
+    title: "Casos",
+    url: "/casos",
+    icon: Briefcase,
   },
   {
     title: "Análises",
-    icon: TrendingUp,
-    view: "cases" as ActiveView,
-    requiresPermission: 'analysis_access',
-    feature: "analysis_access"
+    url: "/analises",
+    icon: BarChart3,
+    subItems: [
+      {
+        title: "Pesquisa Global",
+        url: "/pesquisa-global",
+        icon: Search,
+      },
+      {
+        title: "Metas da Equipe",
+        url: "/metas",
+        icon: Goal,
+      },
+    ],
   },
   {
-    title: "Metas",
-    icon: Flag,
-    view: "calendar" as ActiveView,
-    feature: "calendar_access"
-  },
-  {
-    title: "Otimização",
-    icon: Zap,
-    view: "optimization" as ActiveView,
+    title: "Agenda",
+    url: "/agenda",
+    icon: Calendar,
   },
   {
     title: "Configurações",
+    url: "/configuracoes",
     icon: Settings,
-    view: "settings" as ActiveView,
-    feature: "settings_access"
   },
 ];
 
-export function AppSidebar({ activeView, setActiveView, userRole }: AppSidebarProps) {
-  const { getCurrentUserPermission } = useUserPermissions();
-  const { canAccessFeature } = useSubscriptionControl();
-  const [hasAnalysisAccess, setHasAnalysisAccess] = useState(false);
+export function AppSidebar() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const { canAccessOptimization } = useUserPermissions();
 
-  useEffect(() => {
-    const checkAnalysisPermission = async () => {
-      const hasAccess = await getCurrentUserPermission('analysis_access');
-      setHasAnalysisAccess(hasAccess);
-    };
-
-    checkAnalysisPermission();
-  }, [getCurrentUserPermission]);
-
-  const visibleMenuItems = menuItems.filter(item => {
-    // Configurações só para não-membros
-    if (item.view === 'settings') {
-      return userRole !== 'member';
+  const isActive = (url: string, exact = false) => {
+    if (exact) {
+      return location.pathname === url;
     }
-    
-    // Análises só para quem tem permissão
-    if (item.requiresPermission === 'analysis_access') {
-      return hasAnalysisAccess;
+    return location.pathname.startsWith(url);
+  };
+
+  const filteredMenuItems = menuItems.filter(item => {
+    if (item.url === "/otimizacao" && !canAccessOptimization) {
+      return false;
     }
-    
     return true;
   });
 
   return (
-    <Sidebar className="border-r border-gray-200 dark:border-gray-800">
-      <SidebarHeader className="px-0 py-0">
-        <div className="flex items-center justify-center overflow-hidden">
-          <img 
-            src="/lovable-uploads/cdf6d547-b3db-49aa-a10e-22232822a77e.png" 
-            alt="EVOJURIS Logo" 
-            className="h-48 w-auto object-cover scale-125 -my-6"
-            style={{
-              clipPath: 'inset(15% 8% 15% 8%)'
-            }}
-          />
+    <Sidebar collapsible="icon">
+      <SidebarHeader>
+        <div className="flex items-center gap-2 px-2 py-1">
+          <div className="h-8 w-8 rounded bg-blue-600 flex items-center justify-center">
+            <span className="text-white text-sm font-bold">L</span>
+          </div>
+          <span className="font-semibold text-sidebar-foreground group-data-[collapsible=icon]:hidden">
+            LeadsPro
+          </span>
         </div>
       </SidebarHeader>
+      
       <SidebarContent>
         <SidebarGroup>
+          <SidebarGroupLabel>Menu Principal</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {visibleMenuItems.map((item) => {
-                const hasFeatureAccess = !item.feature || canAccessFeature(item.feature);
-                const isBlocked = item.feature && !hasFeatureAccess;
-                
-                return (
-                  <SidebarMenuItem key={item.title}>
+              {filteredMenuItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  {item.subItems ? (
+                    <Collapsible defaultOpen={isActive(item.url)}>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton
+                          isActive={isActive(item.url)}
+                          className="w-full justify-between"
+                        >
+                          <div className="flex items-center gap-2">
+                            <item.icon className="h-4 w-4" />
+                            <span>{item.title}</span>
+                          </div>
+                          <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          {item.subItems.map((subItem) => (
+                            <SidebarMenuSubItem key={subItem.title}>
+                              <SidebarMenuSubButton
+                                onClick={() => navigate(subItem.url)}
+                                isActive={isActive(subItem.url)}
+                              >
+                                <subItem.icon className="h-4 w-4" />
+                                <span>{subItem.title}</span>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  ) : (
                     <SidebarMenuButton
-                      isActive={activeView === item.view}
-                      onClick={() => setActiveView(item.view)}
-                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-                        activeView === item.view
-                          ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-r-2 border-blue-600"
-                          : isBlocked
-                          ? "text-gray-400 dark:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-900"
-                          : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-                      }`}
+                      onClick={() => navigate(item.url)}
+                      isActive={isActive(item.url, item.exact)}
                     >
-                      <item.icon className={`h-5 w-5 ${isBlocked ? 'opacity-50' : ''}`} />
-                      <span className={`font-medium ${isBlocked ? 'opacity-50' : ''}`}>
-                        {item.title}
-                      </span>
-                      {isBlocked && <Lock className="h-3 w-3 ml-auto opacity-50" />}
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
                     </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
+                  )}
+                </SidebarMenuItem>
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <Button
+              variant="ghost"
+              className="w-full justify-start h-10 px-2"
+              onClick={() => setIsProfileModalOpen(true)}
+            >
+              <div className="h-6 w-6 rounded-full bg-blue-600 flex items-center justify-center">
+                <span className="text-white text-xs font-medium">U</span>
+              </div>
+              <span className="group-data-[collapsible=icon]:hidden">Perfil</span>
+            </Button>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+      
+      <SidebarRail />
+      
+      <UserProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+      />
     </Sidebar>
   );
 }

@@ -76,6 +76,48 @@ export type Database = {
           },
         ]
       }
+      agenda_tasks: {
+        Row: {
+          assigned_to_user_id: string
+          created_at: string
+          created_by_user_id: string
+          description: string | null
+          id: string
+          scheduled_date: string
+          scheduled_time: string | null
+          status: string
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to_user_id: string
+          created_at?: string
+          created_by_user_id: string
+          description?: string | null
+          id?: string
+          scheduled_date: string
+          scheduled_time?: string | null
+          status?: string
+          tenant_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to_user_id?: string
+          created_at?: string
+          created_by_user_id?: string
+          description?: string | null
+          id?: string
+          scheduled_date?: string
+          scheduled_time?: string | null
+          status?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       company_info: {
         Row: {
           address: string
@@ -519,6 +561,48 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      whatsapp_connections: {
+        Row: {
+          created_at: string
+          created_by_user_id: string
+          id: string
+          last_connected_at: string | null
+          name: string
+          phone_number: string
+          qr_code: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+          webhook_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by_user_id: string
+          id?: string
+          last_connected_at?: string | null
+          name: string
+          phone_number: string
+          qr_code?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+          webhook_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by_user_id?: string
+          id?: string
+          last_connected_at?: string | null
+          name?: string
+          phone_number?: string
+          qr_code?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+          webhook_url?: string | null
         }
         Relationships: []
       }
