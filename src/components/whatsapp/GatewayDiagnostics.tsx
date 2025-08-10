@@ -19,6 +19,7 @@ const GatewayDiagnostics: React.FC = () => {
   const supabaseUrl = 'https://xltugnmjbcowsuwzkkni.supabase.co';
   const isUsingProxy = true;
   const proxyUrl = `${supabaseUrl}/functions/v1/whatsapp-proxy`;
+  const apiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsdHVnbm1qYmNvd3N1d3pra25pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4MDkyNjAsImV4cCI6MjA2NDM4NTI2MH0.g-dg8YF0mK0LkDBvTzUlW8po9tT0VC-s47PFbDScmN8';
 
   const testHealth = async () => {
     setTesting(true);
@@ -93,7 +94,8 @@ const GatewayDiagnostics: React.FC = () => {
         headers: {
           'Origin': window.location.origin,
           'Access-Control-Request-Method': 'GET',
-          'Access-Control-Request-Headers': 'Content-Type'
+          'Access-Control-Request-Headers': 'Content-Type',
+          'apikey': apiKey
         }
       });
       
@@ -168,6 +170,7 @@ const GatewayDiagnostics: React.FC = () => {
                 <p>• CORS gerenciado automaticamente pelo proxy</p>
                 <p>• Logging detalhado habilitado para debug</p>
                 <p>• Endpoint /_debug disponível para diagnóstico completo</p>
+                <p>• Header apikey adicionado para autenticação Supabase</p>
               </div>
             </div>
           </div>
@@ -293,6 +296,7 @@ const GatewayDiagnostics: React.FC = () => {
               <p>• ✅ Tratamento melhorado de erros JSON e exibição de resposta bruta</p>
               <p>• ✅ Logs detalhados do proxy para debug de requisições e respostas</p>
               <p>• ✅ Todas as requisições autenticadas via proxy Supabase</p>
+              <p>• ✅ Header apikey adicionado para autenticação com Supabase</p>
             </div>
           </div>
         </CardContent>

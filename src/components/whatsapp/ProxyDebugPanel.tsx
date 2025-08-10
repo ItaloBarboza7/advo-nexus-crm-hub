@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,6 +34,7 @@ const ProxyDebugPanel: React.FC = () => {
   // Hardcoded Supabase URL to avoid import.meta.env issues
   const supabaseUrl = 'https://xltugnmjbcowsuwzkkni.supabase.co';
   const debugUrl = `${supabaseUrl}/functions/v1/whatsapp-proxy/_debug`;
+  const apiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsdHVnbm1qYmNvd3N1d3pra25pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4MDkyNjAsImV4cCI6MjA2NDM4NTI2MH0.g-dg8YF0mK0LkDBvTzUlW8po9tT0VC-s47PFbDScmN8';
 
   const runDebugTest = async () => {
     setTesting(true);
@@ -43,7 +43,8 @@ const ProxyDebugPanel: React.FC = () => {
       const response = await fetch(debugUrl, {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'apikey': apiKey
         }
       });
 
@@ -234,7 +235,7 @@ const ProxyDebugPanel: React.FC = () => {
                 <div>
                   <p className="font-medium">Teste via proxy debug:</p>
                   <code className="block bg-white p-2 rounded text-xs">
-                    curl -v "{debugUrl}"
+                    curl -v "{debugUrl}" -H "apikey: {apiKey}"
                   </code>
                 </div>
               </div>
