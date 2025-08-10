@@ -1,305 +1,255 @@
-import { useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Plus, Edit, Trash2, Clock, User, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
-import { IntegratedCalendar } from "@/components/IntegratedCalendar";
 
-interface Task {
-  id: string;
-  date: string;
-  time: string;
-  title: string;
-  description: string;
-  assignedTo: string;
+import { useMemo, useState } from "react";
+import { addMonths, format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays, isSameMonth, isToday, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Plus, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Calendar, Pencil } from "lucide-react";
+import { TaskDialog } from "./agenda/TaskDialog";
+import { Task } from "./agenda/types";
+
+function dateKey(d: Date) {
+  return format(d, "yyyy-MM-dd");
+}
+
+function loadTasks(): Task[] {
+  try {
+    const raw = localStorage.getItem("team_tasks_v1");
+    if (!raw) return [];
+    const arr = JSON.parse(raw) as Task[];
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveTasks(tasks: Task[]) {
+  localStorage.setItem("team_tasks_v1", JSON.stringify(tasks));
 }
 
 export function AgendaContent() {
-  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: '1',
-      date: new Date().toISOString().split('T')[0],
-      time: '09:00',
-      title: 'Audiência Civil',
-      description: 'Processo 123456 - Reunião com cliente para discussão de estratégias',
-      assignedTo: 'João Silva'
-    },
-    {
-      id: '2',
-      date: new Date().toISOString().split('T')[0],
-      time: '14:30',
-      title: 'Análise de Contrato',
-      description: 'Revisão contratual empresa XYZ - Cláusulas de rescisão',
-      assignedTo: 'Maria Santos'
-    },
-    {
-      id: '3',
-      date: new Date().toISOString().split('T')[0],
-      time: '16:00',
-      title: 'Reunião com Cliente',
-      description: 'Apresentação de proposta jurídica',
-      assignedTo: 'Ana Costa'
+  const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
+  const [tasks, setTasks] = useState<Task[]>(() => loadTasks());
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+
+  const tasksByDay = useMemo(() => {
+    const map: Record<string, Task[]> = {};
+    for (const t of tasks) {
+      const key = t.date;
+      (map[key] ||= []).push(t);
     }
-  ]);
-  
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    time: '',
-    assignedTo: ''
-  });
+    // sort tasks by time (HH:mm) then title
+    Object.values(map).forEach((arr) =>
+      arr.sort((a, b) => {
+        const ta = a.time ?? "99:99";
+        const tb = b.time ?? "99:99";
+        if (ta !== tb) return ta.localeCompare(tb);
+        return a.title.localeCompare(b.title);
+      })
+    );
+    return map;
+  }, [tasks]);
 
-  const selectedDateStr = selectedDate?.toISOString().split('T')[0] || '';
-  const tasksForSelectedDate = tasks.filter(task => task.date === selectedDateStr);
+  const monthStart = startOfMonth(currentMonth);
+  const monthEnd = endOfMonth(currentMonth);
+  const gridStart = startOfWeek(monthStart, { locale: ptBR });
+  const gridEnd = endOfWeek(monthEnd, { locale: ptBR });
 
-  const handleSubmit = () => {
-    if (!selectedDate) return;
-    
-    const taskData: Task = {
-      id: editingTask?.id || Date.now().toString(),
-      date: selectedDateStr,
-      time: formData.time,
-      title: formData.title,
-      description: formData.description,
-      assignedTo: formData.assignedTo
-    };
-
-    if (editingTask) {
-      setTasks(prev => prev.map(task => task.id === editingTask.id ? taskData : task));
-    } else {
-      setTasks(prev => [...prev, taskData]);
+  const weeks: Date[][] = [];
+  let day = gridStart;
+  while (day <= gridEnd) {
+    const week: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+      week.push(day);
+      day = addDays(day, 1);
     }
+    weeks.push(week);
+  }
 
-    setIsDialogOpen(false);
-    resetForm();
-  };
+  function onAddTask(date: Date) {
+    setSelectedTaskId(null);
+    setSelectedDate(dateKey(date));
+    setDialogOpen(true);
+  }
 
-  const resetForm = () => {
-    setFormData({ title: '', description: '', time: '', assignedTo: '' });
-    setEditingTask(null);
-  };
-
-  const handleEdit = (task: Task) => {
-    setEditingTask(task);
-    setFormData({
-      title: task.title,
-      description: task.description,
-      time: task.time,
-      assignedTo: task.assignedTo
+  function handleSaveTask(newTask: Task) {
+    setTasks((prev) => {
+      const updated = [...prev, newTask];
+      saveTasks(updated);
+      return updated;
     });
-    setIsDialogOpen(true);
-  };
+  }
 
-  const handleDelete = (taskId: string) => {
-    setTasks(prev => prev.filter(task => task.id !== taskId));
-  };
+  function handleDeleteTask(id: string) {
+    setTasks((prev) => {
+      const updated = prev.filter((t) => t.id !== id);
+      saveTasks(updated);
+      return updated;
+    });
+  }
 
-  const openNewTaskDialog = () => {
-    resetForm();
-    setIsDialogOpen(true);
-  };
+  function handleUpdateTask(updatedTask: Task) {
+    setTasks((prev) => {
+      const updated = prev.map((t) => (t.id === updatedTask.id ? updatedTask : t));
+      saveTasks(updated);
+      return updated;
+    });
+  }
 
   return (
-    <div className="flex-1 space-y-6 p-4 md:p-8 pt-6">
-      {/* Local Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <Calendar className="h-6 w-6 text-blue-500" />
-            <h2 className="text-2xl font-bold">Agenda</h2>
-          </div>
-          <Button variant="outline" size="sm">
-            Hoje
-          </Button>
-        </div>
+    <main className="min-h-screen bg-background">
+      <section className="container max-w-screen-2xl py-4 space-y-4">
+        <header className="space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight">Agenda da Equipe — Calendário de Tarefas</h1>
+          <p className="text-muted-foreground">Clique em um dia para adicionar tarefas com descrição e responsável. Dê um duplo clique em qualquer célula para criar rapidamente.</p>
+        </header>
         
-        <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-1 bg-muted rounded-lg p-1">
-            <Button variant="default" size="sm" className="text-xs">
-              Mês
-            </Button>
-            <Button variant="ghost" size="sm" className="text-xs">
-              Agenda
-            </Button>
-          </div>
-          
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={openNewTaskDialog}>
-                <Plus className="mr-2 h-4 w-4" />
-                Nova Tarefa
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>
-                  {editingTask ? 'Editar Tarefa' : 'Nova Tarefa'}
-                </DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Título</label>
-                  <Input
-                    value={formData.title}
-                    onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                    placeholder="Título da tarefa"
-                  />
+        <section className="space-y-6">
+          <header className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="inline-flex items-center gap-1 rounded-lg border bg-background px-1 py-1 shadow-sm">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentMonth(addMonths(currentMonth, -12))} aria-label="Ano anterior">
+                  <ChevronsLeft className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentMonth(addMonths(currentMonth, -1))} aria-label="Mês anterior">
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <div className="px-3 py-1 rounded-md bg-secondary text-sm font-medium flex items-center gap-2 min-w-[160px] justify-center">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  {format(currentMonth, "LLLL, yyyy", { locale: ptBR })}
                 </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Horário</label>
-                  <Input
-                    type="time"
-                    value={formData.time}
-                    onChange={(e) => setFormData(prev => ({ ...prev, time: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Responsável</label>
-                  <Input
-                    value={formData.assignedTo}
-                    onChange={(e) => setFormData(prev => ({ ...prev, assignedTo: e.target.value }))}
-                    placeholder="Nome do responsável"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Descrição</label>
-                  <Textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Descrição da tarefa"
-                  />
-                </div>
-                <Button onClick={handleSubmit} className="w-full">
-                  {editingTask ? 'Atualizar' : 'Criar'} Tarefa
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} aria-label="Próximo mês">
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentMonth(addMonths(currentMonth, 12))} aria-label="Próximo ano">
+                  <ChevronsRight className="h-4 w-4" />
                 </Button>
               </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
+              <Button variant="outline" onClick={() => setCurrentMonth(new Date())}>Hoje</Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="brand" onClick={() => onAddTask(new Date())}>
+                <Plus className="h-4 w-4 mr-2" /> Nova tarefa
+              </Button>
+            </div>
+          </header>
+          <Separator />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Calendar */}
-        <div className="lg:col-span-1">
-          <IntegratedCalendar
-            selectedDate={selectedDate}
-            onDateSelect={setSelectedDate}
-          />
-        </div>
-
-        {/* Timeline for selected date */}
-        <div className="lg:col-span-2">
-          <Card className="p-0 overflow-hidden">
-            <div className="p-6 border-b border-border bg-muted/30">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <h3 className="text-xl font-semibold">
-                    {selectedDate?.toLocaleDateString('pt-BR', { 
-                      weekday: 'long', 
-                      year: 'numeric', 
-                      month: 'long', 
-                      day: 'numeric' 
-                    })}
-                  </h3>
-                  <Badge variant="secondary" className="ml-2">
-                    {tasksForSelectedDate.length} {tasksForSelectedDate.length === 1 ? 'tarefa' : 'tarefas'}
-                  </Badge>
-                </div>
+          <div className="grid grid-cols-7 gap-1.5 md:gap-2.5">
+            {weeks[0].map((d) => (
+              <div key={d.toISOString()} className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                {format(d, "EEEEEE", { locale: ptBR })}
               </div>
-            </div>
+            ))}
 
-            <div className="p-6">
-              {tasksForSelectedDate.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="mx-auto h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                    <Clock className="h-8 w-8 text-muted-foreground" />
+            {weeks.flat().map((d) => {
+              const key = dateKey(d);
+              const dayTasks = tasksByDay[key] || [];
+              const muted = !isSameMonth(d, currentMonth);
+              const today = isToday(d);
+
+              return (
+                <div key={d.toISOString()} className={(muted ? "opacity-60 " : "") + "space-y-1"}>
+                  <div className="flex items-baseline justify-between pl-0.5">
+                    <button
+                      className="text-lg md:text-xl font-bold leading-none text-foreground hover:text-[hsl(var(--brand-1))] transition-colors"
+                      onClick={() => onAddTask(d)}
+                      aria-label="Adicionar tarefa"
+                    >
+                      {format(d, "d", { locale: ptBR })}
+                    </button>
+                    {today && (
+                      <span className="text-xs font-medium text-[hsl(var(--brand-1))]">Hoje</span>
+                    )}
                   </div>
-                  <h3 className="font-medium text-lg mb-2">Nenhuma tarefa agendada</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Você não possui tarefas para este dia
-                  </p>
-                  <Button onClick={openNewTaskDialog} variant="outline">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Adicionar Tarefa
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  {tasksForSelectedDate
-                    .sort((a, b) => a.time.localeCompare(b.time))
-                    .map((task, index) => (
-                      <div key={task.id} className="group flex hover:bg-muted/30 rounded-lg transition-colors">
-                        {/* Time Column */}
-                        <div className="w-20 flex-shrink-0 p-4 text-right">
-                          <span className="text-sm font-medium text-muted-foreground">
-                            {task.time}
-                          </span>
-                        </div>
-                        
-                        {/* Timeline Line */}
-                        <div className="flex flex-col items-center w-8 flex-shrink-0">
-                          <div className={`w-3 h-3 rounded-full bg-primary mt-5 ${index === 0 ? 'mt-5' : ''}`}></div>
-                          {index < tasksForSelectedDate.length - 1 && (
-                            <div className="w-px bg-border flex-1 mt-2"></div>
-                          )}
-                        </div>
-                        
-                        {/* Content */}
-                        <div className="flex-1 p-4">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center space-x-3 mb-2">
-                                <h4 className="font-semibold text-foreground">{task.title}</h4>
-                                <div className="flex items-center space-x-2">
-                                  <Avatar className="h-6 w-6">
-                                    <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                                      {task.assignedTo.split(' ').map(n => n[0]).join('')}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <span className="text-sm text-muted-foreground">{task.assignedTo}</span>
-                                </div>
+                  <Card
+                    className={
+                      "group relative min-h-[180px] p-3 border border-[hsl(var(--brand-1))]/10 hover:ring-1 hover:ring-[hsl(var(--brand-1))]/15 transition-all duration-300 rounded-lg elevation-soft hover:elevation-float bg-background"
+                    }
+                    onDoubleClick={() => onAddTask(d)}
+                  >
+                    <div className="space-y-2">
+                      {dayTasks.map((t) => (
+                        <div
+                          key={t.id}
+                          className="group/task relative w-full text-sm rounded-md border border-border bg-background hover:bg-accent px-2 py-1 transition-colors focus-within:ring-2 focus-within:ring-ring flex items-center justify-between gap-2"
+                          title={t.description}
+                        >
+                          <div className="absolute left-0 top-0 h-full w-1 rounded-l-md" style={{ background: t.color || "hsl(var(--brand-1))", opacity: 0.7 }} aria-hidden="true" />
+
+                          <button
+                            className="flex-1 text-left min-w-0"
+                            onClick={() => {
+                              setSelectedDate(t.date);
+                              setSelectedTaskId(t.id);
+                              setDialogOpen(true);
+                            }}
+                            aria-label={`Editar tarefa: ${t.title}`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                {t.time && <span className="text-xs font-medium shrink-0" style={{ color: t.color || "hsl(var(--brand-1))" }}>{t.time}</span>}
+                                <span className="truncate font-medium">{t.title}</span>
                               </div>
-                              
-                              <p className="text-sm text-muted-foreground leading-relaxed">
-                                {task.description}
-                              </p>
+                              {t.owner && (
+                                <span className="text-xs text-muted-foreground truncate">{t.owner}</span>
+                              )}
                             </div>
-                            
-                            <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity ml-4">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleEdit(task)}
-                                className="h-8 w-8 p-0"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleDelete(task.id)}
-                                className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
+                          </button>
+
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 opacity-0 group-hover/task:opacity-100 transition-opacity"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedDate(t.date);
+                              setSelectedTaskId(t.id);
+                              setDialogOpen(true);
+                            }}
+                            aria-label="Editar tarefa"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                      {dayTasks.length === 0 && (
+                        <button
+                          onClick={() => onAddTask(d)}
+                          className="w-full text-left text-xs text-muted-foreground/80 hover:text-foreground/80 transition-colors"
+                        >
+                          Adicionar tarefa…
+                        </button>
+                      )}
+                    </div>
+                  </Card>
                 </div>
-              )}
-            </div>
-          </Card>
-        </div>
-      </div>
-    </div>
+              );
+            })}
+          </div>
+
+          <TaskDialog
+            open={dialogOpen}
+            onOpenChange={setDialogOpen}
+            defaultDate={selectedDate ? parseISO(selectedDate) : new Date()}
+            onSave={handleSaveTask}
+            onUpdate={(task) => { handleUpdateTask(task); setSelectedTaskId(null); }}
+            onDelete={handleDeleteTask}
+            existingTasks={[]}
+            editingTask={selectedTaskId ? tasks.find((t) => t.id === selectedTaskId) ?? null : null}
+            onStartEdit={(id) => {
+              const task = tasks.find((x) => x.id === id);
+              if (task) {
+                setSelectedDate(task.date);
+                setSelectedTaskId(id);
+              }
+            }}
+          />
+        </section>
+      </section>
+    </main>
   );
 }
