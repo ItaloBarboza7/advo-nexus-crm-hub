@@ -28,6 +28,7 @@ const GatewayDiagnostics: React.FC = () => {
         status: 'error',
         message: 'Falha ao testar health check',
         corsHeaders: false,
+        proxyUsed: isUsingProxy,
         timestamp: new Date().toISOString()
       });
     } finally {
