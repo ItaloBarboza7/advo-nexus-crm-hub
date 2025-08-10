@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Smartphone, WifiOff, Wifi, Settings, RefreshCw, AlertTriangle } from "lucide-react";
+import { Plus, Smartphone, WifiOff, Wifi, Settings, RefreshCw, AlertTriangle, ExternalLink } from "lucide-react";
 import { whatsappGateway, type GatewayConnection } from "@/integrations/whatsapp/gateway";
 import NewConnectionDialog from "./NewConnectionDialog";
 import GatewayDiagnostics from "./GatewayDiagnostics";
@@ -15,10 +15,15 @@ const ConnectionsPanel: React.FC = () => {
   const [reconnectId, setReconnectId] = useState<string | null>(null);
   const [gatewayError, setGatewayError] = useState<string | null>(null);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [errorType, setErrorType] = useState<'cors' | 'route_missing' | 'server_down' | 'unknown'>('unknown');
+
+  const baseUrl = import.meta.env.VITE_WHATSAPP_GATEWAY_URL || 'https://evojuris-whatsapp.onrender.com';
 
   const loadConnections = async () => {
     setLoading(true);
     setGatewayError(null);
+    setErrorType('unknown');
+    
     try {
       const list = await whatsappGateway.listConnections();
       setConnections(list);
@@ -28,18 +33,31 @@ const ConnectionsPanel: React.FC = () => {
       const errorMessage = e?.message ?? 'Falha inesperada';
       setGatewayError(errorMessage);
       
-      // Show diagnostics automatically on error
-      setShowDiagnostics(true);
+      // Classify error type for better UX
+      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Erro de conexão')) {
+        setErrorType('cors');
+        setShowDiagnostics(true);
+      } else if (errorMessage.includes('Rota não encontrada') || errorMessage.includes('404')) {
+        setErrorType('route_missing');
+        setShowDiagnostics(true);
+      } else if (errorMessage.includes('5')) {
+        setErrorType('server_down');
+      } else {
+        setErrorType('unknown');
+      }
       
       let toastTitle = 'Erro ao carregar conexões';
       let toastDescription = errorMessage;
       
-      if (errorMessage.includes('Rota não encontrada')) {
-        toastTitle = 'Gateway não configurado';
+      if (errorType === 'cors') {
+        toastTitle = 'Gateway sem CORS';
+        toastDescription = 'O servidor WhatsApp não está configurado para aceitar requisições do navegador';
+      } else if (errorType === 'route_missing') {
+        toastTitle = 'Rota não implementada';
         toastDescription = 'A rota /connections não foi encontrada no gateway WhatsApp';
-      } else if (errorMessage.includes('Erro de conexão')) {
-        toastTitle = 'Gateway indisponível';
-        toastDescription = 'Não foi possível conectar ao gateway WhatsApp';
+      } else if (errorType === 'server_down') {
+        toastTitle = 'Servidor indisponível';
+        toastDescription = 'O gateway WhatsApp não está respondendo';
       }
       
       toast({ 
@@ -97,6 +115,77 @@ const ConnectionsPanel: React.FC = () => {
     );
   };
 
+  const getErrorIcon = () => {
+    switch (errorType) {
+      case 'cors':
+        return <AlertTriangle className="h-12 w-12 text-orange-500 mx-auto mb-4" />;
+      case 'route_missing':
+        return <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />;
+      case 'server_down':
+        return <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />;
+      default:
+        return <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />;
+    }
+  };
+
+  const getErrorTitle = () => {
+    switch (errorType) {
+      case 'cors':
+        return 'Problema de CORS no Gateway';
+      case 'route_missing':
+        return 'Rota Não Implementada';
+      case 'server_down':
+        return 'Servidor Indisponível';
+      default:
+        return 'Gateway WhatsApp com Problemas';
+    }
+  };
+
+  const getErrorDescription = () => {
+    switch (errorType) {
+      case 'cors':
+        return 'O servidor não está enviando os headers CORS necessários. Configure o middleware CORS no gateway.';
+      case 'route_missing':
+        return 'A rota GET /connections não foi implementada no servidor. Adicione esta rota ao seu gateway.';
+      case 'server_down':
+        return 'O servidor WhatsApp não está respondendo. Verifique se o serviço está ativo.';
+      default:
+        return gatewayError || 'Erro desconhecido na comunicação com o gateway.';
+    }
+  };
+
+  const getQuickActions = () => {
+    const actions = [];
+    
+    if (errorType === 'cors' || errorType === 'route_missing') {
+      actions.push(
+        <Button
+          key="docs"
+          variant="outline"
+          onClick={() => window.open('https://docs.lovable.dev', '_blank')}
+          className="flex items-center gap-2"
+        >
+          <ExternalLink className="h-4 w-4" />
+          Ver Documentação
+        </Button>
+      );
+    }
+    
+    actions.push(
+      <Button
+        key="test"
+        variant="outline"
+        onClick={() => window.open(`${baseUrl}/health`, '_blank')}
+        className="flex items-center gap-2"
+      >
+        <ExternalLink className="h-4 w-4" />
+        Testar Gateway
+      </Button>
+    );
+
+    return actions;
+  };
+
   if (gatewayError) {
     return (
       <div className="max-w-4xl mx-auto space-y-6">
@@ -126,12 +215,17 @@ const ConnectionsPanel: React.FC = () => {
         {showDiagnostics && <GatewayDiagnostics />}
 
         <div className="rounded-xl border border-red-200 bg-red-50 px-6 py-10 text-center">
-          <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-red-800 mb-2">Gateway WhatsApp com Problemas</h3>
-          <p className="text-red-600 mb-4">{gatewayError}</p>
+          {getErrorIcon()}
+          <h3 className="text-lg font-semibold text-red-800 mb-2">{getErrorTitle()}</h3>
+          <p className="text-red-600 mb-6">{getErrorDescription()}</p>
+          
+          <div className="flex items-center justify-center gap-3 mb-4">
+            {getQuickActions()}
+          </div>
+          
           <div className="text-sm text-red-500 space-y-1">
-            <p>Gateway configurado: {import.meta.env.VITE_WHATSAPP_GATEWAY_URL || 'https://evojuris-whatsapp.onrender.com'}</p>
-            <p>Use o botão "Mostrar Diagnóstico" para mais detalhes</p>
+            <p>Gateway configurado: <code className="bg-red-100 px-1 rounded">{baseUrl}</code></p>
+            <p>Use o diagnóstico acima para identificar e corrigir o problema</p>
           </div>
         </div>
       </div>
