@@ -1,10 +1,10 @@
-
 import React, { useEffect, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Smartphone, WifiOff, Wifi, Settings, RefreshCw, AlertTriangle } from "lucide-react";
 import { whatsappGateway, type GatewayConnection } from "@/integrations/whatsapp/gateway";
 import NewConnectionDialog from "./NewConnectionDialog";
+import GatewayDiagnostics from "./GatewayDiagnostics";
 import { useToast } from "@/hooks/use-toast";
 
 const ConnectionsPanel: React.FC = () => {
@@ -14,6 +14,7 @@ const ConnectionsPanel: React.FC = () => {
   const [newDialogOpen, setNewDialogOpen] = useState(false);
   const [reconnectId, setReconnectId] = useState<string | null>(null);
   const [gatewayError, setGatewayError] = useState<string | null>(null);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
 
   const loadConnections = async () => {
     setLoading(true);
@@ -24,10 +25,26 @@ const ConnectionsPanel: React.FC = () => {
       console.log('Conexões carregadas:', list);
     } catch (e: any) {
       console.error('listConnections error', e);
-      setGatewayError(e?.message ?? 'Falha inesperada');
+      const errorMessage = e?.message ?? 'Falha inesperada';
+      setGatewayError(errorMessage);
+      
+      // Show diagnostics automatically on error
+      setShowDiagnostics(true);
+      
+      let toastTitle = 'Erro ao carregar conexões';
+      let toastDescription = errorMessage;
+      
+      if (errorMessage.includes('Rota não encontrada')) {
+        toastTitle = 'Gateway não configurado';
+        toastDescription = 'A rota /connections não foi encontrada no gateway WhatsApp';
+      } else if (errorMessage.includes('Erro de conexão')) {
+        toastTitle = 'Gateway indisponível';
+        toastDescription = 'Não foi possível conectar ao gateway WhatsApp';
+      }
+      
       toast({ 
-        title: 'Erro ao carregar conexões', 
-        description: e?.message ?? 'Falha inesperada', 
+        title: toastTitle, 
+        description: toastDescription, 
         variant: 'destructive' 
       });
     } finally {
@@ -85,24 +102,37 @@ const ConnectionsPanel: React.FC = () => {
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold text-foreground">Conexões</h2>
-          <Button
-            variant="outline"
-            onClick={loadConnections}
-            disabled={loading}
-            className="flex items-center gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Tentar Novamente
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowDiagnostics(!showDiagnostics)}
+              className="flex items-center gap-2"
+            >
+              <Settings className="h-4 w-4" />
+              {showDiagnostics ? 'Ocultar' : 'Mostrar'} Diagnóstico
+            </Button>
+            <Button
+              variant="outline"
+              onClick={loadConnections}
+              disabled={loading}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Tentar Novamente
+            </Button>
+          </div>
         </div>
+
+        {showDiagnostics && <GatewayDiagnostics />}
 
         <div className="rounded-xl border border-red-200 bg-red-50 px-6 py-10 text-center">
           <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-red-800 mb-2">Gateway WhatsApp Indisponível</h3>
+          <h3 className="text-lg font-semibold text-red-800 mb-2">Gateway WhatsApp com Problemas</h3>
           <p className="text-red-600 mb-4">{gatewayError}</p>
-          <p className="text-sm text-red-500">
-            Verifique se o gateway está ativo em: https://evojuris-whatsapp.onrender.com
-          </p>
+          <div className="text-sm text-red-500 space-y-1">
+            <p>Gateway configurado: {import.meta.env.VITE_WHATSAPP_GATEWAY_URL || 'https://evojuris-whatsapp.onrender.com'}</p>
+            <p>Use o botão "Mostrar Diagnóstico" para mais detalhes</p>
+          </div>
         </div>
       </div>
     );
@@ -113,6 +143,14 @@ const ConnectionsPanel: React.FC = () => {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-foreground">Conexões</h2>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setShowDiagnostics(!showDiagnostics)}
+            className="flex items-center gap-2"
+          >
+            <Settings className="h-4 w-4" />
+            Diagnóstico
+          </Button>
           <Button
             variant="outline"
             onClick={loadConnections}
@@ -128,6 +166,8 @@ const ConnectionsPanel: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      {showDiagnostics && <GatewayDiagnostics />}
 
       <div className="space-y-4">
         {connections.length === 0 && !loading && (
