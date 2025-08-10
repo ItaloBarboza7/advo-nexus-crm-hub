@@ -542,7 +542,7 @@ export function SettingsContent() {
   const renderKanbanTab = () => (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">Colunas do Kanban (Privadas do Tenant)</h3>
+        <h3 className="text-lg font-semibold text-gray-900">Colunas do Kanban</h3>
         <Button 
           className="bg-blue-600 hover:bg-blue-700"
           onClick={handleOpenAddColumnDialog}
