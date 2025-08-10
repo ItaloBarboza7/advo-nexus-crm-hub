@@ -19,29 +19,47 @@ const BASE_URL = 'https://evojuris-whatsapp.onrender.com';
 
 export const whatsappGateway = {
   async listConnections(): Promise<GatewayConnection[]> {
-    const res = await fetch(`${BASE_URL}/connections`, {
-      headers: { 'Content-Type': 'application/json' },
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Falha ao listar conexões: ${res.status} ${text}`);
+    try {
+      const res = await fetch(`${BASE_URL}/connections`, {
+        method: 'GET',
+        // Removed Content-Type header from GET request as it's not needed and can cause CORS issues
+      });
+      
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Falha ao listar conexões: ${res.status} ${text}`);
+      }
+      
+      const data = await res.json();
+      return Array.isArray(data) ? data : (data?.connections ?? []);
+    } catch (error) {
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error('Erro de conexão: Verifique se o gateway está ativo e configurado corretamente');
+      }
+      throw error;
     }
-    const data = await res.json();
-    // Espera que o gateway retorne uma lista coerente
-    return Array.isArray(data) ? data : (data?.connections ?? []);
   },
 
   async createConnection(name: string): Promise<GatewayConnection> {
-    const res = await fetch(`${BASE_URL}/connections`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Falha ao criar conexão: ${res.status} ${text}`);
+    try {
+      const res = await fetch(`${BASE_URL}/connections`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Falha ao criar conexão: ${res.status} ${text}`);
+      }
+      
+      return res.json();
+    } catch (error) {
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error('Erro de conexão: Não foi possível conectar ao gateway WhatsApp');
+      }
+      throw error;
     }
-    return res.json();
   },
 
   openQrStream(connectionId: string, onEvent: (evt: GatewayEvent) => void) {
@@ -63,9 +81,10 @@ export const whatsappGateway = {
       }
     };
 
-    es.onerror = () => {
-      onEvent({ type: 'error', data: 'SSE error' });
-      // EventSource faz auto-reconnect. Não fechamos aqui.
+    es.onerror = (error) => {
+      console.error('SSE Error:', error);
+      onEvent({ type: 'error', data: 'Erro na conexão com o stream de QR' });
+      // EventSource faz auto-reconnect automaticamente
     };
 
     return es;
