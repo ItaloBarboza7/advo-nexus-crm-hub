@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +14,9 @@ const GatewayDiagnostics: React.FC = () => {
   const [corsTest, setCorsTest] = useState<{success: boolean, details: string} | null>(null);
 
   const baseUrl = import.meta.env.VITE_WHATSAPP_GATEWAY_URL || 'https://evojuris-whatsapp.onrender.com';
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const isUsingProxy = !!supabaseUrl;
+  const proxyUrl = supabaseUrl ? `${supabaseUrl}/functions/v1/whatsapp-proxy` : null;
 
   const testHealth = async () => {
     setTesting(true);
@@ -132,9 +134,22 @@ const GatewayDiagnostics: React.FC = () => {
     <Card className="mb-6">
       <CardHeader>
         <CardTitle className="text-lg">Diagnóstico Detalhado do Gateway</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Gateway URL: <code className="bg-muted px-1 rounded">{baseUrl}</code>
-        </p>
+        <div className="space-y-2 text-sm text-muted-foreground">
+          <p>Gateway URL: <code className="bg-muted px-1 rounded">{baseUrl}</code></p>
+          {isUsingProxy && (
+            <div className="p-2 bg-blue-50 border border-blue-200 rounded-md">
+              <p className="text-blue-800 font-medium">🔄 Usando Proxy Supabase</p>
+              <p className="text-blue-700">Proxy URL: <code className="bg-blue-100 px-1 rounded">{proxyUrl}</code></p>
+              <p className="text-blue-600 text-xs">O proxy elimina problemas de CORS automaticamente</p>
+            </div>
+          )}
+          {!isUsingProxy && (
+            <div className="p-2 bg-yellow-50 border border-yellow-200 rounded-md">
+              <p className="text-yellow-800 font-medium">⚠️ Conexão Direta</p>
+              <p className="text-yellow-700 text-xs">Se houver problemas de CORS, o proxy será ativado automaticamente</p>
+            </div>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Teste de Conectividade */}
@@ -161,15 +176,17 @@ const GatewayDiagnostics: React.FC = () => {
               Testar /connections
             </Button>
 
-            <Button
-              variant="outline"
-              onClick={testCorsOptions}
-              disabled={testing}
-              className="flex items-center gap-2"
-            >
-              <RefreshCw className={`h-4 w-4 ${testing ? 'animate-spin' : ''}`} />
-              Testar CORS (OPTIONS)
-            </Button>
+            {!isUsingProxy && (
+              <Button
+                variant="outline"
+                onClick={testCorsOptions}
+                disabled={testing}
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${testing ? 'animate-spin' : ''}`} />
+                Testar CORS (OPTIONS)
+              </Button>
+            )}
 
             <Button
               variant="outline"
@@ -191,6 +208,11 @@ const GatewayDiagnostics: React.FC = () => {
               <Badge variant={healthStatus.status === 'ok' ? 'default' : 'destructive'}>
                 {healthStatus.status === 'ok' ? 'OK' : 'ERRO'}
               </Badge>
+              {healthStatus.proxyUsed && (
+                <Badge variant="secondary" className="text-xs">
+                  VIA PROXY
+                </Badge>
+              )}
             </div>
             <p className="text-sm text-muted-foreground mb-1">{healthStatus.message}</p>
             <div className="flex items-center gap-2 text-xs">
@@ -235,84 +257,93 @@ const GatewayDiagnostics: React.FC = () => {
 
         {/* Comandos para Teste Manual */}
         <div className="space-y-3">
-          <h3 className="font-medium text-sm">2. Comandos para Teste Manual (Terminal/CMD)</h3>
-          <div className="space-y-2">
-            <div className="p-2 bg-muted rounded text-xs font-mono">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-muted-foreground">Teste Health:</span>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => copyToClipboard(`curl -v "${baseUrl}/health"`)}
-                >
-                  <Copy className="h-3 w-3" />
-                </Button>
+          <h3 className="font-medium text-sm">2. Comandos para Teste Manual</h3>
+          {!isUsingProxy && (
+            <div className="space-y-2">
+              <div className="p-2 bg-muted rounded text-xs font-mono">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-muted-foreground">Teste Health (Direto):</span>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => copyToClipboard(`curl -v "${baseUrl}/health"`)}
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </div>
+                <code>curl -v "{baseUrl}/health"</code>
               </div>
-              <code>curl -v "{baseUrl}/health"</code>
-            </div>
-            
-            <div className="p-2 bg-muted rounded text-xs font-mono">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-muted-foreground">Teste CORS:</span>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => copyToClipboard(`curl -v -X OPTIONS -H "Origin: ${window.location.origin}" "${baseUrl}/connections"`)}
-                >
-                  <Copy className="h-3 w-3" />
-                </Button>
+              
+              <div className="p-2 bg-muted rounded text-xs font-mono">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-muted-foreground">Teste CORS:</span>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => copyToClipboard(`curl -v -X OPTIONS -H "Origin: ${window.location.origin}" "${baseUrl}/connections"`)}
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </div>
+                <code>curl -v -X OPTIONS -H "Origin: {window.location.origin}" "{baseUrl}/connections"</code>
               </div>
-              <code>curl -v -X OPTIONS -H "Origin: {window.location.origin}" "{baseUrl}/connections"</code>
             </div>
-
-            <div className="p-2 bg-muted rounded text-xs font-mono">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-muted-foreground">Teste Connections:</span>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => copyToClipboard(`curl -v "${baseUrl}/connections"`)}
-                >
-                  <Copy className="h-3 w-3" />
-                </Button>
-              </div>
-              <code>curl -v "{baseUrl}/connections"</code>
+          )}
+          
+          {isUsingProxy && (
+            <div className="p-2 bg-blue-50 border border-blue-200 rounded-md">
+              <p className="text-blue-800 text-sm">✅ Usando proxy Supabase - problemas de CORS são automaticamente resolvidos</p>
+              <p className="text-blue-600 text-xs mt-1">O proxy gerencia todas as requisições para o gateway WhatsApp</p>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Guia de Resolução */}
-        <div className="text-xs text-muted-foreground p-3 bg-muted/50 rounded-lg">
-          <strong>🔧 Guia de Resolução Passo a Passo:</strong>
-          <div className="mt-2 space-y-2">
-            <div className="p-2 border-l-2 border-red-300 pl-3">
-              <strong>Se "Failed to fetch" em todos os testes:</strong>
-              <ul className="mt-1 space-y-1 ml-2">
-                <li>• Verifique se o servidor está rodando (abra {baseUrl}/health no navegador)</li>
-                <li>• Confirme se o servidor está bindando em 0.0.0.0:{'{process.env.PORT || 3000}'}</li>
-                <li>• Adicione middleware CORS: <code>app.use(cors())</code></li>
-                <li>• Adicione OPTIONS handler: <code>app.options('*', cors())</code></li>
-              </ul>
-            </div>
-            
-            <div className="p-2 border-l-2 border-yellow-300 pl-3">
-              <strong>Se /health OK mas /connections 404:</strong>
-              <ul className="mt-1 space-y-1 ml-2">
-                <li>• Implementar: <code>app.get('/connections', cors(), (req, res) =&gt; res.json([]))</code></li>
-                <li>• Verificar se todas as rotas têm middleware cors()</li>
-              </ul>
-            </div>
+        {!isUsingProxy && (
+          <div className="text-xs text-muted-foreground p-3 bg-muted/50 rounded-lg">
+            <strong>🔧 Guia de Resolução (Conexão Direta):</strong>
+            <div className="mt-2 space-y-2">
+              <div className="p-2 border-l-2 border-red-300 pl-3">
+                <strong>Se "Failed to fetch" em todos os testes:</strong>
+                <ul className="mt-1 space-y-1 ml-2">
+                  <li>• Verifique se o servidor está rodando (abra {baseUrl}/health no navegador)</li>
+                  <li>• Confirme se o servidor está bindando em 0.0.0.0:{'{process.env.PORT || 3000}'}</li>
+                  <li>• Adicione middleware CORS: <code>app.use(cors())</code></li>
+                  <li>• Adicione OPTIONS handler: <code>app.options('*', cors())</code></li>
+                </ul>
+              </div>
+              
+              <div className="p-2 border-l-2 border-yellow-300 pl-3">
+                <strong>Se /health OK mas /connections 404:</strong>
+                <ul className="mt-1 space-y-1 ml-2">
+                  <li>• Implementar: <code>app.get('/connections', cors(), (req, res) =&gt; res.json([]))</code></li>
+                  <li>• Verificar se todas as rotas têm middleware cors()</li>
+                </ul>
+              </div>
 
-            <div className="p-2 border-l-2 border-blue-300 pl-3">
-              <strong>Se CORS OK mas ainda falha:</strong>
-              <ul className="mt-1 space-y-1 ml-2">
-                <li>• Verificar ordem dos middlewares (CORS deve vir antes de outras rotas)</li>
-                <li>• Não usar credentials: true se não necessário</li>
-                <li>• Testar com: <code>Access-Control-Allow-Origin: *</code></li>
-              </ul>
+              <div className="p-2 border-l-2 border-blue-300 pl-3">
+                <strong>Se CORS OK mas ainda falha:</strong>
+                <ul className="mt-1 space-y-1 ml-2">
+                  <li>• Verificar ordem dos middlewares (CORS deve vir antes de outras rotas)</li>
+                  <li>• Não usar credentials: true se não necessário</li>
+                  <li>• Testar com: <code>Access-Control-Allow-Origin: *</code></li>
+                </ul>
+              </div>
             </div>
           </div>
-        </div>
+        )}
+
+        {isUsingProxy && (
+          <div className="text-xs text-muted-foreground p-3 bg-green-50 rounded-lg">
+            <strong>✅ Status do Proxy:</strong>
+            <div className="mt-2 space-y-1">
+              <p>• O proxy Supabase está ativo e gerenciando as requisições</p>
+              <p>• Problemas de CORS são automaticamente resolvidos</p>
+              <p>• Conexões SSE (QR codes) são suportadas</p>
+              <p>• Se ainda houver problemas, verifique se o gateway responde em: {baseUrl}</p>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
