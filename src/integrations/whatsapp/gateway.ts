@@ -41,32 +41,43 @@ const getHeaders = () => {
   return headers;
 };
 
+// Ajuste: obter tenant_id via RPC e fallback em user_profiles
 const getTenantId = async (): Promise<string> => {
-  try {
-    // Try to get tenant_id from Supabase RPC or profile
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      throw new Error('Usuário não autenticado');
-    }
-
-    // Try to get tenant_id from profiles table first
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('tenant_id')
-      .eq('id', user.id)
-      .single();
-
-    if (profile?.tenant_id) {
-      return profile.tenant_id;
-    }
-
-    // Fallback to user.id if no tenant_id in profile
-    console.log('Using user.id as tenant_id fallback:', user.id);
-    return user.id;
-  } catch (error) {
-    console.error('Error getting tenant_id:', error);
-    throw new Error('Falha ao obter tenant_id');
+  console.log('[whatsappGateway] Resolving tenant_id...');
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    throw new Error('Usuário não autenticado');
   }
+
+  // 1) Tentar via RPC get_user_session_info (já calcula o tenant_id correto)
+  const { data: sessionInfo, error: sessionError } = await supabase.rpc('get_user_session_info');
+  if (sessionError) {
+    console.warn('[whatsappGateway] RPC get_user_session_info erro:', sessionError);
+  } else if (sessionInfo && typeof sessionInfo === 'object' && 'tenant_id' in sessionInfo) {
+    const tenant = (sessionInfo as any).tenant_id as string;
+    console.log('[whatsappGateway] tenant_id via RPC:', tenant);
+    if (tenant) return tenant;
+  }
+
+  // 2) Fallback: buscar parent_user_id em user_profiles; se existir, ele é o tenant
+  const { data: profile, error: profileError } = await supabase
+    .from('user_profiles')
+    .select('parent_user_id')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (profileError) {
+    console.warn('[whatsappGateway] Fallback user_profiles erro:', profileError);
+  }
+
+  if (profile && profile.parent_user_id) {
+    console.log('[whatsappGateway] tenant_id via parent_user_id:', profile.parent_user_id);
+    return profile.parent_user_id;
+  }
+
+  // 3) Último fallback: o próprio user.id
+  console.log('[whatsappGateway] Usando user.id como tenant_id:', user.id);
+  return user.id;
 };
 
 export const whatsappGateway = {
