@@ -1,4 +1,6 @@
 
+import { supabase } from "@/integrations/supabase/client";
+
 export type GatewayConnection = {
   id: string;
   name: string;
@@ -37,6 +39,34 @@ const getHeaders = () => {
   };
   
   return headers;
+};
+
+const getTenantId = async (): Promise<string> => {
+  try {
+    // Try to get tenant_id from Supabase RPC or profile
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      throw new Error('Usuário não autenticado');
+    }
+
+    // Try to get tenant_id from profiles table first
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('tenant_id')
+      .eq('id', user.id)
+      .single();
+
+    if (profile?.tenant_id) {
+      return profile.tenant_id;
+    }
+
+    // Fallback to user.id if no tenant_id in profile
+    console.log('Using user.id as tenant_id fallback:', user.id);
+    return user.id;
+  } catch (error) {
+    console.error('Error getting tenant_id:', error);
+    throw new Error('Falha ao obter tenant_id');
+  }
 };
 
 export const whatsappGateway = {
@@ -85,7 +115,11 @@ export const whatsappGateway = {
     const baseUrl = getBaseUrl();
     
     try {
-      const res = await fetch(`${baseUrl}/connections`, {
+      const tenantId = await getTenantId();
+      const url = new URL(`${baseUrl}/connections`);
+      url.searchParams.append('tenant_id', tenantId);
+      
+      const res = await fetch(url.toString(), {
         method: 'GET',
         headers: getHeaders(),
       });
@@ -109,13 +143,18 @@ export const whatsappGateway = {
     const baseUrl = getBaseUrl();
     
     try {
+      const tenantId = await getTenantId();
+      
       const res = await fetch(`${baseUrl}/connections`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...getHeaders(),
         },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ 
+          name, 
+          tenant_id: tenantId 
+        }),
       });
       
       if (!res.ok) {
