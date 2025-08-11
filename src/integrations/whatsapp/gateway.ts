@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export type GatewayConnection = {
@@ -26,11 +25,16 @@ export type GatewayHealthStatus = {
 };
 
 const getBaseUrl = () => {
+  // Priorizar uso do proxy via Edge Function para evitar CORS
+  const useProxy = import.meta.env.VITE_WHATSAPP_VIA_PROXY === 'true';
+  if (useProxy) {
+    return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-proxy`;
+  }
   return 'https://evojuris-whatsapp.onrender.com';
 };
 
 const isUsingProxy = () => {
-  return false;
+  return import.meta.env.VITE_WHATSAPP_VIA_PROXY === 'true';
 };
 
 const getHeaders = () => {
@@ -151,6 +155,8 @@ export const whatsappGateway = {
   },
 
   async createConnection(name: string): Promise<GatewayConnection> {
+    const baseUrl = getBaseUrl();
+    
     try {
       const tenantId = await getTenantId();
       
@@ -160,36 +166,67 @@ export const whatsappGateway = {
         throw new Error('Usuário não autenticado');
       }
       
-      console.log('[whatsappGateway] Creating connection directly in Supabase...');
+      console.log('[whatsappGateway] Attempting to create connection via gateway...');
       
-      // Create connection record directly in Supabase
-      const { data: connection, error: supabaseError } = await supabase
-        .from('whatsapp_connections')
-        .insert({
-          name,
-          tenant_id: tenantId,
-          created_by_user_id: user.id,
-          phone_number: "", // Placeholder, will be updated when connection is established
-          status: 'disconnected'
-        })
-        .select()
-        .single();
-      
-      if (supabaseError) {
-        console.error('[whatsappGateway] Supabase insert error:', supabaseError);
-        throw new Error(`Falha ao criar registro de conexão: ${supabaseError.message}`);
+      // Primeiro, tentar criar via POST no gateway
+      try {
+        const res = await fetch(`${baseUrl}/connections`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...getHeaders(),
+          },
+          body: JSON.stringify({ 
+            name, 
+            tenant_id: tenantId,
+            created_by_user_id: user.id,
+            phone_number: "" // Placeholder, will be updated when connection is established
+          }),
+        });
+        
+        if (res.ok) {
+          const connection = await res.json();
+          console.log('[whatsappGateway] Connection created via gateway:', connection);
+          return connection;
+        } else {
+          const text = await res.text();
+          console.warn('[whatsappGateway] Gateway creation failed:', res.status, text);
+          throw new Error(`Gateway failed: ${res.status}`);
+        }
+      } catch (gatewayError) {
+        console.warn('[whatsappGateway] Gateway creation failed, falling back to Supabase:', gatewayError);
+        
+        // Fallback: criar diretamente no Supabase
+        console.log('[whatsappGateway] Creating connection directly in Supabase...');
+        
+        const { data: connection, error: supabaseError } = await supabase
+          .from('whatsapp_connections')
+          .insert({
+            name,
+            tenant_id: tenantId,
+            created_by_user_id: user.id,
+            phone_number: "", // Placeholder, will be updated when connection is established
+            status: 'disconnected'
+          })
+          .select()
+          .single();
+        
+        if (supabaseError) {
+          console.error('[whatsappGateway] Supabase insert error:', supabaseError);
+          throw new Error(`Falha ao criar registro de conexão: ${supabaseError.message}`);
+        }
+        
+        console.log('[whatsappGateway] Connection created successfully in Supabase:', connection);
+        
+        // Map Supabase connection to GatewayConnection format
+        return {
+          id: connection.id,
+          name: connection.name,
+          status: connection.status,
+          phone_number: connection.phone_number,
+          last_connected_at: connection.last_connected_at
+        };
       }
-      
-      console.log('[whatsappGateway] Connection created successfully:', connection);
-      
-      // Map Supabase connection to GatewayConnection format
-      return {
-        id: connection.id,
-        name: connection.name,
-        status: connection.status,
-        phone_number: connection.phone_number,
-        last_connected_at: connection.last_connected_at
-      };
       
     } catch (error) {
       console.error('[whatsappGateway] createConnection error:', error);
@@ -206,9 +243,19 @@ export const whatsappGateway = {
     
     const startStream = async () => {
       try {
-        const response = await fetch(`${baseUrl}/connections/${connectionId}/qr`, {
+        const tenantId = await getTenantId();
+        const url = new URL(`${baseUrl}/connections/${connectionId}/qr`);
+        url.searchParams.append('tenant_id', tenantId);
+        
+        console.log('[whatsappGateway] Opening QR stream:', url.toString());
+
+        const response = await fetch(url.toString(), {
           method: 'GET',
-          headers: getHeaders(),
+          headers: {
+            ...getHeaders(),
+            'Accept': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+          },
           signal: abortController.signal,
         });
 
@@ -223,6 +270,7 @@ export const whatsappGateway = {
 
         const decoder = new TextDecoder();
         let buffer = '';
+        let lineCount = 0;
 
         while (true) {
           const { done, value } = await reader.read();
@@ -233,6 +281,13 @@ export const whatsappGateway = {
           buffer = lines.pop() || '';
 
           for (const line of lines) {
+            lineCount++;
+            
+            // Log das primeiras linhas para debug
+            if (lineCount <= 5) {
+              console.log(`[whatsappGateway] SSE line ${lineCount}:`, line);
+            }
+            
             if (line.startsWith('data: ')) {
               try {
                 const dataStr = line.slice(6);
@@ -240,11 +295,13 @@ export const whatsappGateway = {
                 
                 const data = JSON.parse(dataStr);
                 if (data && data.type) {
+                  console.log('[whatsappGateway] SSE event:', data.type, data.data ? '(with data)' : '(no data)');
                   onEvent(data as GatewayEvent);
                 } else if (typeof data === 'string') {
                   onEvent({ type: 'status', data } as GatewayEvent);
                 }
               } catch (parseError) {
+                console.warn('[whatsappGateway] Failed to parse SSE data:', line.slice(6));
                 onEvent({ type: 'status', data: line.slice(6) } as GatewayEvent);
               }
             }
