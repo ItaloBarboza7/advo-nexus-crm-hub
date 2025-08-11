@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 export type GatewayConnection = {
@@ -24,29 +25,32 @@ export type GatewayHealthStatus = {
   proxyUsed: boolean;
 };
 
+// Forçar base do proxy do Supabase (sem depender de VITE_*)
+// Project ref: xltugnmjbcowsuwzkkni
+const SUPABASE_EDGE_PROXY_BASE =
+  "https://xltugnmjbcowsuwzkkni.supabase.co/functions/v1/whatsapp-proxy";
+
+// Base direta do Render (mantida apenas como referência)
+const DIRECT_GATEWAY_BASE = "https://evojuris-whatsapp.onrender.com";
+
+// Sempre usar o proxy (inclusive para health/list/create) para evitar CORS
 const getBaseUrl = () => {
-  // Priorizar uso do proxy via Edge Function para evitar CORS
-  const useProxy = import.meta.env.VITE_WHATSAPP_VIA_PROXY === 'true';
-  if (useProxy) {
-    return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-proxy`;
-  }
-  return 'https://evojuris-whatsapp.onrender.com';
+  return SUPABASE_EDGE_PROXY_BASE;
 };
 
+// QR stream também sempre via proxy
 const getQrStreamBaseUrl = () => {
-  // SEMPRE usar proxy para QR streams para evitar CORS e problemas de SSE
-  return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-proxy`;
+  return SUPABASE_EDGE_PROXY_BASE;
 };
 
 const isUsingProxy = () => {
-  return import.meta.env.VITE_WHATSAPP_VIA_PROXY === 'true';
+  return true;
 };
 
 const getHeaders = () => {
   const headers: Record<string, string> = {
     'Authorization': 'Bearer h7ViAWZDn4ZMRcy4x0zUCyYEQ11H8a6F'
   };
-  
   return headers;
 };
 
@@ -115,7 +119,7 @@ export const whatsappGateway = {
       
       return {
         status: 'ok',
-        message: 'Gateway is healthy (direct connection to Render)',
+        message: 'Gateway is healthy (via Supabase proxy)',
         corsHeaders,
         proxyUsed,
         timestamp: new Date().toISOString()
@@ -173,7 +177,7 @@ export const whatsappGateway = {
       
       console.log('[whatsappGateway] Attempting to create connection via gateway...');
       
-      // Primeiro, tentar criar via POST no gateway
+      // Primeiro, tentar criar via POST no gateway (sem enviar phone_number)
       try {
         const res = await fetch(`${baseUrl}/connections`, {
           method: 'POST',
@@ -184,8 +188,7 @@ export const whatsappGateway = {
           body: JSON.stringify({ 
             name, 
             tenant_id: tenantId,
-            created_by_user_id: user.id,
-            phone_number: "" // Placeholder, will be updated when connection is established
+            created_by_user_id: user.id
           }),
         });
         
@@ -210,7 +213,7 @@ export const whatsappGateway = {
             name,
             tenant_id: tenantId,
             created_by_user_id: user.id,
-            phone_number: "", // Placeholder, will be updated when connection is established
+            phone_number: null, // evitar duplicidade; será atualizado após conexão
             status: 'disconnected'
           })
           .select()

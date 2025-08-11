@@ -628,7 +628,7 @@ export type Database = {
           id: string
           last_connected_at: string | null
           name: string
-          phone_number: string
+          phone_number: string | null
           qr_code: string | null
           status: string
           tenant_id: string
@@ -641,7 +641,7 @@ export type Database = {
           id?: string
           last_connected_at?: string | null
           name: string
-          phone_number: string
+          phone_number?: string | null
           qr_code?: string | null
           status?: string
           tenant_id: string
@@ -654,7 +654,7 @@ export type Database = {
           id?: string
           last_connected_at?: string | null
           name?: string
-          phone_number?: string
+          phone_number?: string | null
           qr_code?: string | null
           status?: string
           tenant_id?: string
