@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -235,7 +234,7 @@ const GatewayDiagnostics: React.FC = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => copyToClipboard(`curl -v "${baseUrl}/health" -H "Authorization: Bearer h7ViAWZDn4ZMRcy4x0zUCyYEQ11H8a6F"`, 'Comando curl')}
+                    onClick={() => copyToClipboard(`curl -v "${baseUrl}/health" -H "Authorization: Bearer h7ViAWZDn4ZMRcy4x0zUCyYEQ11H8a6F"`)}
                   >
                     <Copy className="h-3 w-3" />
                   </Button>
@@ -250,7 +249,7 @@ const GatewayDiagnostics: React.FC = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => copyToClipboard(`curl -v "${baseUrl}/connections" -H "Authorization: Bearer h7ViAWZDn4ZMRcy4x0zUCyYEQ11H8a6F"`, 'Comando curl')}
+                    onClick={() => copyToClipboard(`curl -v "${baseUrl}/connections" -H "Authorization: Bearer h7ViAWZDn4ZMRcy4x0zUCyYEQ11H8a6F"`)}
                   >
                     <Copy className="h-3 w-3" />
                   </Button>
