@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, AlertCircle } from "lucide-react";
 import { whatsappGateway, type GatewayConnection, type GatewayEvent } from "@/integrations/whatsapp/gateway";
 import { useToast } from "@/hooks/use-toast";
 
@@ -25,7 +25,8 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
   const [status, setStatus] = useState<string>('Aguardando ação');
   const [qrData, setQrData] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
-  const [qrTimeout, setQrTimeout] = useState(false);
+  const [streamError, setStreamError] = useState<string | null>(null);
+  const [reloading, setReloading] = useState(false);
   const streamRef = useRef<{ close: () => void } | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -37,7 +38,8 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
       setStatus('Aguardando ação');
       setQrData(null);
       setConnected(false);
-      setQrTimeout(false);
+      setStreamError(null);
+      setReloading(false);
       
       // Clear any existing timeout
       if (timeoutRef.current) {
@@ -63,7 +65,7 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
 
     setCreating(false);
     setStatus('Abrindo stream de QR...');
-    setQrTimeout(false);
+    setStreamError(null);
     
     // Preencher meta da conexão (para exibir nome)
     setConnection({ id: initialConnectionId, name: 'Conexão', status: 'connecting' });
@@ -97,14 +99,18 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
     }
     
     setQrData(null);
-    setQrTimeout(false);
-    setStatus('Aguardando QR...');
+    setStreamError(null);
+    setReloading(false);
+    setStatus('Conectando ao stream de QR...');
     
-    // Set timeout for QR loading
+    // Set timeout for QR loading (reduzido para 20 segundos)
     timeoutRef.current = setTimeout(() => {
-      setQrTimeout(true);
-      setStatus('Timeout: QR code não carregou');
-    }, 30000); // 30 seconds timeout
+      if (!qrData && !streamError) {
+        console.warn('[NewConnectionDialog] ⏰ QR stream timeout after 20s');
+        setStreamError('QR code não carregou em 20 segundos');
+        setStatus('Timeout: Tente recarregar o QR');
+      }
+    }, 20000); // 20 seconds timeout
     
     const stream = whatsappGateway.openQrStream(connectionId, handleGatewayEvent);
     streamRef.current = stream;
@@ -117,15 +123,18 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
     }
     setCreating(true);
     setStatus('Criando conexão...');
+    setStreamError(null);
+    
     try {
       const conn = await whatsappGateway.createConnection(name.trim());
       setConnection(conn);
-      setStatus('Aguardando QR...');
+      setStatus('Conexão criada, aguardando QR...');
       startQrStream(conn.id);
     } catch (e: any) {
-      console.error('createConnection error', e);
-      toast({ title: 'Erro ao criar conexão', description: e?.message ?? 'Falha inesperada', variant: 'destructive' });
+      console.error('[NewConnectionDialog] ❌ createConnection error', e);
+      setStreamError(`Erro ao criar conexão: ${e?.message ?? 'Falha inesperada'}`);
       setStatus('Falha ao criar conexão');
+      toast({ title: 'Erro ao criar conexão', description: e?.message ?? 'Falha inesperada', variant: 'destructive' });
     } finally {
       setCreating(false);
     }
@@ -141,8 +150,9 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
         timeoutRef.current = null;
       }
       setQrData(evt.data);
-      setStatus('Escaneie o QR no seu WhatsApp');
-      setQrTimeout(false);
+      setStatus('QR Code recebido! Escaneie no seu WhatsApp');
+      setStreamError(null);
+      console.log('[NewConnectionDialog] ✅ QR code received and set');
     } else if (evt.type === 'status') {
       setStatus(String(evt.data ?? 'Atualizando...'));
     } else if (evt.type === 'connected') {
@@ -153,6 +163,7 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
       }
       setConnected(true);
       setStatus('Conectado com sucesso!');
+      setStreamError(null);
       toast({ title: 'Conexão ativa', description: 'O WhatsApp foi conectado.' });
       if (connection && onConnected) onConnected({ ...connection, status: 'connected' });
       // Fecha em alguns segundos para UX suave
@@ -161,15 +172,20 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
       setConnected(false);
       setStatus('Desconectado');
     } else if (evt.type === 'error') {
-      setStatus('Erro no stream');
-      setQrTimeout(true);
+      setStreamError(String(evt.data ?? 'Erro no stream'));
+      setStatus('Erro no stream de QR');
+      console.error('[NewConnectionDialog] ❌ Stream error:', evt.data);
     }
   };
 
   const handleReloadQr = () => {
     if (connection) {
+      setReloading(true);
+      console.log('[NewConnectionDialog] 🔄 Reloading QR for connection:', connection.id);
       startQrStream(connection.id);
     } else if (initialConnectionId) {
+      setReloading(true);
+      console.log('[NewConnectionDialog] 🔄 Reloading QR for initial connection:', initialConnectionId);
       startQrStream(initialConnectionId);
     }
   };
@@ -180,6 +196,9 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
     // Fallback: gerar QR por serviço externo se vier apenas o texto
     return `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(qrData)}`;
   }, [qrData]);
+
+  const hasError = !!streamError;
+  const isLoading = !qrData && !hasError && !connected;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -217,12 +236,12 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
                 {connection?.name ?? 'Conexão'}
               </div>
               <Badge variant="secondary" className="rounded-full">
-                {connected ? 'Conectado' : 'Aguardando conexão'}
+                {connected ? 'Conectado' : hasError ? 'Erro' : isLoading ? 'Carregando' : 'Aguardando conexão'}
               </Badge>
             </div>
 
             <div className="flex flex-col items-center gap-3">
-              {qrImageSrc && !qrTimeout ? (
+              {qrImageSrc && !hasError ? (
                 <img
                   src={qrImageSrc}
                   alt="QR Code"
@@ -231,17 +250,22 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
               ) : (
                 <div className="w-60 h-60 rounded-md border flex items-center justify-center text-sm text-muted-foreground">
                   <div className="flex flex-col items-center gap-3">
-                    {!qrTimeout ? (
+                    {hasError ? (
+                      <>
+                        <AlertCircle className="h-8 w-8 text-red-500" />
+                        <div className="text-center text-red-600">
+                          <div className="font-medium">QR code não carregou</div>
+                          <div className="text-xs mt-1 text-muted-foreground">
+                            {streamError}
+                          </div>
+                        </div>
+                      </>
+                    ) : isLoading ? (
                       <>
                         <Loader2 className="h-8 w-8 animate-spin" />
                         <span>Carregando QR...</span>
                       </>
-                    ) : (
-                      <>
-                        <RefreshCw className="h-8 w-8" />
-                        <span className="text-center">QR code não carregou.<br />Tente recarregar.</span>
-                      </>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               )}
@@ -251,9 +275,13 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
             </div>
 
             <DialogFooter className="gap-2">
-              {qrTimeout && (
-                <Button variant="outline" onClick={handleReloadQr}>
-                  <RefreshCw className="h-4 w-4 mr-2" />
+              {(hasError || (!qrData && !isLoading)) && (
+                <Button variant="outline" onClick={handleReloadQr} disabled={reloading}>
+                  {reloading ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                  )}
                   Recarregar QR
                 </Button>
               )}

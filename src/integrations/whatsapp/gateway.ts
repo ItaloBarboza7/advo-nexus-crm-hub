@@ -33,6 +33,11 @@ const getBaseUrl = () => {
   return 'https://evojuris-whatsapp.onrender.com';
 };
 
+const getQrStreamBaseUrl = () => {
+  // SEMPRE usar proxy para QR streams para evitar CORS e problemas de SSE
+  return `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-proxy`;
+};
+
 const isUsingProxy = () => {
   return import.meta.env.VITE_WHATSAPP_VIA_PROXY === 'true';
 };
@@ -186,15 +191,15 @@ export const whatsappGateway = {
         
         if (res.ok) {
           const connection = await res.json();
-          console.log('[whatsappGateway] Connection created via gateway:', connection);
+          console.log('[whatsappGateway] ✅ Connection created via gateway:', connection);
           return connection;
         } else {
           const text = await res.text();
-          console.warn('[whatsappGateway] Gateway creation failed:', res.status, text);
+          console.warn('[whatsappGateway] ⚠️ Gateway creation failed:', res.status, text);
           throw new Error(`Gateway failed: ${res.status}`);
         }
       } catch (gatewayError) {
-        console.warn('[whatsappGateway] Gateway creation failed, falling back to Supabase:', gatewayError);
+        console.warn('[whatsappGateway] ⚠️ Gateway creation failed, falling back to Supabase:', gatewayError);
         
         // Fallback: criar diretamente no Supabase
         console.log('[whatsappGateway] Creating connection directly in Supabase...');
@@ -212,11 +217,12 @@ export const whatsappGateway = {
           .single();
         
         if (supabaseError) {
-          console.error('[whatsappGateway] Supabase insert error:', supabaseError);
+          console.error('[whatsappGateway] ❌ Supabase insert error:', supabaseError);
           throw new Error(`Falha ao criar registro de conexão: ${supabaseError.message}`);
         }
         
-        console.log('[whatsappGateway] Connection created successfully in Supabase:', connection);
+        console.log('[whatsappGateway] ✅ Connection created successfully in Supabase (fallback):', connection);
+        console.log('[whatsappGateway] ℹ️ Note: Connection registered only in database, not in gateway');
         
         // Map Supabase connection to GatewayConnection format
         return {
@@ -229,7 +235,7 @@ export const whatsappGateway = {
       }
       
     } catch (error) {
-      console.error('[whatsappGateway] createConnection error:', error);
+      console.error('[whatsappGateway] ❌ createConnection error:', error);
       if (error instanceof Error) {
         throw error;
       }
@@ -238,7 +244,8 @@ export const whatsappGateway = {
   },
 
   openQrStream(connectionId: string, onEvent: (evt: GatewayEvent) => void) {
-    const baseUrl = getBaseUrl();
+    // SEMPRE usar proxy para QR streams
+    const baseUrl = getQrStreamBaseUrl();
     const abortController = new AbortController();
     
     const startStream = async () => {
@@ -247,7 +254,7 @@ export const whatsappGateway = {
         const url = new URL(`${baseUrl}/connections/${connectionId}/qr`);
         url.searchParams.append('tenant_id', tenantId);
         
-        console.log('[whatsappGateway] Opening QR stream:', url.toString());
+        console.log('[whatsappGateway] 🔄 Opening QR stream via proxy:', url.toString());
 
         const response = await fetch(url.toString(), {
           method: 'GET',
@@ -259,22 +266,50 @@ export const whatsappGateway = {
           signal: abortController.signal,
         });
 
+        console.log('[whatsappGateway] 📡 QR Stream response status:', response.status);
+        console.log('[whatsappGateway] 📡 QR Stream content-type:', response.headers.get('content-type'));
+
         if (!response.ok) {
-          throw new Error(`Stream failed: ${response.status}`);
+          const errorText = await response.text();
+          console.error('[whatsappGateway] ❌ QR Stream failed:', response.status, errorText);
+          onEvent({ 
+            type: 'error', 
+            data: `QR stream error ${response.status}: ${errorText.substring(0, 200)}` 
+          });
+          return;
+        }
+
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('text/event-stream')) {
+          const responseText = await response.text();
+          console.error('[whatsappGateway] ❌ QR Stream wrong content-type:', contentType, responseText.substring(0, 200));
+          onEvent({ 
+            type: 'error', 
+            data: `QR stream respondeu ${contentType} em vez de text/event-stream: ${responseText.substring(0, 100)}` 
+          });
+          return;
         }
 
         const reader = response.body?.getReader();
         if (!reader) {
-          throw new Error('No reader available');
+          console.error('[whatsappGateway] ❌ No reader available for QR stream');
+          onEvent({ type: 'error', data: 'Leitor de stream não disponível' });
+          return;
         }
 
         const decoder = new TextDecoder();
         let buffer = '';
         let lineCount = 0;
+        let lastEventType = '';
+
+        console.log('[whatsappGateway] ✅ QR Stream started successfully');
 
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done) {
+            console.log('[whatsappGateway] ✅ QR Stream completed');
+            break;
+          }
 
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split('\n');
@@ -283,34 +318,70 @@ export const whatsappGateway = {
           for (const line of lines) {
             lineCount++;
             
-            // Log das primeiras linhas para debug
-            if (lineCount <= 5) {
-              console.log(`[whatsappGateway] SSE line ${lineCount}:`, line);
+            // Log das primeiras 10 linhas para debug
+            if (lineCount <= 10) {
+              console.log(`[whatsappGateway] SSE line ${lineCount}:`, JSON.stringify(line));
+            }
+            
+            // Processar diferentes formatos de eventos SSE
+            if (line.startsWith('event: ')) {
+              lastEventType = line.slice(7).trim();
+              continue;
             }
             
             if (line.startsWith('data: ')) {
+              const dataStr = line.slice(6).trim();
+              if (dataStr === '') continue;
+              
               try {
-                const dataStr = line.slice(6);
-                if (dataStr.trim() === '') continue;
-                
+                // Tentar parsear como JSON primeiro
                 const data = JSON.parse(dataStr);
-                if (data && data.type) {
-                  console.log('[whatsappGateway] SSE event:', data.type, data.data ? '(with data)' : '(no data)');
+                
+                // Verificar se contém QR code em diferentes formatos
+                const qrData = data.qr || data.qr_code || data.image || data.data;
+                if (qrData && typeof qrData === 'string') {
+                  console.log('[whatsappGateway] 🎯 QR code found in JSON data');
+                  onEvent({ type: 'qr', data: qrData });
+                  continue;
+                }
+                
+                // Processar outros tipos de eventos
+                if (data.type) {
+                  console.log('[whatsappGateway] 📨 SSE event from JSON:', data.type);
                   onEvent(data as GatewayEvent);
-                } else if (typeof data === 'string') {
-                  onEvent({ type: 'status', data } as GatewayEvent);
+                } else if (lastEventType === 'qr') {
+                  // Se o último evento foi 'qr', tratar como QR data
+                  console.log('[whatsappGateway] 🎯 QR code found via event type');
+                  onEvent({ type: 'qr', data: dataStr });
+                } else {
+                  // Evento genérico
+                  onEvent({ type: lastEventType || 'status', data: dataStr });
                 }
               } catch (parseError) {
-                console.warn('[whatsappGateway] Failed to parse SSE data:', line.slice(6));
-                onEvent({ type: 'status', data: line.slice(6) } as GatewayEvent);
+                // Se não for JSON, pode ser QR code direto ou mensagem de status
+                if (lastEventType === 'qr' || dataStr.length > 100) {
+                  // Provavelmente QR code (strings longas)
+                  console.log('[whatsappGateway] 🎯 QR code found as raw string');
+                  onEvent({ type: 'qr', data: dataStr });
+                } else {
+                  // Mensagem de status
+                  console.log('[whatsappGateway] 📨 SSE status message:', dataStr.substring(0, 100));
+                  onEvent({ type: 'status', data: dataStr });
+                }
               }
+              
+              // Reset event type after processing
+              lastEventType = '';
             }
           }
         }
       } catch (error) {
         if (!abortController.signal.aborted) {
-          console.error('SSE Stream Error:', error);
-          onEvent({ type: 'error', data: 'Erro na conexão com o stream de QR' });
+          console.error('[whatsappGateway] ❌ QR Stream Error:', error);
+          onEvent({ 
+            type: 'error', 
+            data: error instanceof Error ? error.message : 'Erro na conexão com o stream de QR' 
+          });
         }
       }
     };
@@ -319,6 +390,7 @@ export const whatsappGateway = {
 
     return {
       close: () => {
+        console.log('[whatsappGateway] 🔌 Closing QR stream');
         abortController.abort();
       }
     };
