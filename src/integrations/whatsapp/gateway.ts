@@ -156,6 +156,12 @@ export const whatsappGateway = {
     try {
       const tenantId = await getTenantId();
       
+      // Get current user for created_by_user_id
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Usuário não autenticado');
+      }
+      
       const res = await fetch(`${baseUrl}/connections`, {
         method: 'POST',
         headers: {
@@ -164,7 +170,9 @@ export const whatsappGateway = {
         },
         body: JSON.stringify({ 
           name, 
-          tenant_id: tenantId 
+          tenant_id: tenantId,
+          created_by_user_id: user.id,
+          phone_number: "" // Placeholder, will be updated when connection is established
         }),
       });
       
