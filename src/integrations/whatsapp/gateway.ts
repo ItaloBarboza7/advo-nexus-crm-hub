@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export type GatewayConnection = {
@@ -47,10 +46,9 @@ const isUsingProxy = () => {
   return true;
 };
 
+// Remover Authorization header - o proxy já injeta o token via secret
 const getHeaders = () => {
-  const headers: Record<string, string> = {
-    'Authorization': 'Bearer h7ViAWZDn4ZMRcy4x0zUCyYEQ11H8a6F'
-  };
+  const headers: Record<string, string> = {};
   return headers;
 };
 

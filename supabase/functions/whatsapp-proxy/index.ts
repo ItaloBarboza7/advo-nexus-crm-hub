@@ -24,20 +24,31 @@ console.log(`- Gateway URL: ${parsedBase ? parsedBase.toString() : 'INVALID'}`)
 console.log(`- Gateway Origin (cleaned): ${GATEWAY_ORIGIN}`)
 console.log(`- Has Token: ${!!GATEWAY_TOKEN}`)
 
-// Utilitário: normalizar o path removendo prefixos do proxy
+// Utilitário: normalizar o path removendo TODOS os prefixos do proxy em loop
 function normalizeProxyPath(pathname: string): string {
   const prefixes = [
     '/functions/v1/whatsapp-proxy',
     '/whatsapp-proxy',
   ]
+  
   let out = pathname
-  for (const prefix of prefixes) {
-    if (out.startsWith(prefix)) {
-      out = out.substring(prefix.length)
-      break
+  let changed = true
+  
+  // Loop até que nenhum prefixo seja mais removido
+  while (changed) {
+    changed = false
+    for (const prefix of prefixes) {
+      if (out.startsWith(prefix)) {
+        out = out.substring(prefix.length)
+        changed = true
+        break // Restart the loop to check from beginning
+      }
     }
   }
+  
+  // Garantir que comece com /
   if (!out.startsWith('/')) out = '/' + out
+  
   return out
 }
 
@@ -162,7 +173,8 @@ serve(async (req) => {
 
     console.log(`🔄 PROXY REQUEST:`)
     console.log(`- Original URL: ${req.url}`)
-    console.log(`- Extracted path: ${path}`)
+    console.log(`- Raw path: ${rawPath}`)
+    console.log(`- Normalized path: ${path}`)
     console.log(`- Method: ${req.method}`)
 
     // Endpoint de debug especial
