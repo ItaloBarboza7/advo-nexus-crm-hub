@@ -24,22 +24,17 @@ export type GatewayHealthStatus = {
 };
 
 const getBaseUrl = () => {
-  // Always use hardcoded proxy URL to avoid import.meta.env issues
-  return 'https://xltugnmjbcowsuwzkkni.supabase.co/functions/v1/whatsapp-proxy';
+  return 'https://evojuris-whatsapp.onrender.com';
 };
 
 const isUsingProxy = () => {
-  return true; // Always using proxy now
+  return false;
 };
 
 const getHeaders = () => {
-  const headers: Record<string, string> = {};
-  
-  // Add Supabase headers when using proxy
-  const apiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsdHVnbm1qYmNvd3N1d3pra25pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4MDkyNjAsImV4cCI6MjA2NDM4NTI2MH0.g-dg8YF0mK0LkDBvTzUlW8po9tT0VC-s47PFbDScmN8';
-  if (apiKey) {
-    headers['apikey'] = apiKey;
-  }
+  const headers: Record<string, string> = {
+    'Authorization': 'Bearer h7ViAWZDn4ZMRcy4x0zUCyYEQ11H8a6F'
+  };
   
   return headers;
 };
@@ -70,7 +65,7 @@ export const whatsappGateway = {
       
       return {
         status: 'ok',
-        message: proxyUsed ? 'Gateway is healthy (via proxy)' : 'Gateway is healthy (direct)',
+        message: 'Gateway is healthy (direct connection to Render)',
         corsHeaders,
         proxyUsed,
         timestamp: new Date().toISOString()
@@ -139,29 +134,68 @@ export const whatsappGateway = {
 
   openQrStream(connectionId: string, onEvent: (evt: GatewayEvent) => void) {
     const baseUrl = getBaseUrl();
+    const abortController = new AbortController();
     
-    const es = new EventSource(`${baseUrl}/connections/${connectionId}/qr`, {
-      withCredentials: false,
-    });
-
-    es.onmessage = (e) => {
+    const startStream = async () => {
       try {
-        const data = e.data ? JSON.parse(e.data) : null;
-        if (data && data.type) {
-          onEvent(data as GatewayEvent);
-        } else if (typeof data === 'string') {
-          onEvent({ type: 'status', data } as GatewayEvent);
+        const response = await fetch(`${baseUrl}/connections/${connectionId}/qr`, {
+          method: 'GET',
+          headers: getHeaders(),
+          signal: abortController.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Stream failed: ${response.status}`);
         }
-      } catch {
-        onEvent({ type: 'status', data: e.data } as GatewayEvent);
+
+        const reader = response.body?.getReader();
+        if (!reader) {
+          throw new Error('No reader available');
+        }
+
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const dataStr = line.slice(6);
+                if (dataStr.trim() === '') continue;
+                
+                const data = JSON.parse(dataStr);
+                if (data && data.type) {
+                  onEvent(data as GatewayEvent);
+                } else if (typeof data === 'string') {
+                  onEvent({ type: 'status', data } as GatewayEvent);
+                }
+              } catch (parseError) {
+                onEvent({ type: 'status', data: line.slice(6) } as GatewayEvent);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        if (!abortController.signal.aborted) {
+          console.error('SSE Stream Error:', error);
+          onEvent({ type: 'error', data: 'Erro na conexão com o stream de QR' });
+        }
       }
     };
 
-    es.onerror = (error) => {
-      console.error('SSE Error:', error);
-      onEvent({ type: 'error', data: 'Erro na conexão com o stream de QR' });
-    };
+    startStream();
 
-    return es;
+    return {
+      close: () => {
+        abortController.abort();
+      }
+    };
   },
 };

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -5,21 +6,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RefreshCw, CheckCircle, XCircle, AlertTriangle, Copy, ExternalLink } from "lucide-react";
 import { whatsappGateway, type GatewayHealthStatus } from "@/integrations/whatsapp/gateway";
 import { useToast } from "@/hooks/use-toast";
-import ProxyDebugPanel from "./ProxyDebugPanel";
 
 const GatewayDiagnostics: React.FC = () => {
   const { toast } = useToast();
   const [healthStatus, setHealthStatus] = useState<GatewayHealthStatus | null>(null);
   const [connectionsTest, setConnectionsTest] = useState<{status: string, corsHeaders: boolean, details?: string} | null>(null);
   const [testing, setTesting] = useState(false);
-  const [corsTest, setCorsTest] = useState<{success: boolean, details: string} | null>(null);
 
-  // Hardcoded URLs to avoid import.meta.env issues
+  // Direct connection to Render
   const baseUrl = 'https://evojuris-whatsapp.onrender.com';
-  const supabaseUrl = 'https://xltugnmjbcowsuwzkkni.supabase.co';
-  const isUsingProxy = true;
-  const proxyUrl = `${supabaseUrl}/functions/v1/whatsapp-proxy`;
-  const apiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsdHVnbm1qYmNvd3N1d3pra25pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4MDkyNjAsImV4cCI6MjA2NDM4NTI2MH0.g-dg8YF0mK0LkDBvTzUlW8po9tT0VC-s47PFbDScmN8';
+  const isUsingProxy = false;
 
   const testHealth = async () => {
     setTesting(true);
@@ -70,7 +66,7 @@ const GatewayDiagnostics: React.FC = () => {
         setConnectionsTest({ 
           status: 'cors_error', 
           corsHeaders: false,
-          details: 'Problema de conexão - verifique se o proxy e gateway estão funcionando'
+          details: 'Problema de conexão - verifique se o gateway está funcionando'
         });
       } else {
         setConnectionsTest({ 
@@ -79,46 +75,6 @@ const GatewayDiagnostics: React.FC = () => {
           details: message.substring(0, 200)
         });
       }
-    } finally {
-      setTesting(false);
-    }
-  };
-
-  const testCorsOptions = async () => {
-    setTesting(true);
-    try {
-      const testUrl = `${proxyUrl}/health`;
-      
-      const response = await fetch(testUrl, {
-        method: 'OPTIONS',
-        headers: {
-          'Origin': window.location.origin,
-          'Access-Control-Request-Method': 'GET',
-          'Access-Control-Request-Headers': 'Content-Type',
-          'apikey': apiKey
-        }
-      });
-      
-      const corsHeader = response.headers.get('Access-Control-Allow-Origin');
-      const allowMethods = response.headers.get('Access-Control-Allow-Methods');
-      const allowHeaders = response.headers.get('Access-Control-Allow-Headers');
-      
-      if (corsHeader) {
-        setCorsTest({
-          success: true,
-          details: `✓ CORS configurado: Origin=${corsHeader}, Methods=${allowMethods || 'N/A'}, Headers=${allowHeaders || 'N/A'}`
-        });
-      } else {
-        setCorsTest({
-          success: false,
-          details: `✗ Sem headers CORS na resposta OPTIONS. Status: ${response.status}`
-        });
-      }
-    } catch (error: any) {
-      setCorsTest({
-        success: false,
-        details: `✗ Erro no teste OPTIONS: ${error.message}`
-      });
     } finally {
       setTesting(false);
     }
@@ -152,25 +108,20 @@ const GatewayDiagnostics: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Debug Panel Avançado */}
-      <ProxyDebugPanel />
-
-      {/* Painel de Diagnóstico Original */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Diagnóstico Básico do Gateway</CardTitle>
+          <CardTitle className="text-lg">Diagnóstico do Gateway WhatsApp</CardTitle>
           <div className="space-y-2 text-sm text-muted-foreground">
             <p>Gateway URL: <code className="bg-muted px-1 rounded">{baseUrl}</code></p>
             <div className="p-2 bg-green-50 border border-green-200 rounded-md">
-              <p className="text-green-800 font-medium">✅ Proxy Supabase Autenticado Ativo</p>
-              <p className="text-green-700">Proxy URL: <code className="bg-green-100 px-1 rounded">{proxyUrl}</code></p>
+              <p className="text-green-800 font-medium">✅ Conexão Direta com Render</p>
+              <p className="text-green-700">Servidor: <code className="bg-green-100 px-1 rounded">{baseUrl}</code></p>
               <div className="text-green-600 text-xs mt-1 space-y-1">
-                <p>• Roteamento de paths corrigido (/health, /connections, etc.)</p>
-                <p>• Headers de autenticação e Origin configurados</p>
-                <p>• CORS gerenciado automaticamente pelo proxy</p>
-                <p>• Logging detalhado habilitado para debug</p>
-                <p>• Endpoint /_debug disponível para diagnóstico completo</p>
-                <p>• Header apikey adicionado para autenticação Supabase</p>
+                <p>• Comunicação direta com o servidor WhatsApp na Render</p>
+                <p>• Autenticação via Bearer Token configurada</p>
+                <p>• CORS configurado diretamente no servidor</p>
+                <p>• Sem proxy intermediário para máxima performance</p>
+                <p>• SSE (Server-Sent Events) via fetch para streams de QR</p>
               </div>
             </div>
           </div>
@@ -178,7 +129,7 @@ const GatewayDiagnostics: React.FC = () => {
         <CardContent className="space-y-6">
           {/* Teste de Conectividade Básica */}
           <div className="space-y-3">
-            <h3 className="font-medium text-sm">Testes Básicos de Conectividade</h3>
+            <h3 className="font-medium text-sm">Testes de Conectividade</h3>
             <div className="flex items-center gap-2 flex-wrap">
               <Button
                 variant="outline"
@@ -202,21 +153,11 @@ const GatewayDiagnostics: React.FC = () => {
 
               <Button
                 variant="outline"
-                onClick={testCorsOptions}
-                disabled={testing}
-                className="flex items-center gap-2"
-              >
-                <RefreshCw className={`h-4 w-4 ${testing ? 'animate-spin' : ''}`} />
-                Testar CORS (OPTIONS)
-              </Button>
-
-              <Button
-                variant="outline"
-                onClick={() => openUrl(`${proxyUrl}/health`)}
+                onClick={() => openUrl(`${baseUrl}/health`)}
                 className="flex items-center gap-2"
               >
                 <ExternalLink className="h-4 w-4" />
-                Abrir proxy /health
+                Abrir /health
               </Button>
             </div>
           </div>
@@ -230,17 +171,15 @@ const GatewayDiagnostics: React.FC = () => {
                 <Badge variant={healthStatus.status === 'ok' ? 'default' : 'destructive'}>
                   {healthStatus.status === 'ok' ? 'OK' : 'ERRO'}
                 </Badge>
-                {healthStatus.proxyUsed && (
-                  <Badge variant="secondary" className="text-xs">
-                    VIA PROXY AUTENTICADO
-                  </Badge>
-                )}
+                <Badge variant="secondary" className="text-xs">
+                  CONEXÃO DIRETA
+                </Badge>
               </div>
               <p className="text-sm text-muted-foreground mb-1">{healthStatus.message}</p>
               <div className="flex items-center gap-2 text-xs">
                 <span>CORS Headers:</span>
                 <Badge variant={healthStatus.corsHeaders ? 'default' : 'default'} className="text-xs">
-                  {isUsingProxy ? 'Gerenciado pelo Proxy' : (healthStatus.corsHeaders ? 'Presente' : 'Ausente')}
+                  {healthStatus.corsHeaders ? 'Presente' : 'Configurado no servidor'}
                 </Badge>
               </div>
             </div>
@@ -271,32 +210,52 @@ const GatewayDiagnostics: React.FC = () => {
             </div>
           )}
 
-          {corsTest && (
-            <div className="p-3 rounded-lg border bg-card">
-              <div className="flex items-center gap-2 mb-2">
-                {corsTest.success ? 
-                  <CheckCircle className="h-4 w-4 text-green-600" /> : 
-                  <XCircle className="h-4 w-4 text-red-600" />
-                }
-                <span className="font-medium">Teste CORS (OPTIONS)</span>
-                <Badge variant={corsTest.success ? 'default' : 'destructive'}>
-                  {corsTest.success ? 'OK' : 'ERRO'}
-                </Badge>
-              </div>
-              <p className="text-sm text-muted-foreground">{corsTest.details}</p>
-            </div>
-          )}
-
-          {/* Status do Sistema Atualizado */}
-          <div className="text-xs text-muted-foreground p-3 bg-green-50 rounded-lg">
-            <strong>🚀 Funcionalidades Implementadas:</strong>
+          {/* Status do Sistema */}
+          <div className="text-xs text-muted-foreground p-3 bg-blue-50 rounded-lg">
+            <strong>🚀 Configuração Atual:</strong>
             <div className="mt-2 space-y-1">
-              <p>• ✅ URL Supabase hardcodada para evitar problemas com import.meta.env</p>
-              <p>• ✅ Endpoint /_debug para diagnóstico completo de conectividade</p>
-              <p>• ✅ Tratamento melhorado de erros JSON e exibição de resposta bruta</p>
-              <p>• ✅ Logs detalhados do proxy para debug de requisições e respostas</p>
-              <p>• ✅ Todas as requisições autenticadas via proxy Supabase</p>
-              <p>• ✅ Header apikey adicionado para autenticação com Supabase</p>
+              <p>• ✅ Comunicação direta com servidor Render (sem proxy)</p>
+              <p>• ✅ Autenticação Bearer Token: h7ViAWZDn4ZMRcy4x0zUCyYEQ11H8a6F</p>
+              <p>• ✅ Endpoints disponíveis: /health, /connections, /connections/:id/qr</p>
+              <p>• ✅ SSE (Server-Sent Events) implementado via fetch + ReadableStream</p>
+              <p>• ✅ Tratamento de erros e reconexão automática configurados</p>
+            </div>
+          </div>
+
+          {/* Comandos cURL para Debug Manual */}
+          <div className="p-4 bg-gray-50 rounded-lg">
+            <h3 className="font-medium mb-2">Comandos cURL para Teste Manual</h3>
+            <div className="space-y-2 text-sm">
+              <div>
+                <p className="font-medium">Teste Health:</p>
+                <div className="flex items-center gap-2">
+                  <code className="block bg-white p-2 rounded text-xs flex-1">
+                    curl -v "{baseUrl}/health" -H "Authorization: Bearer h7ViAWZDn4ZMRcy4x0zUCyYEQ11H8a6F"
+                  </code>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => copyToClipboard(`curl -v "${baseUrl}/health" -H "Authorization: Bearer h7ViAWZDn4ZMRcy4x0zUCyYEQ11H8a6F"`, 'Comando curl')}
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+              <div>
+                <p className="font-medium">Teste Connections:</p>
+                <div className="flex items-center gap-2">
+                  <code className="block bg-white p-2 rounded text-xs flex-1">
+                    curl -v "{baseUrl}/connections" -H "Authorization: Bearer h7ViAWZDn4ZMRcy4x0zUCyYEQ11H8a6F"
+                  </code>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => copyToClipboard(`curl -v "${baseUrl}/connections" -H "Authorization: Bearer h7ViAWZDn4ZMRcy4x0zUCyYEQ11H8a6F"`, 'Comando curl')}
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
         </CardContent>

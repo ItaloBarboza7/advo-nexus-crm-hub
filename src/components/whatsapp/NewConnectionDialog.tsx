@@ -25,7 +25,7 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
   const [status, setStatus] = useState<string>('Aguardando ação');
   const [qrData, setQrData] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
-  const esRef = useRef<EventSource | null>(null);
+  const streamRef = useRef<{ close: () => void } | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -36,9 +36,9 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
       setQrData(null);
       setConnected(false);
     } else {
-      if (esRef.current) {
-        esRef.current.close();
-        esRef.current = null;
+      if (streamRef.current) {
+        streamRef.current.close();
+        streamRef.current = null;
       }
     }
   }, [open]);
@@ -51,15 +51,15 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
     setCreating(false);
     setStatus('Abrindo stream de QR...');
     // Como estamos reconectando, não precisamos do name.
-    const es = whatsappGateway.openQrStream(initialConnectionId, handleGatewayEvent);
-    esRef.current = es;
+    const stream = whatsappGateway.openQrStream(initialConnectionId, handleGatewayEvent);
+    streamRef.current = stream;
     // Preencher meta da conexão (para exibir nome)
     setConnection({ id: initialConnectionId, name: 'Conexão', status: 'connecting' });
 
     return () => {
-      if (esRef.current) {
-        esRef.current.close();
-        esRef.current = null;
+      if (streamRef.current) {
+        streamRef.current.close();
+        streamRef.current = null;
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -76,8 +76,8 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
       const conn = await whatsappGateway.createConnection(name.trim());
       setConnection(conn);
       setStatus('Aguardando QR...');
-      const es = whatsappGateway.openQrStream(conn.id, handleGatewayEvent);
-      esRef.current = es;
+      const stream = whatsappGateway.openQrStream(conn.id, handleGatewayEvent);
+      streamRef.current = stream;
     } catch (e: any) {
       console.error('createConnection error', e);
       toast({ title: 'Erro ao criar conexão', description: e?.message ?? 'Falha inesperada', variant: 'destructive' });
