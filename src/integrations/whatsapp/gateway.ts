@@ -151,8 +151,6 @@ export const whatsappGateway = {
   },
 
   async createConnection(name: string): Promise<GatewayConnection> {
-    const baseUrl = getBaseUrl();
-    
     try {
       const tenantId = await getTenantId();
       
@@ -162,31 +160,43 @@ export const whatsappGateway = {
         throw new Error('Usuário não autenticado');
       }
       
-      const res = await fetch(`${baseUrl}/connections`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getHeaders(),
-        },
-        body: JSON.stringify({ 
-          name, 
+      console.log('[whatsappGateway] Creating connection directly in Supabase...');
+      
+      // Create connection record directly in Supabase
+      const { data: connection, error: supabaseError } = await supabase
+        .from('whatsapp_connections')
+        .insert({
+          name,
           tenant_id: tenantId,
           created_by_user_id: user.id,
-          phone_number: "" // Placeholder, will be updated when connection is established
-        }),
-      });
+          phone_number: "", // Placeholder, will be updated when connection is established
+          status: 'disconnected'
+        })
+        .select()
+        .single();
       
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Falha ao criar conexão: ${res.status} ${text.substring(0, 200)}`);
+      if (supabaseError) {
+        console.error('[whatsappGateway] Supabase insert error:', supabaseError);
+        throw new Error(`Falha ao criar registro de conexão: ${supabaseError.message}`);
       }
       
-      return res.json();
+      console.log('[whatsappGateway] Connection created successfully:', connection);
+      
+      // Map Supabase connection to GatewayConnection format
+      return {
+        id: connection.id,
+        name: connection.name,
+        status: connection.status,
+        phone_number: connection.phone_number,
+        last_connected_at: connection.last_connected_at
+      };
+      
     } catch (error) {
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw new Error('Erro de conexão: Não foi possível conectar ao gateway WhatsApp');
+      console.error('[whatsappGateway] createConnection error:', error);
+      if (error instanceof Error) {
+        throw error;
       }
-      throw error;
+      throw new Error('Erro inesperado ao criar conexão');
     }
   },
 
