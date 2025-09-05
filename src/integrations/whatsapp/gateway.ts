@@ -177,12 +177,32 @@ export const whatsappGateway = {
       
       // Primeiro, tentar criar via POST no gateway (sem enviar phone_number)
       try {
+        // Obter autenticação do usuário para passar ao proxy
+        const { data: { session } } = await supabase.auth.getSession();
+        const clientToken = session?.access_token;
+        const clientApiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsdHVnbm1qYmNvd3N1d3pra25pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4MDkyNjAsImV4cCI6MjA2NDM4NTI2MH0.g-dg8YF0mK0LkDBvTzUlW8po9tT0VC-s47PFbDScmN8';
+        
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+          ...getHeaders(),
+        };
+        
+        // Adicionar autenticação para que o proxy possa usar no fallback
+        if (clientToken) {
+          headers['Authorization'] = `Bearer ${clientToken}`;
+        }
+        if (clientApiKey) {
+          headers['apikey'] = clientApiKey;
+        }
+        
+        console.log('[whatsappGateway] Creating connection with auth headers:', {
+          hasToken: !!clientToken,
+          hasApiKey: !!clientApiKey
+        });
+        
         const res = await fetch(`${baseUrl}/connections`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...getHeaders(),
-          },
+          headers,
           body: JSON.stringify({ 
             name, 
             tenant_id: tenantId,
@@ -251,10 +271,30 @@ export const whatsappGateway = {
     const startStream = async () => {
       try {
         const tenantId = await getTenantId();
+        
+        // Obter autenticação do usuário
+        const { data: { session } } = await supabase.auth.getSession();
+        const clientToken = session?.access_token;
+        const clientApiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsdHVnbm1qYmNvd3N1d3pra25pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4MDkyNjAsImV4cCI6MjA2NDM4NTI2MH0.g-dg8YF0mK0LkDBvTzUlW8po9tT0VC-s47PFbDScmN8'; // Supabase anon key
+        
+        console.log('[whatsappGateway] 🔐 Auth info:', {
+          hasToken: !!clientToken,
+          hasApiKey: !!clientApiKey,
+          tenantId
+        });
+        
         const url = new URL(`${baseUrl}/connections/${connectionId}/qr`);
         url.searchParams.append('tenant_id', tenantId);
         
-        console.log('[whatsappGateway] 🔄 Opening QR stream via EventSource:', url.toString());
+        // Passar autenticação via query params (EventSource não suporta headers customizados)
+        if (clientToken) {
+          url.searchParams.append('client_token', clientToken);
+        }
+        if (clientApiKey) {
+          url.searchParams.append('client_apikey', clientApiKey);
+        }
+        
+        console.log('[whatsappGateway] 🔄 Opening QR stream via EventSource:', url.toString().replace(clientToken || '', '[REDACTED]'));
 
         // Usar EventSource em vez de fetch para evitar CORS preflight
         eventSource = new EventSource(url.toString());
@@ -331,7 +371,7 @@ export const whatsappGateway = {
             console.log('[whatsappGateway] 🔄 QR Stream trying to reconnect...');
             onEvent({ type: 'status', data: 'Tentando reconectar ao stream de QR...' });
           } else {
-            onEvent({ type: 'error', data: 'Erro na conexão com o stream de QR' });
+            onEvent({ type: 'error', data: 'Erro na conexão com o stream de QR. Verifique se o usuário está autenticado.' });
           }
         };
 
