@@ -8,9 +8,37 @@ const RAW_BASE = Deno.env.get('WHATSAPP_GATEWAY_URL')?.trim()
 const GATEWAY_BASE_URL = RAW_BASE && RAW_BASE !== '' ? RAW_BASE : 'https://evojuris-whatsapp.onrender.com'
 const GATEWAY_TOKEN = Deno.env.get('WHATSAPP_GATEWAY_TOKEN')
 const GATEWAY_ORIGIN_RAW = Deno.env.get('WHATSAPP_GATEWAY_ORIGIN') || GATEWAY_BASE_URL
+const ALLOWED_ORIGINS_RAW = Deno.env.get('WHATSAPP_ALLOWED_ORIGINS') || ''
 
 // Limpar origin - pegar apenas o primeiro valor se vier separado por vírgula
-const GATEWAY_ORIGIN = GATEWAY_ORIGIN_RAW.split(',')[0].trim()
+const GATEWAY_ORIGIN_DEFAULT = GATEWAY_ORIGIN_RAW.split(',')[0].trim()
+
+// Parse allowed origins for dynamic CORS
+const ALLOWED_ORIGINS = ALLOWED_ORIGINS_RAW ? ALLOWED_ORIGINS_RAW.split(',').map(o => o.trim()) : []
+
+// Função para determinar origem dinamicamente com base na allowlist
+function getDynamicOrigin(requestOrigin: string | null): string {
+  if (!requestOrigin || ALLOWED_ORIGINS.length === 0) {
+    return GATEWAY_ORIGIN_DEFAULT
+  }
+  
+  for (const allowedOrigin of ALLOWED_ORIGINS) {
+    if (allowedOrigin.startsWith('*.')) {
+      // Suporte a wildcard para subdomínios
+      const domain = allowedOrigin.substring(2)
+      if (requestOrigin.endsWith(domain)) {
+        console.log(`✅ Dynamic origin matched wildcard ${allowedOrigin}: ${requestOrigin}`)
+        return requestOrigin
+      }
+    } else if (requestOrigin === allowedOrigin) {
+      console.log(`✅ Dynamic origin matched exact: ${requestOrigin}`)
+      return requestOrigin
+    }
+  }
+  
+  console.log(`⚠️ Origin not in allowlist, using default: ${requestOrigin} -> ${GATEWAY_ORIGIN_DEFAULT}`)
+  return GATEWAY_ORIGIN_DEFAULT
+}
 
 // Supabase configuration
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
@@ -26,7 +54,8 @@ try {
 
 console.log(`🔧 Proxy configuration:`)
 console.log(`- Gateway URL: ${parsedBase ? parsedBase.toString() : 'INVALID'}`)
-console.log(`- Gateway Origin (cleaned): ${GATEWAY_ORIGIN}`)
+console.log(`- Gateway Origin (default): ${GATEWAY_ORIGIN_DEFAULT}`)
+console.log(`- Allowed Origins: ${ALLOWED_ORIGINS.length > 0 ? ALLOWED_ORIGINS.join(', ') : 'None (using default)'}`)
 console.log(`- Has Token: ${!!GATEWAY_TOKEN}`)
 
 // Função para criar cliente Supabase com autenticação do usuário
@@ -396,10 +425,11 @@ serve(async (req) => {
 
     console.log(`🎯 Target URL: ${targetUrl}`)
 
-    // Preparar headers para o gateway
+    // Construir headers para o gateway usando origem dinâmica
+    const dynamicOrigin = getDynamicOrigin(req.headers.get('origin'))
     const gatewayHeaders: Record<string, string> = {
-      'Origin': GATEWAY_ORIGIN,
-      'User-Agent': 'Supabase-WhatsApp-Proxy/1.2'
+      'User-Agent': 'Supabase-WhatsApp-Proxy/1.2',
+      'Origin': dynamicOrigin,
     }
 
     if (GATEWAY_TOKEN) {
@@ -407,6 +437,56 @@ serve(async (req) => {
       console.log('✅ Authorization header added')
     } else {
       console.log('⚠️ WARNING: No WHATSAPP_GATEWAY_TOKEN configured')
+    }
+
+    // Handle POST /connections/:id/connect
+    if (req.method === 'POST' && normalizeProxyPath(rawPath).match(/^\/connections\/[^\/]+\/connect$/)) {
+      console.log('🔗 Handling connection connect request')
+      
+      const targetUrl = new URL(path + url.search, parsedBase)
+      
+      console.log(`🎯 Connect target URL: ${targetUrl}`)
+      
+      try {
+        console.log(`📤 Connect request headers to gateway:`, JSON.stringify(gatewayHeaders, null, 2))
+        
+        const response = await fetch(targetUrl.toString(), {
+          method: 'POST',
+          headers: gatewayHeaders,
+        })
+        
+        console.log(`📥 Connect response status: ${response.status}`)
+        
+        if (response.ok) {
+          const responseData = await response.text()
+          return new Response(responseData, {
+            status: response.status,
+            headers: {
+              ...corsHeaders,
+              'Content-Type': response.headers.get('Content-Type') || 'application/json',
+            },
+          })
+        } else {
+          const errorText = await response.text()
+          console.error(`❌ Connect error response: ${response.status} - ${errorText}`)
+          return new Response(JSON.stringify({ 
+            error: `Connect failed: ${response.status}`,
+            details: errorText 
+          }), {
+            status: response.status,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
+      } catch (error) {
+        console.error('❌ Connect request error:', error)
+        return new Response(JSON.stringify({ 
+          error: 'Connect request failed', 
+          details: error instanceof Error ? error.message : 'Unknown error' 
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
     }
 
     // SSE para QR codes

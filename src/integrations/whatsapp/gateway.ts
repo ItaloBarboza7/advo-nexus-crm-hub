@@ -264,6 +264,60 @@ export const whatsappGateway = {
     }
   },
 
+  async connect(connectionId: string): Promise<void> {
+    const baseUrl = getBaseUrl();
+    
+    try {
+      const tenantId = await getTenantId();
+      
+      // Obter autenticação do usuário
+      const { data: { session } } = await supabase.auth.getSession();
+      const clientToken = session?.access_token;
+      const clientApiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsdHVnbm1qYmNvd3N1d3pra25pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4MDkyNjAsImV4cCI6MjA2NDM4NTI2MH0.g-dg8YF0mK0LkDBvTzUlW8po9tT0VC-s47PFbDScmN8';
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      // Adicionar autenticação nos headers
+      if (clientToken) {
+        headers['Authorization'] = `Bearer ${clientToken}`;
+      }
+      if (clientApiKey) {
+        headers['apikey'] = clientApiKey;
+      }
+      
+      console.log('[whatsappGateway] 🔗 Connecting to gateway:', {
+        connectionId,
+        tenantId,
+        hasToken: !!clientToken,
+        hasApiKey: !!clientApiKey
+      });
+      
+      const url = new URL(`${baseUrl}/connections/${connectionId}/connect`);
+      url.searchParams.append('tenant_id', tenantId);
+      
+      const res = await fetch(url.toString(), {
+        method: 'POST',
+        headers,
+      });
+      
+      if (!res.ok) {
+        const text = await res.text();
+        console.warn('[whatsappGateway] ⚠️ Connect failed:', res.status, text);
+        throw new Error(`Connect failed: ${res.status} - ${text}`);
+      }
+      
+      console.log('[whatsappGateway] ✅ Connection initiated successfully');
+    } catch (error) {
+      console.error('[whatsappGateway] ❌ connect error:', error);
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Erro inesperado ao conectar');
+    }
+  },
+
   openQrStream(connectionId: string, onEvent: (evt: GatewayEvent) => void) {
     const baseUrl = getQrStreamBaseUrl();
     let eventSource: EventSource | null = null;
@@ -310,8 +364,8 @@ export const whatsappGateway = {
             // Tentar parsear como JSON primeiro
             const data = JSON.parse(event.data);
             
-            // Verificar se contém QR code em diferentes formatos
-            const qrData = data.qr || data.qr_code || data.image || data.data;
+            // Verificar se contém QR code em diferentes formatos (expandido)
+            const qrData = data.qr || data.qr_code || data.qrcode || data.qrCode || data.code || data.base64 || data.png || data.image || data.data;
             if (qrData && typeof qrData === 'string') {
               console.log('[whatsappGateway] 🎯 QR code found in JSON data');
               onEvent({ type: 'qr', data: qrData });
@@ -328,8 +382,8 @@ export const whatsappGateway = {
             }
           } catch (parseError) {
             // Se não for JSON, pode ser QR code direto ou mensagem de status
-            if (event.data.length > 100) {
-              // Provavelmente QR code (strings longas)
+            if (event.data.length > 100 || event.data.startsWith('data:image/')) {
+              // Provavelmente QR code (strings longas ou data URLs)
               console.log('[whatsappGateway] 🎯 QR code found as raw string');
               onEvent({ type: 'qr', data: event.data });
             } else {

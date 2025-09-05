@@ -58,19 +58,34 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
     }
   }, [open]);
 
-  // Se veio com uma conexão já existente, iniciamos o stream direto
+  // Se veio com uma conexão já existente, iniciamos o flow de reconexão
   useEffect(() => {
     if (!open) return;
     if (!initialConnectionId) return;
 
-    setCreating(false);
-    setStatus('Abrindo stream de QR...');
-    setStreamError(null);
-    
-    // Preencher meta da conexão (para exibir nome)
-    setConnection({ id: initialConnectionId, name: 'Conexão', status: 'connecting' });
-    
-    startQrStream(initialConnectionId);
+    const initializeReconnection = async () => {
+      setCreating(false);
+      setStatus('Iniciando conexão...');
+      setStreamError(null);
+      
+      // Preencher meta da conexão (para exibir nome)
+      setConnection({ id: initialConnectionId, name: 'Conexão', status: 'connecting' });
+      
+      try {
+        // Primeiro conectar via gateway
+        await whatsappGateway.connect(initialConnectionId);
+        setStatus('Aguardando QR...');
+        
+        // Depois abrir o stream de QR
+        startQrStream(initialConnectionId);
+      } catch (error) {
+        console.error('[NewConnectionDialog] ❌ Connect error:', error);
+        setStreamError(`Erro ao conectar: ${error instanceof Error ? error.message : 'Falha inesperada'}`);
+        setStatus('Falha ao conectar');
+      }
+    };
+
+    initializeReconnection();
 
     return () => {
       if (streamRef.current) {
@@ -103,14 +118,14 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
     setReloading(false);
     setStatus('Conectando ao stream de QR...');
     
-    // Set timeout for QR loading (reduzido para 20 segundos)
+    // Set timeout for QR loading (aumentado para 60 segundos)
     timeoutRef.current = setTimeout(() => {
       if (!qrData && !streamError) {
-        console.warn('[NewConnectionDialog] ⏰ QR stream timeout after 20s');
-        setStreamError('QR code não carregou em 20 segundos');
-        setStatus('Timeout: Tente recarregar o QR');
+        console.warn('[NewConnectionDialog] ⏰ QR stream timeout after 60s');
+        setStreamError('QR code não carregou em 60 segundos');
+        setStatus('Timeout: Tente recarregar o QR ou verificar /_debug/peek-qr');
       }
-    }, 20000); // 20 seconds timeout
+    }, 60000); // 60 seconds timeout
     
     const stream = whatsappGateway.openQrStream(connectionId, handleGatewayEvent);
     streamRef.current = stream;
@@ -128,8 +143,18 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
     try {
       const conn = await whatsappGateway.createConnection(name.trim());
       setConnection(conn);
-      setStatus('Conexão criada, aguardando QR...');
-      startQrStream(conn.id);
+      setStatus('Inicializando conexão...');
+      
+      try {
+        // Conectar via gateway antes de abrir o stream
+        await whatsappGateway.connect(conn.id);
+        setStatus('Aguardando QR...');
+        startQrStream(conn.id);
+      } catch (connectError) {
+        console.error('[NewConnectionDialog] ❌ Connect after create error:', connectError);
+        setStreamError(`Erro ao conectar: ${connectError instanceof Error ? connectError.message : 'Falha inesperada'}`);
+        setStatus('Falha ao conectar após criação');
+      }
     } catch (e: any) {
       console.error('[NewConnectionDialog] ❌ createConnection error', e);
       setStreamError(`Erro ao criar conexão: ${e?.message ?? 'Falha inesperada'}`);
@@ -142,6 +167,12 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
 
   const handleGatewayEvent = (evt: GatewayEvent) => {
     console.log('[NewConnectionDialog] GatewayEvent:', evt.type, evt.data ? '(with data)' : '(no data)');
+    
+    // Debug: mostrar primeiras mensagens cruas no status para facilitar diagnóstico
+    if (evt.type === 'status' && evt.data) {
+      const rawMessage = String(evt.data).substring(0, 150);
+      console.log('[NewConnectionDialog] 🐛 Raw SSE data preview:', rawMessage);
+    }
     
     if (evt.type === 'qr') {
       // Clear timeout when QR is received
