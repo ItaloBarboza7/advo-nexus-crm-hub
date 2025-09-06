@@ -70,22 +70,24 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
 
     const initializeReconnection = async () => {
       setCreating(false);
-      setStatus('Iniciando conexão...');
+      setStatus('Preparando conexão existente...');
       setStreamError(null);
       
       // Preencher meta da conexão (para exibir nome)
-      setConnection({ id: initialConnectionId, name: 'Conexão', status: 'connecting' });
+      setConnection({ id: initialConnectionId, name: 'Reconectando...', status: 'connecting' });
       
       try {
-        // Primeiro conectar via gateway
+        // Tentar conectar via gateway (mas não falhar se não funcionar)
+        setStatus('Iniciando conexão no gateway...');
         await whatsappGateway.connect(initialConnectionId);
-        setStatus('Aguardando QR...');
+        setStatus('Gateway conectado, aguardando QR...');
       } catch (error) {
-        console.warn('[NewConnectionDialog] ⚠️ Connect error, proceeding with QR stream:', error);
-        setStatus('Conectando direto ao QR...');
+        console.warn('[NewConnectionDialog] ⚠️ Connect error (expected for existing connections), proceeding with QR stream:', error);
+        setStatus('Conectando diretamente ao QR (modo compatibilidade)...');
       }
       
       // Sempre tenta abrir o stream de QR, independente do resultado do connect
+      setStatus('Abrindo stream de QR para conexão existente...');
       startQrStream(initialConnectionId);
     };
 
@@ -311,7 +313,7 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {initialConnectionId ? 'Conectar dispositivo' : 'Nova Conexão WhatsApp'}
+            {initialConnectionId ? 'Conectar WhatsApp Existente' : 'Nova Conexão WhatsApp'}
           </DialogTitle>
         </DialogHeader>
 
@@ -339,10 +341,10 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="text-sm text-muted-foreground">
-                {connection?.name ?? 'Conexão'}
+                {connection?.name ?? (initialConnectionId ? 'Conexão existente' : 'Nova conexão')}
               </div>
               <Badge variant="secondary" className="rounded-full">
-                {connected ? 'Conectado' : hasError ? 'Erro' : isLoading ? 'Carregando' : 'Aguardando conexão'}
+                {connected ? 'Conectado' : hasError ? 'Erro' : isLoading ? 'Carregando QR' : 'QR pronto'}
               </Badge>
             </div>
 

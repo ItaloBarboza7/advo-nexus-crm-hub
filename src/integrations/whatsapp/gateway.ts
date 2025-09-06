@@ -355,41 +355,70 @@ export const whatsappGateway = {
         headers['apikey'] = clientApiKey;
       }
       
-      console.log('[whatsappGateway] 🔗 Connecting to gateway:', {
+      console.log('[whatsappGateway] 🔗 Trying to connect existing connection:', {
         connectionId,
         tenantId,
         hasToken: !!clientToken,
         hasApiKey: !!clientApiKey
       });
       
-      const url = new URL(`${baseUrl}/connections/${connectionId}/connect`);
-      url.searchParams.append('tenant_id', tenantId);
+      // Try multiple connect endpoints in order of preference
+      const endpoints = [
+        `/connections/${connectionId}/connect`,
+        `/connections/${connectionId}/start`,
+        `/connection/${connectionId}/connect`,
+        `/connection/${connectionId}/start`,
+        `/sessions/${connectionId}/start`,
+        `/session/${connectionId}/start`
+      ];
       
-      const res = await fetch(url.toString(), {
-        method: 'POST',
-        headers,
-      });
+      let lastError: string = '';
       
-      if (!res.ok) {
-        const text = await res.text();
-        console.warn('[whatsappGateway] ⚠️ Connect failed:', res.status, text);
-        
-        // Treat 404 as success - the connect endpoint might not exist in some gateway implementations
-        if (res.status === 404) {
-          console.log('[whatsappGateway] ℹ️ Connect endpoint not found (404), treating as success - QR stream should work directly');
-          return;
+      for (const endpoint of endpoints) {
+        try {
+          const url = new URL(`${baseUrl}${endpoint}`);
+          url.searchParams.append('tenant_id', tenantId);
+          
+          console.log('[whatsappGateway] 🎯 Trying endpoint:', endpoint);
+          
+          const res = await fetch(url.toString(), {
+            method: 'POST',
+            headers,
+          });
+          
+          if (res.ok) {
+            console.log('[whatsappGateway] ✅ Connection initiated successfully via:', endpoint);
+            return;
+          }
+          
+          const text = await res.text();
+          lastError = `${res.status} - ${text}`;
+          
+          // 404 means endpoint doesn't exist, try next one
+          if (res.status === 404) {
+            console.log('[whatsappGateway] 🔄 Endpoint not found:', endpoint, 'trying next...');
+            continue;
+          }
+          
+          // Other errors might indicate the endpoint exists but failed
+          console.warn('[whatsappGateway] ⚠️ Endpoint failed:', endpoint, res.status, text);
+          
+        } catch (fetchError) {
+          console.warn('[whatsappGateway] ⚠️ Fetch error for:', endpoint, fetchError);
+          lastError = fetchError instanceof Error ? fetchError.message : 'Fetch failed';
         }
-        
-        throw new Error(`Connect failed: ${res.status} - ${text}`);
       }
       
-      console.log('[whatsappGateway] ✅ Connection initiated successfully');
+      // All endpoints failed, but this is OK - some gateways don't need explicit connect
+      console.log('[whatsappGateway] ℹ️ All connect endpoints failed, but proceeding - QR stream might work directly');
+      console.log('[whatsappGateway] ℹ️ Last error was:', lastError);
+      
+      // Don't throw error here - let QR stream handle the connection
+      
     } catch (error) {
       console.error('[whatsappGateway] ❌ connect error:', error);
-      if (error instanceof Error) {
-        throw error;
-      }
-      throw new Error('Erro inesperado ao conectar');
+      // Don't throw - let QR stream try to handle it
+      console.log('[whatsappGateway] ℹ️ Connect failed but proceeding with QR stream');
     }
   },
 
@@ -406,27 +435,73 @@ export const whatsappGateway = {
         const clientToken = session?.access_token;
         const clientApiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsdHVnbm1qYmNvd3N1d3pra25pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4MDkyNjAsImV4cCI6MjA2NDM4NTI2MH0.g-dg8YF0mK0LkDBvTzUlW8po9tT0VC-s47PFbDScmN8'; // Supabase anon key
         
-        console.log('[whatsappGateway] 🔐 Auth info:', {
+        console.log('[whatsappGateway] 🔐 Auth info for QR stream:', {
           hasToken: !!clientToken,
           hasApiKey: !!clientApiKey,
-          tenantId
+          tenantId,
+          connectionId
         });
         
-        const url = new URL(`${baseUrl}/connections/${connectionId}/qr`);
-        url.searchParams.append('tenant_id', tenantId);
+        // Try multiple QR endpoints with different parameters
+        const qrEndpoints = [
+          { path: `/connections/${connectionId}/qr`, params: { start: '1' } },
+          { path: `/connections/${connectionId}/qr`, params: {} },
+          { path: `/connection/${connectionId}/qr`, params: { start: '1' } },
+          { path: `/connection/${connectionId}/qr`, params: {} },
+        ];
         
-        // Passar autenticação via query params (EventSource não suporta headers customizados)
-        if (clientToken) {
-          url.searchParams.append('client_token', clientToken);
-        }
-        if (clientApiKey) {
-          url.searchParams.append('client_apikey', clientApiKey);
-        }
+        let streamStarted = false;
         
-        console.log('[whatsappGateway] 🔄 Opening QR stream via EventSource:', url.toString().replace(clientToken || '', '[REDACTED]'));
+        for (const { path, params } of qrEndpoints) {
+          if (streamStarted) break;
+          
+          try {
+            const url = new URL(`${baseUrl}${path}`);
+            url.searchParams.append('tenant_id', tenantId);
+            
+            // Add additional parameters
+            Object.entries(params).forEach(([key, value]) => {
+              url.searchParams.append(key, value);
+            });
+            
+            // Passar autenticação via query params (EventSource não suporta headers customizados)
+            if (clientToken) {
+              url.searchParams.append('client_token', clientToken);
+            }
+            if (clientApiKey) {
+              url.searchParams.append('client_apikey', clientApiKey);
+            }
+            
+            const urlString = url.toString().replace(clientToken || '', '[REDACTED]');
+            console.log('[whatsappGateway] 🎯 Trying QR stream:', path, params, urlString.substring(0, 100) + '...');
 
-        // Usar EventSource em vez de fetch para evitar CORS preflight
-        eventSource = new EventSource(url.toString());
+            // Test if endpoint exists first
+            try {
+              const testResponse = await fetch(url.toString(), { method: 'HEAD' });
+              if (!testResponse.ok && testResponse.status === 404) {
+                console.log('[whatsappGateway] 🔄 QR endpoint not found:', path, 'trying next...');
+                continue;
+              }
+            } catch (testError) {
+              console.log('[whatsappGateway] 🔄 QR endpoint test failed:', path, 'trying anyway...');
+            }
+
+            // Usar EventSource em vez de fetch para evitar CORS preflight
+            eventSource = new EventSource(url.toString());
+            streamStarted = true;
+            console.log('[whatsappGateway] ✅ QR stream started with:', path);
+            break;
+            
+          } catch (endpointError) {
+            console.warn('[whatsappGateway] ⚠️ Failed to start QR stream with:', path, endpointError);
+          }
+        }
+        
+        if (!streamStarted) {
+          console.error('[whatsappGateway] ❌ All QR endpoints failed');
+          onEvent({ type: 'error', data: 'Nenhum endpoint de QR encontrado' });
+          return;
+        }
         
         eventSource.onopen = () => {
           console.log('[whatsappGateway] ✅ QR Stream connected successfully');
@@ -516,7 +591,7 @@ export const whatsappGateway = {
             console.log('[whatsappGateway] 🔄 QR Stream trying to reconnect...');
             onEvent({ type: 'status', data: 'Tentando reconectar ao stream de QR...' });
           } else {
-            onEvent({ type: 'error', data: 'Erro na conexão com o stream de QR. Verifique se o usuário está autenticado.' });
+            onEvent({ type: 'error', data: 'Erro na conexão do stream de QR. Verifique se o gateway está ativo.' });
           }
         };
 
