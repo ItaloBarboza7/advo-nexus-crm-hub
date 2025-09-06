@@ -468,8 +468,24 @@ export const whatsappGateway = {
 
         // Lidar com eventos tipados (event: qr, event: status, etc.)
         eventSource.addEventListener('qr', (event) => {
-          console.log('[whatsappGateway] 🎯 QR event received');
-          onEvent({ type: 'qr', data: (event as MessageEvent).data });
+          console.log('[whatsappGateway] 🎯 QR event received, raw data length:', (event as MessageEvent).data.length);
+          
+          let finalQrData = (event as MessageEvent).data;
+          
+          try {
+            const data = JSON.parse((event as MessageEvent).data);
+            const extractedQr = data.qr || data.qr_code || data.qrcode || data.qrCode || data.code || data.base64 || data.png || data.image || data.data;
+            if (extractedQr && typeof extractedQr === 'string') {
+              finalQrData = extractedQr;
+              console.log('[whatsappGateway] ✅ QR extracted from JSON in addEventListener, length:', finalQrData.length);
+            } else {
+              console.log('[whatsappGateway] ⚠️ No QR field found in JSON, using raw data');
+            }
+          } catch (parseError) {
+            console.log('[whatsappGateway] ⚠️ QR event data is not JSON, using raw data');
+          }
+          
+          onEvent({ type: 'qr', data: finalQrData });
         });
 
         eventSource.addEventListener('status', (event) => {

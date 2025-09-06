@@ -187,12 +187,25 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
         timeoutRef.current = null;
       }
       
-      const rawQrData = String(evt.data);
-      console.log('[NewConnectionDialog] 📱 QR received, length:', rawQrData.length);
+      let rawQrData = String(evt.data);
+      console.log('[NewConnectionDialog] 📱 QR received, length:', rawQrData.length, 'first 50 chars:', rawQrData.substring(0, 50));
+      
+      // Additional JSON parsing check (safety net)
+      try {
+        const parsed = JSON.parse(rawQrData);
+        const extractedQr = parsed.qr || parsed.qr_code || parsed.qrcode || parsed.qrCode || parsed.code;
+        if (extractedQr && typeof extractedQr === 'string') {
+          console.log('[NewConnectionDialog] 🔧 Found QR in JSON, extracting...');
+          rawQrData = extractedQr;
+        }
+      } catch (e) {
+        // Not JSON, continue with original data
+        console.log('[NewConnectionDialog] ℹ️ QR data is not JSON (expected for extracted values)');
+      }
       
       // Sanitize QR data (remove quotes if present, trim whitespace)
       const sanitizedQrData = rawQrData.trim().replace(/^"(.*)"$/, '$1');
-      console.log('[NewConnectionDialog] 🧹 Sanitized QR length:', sanitizedQrData.length);
+      console.log('[NewConnectionDialog] 🧹 Final QR - length:', sanitizedQrData.length, 'starts with 2@:', sanitizedQrData.startsWith('2@'));
       
       setQrData(sanitizedQrData);
       setQrUpdateCount(prev => {
@@ -205,6 +218,12 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
         }
         return newCount;
       });
+      
+      // Validate QR format
+      if (!sanitizedQrData.startsWith('2@') && sanitizedQrData.length < 50) {
+        console.warn('[NewConnectionDialog] ⚠️ QR format unexpected - may not be WhatsApp QR');
+        setStatus('QR recebido, mas formato pode estar incorreto. Tente escanear ou recarregar.');
+      }
       
       try {
         // Check if it's already a base64 image
