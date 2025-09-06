@@ -370,6 +370,13 @@ export const whatsappGateway = {
       if (!res.ok) {
         const text = await res.text();
         console.warn('[whatsappGateway] ⚠️ Connect failed:', res.status, text);
+        
+        // Treat 404 as success - the connect endpoint might not exist in some gateway implementations
+        if (res.status === 404) {
+          console.log('[whatsappGateway] ℹ️ Connect endpoint not found (404), treating as success - QR stream should work directly');
+          return;
+        }
+        
         throw new Error(`Connect failed: ${res.status} - ${text}`);
       }
       

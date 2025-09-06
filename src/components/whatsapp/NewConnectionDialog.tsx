@@ -75,14 +75,13 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
         // Primeiro conectar via gateway
         await whatsappGateway.connect(initialConnectionId);
         setStatus('Aguardando QR...');
-        
-        // Depois abrir o stream de QR
-        startQrStream(initialConnectionId);
       } catch (error) {
-        console.error('[NewConnectionDialog] ❌ Connect error:', error);
-        setStreamError(`Erro ao conectar: ${error instanceof Error ? error.message : 'Falha inesperada'}`);
-        setStatus('Falha ao conectar');
+        console.warn('[NewConnectionDialog] ⚠️ Connect error, proceeding with QR stream:', error);
+        setStatus('Conectando direto ao QR...');
       }
+      
+      // Sempre tenta abrir o stream de QR, independente do resultado do connect
+      startQrStream(initialConnectionId);
     };
 
     initializeReconnection();
@@ -149,12 +148,13 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
         // Conectar via gateway antes de abrir o stream
         await whatsappGateway.connect(conn.id);
         setStatus('Aguardando QR...');
-        startQrStream(conn.id);
       } catch (connectError) {
-        console.error('[NewConnectionDialog] ❌ Connect after create error:', connectError);
-        setStreamError(`Erro ao conectar: ${connectError instanceof Error ? connectError.message : 'Falha inesperada'}`);
-        setStatus('Falha ao conectar após criação');
+        console.warn('[NewConnectionDialog] ⚠️ Connect after create error, proceeding with QR stream:', connectError);
+        setStatus('Conectando direto ao QR...');
       }
+      
+      // Sempre tenta abrir o stream de QR, independente do resultado do connect
+      startQrStream(conn.id);
     } catch (e: any) {
       console.error('[NewConnectionDialog] ❌ createConnection error', e);
       setStreamError(`Erro ao criar conexão: ${e?.message ?? 'Falha inesperada'}`);
