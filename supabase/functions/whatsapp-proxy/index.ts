@@ -15,34 +15,38 @@ const GATEWAY_ORIGIN_DEFAULT = GATEWAY_ORIGIN_RAW.split(',')[0].trim()
 // Parse allowed origins for dynamic CORS
 const ALLOWED_ORIGINS = ALLOWED_ORIGINS_RAW ? ALLOWED_ORIGINS_RAW.split(',').map(o => o.trim()) : []
 
-// Função para determinar origem dinamicamente com base na allowlist
 function getDynamicOrigin(requestOrigin: string | null): string {
-  // If no allowed origins are configured, allow all origins with "*"
-  if (ALLOWED_ORIGINS.length === 0) {
-    console.log(`🌍 No allowed origins configured, using wildcard: *`)
-    return '*'
-  }
+  const allowedOrigins = Deno.env.get("WHATSAPP_ALLOWED_ORIGINS")?.split(',') || [];
   
-  if (!requestOrigin) {
-    return GATEWAY_ORIGIN_DEFAULT
+  // Se não há origens configuradas, permite qualquer origem
+  if (allowedOrigins.length === 0 || (allowedOrigins.length === 1 && !allowedOrigins[0].trim())) {
+    console.log(`🌍 No origins configured, allowing all origins: *`);
+    return '*';
   }
-  
-  for (const allowedOrigin of ALLOWED_ORIGINS) {
-    if (allowedOrigin.startsWith('*.')) {
-      // Suporte a wildcard para subdomínios
-      const domain = allowedOrigin.substring(2)
-      if (requestOrigin.endsWith(domain)) {
-        console.log(`✅ Dynamic origin matched wildcard ${allowedOrigin}: ${requestOrigin}`)
-        return requestOrigin
+
+  if (requestOrigin) {
+    for (const allowedOrigin of allowedOrigins) {
+      const trimmed = allowedOrigin.trim();
+      
+      // Se contém wildcard
+      if (trimmed.includes('*')) {
+        const pattern = trimmed.replace(/\*/g, '.*');
+        const regex = new RegExp(`^${pattern}$`);
+        if (regex.test(requestOrigin)) {
+          console.log(`✅ Origin matched wildcard pattern: ${requestOrigin} -> ${trimmed}`);
+          return requestOrigin;
+        }
+      } else if (trimmed === requestOrigin) {
+        console.log(`✅ Origin matched exactly: ${requestOrigin}`);
+        return requestOrigin;
       }
-    } else if (requestOrigin === allowedOrigin) {
-      console.log(`✅ Dynamic origin matched exact: ${requestOrigin}`)
-      return requestOrigin
     }
   }
-  
-  console.log(`⚠️ Origin not in allowlist, using default: ${requestOrigin} -> ${GATEWAY_ORIGIN_DEFAULT}`)
-  return GATEWAY_ORIGIN_DEFAULT
+
+  // Fallback para permitir todas as origens se nenhuma match
+  console.log(`⚠️ Origin not in allowlist, allowing all: ${requestOrigin} -> *`);
+  return '*';
+}
 }
 
 // Supabase configuration

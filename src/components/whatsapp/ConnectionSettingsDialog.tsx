@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Trash2, Save } from "lucide-react";
+import { Trash2, RotateCw, Power } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { whatsappGateway, type GatewayConnection } from "@/integrations/whatsapp/gateway";
 import { DeleteButton } from "@/components/DeleteButton";
@@ -25,6 +25,8 @@ export const ConnectionSettingsDialog: React.FC<ConnectionSettingsDialogProps> =
 }) => {
   const { toast } = useToast();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isRestarting, setIsRestarting] = useState(false);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
 
   const handleRefreshInfo = async () => {
     if (!connection) return;
@@ -46,6 +48,52 @@ export const ConnectionSettingsDialog: React.FC<ConnectionSettingsDialogProps> =
       });
     } finally {
       setIsRefreshing(false);
+    }
+  };
+
+  const handleRestart = async () => {
+    if (!connection) return;
+
+    setIsRestarting(true);
+    try {
+      await whatsappGateway.restartConnection(connection.id);
+      toast({
+        title: "Sucesso",
+        description: "Conexão reiniciada com sucesso"
+      });
+      onUpdated();
+    } catch (error: any) {
+      console.error('Erro ao reiniciar conexão:', error);
+      toast({
+        title: "Erro",
+        description: error.message || "Falha ao reiniciar a conexão",
+        variant: "destructive"
+      });
+    } finally {
+      setIsRestarting(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    if (!connection) return;
+
+    setIsDisconnecting(true);
+    try {
+      await whatsappGateway.disconnectConnection(connection.id);
+      toast({
+        title: "Sucesso",
+        description: "Conexão desconectada com sucesso"
+      });
+      onUpdated();
+    } catch (error: any) {
+      console.error('Erro ao desconectar conexão:', error);
+      toast({
+        title: "Erro",
+        description: error.message || "Falha ao desconectar a conexão",
+        variant: "destructive"
+      });
+    } finally {
+      setIsDisconnecting(false);
     }
   };
 
@@ -122,12 +170,40 @@ export const ConnectionSettingsDialog: React.FC<ConnectionSettingsDialogProps> =
         </div>
 
         <DialogFooter className="flex justify-between">
-          <DeleteButton
-            onDelete={handleDelete}
-            itemName={connection.name}
-            itemType="conexão"
-            size="default"
-          />
+          <div className="flex gap-2">
+            <DeleteButton
+              onDelete={handleDelete}
+              itemName={connection.name}
+              itemType="conexão"
+              size="default"
+            />
+            
+            {connection.status === 'connected' && (
+              <>
+                <Button
+                  variant="outline"
+                  size="default"
+                  onClick={handleRestart}
+                  disabled={isRestarting}
+                  className="flex items-center gap-2"
+                >
+                  <RotateCw className={`h-4 w-4 ${isRestarting ? 'animate-spin' : ''}`} />
+                  {isRestarting ? "Reiniciando..." : "Reiniciar"}
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  size="default"
+                  onClick={handleDisconnect}
+                  disabled={isDisconnecting}
+                  className="flex items-center gap-2"
+                >
+                  <Power className="h-4 w-4" />
+                  {isDisconnecting ? "Desligando..." : "Desligar"}
+                </Button>
+              </>
+            )}
+          </div>
           
           <Button
             variant="outline"

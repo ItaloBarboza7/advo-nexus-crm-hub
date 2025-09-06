@@ -624,7 +624,7 @@ export type Database = {
       whatsapp_connections: {
         Row: {
           created_at: string
-          created_by_user_id: string
+          created_by_user_id: string | null
           id: string
           last_connected_at: string | null
           name: string
@@ -637,7 +637,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          created_by_user_id: string
+          created_by_user_id?: string | null
           id?: string
           last_connected_at?: string | null
           name: string
@@ -650,7 +650,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          created_by_user_id?: string
+          created_by_user_id?: string | null
           id?: string
           last_connected_at?: string | null
           name?: string

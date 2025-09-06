@@ -897,33 +897,90 @@ export const whatsappGateway = {
   },
 
   // Refresh connection info
-  async refreshConnection(connectionId: string): Promise<{ success: boolean; connection: any }> {
-    try {
-      const baseUrl = getBaseUrl();
-      const tenantId = await getTenantId();
-      
-      console.log('[whatsappGateway] 🔄 Refreshing connection info:', connectionId);
-      
-      const url = new URL(`${baseUrl}/refresh-connection`);
-      url.searchParams.append('connection_id', connectionId);
-      url.searchParams.append('tenant_id', tenantId);
-      
-      const response = await fetch(url.toString(), {
-        method: 'GET',
-        headers: getHeaders(),
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Connection refresh failed: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      console.log('[whatsappGateway] ✅ Connection refreshed:', result);
-      
-      return result;
-    } catch (error) {
-      console.error('[whatsappGateway] ❌ Connection refresh error:', error);
-      throw error;
+  refreshConnection: async (connectionId: string): Promise<void> => {
+    console.log('🔄 Refreshing connection:', connectionId);
+    const tenantId = await getTenantId();
+    
+    const url = new URL('/refresh-connection', getBaseUrl());
+    url.searchParams.set('connection_id', connectionId);
+    url.searchParams.set('tenant_id', tenantId);
+
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: getHeaders()
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to refresh connection: ${response.status} - ${errorText}`);
     }
+
+    console.log('✅ Connection refreshed successfully');
+  },
+
+  // Restart connection
+  restartConnection: async (connectionId: string): Promise<void> => {
+    console.log('🔄 Restarting connection:', connectionId);
+    const tenantId = await getTenantId();
+    
+    const endpoints = [
+      `/connections/${connectionId}/restart`,
+      `/connection/${connectionId}/restart`,
+      `/api/connections/${connectionId}/restart`
+    ];
+
+    for (const endpoint of endpoints) {
+      try {
+        const url = new URL(endpoint, getBaseUrl());
+        url.searchParams.set('tenant_id', tenantId);
+
+        const response = await fetch(url.toString(), {
+          method: 'POST',
+          headers: getHeaders()
+        });
+
+        if (response.ok) {
+          console.log('✅ Connection restarted successfully');
+          return;
+        }
+      } catch (error) {
+        console.log(`❌ Restart endpoint ${endpoint} failed:`, error);
+      }
+    }
+    
+    throw new Error('Failed to restart connection - no available endpoint');
+  },
+
+  // Disconnect connection
+  disconnectConnection: async (connectionId: string): Promise<void> => {
+    console.log('🔄 Disconnecting connection:', connectionId);
+    const tenantId = await getTenantId();
+    
+    const endpoints = [
+      `/connections/${connectionId}/disconnect`,
+      `/connection/${connectionId}/disconnect`,
+      `/api/connections/${connectionId}/disconnect`
+    ];
+
+    for (const endpoint of endpoints) {
+      try {
+        const url = new URL(endpoint, getBaseUrl());
+        url.searchParams.set('tenant_id', tenantId);
+
+        const response = await fetch(url.toString(), {
+          method: 'POST',
+          headers: getHeaders()
+        });
+
+        if (response.ok) {
+          console.log('✅ Connection disconnected successfully');
+          return;
+        }
+      } catch (error) {
+        console.log(`❌ Disconnect endpoint ${endpoint} failed:`, error);
+      }
+    }
+    
+    throw new Error('Failed to disconnect connection - no available endpoint');
   },
 };
