@@ -43,20 +43,6 @@ function getDynamicOrigin(requestOrigin: string | null): string {
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
-// Validar URL base
-let parsedBase: URL | null = null
-try {
-  parsedBase = new URL(GATEWAY_BASE_URL.endsWith('/') ? GATEWAY_BASE_URL : GATEWAY_BASE_URL + '/')
-} catch {
-  console.error("❌ Invalid WHATSAPP_GATEWAY_URL:", GATEWAY_BASE_URL)
-}
-
-console.log(`🔧 Proxy configuration:`)
-console.log(`- Gateway URL: ${parsedBase ? parsedBase.toString() : 'INVALID'}`)
-console.log(`- Gateway Origin (default): ${GATEWAY_ORIGIN_DEFAULT}`)
-console.log(`- Allowed Origins: ${ALLOWED_ORIGINS.length > 0 ? ALLOWED_ORIGINS.join(', ') : 'None (using default)'}`)
-console.log(`- Has Token: ${!!GATEWAY_TOKEN}`)
-
 // Função para criar cliente Supabase com autenticação do usuário
 function createSupabaseClientWithAuth(clientToken: string | null, clientApiKey: string | null) {
   if (!clientToken || !clientApiKey) {
@@ -146,10 +132,269 @@ function normalizeProxyPath(pathname: string): string {
   return out
 }
 
+// Ensure contact exists in database
+async function ensureContact(contactData: any, connectionId: string, tenantId: string, supabase: any) {
+  try {
+    const { error } = await supabase
+      .from('whatsapp_contacts')
+      .upsert({
+        wa_id: contactData.wa_id || contactData.id,
+        name: contactData.name,
+        profile_pic_url: contactData.profile_pic_url || contactData.avatar,
+        connection_id: connectionId,
+        tenant_id: tenantId,
+        is_blocked: contactData.is_blocked || false,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'wa_id,connection_id',
+        ignoreDuplicates: false
+      })
+
+    if (error) {
+      console.error('❌ Error upserting contact:', error)
+    } else {
+      console.log('✅ Contact ensured:', contactData.name || contactData.wa_id)
+    }
+  } catch (error) {
+    console.error('❌ Error in ensureContact:', error)
+  }
+}
+
+// Ensure chat exists in database
+async function ensureChat(chatData: any, connectionId: string, tenantId: string, supabase: any) {
+  try {
+    // Find contact for this chat
+    const contactWaId = chatData.jid?.split('@')[0] || chatData.contact_id
+    let contactId = null
+    
+    if (contactWaId) {
+      const { data: contact } = await supabase
+        .from('whatsapp_contacts')
+        .select('id')
+        .eq('wa_id', contactWaId)
+        .eq('connection_id', connectionId)
+        .single()
+      
+      contactId = contact?.id
+    }
+
+    const { error } = await supabase
+      .from('whatsapp_chats')
+      .upsert({
+        jid: chatData.jid || chatData.id,
+        name: chatData.name || chatData.title,
+        type: chatData.type || 'user',
+        unread_count: chatData.unread_count || 0,
+        last_message_at: chatData.last_message_at ? new Date(chatData.last_message_at).toISOString() : null,
+        connection_id: connectionId,
+        contact_id: contactId,
+        tenant_id: tenantId,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'jid,connection_id',
+        ignoreDuplicates: false
+      })
+
+    if (error) {
+      console.error('❌ Error upserting chat:', error)
+    } else {
+      console.log('✅ Chat ensured:', chatData.name || chatData.jid)
+    }
+  } catch (error) {
+    console.error('❌ Error in ensureChat:', error)
+  }
+}
+
+// Insert or update message in database
+async function insertOrUpdateMessage(messageData: any, chatId: string, connectionId: string, tenantId: string, supabase: any) {
+  try {
+    const { error } = await supabase
+      .from('whatsapp_messages')
+      .upsert({
+        wa_message_id: messageData.id || messageData.message_id,
+        chat_id: chatId,
+        connection_id: connectionId,
+        tenant_id: tenantId,
+        direction: messageData.direction || (messageData.from_me ? 'outbound' : 'inbound'),
+        type: messageData.type || 'text',
+        body: messageData.body || messageData.text,
+        author_wa_id: messageData.author || messageData.from,
+        status: messageData.status || 'delivered',
+        timestamp: messageData.timestamp ? new Date(messageData.timestamp * 1000).toISOString() : new Date().toISOString(),
+        media_url: messageData.media_url,
+        media_mime_type: messageData.media_mime_type,
+        media_size: messageData.media_size,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'wa_message_id,connection_id',
+        ignoreDuplicates: false
+      })
+
+    if (error) {
+      console.error('❌ Error upserting message:', error)
+    } else {
+      console.log('✅ Message processed:', messageData.id)
+      
+      // Update chat's last_message_at
+      await supabase
+        .from('whatsapp_chats')
+        .update({
+          last_message_at: messageData.timestamp ? new Date(messageData.timestamp * 1000).toISOString() : new Date().toISOString()
+        })
+        .eq('id', chatId)
+    }
+  } catch (error) {
+    console.error('❌ Error in insertOrUpdateMessage:', error)
+  }
+}
+
+// Handle WhatsApp events and store in Supabase
+async function handleWhatsAppEvent(eventData: any, supabase: any, clientToken: string | null, tenantId?: string, connectionId?: string) {
+  try {
+    const finalTenantId = tenantId || await getTenantIdFromToken(clientToken, supabase)
+    if (!finalTenantId) {
+      console.log('⚠️ Could not determine tenant ID for event processing')
+      return
+    }
+
+    const eventType = eventData.type || 'unknown'
+    const finalConnectionId = connectionId || eventData.connection_id
+    console.log(`📨 Processing WhatsApp event: ${eventType} for connection ${finalConnectionId}`)
+
+    switch (eventType) {
+      case 'connection.ready':
+      case 'connected':
+      case 'qr':
+        // Update connection status
+        if (finalConnectionId && eventData.data) {
+          const updateData: any = {
+            updated_at: new Date().toISOString()
+          }
+          
+          if (eventData.data.status) {
+            updateData.status = eventData.data.status
+          }
+          
+          if (eventData.data.phone_number || eventData.data.phoneNumber) {
+            updateData.phone_number = eventData.data.phone_number || eventData.data.phoneNumber
+            updateData.last_connected_at = new Date().toISOString()
+          }
+          
+          if (eventData.data.qr_code || eventData.data.qr) {
+            updateData.qr_code = eventData.data.qr_code || eventData.data.qr
+          }
+
+          console.log('🔄 Updating connection with data:', updateData)
+
+          const { error } = await supabase
+            .from('whatsapp_connections')
+            .update(updateData)
+            .eq('id', finalConnectionId)
+            .eq('tenant_id', finalTenantId)
+
+          if (error) {
+            console.error('❌ Failed to update connection:', error)
+          } else {
+            console.log('✅ Connection updated successfully')
+          }
+        }
+        break
+
+      case 'contact':
+      case 'contacts':
+        // Handle single contact or contacts array
+        const contacts = Array.isArray(eventData.data) ? eventData.data : [eventData.data]
+        if (contacts.length > 0 && finalConnectionId) {
+          for (const contact of contacts) {
+            if (contact) {
+              await ensureContact(contact, finalConnectionId, finalTenantId, supabase)
+            }
+          }
+          console.log(`✅ Processed ${contacts.length} contacts`)
+        }
+        break
+
+      case 'chat':
+      case 'chats':
+        // Handle single chat or chats array
+        const chats = Array.isArray(eventData.data) ? eventData.data : [eventData.data]
+        if (chats.length > 0 && finalConnectionId) {
+          for (const chat of chats) {
+            if (chat) {
+              await ensureChat(chat, finalConnectionId, finalTenantId, supabase)
+            }
+          }
+          console.log(`✅ Processed ${chats.length} chats`)
+        }
+        break
+
+      case 'message':
+      case 'messages':
+        // Handle single message or messages array
+        const messages = Array.isArray(eventData.data) ? eventData.data : [eventData.data]
+        if (messages.length > 0 && finalConnectionId) {
+          for (const message of messages) {
+            if (message) {
+              // Find the chat for this message
+              const chatJid = message.chat_id || message.from || message.chatId
+              const chatResult = await supabase
+                .from('whatsapp_chats')
+                .select('id')
+                .eq('jid', chatJid)
+                .eq('connection_id', finalConnectionId)
+                .eq('tenant_id', finalTenantId)
+                .single()
+
+              if (chatResult.data) {
+                await insertOrUpdateMessage(message, chatResult.data.id, finalConnectionId, finalTenantId, supabase)
+              } else {
+                console.log(`⚠️ Chat not found for message: ${chatJid}`)
+              }
+            }
+          }
+          console.log(`✅ Processed ${messages.length} messages`)
+        }
+        break
+
+      case 'sync_complete':
+        console.log('✅ WhatsApp sync completed')
+        break
+
+      default:
+        console.log(`ℹ️ Unhandled event type: ${eventType}`)
+    }
+
+  } catch (error) {
+    console.error('❌ Error handling WhatsApp event:', error)
+  }
+}
+
+// Extract tenant ID from client token
+async function getTenantIdFromToken(clientToken: string | null, supabase: any): Promise<string | null> {
+  if (!clientToken) return null
+  
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser(clientToken)
+    if (error || !user) return null
+    
+    // Get tenant ID using the same logic from the function
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('parent_user_id')
+      .eq('user_id', user.id)
+      .single()
+    
+    return profile?.parent_user_id || user.id
+  } catch (error) {
+    console.error('❌ Error getting tenant ID from token:', error)
+    return null
+  }
+}
+
 // Process events stream and store in Supabase
 async function processEventsStream(stream: ReadableStream, clientToken: string | null, clientApiKey: string | null) {
-  const reader = stream.getReader();
-  const decoder = new TextDecoder();
+  const reader = stream.getReader()
+  const decoder = new TextDecoder()
   
   try {
     // Create Supabase client with service role for data writes
@@ -157,248 +402,240 @@ async function processEventsStream(stream: ReadableStream, clientToken: string |
       SUPABASE_URL,
       SUPABASE_SERVICE_ROLE_KEY,
       { auth: { persistSession: false } }
-    );
+    )
 
-    let buffer = '';
+    let buffer = ''
     
     while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+      const { done, value } = await reader.read()
+      if (done) break
       
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
       
       for (const line of lines) {
         if (line.startsWith('data: ')) {
           try {
-            const eventData = JSON.parse(line.slice(6));
-            await handleWhatsAppEvent(eventData, supabase, clientToken);
+            const eventData = JSON.parse(line.slice(6))
+            await handleWhatsAppEvent(eventData, supabase, clientToken)
           } catch (error) {
-            console.error('❌ Error parsing event data:', error, 'Line:', line);
+            console.error('❌ Error parsing event data:', error, 'Line:', line)
           }
         }
       }
     }
   } catch (error) {
-    console.error('❌ Error processing events stream:', error);
+    console.error('❌ Error processing events stream:', error)
   } finally {
-    reader.releaseLock();
+    reader.releaseLock()
   }
 }
 
-// Handle individual WhatsApp events and store in database
-async function handleWhatsAppEvent(eventData: any, supabase: any, clientToken: string | null) {
-  console.log('📡 Processing WhatsApp event:', eventData.type || 'unknown', eventData);
+// Create a minimal Supabase client with service role
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
+// Bootstrap sync handler
+async function handleBootstrapSync(req: Request, parsedBase: URL, gatewayToken: string, supabase: any) {
+  const url = new URL(req.url)
+  const connectionId = url.searchParams.get('connection_id')
+  const tenantId = url.searchParams.get('tenant_id')
   
+  if (!connectionId || !tenantId) {
+    return new Response(JSON.stringify({ error: 'Missing connection_id or tenant_id' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
+  }
+
+  console.log(`🔄 Starting bootstrap sync for connection ${connectionId}`)
+
   try {
-    const tenantId = await getTenantIdFromToken(clientToken, supabase);
-    if (!tenantId) {
-      console.warn('⚠️ No tenant ID found for event processing');
-      return;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    }
+    if (gatewayToken) {
+      headers['Authorization'] = `Bearer ${gatewayToken}`
     }
 
-    switch (eventData.type) {
-      case 'connection.ready':
-      case 'connection.authenticated': {
-        if (eventData.connection_id && eventData.phone_number) {
-          await supabase
-            .from('whatsapp_connections')
-            .update({
-              status: 'connected',
-              phone_number: eventData.phone_number,
-              last_connected_at: new Date().toISOString()
-            })
-            .eq('id', eventData.connection_id)
-            .eq('tenant_id', tenantId);
+    // Try to fetch contacts, chats, and messages from gateway
+    const endpoints = [
+      { name: 'contacts', path: `/connections/${connectionId}/contacts` },
+      { name: 'chats', path: `/connections/${connectionId}/chats` },
+      { name: 'messages', path: `/connections/${connectionId}/messages` },
+    ]
+
+    let syncedCount = 0
+
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(new URL(endpoint.path, parsedBase).toString(), {
+          headers
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          console.log(`📦 Got ${endpoint.name} data:`, Array.isArray(data) ? data.length : 'object')
           
-          console.log('✅ Updated connection with phone number:', eventData.phone_number);
-        }
-        break;
-      }
-      
-      case 'contacts': {
-        if (eventData.contacts && Array.isArray(eventData.contacts)) {
-          for (const contact of eventData.contacts) {
-            await supabase
-              .from('whatsapp_contacts')
-              .upsert({
-                wa_id: contact.wa_id,
-                name: contact.name,
-                profile_pic_url: contact.profile_pic_url,
-                connection_id: eventData.connection_id,
-                tenant_id: tenantId,
-                updated_at: new Date().toISOString()
-              }, {
-                onConflict: 'wa_id,connection_id'
-              });
-          }
-          console.log('✅ Processed contacts:', eventData.contacts.length);
-        }
-        break;
-      }
-      
-      case 'chats': {
-        if (eventData.chats && Array.isArray(eventData.chats)) {
-          for (const chat of eventData.chats) {
-            // Find contact for this chat
-            const { data: contact } = await supabase
-              .from('whatsapp_contacts')
-              .select('id')
-              .eq('wa_id', chat.jid?.split('@')[0])
-              .eq('connection_id', eventData.connection_id)
-              .single();
-
-            await supabase
-              .from('whatsapp_chats')
-              .upsert({
-                jid: chat.jid,
-                name: chat.name,
-                type: chat.type || 'user',
-                unread_count: chat.unread_count || 0,
-                last_message_at: chat.last_message_at,
-                connection_id: eventData.connection_id,
-                contact_id: contact?.id,
-                tenant_id: tenantId,
-                updated_at: new Date().toISOString()
-              }, {
-                onConflict: 'jid,connection_id'
-              });
-          }
-          console.log('✅ Processed chats:', eventData.chats.length);
-        }
-        break;
-      }
-      
-      case 'messages': {
-        if (eventData.messages && Array.isArray(eventData.messages)) {
-          for (const message of eventData.messages) {
-            // Find chat for this message
-            const { data: chat } = await supabase
-              .from('whatsapp_chats')
-              .select('id')
-              .eq('jid', message.chat_jid)
-              .eq('connection_id', eventData.connection_id)
-              .single();
-
-            if (chat) {
-              await supabase
-                .from('whatsapp_messages')
-                .upsert({
-                  wa_message_id: message.id,
-                  chat_id: chat.id,
-                  connection_id: eventData.connection_id,
-                  tenant_id: tenantId,
-                  direction: message.direction || (message.from_me ? 'outbound' : 'inbound'),
-                  type: message.type || 'text',
-                  body: message.body,
-                  author_wa_id: message.author || message.from,
-                  status: message.status || 'delivered',
-                  timestamp: message.timestamp ? new Date(message.timestamp * 1000).toISOString() : new Date().toISOString(),
-                  media_url: message.media_url,
-                  media_mime_type: message.media_mime_type,
-                  media_size: message.media_size,
-                  updated_at: new Date().toISOString()
-                }, {
-                  onConflict: 'wa_message_id,connection_id'
-                });
-
-              // Update chat's last_message_at
-              await supabase
-                .from('whatsapp_chats')
-                .update({
-                  last_message_at: message.timestamp ? new Date(message.timestamp * 1000).toISOString() : new Date().toISOString()
-                })
-                .eq('id', chat.id);
+          // Process and store the data
+          if (Array.isArray(data) && data.length > 0) {
+            for (const item of data) {
+              await handleWhatsAppEvent({
+                type: endpoint.name.slice(0, -1), // remove 's' from plural
+                data: item
+              }, supabase, null, tenantId, connectionId)
             }
+            syncedCount++
           }
-          console.log('✅ Processed messages:', eventData.messages.length);
+        } else {
+          console.log(`⚠️ Bootstrap ${endpoint.name} failed: ${response.status}`)
         }
-        break;
+      } catch (error) {
+        console.log(`⚠️ Bootstrap ${endpoint.name} error:`, error.message)
       }
-      
-      case 'message': {
-        // Single message event
-        const message = eventData;
-        const { data: chat } = await supabase
-          .from('whatsapp_chats')
-          .select('id')
-          .eq('jid', message.chat_jid || message.from)
-          .eq('connection_id', eventData.connection_id)
-          .single();
-
-        if (chat) {
-          await supabase
-            .from('whatsapp_messages')
-            .upsert({
-              wa_message_id: message.id,
-              chat_id: chat.id,
-              connection_id: eventData.connection_id,
-              tenant_id: tenantId,
-              direction: message.direction || (message.from_me ? 'outbound' : 'inbound'),
-              type: message.type || 'text',
-              body: message.body,
-              author_wa_id: message.author || message.from,
-              status: message.status || 'delivered',
-              timestamp: message.timestamp ? new Date(message.timestamp * 1000).toISOString() : new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            }, {
-              onConflict: 'wa_message_id,connection_id'
-            });
-
-          // Update chat's last_message_at
-          await supabase
-            .from('whatsapp_chats')
-            .update({
-              last_message_at: message.timestamp ? new Date(message.timestamp * 1000).toISOString() : new Date().toISOString()
-            })
-            .eq('id', chat.id);
-
-          console.log('✅ Processed single message:', message.id);
-        }
-        break;
-      }
-      
-      default:
-        console.log('📝 Unhandled event type:', eventData.type);
     }
+
+    const dynamicOrigin = getDynamicOrigin(req.headers.get('origin'))
+    return new Response(JSON.stringify({ 
+      success: true, 
+      synced_endpoints: syncedCount,
+      message: 'Bootstrap sync completed'
+    }), {
+      headers: {
+        ...corsHeaders,
+        'Access-Control-Allow-Origin': dynamicOrigin,
+        'Content-Type': 'application/json'
+      }
+    })
+
   } catch (error) {
-    console.error('❌ Error handling WhatsApp event:', error);
+    console.error('❌ Bootstrap sync failed:', error)
+    const dynamicOrigin = getDynamicOrigin(req.headers.get('origin'))
+    return new Response(JSON.stringify({ error: 'Bootstrap sync failed' }), {
+      status: 500,
+      headers: {
+        ...corsHeaders,
+        'Access-Control-Allow-Origin': dynamicOrigin,
+        'Content-Type': 'application/json'
+      }
+    })
   }
 }
 
-// Extract tenant ID from client token
-async function getTenantIdFromToken(clientToken: string | null, supabase: any): Promise<string | null> {
-  if (!clientToken) return null;
+// Connection refresh handler
+async function handleRefreshConnection(req: Request, parsedBase: URL, gatewayToken: string, supabase: any) {
+  const url = new URL(req.url)
+  const connectionId = url.searchParams.get('connection_id')
+  const tenantId = url.searchParams.get('tenant_id')
   
-  try {
-    const { data: { user }, error } = await supabase.auth.getUser(clientToken);
-    if (error || !user) return null;
-    
-    // Get tenant ID using the same logic from the function
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('parent_user_id')
-      .eq('user_id', user.id)
-      .single();
-    
-    return profile?.parent_user_id || user.id;
-  } catch (error) {
-    console.error('❌ Error getting tenant ID from token:', error);
-    return null;
+  if (!connectionId || !tenantId) {
+    return new Response(JSON.stringify({ error: 'Missing connection_id or tenant_id' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
   }
+
+  try {
+    const headers: Record<string, string> = {}
+    if (gatewayToken) {
+      headers['Authorization'] = `Bearer ${gatewayToken}`
+    }
+
+    // Try to get connection info from gateway
+    const response = await fetch(new URL(`/connections/${connectionId}`, parsedBase).toString(), {
+      headers
+    })
+
+    if (response.ok) {
+      const connectionData = await response.json()
+      console.log('📱 Got connection data:', connectionData)
+      
+      // Update in Supabase
+      const { error } = await supabase
+        .from('whatsapp_connections')
+        .update({
+          status: connectionData.status || 'unknown',
+          phone_number: connectionData.phone_number || connectionData.phoneNumber || null,
+          last_connected_at: connectionData.status === 'connected' ? new Date().toISOString() : null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', connectionId)
+        .eq('tenant_id', tenantId)
+
+      if (error) {
+        throw error
+      }
+
+      const dynamicOrigin = getDynamicOrigin(req.headers.get('origin'))
+      return new Response(JSON.stringify({ 
+        success: true, 
+        connection: connectionData,
+        message: 'Connection refreshed'
+      }), {
+        headers: {
+          ...corsHeaders,
+          'Access-Control-Allow-Origin': dynamicOrigin,
+          'Content-Type': 'application/json'
+        }
+      })
+    } else {
+      throw new Error(`Gateway responded with ${response.status}`)
+    }
+
+  } catch (error) {
+    console.error('❌ Connection refresh failed:', error)
+    const dynamicOrigin = getDynamicOrigin(req.headers.get('origin'))
+    return new Response(JSON.stringify({ error: 'Connection refresh failed' }), {
+      status: 500,
+      headers: {
+        ...corsHeaders,
+        'Access-Control-Allow-Origin': dynamicOrigin,
+        'Content-Type': 'application/json'
+      }
+    })
+  }
+}
+
+console.log(`🔧 Proxy configuration:`)
+console.log(`- Gateway URL: ${GATEWAY_BASE_URL}`)
+console.log(`- Gateway Origin (default): ${GATEWAY_ORIGIN_DEFAULT}`)
+console.log(`- Allowed Origins: ${ALLOWED_ORIGINS.length > 0 ? ALLOWED_ORIGINS.join(', ') : 'None (using default)'}`)
+console.log(`- Has Token: ${!!GATEWAY_TOKEN}`)
+
+// Validar URL base
+let parsedBase: URL | null = null
+try {
+  parsedBase = new URL(GATEWAY_BASE_URL.endsWith('/') ? GATEWAY_BASE_URL : GATEWAY_BASE_URL + '/')
+} catch {
+  console.error("❌ Invalid WHATSAPP_GATEWAY_URL:", GATEWAY_BASE_URL)
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
+  // Handle OPTIONS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    const dynamicOrigin = getDynamicOrigin(req.headers.get('origin'))
+    return new Response(null, {
+      headers: {
+        ...corsHeaders,
+        'Access-Control-Allow-Origin': dynamicOrigin,
+      }
+    })
   }
 
   try {
     const url = new URL(req.url)
     const rawPath = url.pathname
     let path = normalizeProxyPath(rawPath)
+
+    // Handle bootstrap sync endpoint
+    if (path === '/bootstrap' && req.method === 'GET') {
+      return handleBootstrapSync(req, parsedBase, GATEWAY_TOKEN, supabase)
+    }
+
+    // Handle connection refresh endpoint
+    if (path === '/refresh-connection' && req.method === 'GET') {
+      return handleRefreshConnection(req, parsedBase, GATEWAY_TOKEN, supabase)
+    }
 
     // Extrair autenticação do cliente (via query params para EventSource ou headers)
     const clientToken = url.searchParams.get('client_token') || req.headers.get('authorization')
@@ -458,305 +695,306 @@ serve(async (req) => {
       console.log('⚠️ WARNING: No WHATSAPP_GATEWAY_TOKEN configured')
     }
 
-    // Handle SSE requests (QR Code stream, Events stream)
-    if (path.includes('/qr') || path.includes('/events')) {
-      console.log(`🔄 Handling SSE request for: ${path.includes('/qr') ? 'QR Code' : 'Events'}`);
+    // Handle SSE endpoints with enhanced fallback
+    if (path.includes('/events') || path.includes('/qr')) {
+      const eventType = path.includes('/qr') ? 'QR' : 'Events'
+      console.log(`🔄 Handling SSE request for: ${eventType}`)
       
-      // Add client auth parameters to the query if available
-      const url = new URL(targetUrl);
-      if (clientToken) {
-        url.searchParams.set('client_token', clientToken);
-      }
-      if (clientApiKey) {
-        url.searchParams.set('client_apikey', clientApiKey);
-      }
+      // Try multiple endpoint formats
+      const fallbackPaths = [
+        path,
+        path.replace('/connections/', '/connection/'),
+        `/events${url.search || ''}`,
+        `/sse${url.search || ''}`,
+        `/stream${url.search || ''}`
+      ]
       
-      // For events endpoint, try /connections/:id/events first, then fallback to /events?connection_id=:id
-      let finalResponse;
-      const isEventsStream = path.includes('/events');
-      
-      try {
-        // First attempt with original URL
-        const response = await fetch(url.toString(), {
-          method: req.method,
-          headers: gatewayHeaders,
-        });
-        
-        console.log(`📡 SSE Response status:`, response.status);
-        
-        // If 404 on events endpoint, try fallback format
-        if (response.status === 404 && isEventsStream) {
-          console.log('🔄 Trying events endpoint fallback format...');
-          
-          // Extract connection ID from path /connections/:id/events
-          const connectionIdMatch = path.match(/\/connections\/([^\/]+)\/events/);
-          if (connectionIdMatch) {
-            const connectionId = connectionIdMatch[1];
-            const fallbackUrl = new URL(targetUrl);
-            fallbackUrl.pathname = '/events';
-            fallbackUrl.searchParams.set('connection_id', connectionId);
-            
-            const fallbackResponse = await fetch(fallbackUrl.toString(), {
-              method: req.method,
-              headers: gatewayHeaders,
-            });
-            
-            console.log(`📡 Fallback SSE Response status:`, fallbackResponse.status);
-            finalResponse = fallbackResponse;
-          } else {
-            finalResponse = response;
+      let finalResponse = null
+      let lastError = null
+
+      for (const tryPath of fallbackPaths) {
+        try {
+          const targetUrl = new URL(tryPath, parsedBase)
+          console.log(`🎯 Trying SSE URL: ${targetUrl.toString()}`)
+
+          const headers: Record<string, string> = {
+            'Accept': 'text/event-stream',
+            'Cache-Control': 'no-cache',
           }
-        } else {
-          finalResponse = response;
+
+          if (GATEWAY_TOKEN) {
+            headers['Authorization'] = `Bearer ${GATEWAY_TOKEN}`
+          }
+
+          const response = await fetch(targetUrl.toString(), {
+            method: 'GET',
+            headers,
+          })
+
+          console.log(`📡 SSE Response status: ${response.status} for ${tryPath}`)
+
+          if (response.ok) {
+            finalResponse = response
+            break
+          } else {
+            lastError = `${response.status}: ${await response.text()}`
+          }
+        } catch (error) {
+          lastError = error.message
+          console.log(`⚠️ SSE endpoint failed: ${tryPath} - ${error.message}`)
         }
-      } catch (error) {
-        console.error('❌ SSE Gateway connection error:', error);
-        return new Response(
-          JSON.stringify({ 
-            error: 'SSE Gateway connection error', 
-            details: error?.message || String(error)
-          }),
-          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      if (!finalResponse.ok) {
-        const errorText = await finalResponse.text();
-        console.error(`❌ SSE Gateway error: ${finalResponse.status} - ${errorText}`);
-        
-        return new Response(
-          JSON.stringify({ 
-            error: 'SSE Gateway error', 
-            status: finalResponse.status,
-            details: errorText 
-          }),
-          { status: finalResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
       }
 
-      // For events stream, we need to tee the stream to process and store events
-      if (isEventsStream && finalResponse.body) {
-        const readable = finalResponse.body;
-        const [stream1, stream2] = readable.tee();
+      if (!finalResponse) {
+        console.error(`❌ All SSE endpoints failed. Last error: ${lastError}`)
+        const dynamicOrigin = getDynamicOrigin(req.headers.get('origin'))
+        return new Response(
+          JSON.stringify({ 
+            error: 'Nenhum endpoint de eventos disponível', 
+            mode: 'polling',
+            fallback: true 
+          }),
+          {
+            status: 404,
+            headers: {
+              ...corsHeaders,
+              'Access-Control-Allow-Origin': dynamicOrigin,
+              'Content-Type': 'application/json',
+            }
+          }
+        )
+      }
+
+      // Tee the stream to process events while forwarding to client
+      if (finalResponse.body && (clientToken || clientApiKey)) {
+        const [stream1, stream2] = finalResponse.body.tee()
         
-        // Process events in background without blocking the response
-        processEventsStream(stream2, clientToken, clientApiKey).catch(error => {
-          console.error('❌ Error processing events stream:', error);
-        });
+        // Process events in background
+        processEventsStream(stream2, clientToken, clientApiKey)
+          .catch(error => console.error('❌ Background event processing failed:', error))
         
-        // Return the original stream to client
+        // Forward original stream to client
+        const dynamicOrigin = getDynamicOrigin(req.headers.get('origin'))
         return new Response(stream1, {
-          status: finalResponse.status,
           headers: {
             ...corsHeaders,
+            'Access-Control-Allow-Origin': dynamicOrigin,
             'Content-Type': 'text/event-stream',
             'Cache-Control': 'no-cache',
             'Connection': 'keep-alive',
           }
-        });
+        })
       }
-      
-      // Return the SSE stream directly for QR code streams
+
+      // Forward response without processing if no auth
+      const dynamicOrigin = getDynamicOrigin(req.headers.get('origin'))
       return new Response(finalResponse.body, {
-        status: finalResponse.status,
         headers: {
           ...corsHeaders,
-          'Content-Type': 'text/event-stream',
+          'Access-Control-Allow-Origin': dynamicOrigin,
+          'Content-Type': finalResponse.headers.get('Content-Type') || 'text/event-stream',
           'Cache-Control': 'no-cache',
           'Connection': 'keep-alive',
         }
-      });
-    }
-
-    // Handle POST /connections (com fallback de criação via Supabase)
-    if (req.method === 'POST' && path === '/connections') {
-      console.log('🔗 Handling connection creation request')
-      
-      const requestBody = await req.text()
-      console.log('📤 Request body:', requestBody)
-      
-      const response = await fetch(targetUrl, {
-        method: req.method,
-        headers: { ...gatewayHeaders, 'Content-Type': 'application/json' },
-        body: requestBody,
       })
-      
-      console.log(`📥 Gateway response status: ${response.status}`)
-      
-      // Se sucesso, retornar resposta do gateway
-      if (response.ok) {
-        const responseBody = await response.text()
-        console.log('📄 Gateway response body (success):', responseBody.substring(0, 300))
-        return new Response(responseBody, {
-          status: response.status,
-          headers: {
-            ...corsHeaders,
-            'Content-Type': response.headers.get('Content-Type') || 'application/json',
-          }
-        })
-      }
-      
-      // Se gateway falhou E temos autenticação do cliente, tentar fallback
-      const errorText = await response.text()
-      console.error(`❌ Gateway connection creation failed: ${response.status} - ${errorText}`)
-      
-      if (clientToken && clientApiKey) {
-        console.log('🔄 Gateway failed, attempting Supabase fallback...')
-        
-        try {
-          const connectionData = JSON.parse(requestBody)
-          const supabaseConnection = await createConnectionFallback(clientToken, clientApiKey, connectionData)
-          
-          console.log('✅ Supabase fallback successful:', supabaseConnection)
-          return new Response(JSON.stringify(supabaseConnection), {
-            status: 201,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
-          
-        } catch (fallbackError: any) {
-          console.error('❌ Supabase fallback also failed:', fallbackError)
-          // Continue com o erro original do gateway se o fallback falhou
-        }
-      }
-      
-      // Mensagens de erro mais específicas
-      let errorHint = ''
-      if (response.status === 401) {
-        errorHint = 'Token de autenticação inválido ou expirado'
-      } else if (response.status === 403) {
-        errorHint = 'Origin não permitido no gateway ou token sem permissões'
-      } else if (response.status === 404) {
-        errorHint = 'Endpoint não encontrado no gateway'
-      } else if (response.status >= 500) {
-        errorHint = 'Erro interno do gateway - verifique se o serviço está online'
-      }
-
-      return new Response(
-        JSON.stringify({ 
-          error: 'Gateway error', 
-          status: response.status,
-          statusText: response.statusText,
-          details: errorText,
-          hint: errorHint,
-          timestamp: new Date().toISOString(),
-          target_url: targetUrl,
-          proxy_path: path,
-          original_url: req.url
-        }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
     }
 
-    // Handle POST /connections/:id/connect
-    if (req.method === 'POST' && normalizeProxyPath(rawPath).match(/^\/connections\/[^\/]+\/connect$/)) {
-      console.log('🔗 Handling connection connect request')
-      
-      const targetUrl = new URL(path + url.search, parsedBase)
-      
-      console.log(`🎯 Connect target URL: ${targetUrl}`)
-      
+    // Handle regular POST requests (connections, etc.)
+    if (req.method === 'POST' && path === '/connections') {
+      // Parse request body for connection creation
+      let requestBody: any = {};
       try {
-        console.log(`📤 Connect request headers to gateway:`, JSON.stringify(gatewayHeaders, null, 2))
-        
-        const response = await fetch(targetUrl.toString(), {
-          method: 'POST',
+        const bodyText = await req.text();
+        requestBody = bodyText ? JSON.parse(bodyText) : {};
+      } catch (error) {
+        console.error('❌ Error parsing request body:', error);
+      }
+
+      try {
+        // First, try creating connection via gateway
+        const gatewayResponse = await fetch(targetUrl, {
+          method: req.method,
           headers: gatewayHeaders,
-        })
-        
-        console.log(`📥 Connect response status: ${response.status}`)
-        
-        if (response.ok) {
-          const responseData = await response.text()
-          return new Response(responseData, {
-            status: response.status,
+          body: JSON.stringify(requestBody),
+        });
+
+        console.log(`📥 Gateway response status: ${gatewayResponse.status}`);
+        console.log(`📥 Gateway response headers:`, JSON.stringify(Object.fromEntries(gatewayResponse.headers.entries()), null, 2));
+
+        if (gatewayResponse.ok) {
+          const responseBody = await gatewayResponse.json();
+          console.log(`📄 Gateway response body:`, JSON.stringify(responseBody).substring(0, 500));
+
+          const dynamicOrigin = getDynamicOrigin(req.headers.get('origin'));
+          return new Response(JSON.stringify(responseBody), {
+            status: gatewayResponse.status,
             headers: {
               ...corsHeaders,
-              'Content-Type': response.headers.get('Content-Type') || 'application/json',
-            },
-          })
+              'Access-Control-Allow-Origin': dynamicOrigin,
+              'Content-Type': 'application/json',
+            }
+          });
         } else {
-          const errorText = await response.text()
-          console.error(`❌ Connect error response: ${response.status} - ${errorText}`)
-          return new Response(JSON.stringify({ 
-            error: `Connect failed: ${response.status}`,
-            details: errorText 
-          }), {
-            status: response.status,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          })
+          // Gateway failed, try Supabase fallback
+          console.log('🔄 Gateway failed, attempting Supabase fallback...');
+          
+          if (clientToken && clientApiKey) {
+            const fallbackConnection = await createConnectionFallback(clientToken, clientApiKey, requestBody);
+            const dynamicOrigin = getDynamicOrigin(req.headers.get('origin'));
+            
+            return new Response(JSON.stringify(fallbackConnection), {
+              status: 201,
+              headers: {
+                ...corsHeaders,
+                'Access-Control-Allow-Origin': dynamicOrigin,
+                'Content-Type': 'application/json',
+              }
+            });
+          } else {
+            throw new Error('Both gateway and fallback failed - no client authentication');
+          }
         }
+
       } catch (error) {
-        console.error('❌ Connect request error:', error)
-        return new Response(JSON.stringify({ 
-          error: 'Connect request failed', 
-          details: error instanceof Error ? error.message : 'Unknown error' 
-        }), {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
+        console.error('❌ Connection creation failed:', error);
+        const dynamicOrigin = getDynamicOrigin(req.headers.get('origin'));
+        
+        return new Response(
+          JSON.stringify({ 
+            error: 'Falha ao criar conexão', 
+            details: error.message 
+          }),
+          {
+            status: 500,
+            headers: {
+              ...corsHeaders,
+              'Access-Control-Allow-Origin': dynamicOrigin,
+              'Content-Type': 'application/json',
+            }
+          }
+        );
       }
     }
 
-    // Handle general requests
-    const response = await fetch(targetUrl, {
-      method: req.method,
-      headers: gatewayHeaders,
-      body: req.method !== 'GET' && req.method !== 'HEAD' ? await req.text() : undefined,
-    })
+    // Handle POST connections/:id/connect
+    if (req.method === 'POST' && path.match(/^\/connections\/[^\/]+\/connect$/)) {
+      try {
+        const gatewayResponse = await fetch(targetUrl, {
+          method: req.method,
+          headers: gatewayHeaders,
+        });
 
-    console.log(`📥 Gateway response status: ${response.status}`)
-    console.log(`📥 Gateway response headers:`, JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2))
+        console.log(`📥 Gateway response status: ${gatewayResponse.status}`);
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error(`❌ Gateway error: ${response.status} - ${errorText}`)
+        const responseText = await gatewayResponse.text();
+        console.log(`📄 Gateway response body:`, responseText.substring(0, 500));
 
-      return new Response(
-        JSON.stringify({ 
-          error: 'Gateway error', 
-          status: response.status,
-          statusText: response.statusText,
-          details: errorText,
-          timestamp: new Date().toISOString(),
-          target_url: targetUrl,
-          proxy_path: path,
-          original_url: req.url
-        }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+        const dynamicOrigin = getDynamicOrigin(req.headers.get('origin'));
+        
+        return new Response(responseText, {
+          status: gatewayResponse.status,
+          headers: {
+            ...corsHeaders,
+            'Access-Control-Allow-Origin': dynamicOrigin,
+            'Content-Type': gatewayResponse.headers.get('Content-Type') || 'application/json',
+          }
+        });
+
+      } catch (error) {
+        console.error('❌ Connection connect failed:', error);
+        const dynamicOrigin = getDynamicOrigin(req.headers.get('origin'));
+        
+        return new Response(
+          JSON.stringify({ 
+            error: 'Falha ao conectar', 
+            details: error.message 
+          }),
+          {
+            status: 500,
+            headers: {
+              ...corsHeaders,
+              'Access-Control-Allow-Origin': dynamicOrigin,
+              'Content-Type': 'application/json',
+            }
+          }
+        );
+      }
     }
 
-    const responseBody = await response.text().catch(() => '')
-    console.log(`📄 Gateway response body:`, responseBody.substring(0, 300) + (responseBody.length > 300 ? '...' : ''))
-
-    // Tentar parsear JSON, senão devolver como texto
-    let parsedBody: unknown = null
+    // Handle all other requests by forwarding to gateway
     try {
-      parsedBody = JSON.parse(responseBody)
-    } catch {
-      parsedBody = responseBody
-    }
+      // Para outros métodos, copiar corpo da requisição
+      let body: BodyInit | null = null;
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        body = await req.blob();
+      }
 
-    return new Response(
-      typeof parsedBody === 'string' ? parsedBody : JSON.stringify(parsedBody),
-      {
-        status: response.status,
+      // Copiar headers relevantes do request original
+      const requestHeaders = { ...gatewayHeaders };
+      if (req.headers.get('Content-Type')) {
+        requestHeaders['Content-Type'] = req.headers.get('Content-Type')!;
+      }
+
+      const gatewayResponse = await fetch(targetUrl, {
+        method: req.method,
+        headers: requestHeaders,
+        body,
+      });
+
+      console.log(`📥 Gateway response status: ${gatewayResponse.status}`);
+
+      const responseBody = await gatewayResponse.text();
+      console.log(`📄 Gateway response body:`, responseBody.substring(0, 500));
+
+      const dynamicOrigin = getDynamicOrigin(req.headers.get('origin'));
+      
+      return new Response(responseBody, {
+        status: gatewayResponse.status,
         headers: {
           ...corsHeaders,
-          'Content-Type': typeof parsedBody === 'string' ? (response.headers.get('content-type') || 'text/plain') : 'application/json',
+          'Access-Control-Allow-Origin': dynamicOrigin,
+          'Content-Type': gatewayResponse.headers.get('Content-Type') || 'application/json',
         }
-      }
-    )
+      });
 
-  } catch (error: any) {
-    console.error('❌ Proxy connection error:', error)
+    } catch (error) {
+      console.error('❌ Gateway request failed:', error);
+      const dynamicOrigin = getDynamicOrigin(req.headers.get('origin'));
+      
+      return new Response(
+        JSON.stringify({ 
+          error: 'Falha na comunicação com gateway WhatsApp', 
+          details: error.message 
+        }),
+        {
+          status: 500,
+          headers: {
+            ...corsHeaders,
+            'Access-Control-Allow-Origin': dynamicOrigin,
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+    }
+
+  } catch (error) {
+    console.error('❌ Proxy error:', error);
+    const dynamicOrigin = getDynamicOrigin(req.headers.get('origin'));
+    
     return new Response(
       JSON.stringify({ 
-        error: 'Proxy connection failed', 
-        details: error?.message || String(error),
-        timestamp: new Date().toISOString()
+        error: 'Erro interno do proxy', 
+        details: error.message,
+        timestamp: new Date().toISOString(),
       }),
-      { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+      {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          'Access-Control-Allow-Origin': dynamicOrigin,
+          'Content-Type': 'application/json',
+        }
+      }
+    );
   }
-})
+});

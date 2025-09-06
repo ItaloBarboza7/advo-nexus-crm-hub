@@ -24,43 +24,28 @@ export const ConnectionSettingsDialog: React.FC<ConnectionSettingsDialogProps> =
   onDeleted
 }) => {
   const { toast } = useToast();
-  const [name, setName] = useState(connection?.name || '');
-  const [isUpdating, setIsUpdating] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  React.useEffect(() => {
-    if (connection) {
-      setName(connection.name);
-    }
-  }, [connection]);
+  const handleRefreshInfo = async () => {
+    if (!connection) return;
 
-  const handleSave = async () => {
-    if (!connection || !name.trim()) {
-      toast({
-        title: "Erro",
-        description: "Nome da conexão é obrigatório",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsUpdating(true);
+    setIsRefreshing(true);
     try {
-      await whatsappGateway.updateConnection(connection.id, { name: name.trim() });
+      await whatsappGateway.refreshConnection(connection.id);
       toast({
         title: "Sucesso",
-        description: "Nome da conexão atualizado com sucesso"
+        description: "Informações da conexão atualizadas"
       });
       onUpdated();
-      onOpenChange(false);
     } catch (error: any) {
-      console.error('Erro ao atualizar conexão:', error);
+      console.error('Erro ao atualizar informações:', error);
       toast({
         title: "Erro",
-        description: error.message || "Falha ao atualizar a conexão",
+        description: error.message || "Falha ao atualizar informações da conexão",
         variant: "destructive"
       });
     } finally {
-      setIsUpdating(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -121,6 +106,18 @@ export const ConnectionSettingsDialog: React.FC<ConnectionSettingsDialogProps> =
                 <p><strong>Última conexão:</strong> {new Date(connection.last_connected_at).toLocaleString('pt-BR')}</p>
               )}
             </div>
+            
+            {!connection.phone_number && connection.status === 'connected' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefreshInfo}
+                disabled={isRefreshing}
+                className="mt-2"
+              >
+                {isRefreshing ? "Carregando..." : "Recarregar informações"}
+              </Button>
+            )}
           </div>
         </div>
 

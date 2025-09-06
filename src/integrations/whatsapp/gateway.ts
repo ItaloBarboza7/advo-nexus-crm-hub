@@ -864,4 +864,66 @@ export const whatsappGateway = {
       throw new Error('Erro inesperado ao enviar mensagem');
     }
   },
+
+  // Bootstrap sync for initial data fetch
+  async bootstrapSync(connectionId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const baseUrl = getBaseUrl();
+      const tenantId = await getTenantId();
+      
+      console.log('[whatsappGateway] 🔄 Starting bootstrap sync for connection:', connectionId);
+      
+      const url = new URL(`${baseUrl}/bootstrap`);
+      url.searchParams.append('connection_id', connectionId);
+      url.searchParams.append('tenant_id', tenantId);
+      
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Bootstrap sync failed: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('[whatsappGateway] ✅ Bootstrap sync completed:', result);
+      
+      return result;
+    } catch (error) {
+      console.error('[whatsappGateway] ❌ Bootstrap sync error:', error);
+      throw error;
+    }
+  },
+
+  // Refresh connection info
+  async refreshConnection(connectionId: string): Promise<{ success: boolean; connection: any }> {
+    try {
+      const baseUrl = getBaseUrl();
+      const tenantId = await getTenantId();
+      
+      console.log('[whatsappGateway] 🔄 Refreshing connection info:', connectionId);
+      
+      const url = new URL(`${baseUrl}/refresh-connection`);
+      url.searchParams.append('connection_id', connectionId);
+      url.searchParams.append('tenant_id', tenantId);
+      
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Connection refresh failed: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('[whatsappGateway] ✅ Connection refreshed:', result);
+      
+      return result;
+    } catch (error) {
+      console.error('[whatsappGateway] ❌ Connection refresh error:', error);
+      throw error;
+    }
+  },
 };
