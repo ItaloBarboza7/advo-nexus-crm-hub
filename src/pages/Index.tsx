@@ -291,7 +291,7 @@ const Index = () => {
       <SidebarProvider>
         <AppSidebar activeView={activeView} setActiveView={setActiveView} userRole={userRole} />
         <SidebarInset>
-          {activeView !== 'atendimento' && (
+          {activeView !== 'atendimento' && activeView !== 'settings' && (
             <Header 
               user={user}
               onLogout={handleLogout}
@@ -302,7 +302,7 @@ const Index = () => {
             className="flex flex-1 flex-col gap-4 p-4" 
             style={{ 
               paddingBottom: shouldShowWarning ? '70px' : '16px',
-              paddingTop: activeView === 'atendimento' ? '16px' : '0px'
+              paddingTop: (activeView === 'atendimento' || activeView === 'settings') ? '16px' : '0px'
             }}
           >
             {renderContent()}

@@ -139,7 +139,7 @@ export const whatsappGateway = {
     try {
       const tenantId = await getTenantId();
       
-      // First, get connections from Supabase (these are authoritative, especially for deletions)
+      // First, get connections from Supabase (these are the authoritative source)
       console.log('[whatsappGateway] 📋 Fetching connections from Supabase...');
       const { data: supabaseConnections, error: supabaseError } = await supabase
         .from('whatsapp_connections')
@@ -148,9 +148,10 @@ export const whatsappGateway = {
       
       if (supabaseError) {
         console.warn('[whatsappGateway] ⚠️ Failed to fetch from Supabase:', supabaseError);
+        return [];
       }
       
-      // Then, try to get connections from gateway
+      // Then, try to get connections from gateway to enrich the data
       let gatewayConnections: any[] = [];
       try {
         const url = new URL(`${baseUrl}/connections`);
@@ -172,34 +173,25 @@ export const whatsappGateway = {
         console.warn('[whatsappGateway] ⚠️ Gateway not available:', gatewayError);
       }
       
-      // Combine connections: prioritize Supabase data, supplement with gateway data
-      const supabaseMap = new Map();
-      const supabaseFormatted: GatewayConnection[] = (supabaseConnections || []).map(conn => {
-        const formatted = {
-          id: conn.id,
-          name: conn.name,
-          status: conn.status,
-          phone_number: conn.phone_number,
-          last_connected_at: conn.last_connected_at
-        };
-        supabaseMap.set(conn.id, formatted);
-        return formatted;
+      // Create a map of gateway connections for enrichment
+      const gatewayMap = new Map();
+      gatewayConnections.forEach(conn => {
+        gatewayMap.set(conn.id, conn);
       });
       
-      // Add gateway connections that are not in Supabase (but only if they exist in Supabase didn't fail)
-      const result = [...supabaseFormatted];
-      if (!supabaseError) {
-        for (const gatewayConn of gatewayConnections) {
-          if (!supabaseMap.has(gatewayConn.id)) {
-            result.push(gatewayConn);
-          }
-        }
-      } else {
-        // If Supabase failed, fallback to gateway only
-        result.push(...gatewayConnections);
-      }
+      // Use ONLY Supabase connections as source of truth, enrich with gateway data when available
+      const result: GatewayConnection[] = (supabaseConnections || []).map(conn => {
+        const gatewayConn = gatewayMap.get(conn.id);
+        return {
+          id: conn.id,
+          name: conn.name,
+          status: gatewayConn?.status || conn.status, // Use gateway status if available
+          phone_number: gatewayConn?.phone_number || conn.phone_number,
+          last_connected_at: gatewayConn?.last_connected_at || conn.last_connected_at
+        };
+      });
       
-      console.log('[whatsappGateway] 📋 Final connections list:', result.length, 'connections');
+      console.log('[whatsappGateway] 📋 Final connections list:', result.length, 'connections (Supabase only)');
       return result;
       
     } catch (error) {
@@ -262,6 +254,30 @@ export const whatsappGateway = {
         if (res.ok) {
           const connection = await res.json();
           console.log('[whatsappGateway] ✅ Connection created via gateway:', connection);
+          
+          // Ensure the connection is also saved in Supabase for consistency
+          try {
+            const { error: upsertError } = await supabase
+              .from('whatsapp_connections')
+              .upsert({
+                id: connection.id,
+                name: connection.name,
+                tenant_id: tenantId,
+                created_by_user_id: user.id,
+                status: connection.status || 'disconnected',
+                phone_number: connection.phone_number || null,
+                last_connected_at: connection.last_connected_at || null
+              });
+            
+            if (upsertError) {
+              console.warn('[whatsappGateway] ⚠️ Failed to save connection to Supabase:', upsertError);
+            } else {
+              console.log('[whatsappGateway] ✅ Connection also saved to Supabase');
+            }
+          } catch (supabaseError) {
+            console.warn('[whatsappGateway] ⚠️ Error saving to Supabase:', supabaseError);
+          }
+          
           return connection;
         } else {
           const text = await res.text();
