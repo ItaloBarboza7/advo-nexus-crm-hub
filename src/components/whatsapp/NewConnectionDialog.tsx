@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, RefreshCw, AlertCircle } from "lucide-react";
 import { whatsappGateway, type GatewayConnection, type GatewayEvent } from "@/integrations/whatsapp/gateway";
 import { useToast } from "@/hooks/use-toast";
+import QRCode from 'qrcode';
 
 type Props = {
   open: boolean;
@@ -24,6 +25,8 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
   const [connection, setConnection] = useState<GatewayConnection | null>(null);
   const [status, setStatus] = useState<string>('Aguardando ação');
   const [qrData, setQrData] = useState<string | null>(null);
+  const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
+  const [qrUpdateCount, setQrUpdateCount] = useState(0);
   const [connected, setConnected] = useState(false);
   const [streamError, setStreamError] = useState<string | null>(null);
   const [reloading, setReloading] = useState(false);
@@ -37,6 +40,8 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
       setConnection(null);
       setStatus('Aguardando ação');
       setQrData(null);
+      setQrImageUrl(null);
+      setQrUpdateCount(0);
       setConnected(false);
       setStreamError(null);
       setReloading(false);
@@ -113,6 +118,7 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
     }
     
     setQrData(null);
+    setQrImageUrl(null);
     setStreamError(null);
     setReloading(false);
     setStatus('Conectando ao stream de QR...');
@@ -165,7 +171,7 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
     }
   };
 
-  const handleGatewayEvent = (evt: GatewayEvent) => {
+  const handleGatewayEvent = async (evt: GatewayEvent) => {
     console.log('[NewConnectionDialog] GatewayEvent:', evt.type, evt.data ? '(with data)' : '(no data)');
     
     // Debug: mostrar primeiras mensagens cruas no status para facilitar diagnóstico
@@ -180,10 +186,54 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
-      setQrData(evt.data);
-      setStatus('QR Code recebido! Escaneie no seu WhatsApp');
+      
+      const rawQrData = String(evt.data);
+      console.log('[NewConnectionDialog] 📱 QR received, length:', rawQrData.length);
+      
+      // Sanitize QR data (remove quotes if present, trim whitespace)
+      const sanitizedQrData = rawQrData.trim().replace(/^"(.*)"$/, '$1');
+      console.log('[NewConnectionDialog] 🧹 Sanitized QR length:', sanitizedQrData.length);
+      
+      setQrData(sanitizedQrData);
+      setQrUpdateCount(prev => {
+        const newCount = prev + 1;
+        console.log('[NewConnectionDialog] 🔄 QR update count:', newCount);
+        if (newCount > 1) {
+          setStatus(`QR Code atualizado (#${newCount})! Escaneie no seu WhatsApp`);
+        } else {
+          setStatus('QR Code recebido! Escaneie no seu WhatsApp');
+        }
+        return newCount;
+      });
+      
+      try {
+        // Check if it's already a base64 image
+        if (sanitizedQrData.startsWith('data:image')) {
+          console.log('[NewConnectionDialog] ℹ️ QR is already base64 image');
+          setQrImageUrl(sanitizedQrData);
+        } else {
+          // Generate QR code locally with proper parameters for WhatsApp
+          console.log('[NewConnectionDialog] 🏭 Generating QR locally with optimal settings');
+          const qrUrl = await QRCode.toDataURL(sanitizedQrData, {
+            errorCorrectionLevel: 'M',  // Medium error correction - ideal for WhatsApp
+            margin: 4,                  // Good margin for camera focus
+            width: 320,                 // High resolution but not too heavy
+            color: {
+              dark: '#000000',          // Pure black for better contrast
+              light: '#FFFFFF'          // Pure white background
+            }
+          });
+          setQrImageUrl(qrUrl);
+          console.log('[NewConnectionDialog] ✅ QR generated successfully, size:', qrUrl.length, 'chars');
+        }
+      } catch (error) {
+        console.error('[NewConnectionDialog] ❌ Failed to generate QR locally:', error);
+        setStreamError('Erro ao gerar QR Code');
+        setStatus('Erro na geração do QR - tente recarregar');
+      }
+      
       setStreamError(null);
-      console.log('[NewConnectionDialog] ✅ QR code received and set');
+      console.log('[NewConnectionDialog] ✅ QR processing complete');
     } else if (evt.type === 'status') {
       setStatus(String(evt.data ?? 'Atualizando...'));
     } else if (evt.type === 'connected') {
@@ -222,11 +272,17 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
   };
 
   const qrImageSrc = useMemo(() => {
-    if (!qrData) return null;
-    if (qrData.startsWith('data:image')) return qrData;
-    // Fallback: gerar QR por serviço externo se vier apenas o texto
-    return `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(qrData)}`;
-  }, [qrData]);
+    // Priority: use locally generated QR image
+    if (qrImageUrl) return qrImageUrl;
+    
+    // Fallback: if we have raw QR data but no local image yet, show placeholder
+    if (qrData && !qrImageUrl) {
+      console.log('[NewConnectionDialog] ⚠️ QR data exists but no local image generated yet');
+      return null;
+    }
+    
+    return null;
+  }, [qrImageUrl, qrData]);
 
   const hasError = !!streamError;
   const isLoading = !qrData && !hasError && !connected;
@@ -275,11 +331,12 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
               {qrImageSrc && !hasError ? (
                 <img
                   src={qrImageSrc}
-                  alt="QR Code"
-                  className="w-60 h-60 rounded-md border"
+                  alt="QR Code para WhatsApp"
+                  className="w-[320px] h-[320px] rounded-md border shadow-sm"
+                  style={{ maxWidth: '100%', height: 'auto' }}
                 />
               ) : (
-                <div className="w-60 h-60 rounded-md border flex items-center justify-center text-sm text-muted-foreground">
+                <div className="w-[320px] h-[320px] max-w-full rounded-md border flex items-center justify-center text-sm text-muted-foreground">
                   <div className="flex flex-col items-center gap-3">
                     {hasError ? (
                       <>
