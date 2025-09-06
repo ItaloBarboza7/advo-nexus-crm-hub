@@ -27,6 +27,7 @@ export function AtendimentoContent() {
   const [activeConnections, setActiveConnections] = useState<any[]>([]);
   const [eventsStream, setEventsStream] = useState<{ close: () => void } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [currentUser] = useState<User>({
     id: '1',
     name: 'Usuário Admin',
@@ -35,6 +36,119 @@ export function AtendimentoContent() {
     isOnline: true
   });
   const { toast } = useToast();
+
+  // Manual sync function
+  const handleManualSync = async () => {
+    if (activeConnections.length === 0) {
+      toast({
+        title: "Erro",
+        description: "Nenhuma conexão ativa encontrada",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSyncing(true);
+    try {
+      console.log('[AtendimentoContent] 🔄 Starting manual sync...');
+      
+      const result = await whatsappGateway.bootstrapSync(activeConnections[0].id);
+      
+      if (result.success) {
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait a bit for data to sync
+        await loadChatsFromSupabase(); // Reload chats
+        
+        toast({
+          title: "Sucesso",
+          description: result.message || "Sincronização realizada com sucesso",
+        });
+      } else {
+        throw new Error('Sync failed');
+      }
+    } catch (error: any) {
+      console.error('[AtendimentoContent] ❌ Manual sync error:', error);
+      toast({
+        title: "Erro",
+        description: error.message || "Falha na sincronização",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // Refactored loadChatsFromSupabase to be reusable
+  const loadChatsFromSupabase = async () => {
+    try {
+      const { data: chatsData, error: chatsError } = await supabase
+        .from('whatsapp_chats')
+        .select(`
+          *,
+          whatsapp_contacts (
+            id,
+            wa_id,
+            name,
+            profile_pic_url
+          )
+        `)
+        .order('last_message_at', { ascending: false })
+        .limit(50);
+
+      if (chatsError) {
+        console.error('[AtendimentoContent] ❌ Error loading chats:', chatsError);
+        return;
+      }
+
+      const transformedChats: Chat[] = await Promise.all(
+        (chatsData || []).map(async (chatData: any) => {
+          const { data: messagesData } = await supabase
+            .from('whatsapp_messages')
+            .select('*')
+            .eq('chat_id', chatData.id)
+            .order('timestamp', { ascending: true })
+            .limit(50);
+
+          const messages: Message[] = (messagesData || []).map((msg: any) => ({
+            id: msg.id,
+            text: msg.body || '',
+            timestamp: new Date(msg.timestamp),
+            isFromMe: msg.direction === 'outbound',
+            status: msg.status
+          }));
+
+          const contact: Contact = {
+            id: chatData.whatsapp_contacts?.id || chatData.id,
+            name: chatData.whatsapp_contacts?.name || chatData.name || 'Sem nome',
+            phone: chatData.whatsapp_contacts?.wa_id || chatData.jid || '',
+            avatar: chatData.whatsapp_contacts?.profile_pic_url
+          };
+
+          return {
+            id: chatData.id,
+            contact,
+            messages,
+            lastMessage: messages[messages.length - 1] || {
+              id: 'empty',
+              text: '',
+              timestamp: new Date(chatData.created_at),
+              isFromMe: false,
+              status: 'sent'
+            },
+            unreadCount: chatData.unread_count || 0,
+            tags: [],
+            status: 'active' as const,
+            createdAt: new Date(chatData.created_at),
+            updatedAt: new Date(chatData.updated_at)
+          };
+        })
+      );
+
+      setChats(transformedChats);
+      console.log('[AtendimentoContent] ✅ Loaded chats:', transformedChats.length);
+    } catch (error) {
+      console.error('[AtendimentoContent] ❌ Error loading chats from Supabase:', error);
+    }
+  };
 
   // Load active connections and real WhatsApp data
   useEffect(() => {
@@ -56,6 +170,11 @@ export function AtendimentoContent() {
         if (activeConns.length > 0) {
           startEventsStream(activeConns[0].id);
         }
+
+        // If no chats and we have connections, try bootstrap sync
+        if (activeConns.length > 0 && chats.length === 0) {
+          handleManualSync();
+        }
         
       } catch (error) {
         console.error('[AtendimentoContent] ❌ Error loading initial data:', error);
@@ -66,82 +185,6 @@ export function AtendimentoContent() {
         });
       } finally {
         setIsLoading(false);
-      }
-    };
-
-    const loadChatsFromSupabase = async () => {
-      try {
-        // Load chats with contacts and recent messages
-        const { data: chatsData, error: chatsError } = await supabase
-          .from('whatsapp_chats')
-          .select(`
-            *,
-            whatsapp_contacts (
-              id,
-              wa_id,
-              name,
-              profile_pic_url
-            )
-          `)
-          .order('last_message_at', { ascending: false })
-          .limit(50);
-
-        if (chatsError) {
-          console.error('[AtendimentoContent] ❌ Error loading chats:', chatsError);
-          return;
-        }
-
-        // Transform Supabase data to Chat format
-        const transformedChats: Chat[] = await Promise.all(
-          (chatsData || []).map(async (chatData: any) => {
-            // Load messages for this chat
-            const { data: messagesData } = await supabase
-              .from('whatsapp_messages')
-              .select('*')
-              .eq('chat_id', chatData.id)
-              .order('timestamp', { ascending: true })
-              .limit(50);
-
-            const messages: Message[] = (messagesData || []).map((msg: any) => ({
-              id: msg.id,
-              text: msg.body || '',
-              timestamp: new Date(msg.timestamp),
-              isFromMe: msg.direction === 'outbound',
-              status: msg.status
-            }));
-
-            const contact: Contact = {
-              id: chatData.whatsapp_contacts?.id || chatData.id,
-              name: chatData.whatsapp_contacts?.name || chatData.name || 'Sem nome',
-              phone: chatData.whatsapp_contacts?.wa_id || chatData.jid || '',
-              avatar: chatData.whatsapp_contacts?.profile_pic_url
-            };
-
-            return {
-              id: chatData.id,
-              contact,
-              messages,
-              lastMessage: messages[messages.length - 1] || {
-                id: 'empty',
-                text: '',
-                timestamp: new Date(chatData.created_at),
-                isFromMe: false,
-                status: 'sent'
-              },
-              unreadCount: chatData.unread_count || 0,
-              tags: [],
-              status: 'active' as const,
-              createdAt: new Date(chatData.created_at),
-              updatedAt: new Date(chatData.updated_at)
-            };
-          })
-        );
-
-        setChats(transformedChats);
-        console.log('[AtendimentoContent] ✅ Loaded chats:', transformedChats.length);
-
-      } catch (error) {
-        console.error('[AtendimentoContent] ❌ Error loading chats from Supabase:', error);
       }
     };
 
@@ -483,23 +526,53 @@ export function AtendimentoContent() {
               </div>
 
               <Tabs defaultValue="chats" className="flex-1 flex flex-col">
-                <TabsList className="grid w-full grid-cols-3 m-4">
-                  <TabsTrigger value="chats" className="flex items-center space-x-2">
-                    <MessageCircle className="h-4 w-4" />
-                    <span>Chats ({myChats.length})</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="queue" className="flex items-center space-x-2">
-                    <Users className="h-4 w-4" />
-                    <span>Fila ({queueChats.length})</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="contacts" className="flex items-center space-x-2">
-                    <Phone className="h-4 w-4" />
-                    <span>Contatos ({allContacts.length})</span>
-                  </TabsTrigger>
-                </TabsList>
+                <div className="flex items-center justify-between m-4">
+                  <TabsList className="grid w-full grid-cols-3 max-w-md">
+                    <TabsTrigger value="chats" className="flex items-center space-x-2">
+                      <MessageCircle className="h-4 w-4" />
+                      <span>Chats ({myChats.length})</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="queue" className="flex items-center space-x-2">
+                      <Users className="h-4 w-4" />
+                      <span>Fila ({queueChats.length})</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="contacts" className="flex items-center space-x-2">
+                      <Phone className="h-4 w-4" />
+                      <span>Contatos ({allContacts.length})</span>
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleManualSync}
+                    disabled={isSyncing || activeConnections.length === 0}
+                    className="ml-2"
+                  >
+                    {isSyncing ? "Sincronizando..." : "Sincronizar agora"}
+                  </Button>
+                </div>
 
                 <div className="flex-1 overflow-hidden">
                   <TabsContent value="chats" className="h-full m-0">
+                    {myChats.length === 0 && activeConnections.length > 0 && !isLoading && (
+                      <div className="flex flex-col items-center justify-center h-32 text-center p-4">
+                        <MessageCircle className="h-8 w-8 text-gray-400 mb-2" />
+                        <p className="text-gray-500 text-sm mb-3">
+                          {isSyncing ? "Sincronizando conversas..." : "Nenhuma conversa encontrada"}
+                        </p>
+                        {!isSyncing && (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={handleManualSync}
+                            disabled={isSyncing}
+                          >
+                            Sincronizar conversas
+                          </Button>
+                        )}
+                      </div>
+                    )}
                     <ChatsList 
                       chats={myChats}
                       onChatSelect={handleChatSelect}

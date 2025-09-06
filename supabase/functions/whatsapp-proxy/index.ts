@@ -17,7 +17,13 @@ const ALLOWED_ORIGINS = ALLOWED_ORIGINS_RAW ? ALLOWED_ORIGINS_RAW.split(',').map
 
 // Função para determinar origem dinamicamente com base na allowlist
 function getDynamicOrigin(requestOrigin: string | null): string {
-  if (!requestOrigin || ALLOWED_ORIGINS.length === 0) {
+  // If no allowed origins are configured, allow all origins with "*"
+  if (ALLOWED_ORIGINS.length === 0) {
+    console.log(`🌍 No allowed origins configured, using wildcard: *`)
+    return '*'
+  }
+  
+  if (!requestOrigin) {
     return GATEWAY_ORIGIN_DEFAULT
   }
   
@@ -458,40 +464,90 @@ async function handleBootstrapSync(req: Request, parsedBase: URL, gatewayToken: 
       headers['Authorization'] = `Bearer ${gatewayToken}`
     }
 
-    // Try to fetch contacts, chats, and messages from gateway
-    const endpoints = [
-      { name: 'contacts', path: `/connections/${connectionId}/contacts` },
-      { name: 'chats', path: `/connections/${connectionId}/chats` },
-      { name: 'messages', path: `/connections/${connectionId}/messages` },
+    // Try multiple endpoint patterns for each resource type
+    const endpointSets = [
+      { 
+        name: 'contacts', 
+        patterns: [
+          `/connections/${connectionId}/contacts`,
+          `/connection/${connectionId}/contacts`,
+          `/api/connections/${connectionId}/contacts`,
+          `/v1/connections/${connectionId}/contacts`,
+          `/contacts?connection_id=${connectionId}`
+        ]
+      },
+      { 
+        name: 'chats', 
+        patterns: [
+          `/connections/${connectionId}/chats`,
+          `/connection/${connectionId}/chats`,
+          `/api/connections/${connectionId}/chats`,
+          `/v1/connections/${connectionId}/chats`,
+          `/chats?connection_id=${connectionId}`
+        ]
+      },
+      { 
+        name: 'messages', 
+        patterns: [
+          `/connections/${connectionId}/messages`,
+          `/connection/${connectionId}/messages`,
+          `/api/connections/${connectionId}/messages`,
+          `/v1/connections/${connectionId}/messages`,
+          `/messages?connection_id=${connectionId}`
+        ]
+      }
     ]
 
     let syncedCount = 0
+    let totalItems = 0
 
-    for (const endpoint of endpoints) {
-      try {
-        const response = await fetch(new URL(endpoint.path, parsedBase).toString(), {
-          headers
-        })
+    for (const endpointSet of endpointSets) {
+      let resourceSynced = false
+      
+      for (const pattern of endpointSet.patterns) {
+        if (resourceSynced) break
+        
+        try {
+          console.log(`🎯 Trying ${endpointSet.name} endpoint: ${pattern}`)
+          const response = await fetch(new URL(pattern, parsedBase).toString(), { headers })
 
-        if (response.ok) {
-          const data = await response.json()
-          console.log(`📦 Got ${endpoint.name} data:`, Array.isArray(data) ? data.length : 'object')
-          
-          // Process and store the data
-          if (Array.isArray(data) && data.length > 0) {
-            for (const item of data) {
+          if (response.ok) {
+            const data = await response.json()
+            console.log(`📦 Got ${endpointSet.name} data from ${pattern}:`, Array.isArray(data) ? data.length : 'object')
+            
+            // Process and store the data
+            if (Array.isArray(data) && data.length > 0) {
+              for (const item of data) {
+                await handleWhatsAppEvent({
+                  type: endpointSet.name.slice(0, -1), // remove 's' from plural
+                  data: item
+                }, supabase, null, tenantId, connectionId)
+              }
+              syncedCount++
+              totalItems += data.length
+              resourceSynced = true
+              console.log(`✅ Successfully synced ${data.length} ${endpointSet.name}`)
+            } else if (data) {
+              // Handle single object response
               await handleWhatsAppEvent({
-                type: endpoint.name.slice(0, -1), // remove 's' from plural
-                data: item
+                type: endpointSet.name.slice(0, -1),
+                data: data
               }, supabase, null, tenantId, connectionId)
+              syncedCount++
+              totalItems += 1
+              resourceSynced = true
+              console.log(`✅ Successfully synced 1 ${endpointSet.name} item`)
             }
-            syncedCount++
+          } else {
+            console.log(`❌ Bootstrap ${endpointSet.name} at ${pattern} failed: ${response.status}`)
           }
-        } else {
-          console.log(`⚠️ Bootstrap ${endpoint.name} failed: ${response.status}`)
+        } catch (error) {
+          console.log(`❌ Bootstrap ${endpointSet.name} at ${pattern} error:`, error.message)
         }
-      } catch (error) {
-        console.log(`⚠️ Bootstrap ${endpoint.name} error:`, error.message)
+      }
+      
+      if (!resourceSynced) {
+        console.log(`⚠️ Could not sync ${endpointSet.name} from any endpoint`)
       }
     }
 
@@ -499,7 +555,8 @@ async function handleBootstrapSync(req: Request, parsedBase: URL, gatewayToken: 
     return new Response(JSON.stringify({ 
       success: true, 
       synced_endpoints: syncedCount,
-      message: 'Bootstrap sync completed'
+      total_items: totalItems,
+      message: `Bootstrap sync completed - ${totalItems} items from ${syncedCount} resource types`
     }), {
       headers: {
         ...corsHeaders,
@@ -535,19 +592,46 @@ async function handleRefreshConnection(req: Request, parsedBase: URL, gatewayTok
     })
   }
 
+  console.log(`🔄 Refreshing connection ${connectionId}`)
+
   try {
     const headers: Record<string, string> = {}
     if (gatewayToken) {
       headers['Authorization'] = `Bearer ${gatewayToken}`
     }
 
-    // Try to get connection info from gateway
-    const response = await fetch(new URL(`/connections/${connectionId}`, parsedBase).toString(), {
-      headers
-    })
+    // Try multiple endpoint patterns for getting connection info
+    const endpointPatterns = [
+      `/connections/${connectionId}`,
+      `/connection/${connectionId}`,
+      `/connections/${connectionId}/status`,
+      `/api/connections/${connectionId}`,
+      `/v1/connections/${connectionId}`
+    ]
 
-    if (response.ok) {
-      const connectionData = await response.json()
+    let connectionData = null
+    let lastError = null
+
+    for (const endpoint of endpointPatterns) {
+      try {
+        console.log(`🎯 Trying endpoint: ${endpoint}`)
+        const response = await fetch(new URL(endpoint, parsedBase).toString(), { headers })
+        
+        if (response.ok) {
+          connectionData = await response.json()
+          console.log(`✅ Connection data retrieved from ${endpoint}:`, connectionData)
+          break
+        } else {
+          console.log(`❌ Endpoint ${endpoint} failed: ${response.status}`)
+          lastError = `HTTP ${response.status}`
+        }
+      } catch (error) {
+        console.log(`❌ Endpoint ${endpoint} error:`, error.message)
+        lastError = error.message
+      }
+    }
+
+    if (connectionData) {
       console.log('📱 Got connection data:', connectionData)
       
       // Update in Supabase
@@ -579,7 +663,7 @@ async function handleRefreshConnection(req: Request, parsedBase: URL, gatewayTok
         }
       })
     } else {
-      throw new Error(`Gateway responded with ${response.status}`)
+      throw new Error(`All gateway endpoints failed. Last error: ${lastError}`)
     }
 
   } catch (error) {
