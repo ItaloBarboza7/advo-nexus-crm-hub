@@ -450,4 +450,145 @@ export const whatsappGateway = {
       }
     };
   },
+
+  async updateConnection(connectionId: string, updates: { name?: string }): Promise<GatewayConnection> {
+    const baseUrl = getBaseUrl();
+    
+    try {
+      const tenantId = await getTenantId();
+      
+      // Try updating via gateway first
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const clientToken = session?.access_token;
+        const clientApiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsdHVnbm1qYmNvd3N1d3pra25pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4MDkyNjAsImV4cCI6MjA2NDM4NTI2MH0.g-dg8YF0mK0LkDBvTzUlW8po9tT0VC-s47PFbDScmN8';
+        
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+          ...getHeaders(),
+        };
+        
+        if (clientToken) {
+          headers['Authorization'] = `Bearer ${clientToken}`;
+        }
+        if (clientApiKey) {
+          headers['apikey'] = clientApiKey;
+        }
+        
+        const url = new URL(`${baseUrl}/connections/${connectionId}`);
+        url.searchParams.append('tenant_id', tenantId);
+        
+        const res = await fetch(url.toString(), {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify(updates),
+        });
+        
+        if (res.ok) {
+          const connection = await res.json();
+          console.log('[whatsappGateway] ✅ Connection updated via gateway:', connection);
+          return connection;
+        } else {
+          console.warn('[whatsappGateway] ⚠️ Gateway update failed, falling back to Supabase');
+          throw new Error(`Gateway failed: ${res.status}`);
+        }
+      } catch (gatewayError) {
+        console.warn('[whatsappGateway] ⚠️ Gateway update failed, falling back to Supabase:', gatewayError);
+        
+        // Fallback: update directly in Supabase
+        const { data: connection, error: supabaseError } = await supabase
+          .from('whatsapp_connections')
+          .update(updates)
+          .eq('id', connectionId)
+          .eq('tenant_id', tenantId)
+          .select()
+          .single();
+        
+        if (supabaseError) {
+          throw new Error(`Falha ao atualizar conexão: ${supabaseError.message}`);
+        }
+        
+        console.log('[whatsappGateway] ✅ Connection updated in Supabase (fallback):', connection);
+        
+        return {
+          id: connection.id,
+          name: connection.name,
+          status: connection.status,
+          phone_number: connection.phone_number,
+          last_connected_at: connection.last_connected_at
+        };
+      }
+      
+    } catch (error) {
+      console.error('[whatsappGateway] ❌ updateConnection error:', error);
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Erro inesperado ao atualizar conexão');
+    }
+  },
+
+  async deleteConnection(connectionId: string): Promise<void> {
+    const baseUrl = getBaseUrl();
+    
+    try {
+      const tenantId = await getTenantId();
+      
+      // Try deleting via gateway first
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const clientToken = session?.access_token;
+        const clientApiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsdHVnbm1qYmNvd3N1d3pra25pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4MDkyNjAsImV4cCI6MjA2NDM4NTI2MH0.g-dg8YF0mK0LkDBvTzUlW8po9tT0VC-s47PFbDScmN8';
+        
+        const headers: Record<string, string> = {
+          ...getHeaders(),
+        };
+        
+        if (clientToken) {
+          headers['Authorization'] = `Bearer ${clientToken}`;
+        }
+        if (clientApiKey) {
+          headers['apikey'] = clientApiKey;
+        }
+        
+        const url = new URL(`${baseUrl}/connections/${connectionId}`);
+        url.searchParams.append('tenant_id', tenantId);
+        
+        const res = await fetch(url.toString(), {
+          method: 'DELETE',
+          headers,
+        });
+        
+        if (res.ok) {
+          console.log('[whatsappGateway] ✅ Connection deleted via gateway');
+          return;
+        } else {
+          console.warn('[whatsappGateway] ⚠️ Gateway delete failed, falling back to Supabase');
+          throw new Error(`Gateway failed: ${res.status}`);
+        }
+      } catch (gatewayError) {
+        console.warn('[whatsappGateway] ⚠️ Gateway delete failed, falling back to Supabase:', gatewayError);
+        
+        // Fallback: delete directly from Supabase
+        const { error: supabaseError } = await supabase
+          .from('whatsapp_connections')
+          .delete()
+          .eq('id', connectionId)
+          .eq('tenant_id', tenantId);
+        
+        if (supabaseError) {
+          throw new Error(`Falha ao excluir conexão: ${supabaseError.message}`);
+        }
+        
+        console.log('[whatsappGateway] ✅ Connection deleted from Supabase (fallback)');
+      }
+      
+    } catch (error) {
+      console.error('[whatsappGateway] ❌ deleteConnection error:', error);
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Erro inesperado ao excluir conexão');
+    }
+  },
 };

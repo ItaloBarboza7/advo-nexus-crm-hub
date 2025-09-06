@@ -1,0 +1,152 @@
+import React, { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Trash2, Save } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { whatsappGateway, type GatewayConnection } from "@/integrations/whatsapp/gateway";
+import { DeleteButton } from "@/components/DeleteButton";
+
+interface ConnectionSettingsDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  connection: GatewayConnection | null;
+  onUpdated: () => void;
+  onDeleted: () => void;
+}
+
+export const ConnectionSettingsDialog: React.FC<ConnectionSettingsDialogProps> = ({
+  open,
+  onOpenChange,
+  connection,
+  onUpdated,
+  onDeleted
+}) => {
+  const { toast } = useToast();
+  const [name, setName] = useState(connection?.name || '');
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  React.useEffect(() => {
+    if (connection) {
+      setName(connection.name);
+    }
+  }, [connection]);
+
+  const handleSave = async () => {
+    if (!connection || !name.trim()) {
+      toast({
+        title: "Erro",
+        description: "Nome da conexão é obrigatório",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      await whatsappGateway.updateConnection(connection.id, { name: name.trim() });
+      toast({
+        title: "Sucesso",
+        description: "Nome da conexão atualizado com sucesso"
+      });
+      onUpdated();
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error('Erro ao atualizar conexão:', error);
+      toast({
+        title: "Erro",
+        description: error.message || "Falha ao atualizar a conexão",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!connection) return;
+
+    try {
+      await whatsappGateway.deleteConnection(connection.id);
+      toast({
+        title: "Sucesso",
+        description: "Conexão excluída com sucesso"
+      });
+      onDeleted();
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error('Erro ao excluir conexão:', error);
+      toast({
+        title: "Erro",
+        description: error.message || "Falha ao excluir a conexão",
+        variant: "destructive"
+      });
+      throw error; // Re-throw para o DeleteButton handle
+    }
+  };
+
+  if (!connection) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Configurações da Conexão</DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="connection-name">Nome da Conexão</Label>
+            <Input
+              id="connection-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Digite o nome da conexão"
+              disabled={isUpdating}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Informações</Label>
+            <div className="text-sm text-muted-foreground space-y-1">
+              <p><strong>Telefone:</strong> {connection.phone_number || 'Não configurado'}</p>
+              <p><strong>Status:</strong> {connection.status}</p>
+              {connection.last_connected_at && (
+                <p><strong>Última conexão:</strong> {new Date(connection.last_connected_at).toLocaleString('pt-BR')}</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter className="flex justify-between">
+          <DeleteButton
+            onDelete={handleDelete}
+            itemName={connection.name}
+            itemType="conexão"
+            variant="destructive"
+            size="default"
+          />
+          
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isUpdating}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={isUpdating || !name.trim()}
+              className="flex items-center gap-2"
+            >
+              <Save className="h-4 w-4" />
+              {isUpdating ? 'Salvando...' : 'Salvar'}
+            </Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};

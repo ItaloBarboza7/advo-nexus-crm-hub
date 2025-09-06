@@ -5,6 +5,7 @@ import { Plus, Smartphone, WifiOff, Wifi, Settings, RefreshCw, AlertTriangle, Ex
 import { whatsappGateway, type GatewayConnection } from "@/integrations/whatsapp/gateway";
 import NewConnectionDialog from "./NewConnectionDialog";
 import GatewayDiagnostics from "./GatewayDiagnostics";
+import { ConnectionSettingsDialog } from "./ConnectionSettingsDialog";
 import { useToast } from "@/hooks/use-toast";
 
 const ConnectionsPanel: React.FC = () => {
@@ -16,6 +17,8 @@ const ConnectionsPanel: React.FC = () => {
   const [gatewayError, setGatewayError] = useState<string | null>(null);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [errorType, setErrorType] = useState<'cors' | 'route_missing' | 'server_down' | 'unknown'>('unknown');
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const [selectedConnection, setSelectedConnection] = useState<GatewayConnection | null>(null);
 
   const baseUrl = import.meta.env.VITE_WHATSAPP_GATEWAY_URL || 'https://evojuris-whatsapp.onrender.com';
 
@@ -89,8 +92,19 @@ const ConnectionsPanel: React.FC = () => {
   };
 
   const handleSettings = (id: string) => {
-    console.log('Settings for:', id);
-    toast({ title: 'Em breve', description: 'Configurações da conexão serão adicionadas em seguida.' });
+    const connection = connections.find(c => c.id === id);
+    if (connection) {
+      setSelectedConnection(connection);
+      setSettingsDialogOpen(true);
+    }
+  };
+
+  const handleConnectionUpdated = () => {
+    loadConnections();
+  };
+
+  const handleConnectionDeleted = () => {
+    loadConnections();
   };
 
   const statusBadge = (status: string) => {
@@ -334,6 +348,14 @@ const ConnectionsPanel: React.FC = () => {
         }}
         onConnected={handleConnected}
         initialConnectionId={reconnectId ?? undefined}
+      />
+
+      <ConnectionSettingsDialog
+        open={settingsDialogOpen}
+        onOpenChange={setSettingsDialogOpen}
+        connection={selectedConnection}
+        onUpdated={handleConnectionUpdated}
+        onDeleted={handleConnectionDeleted}
       />
     </div>
   );
