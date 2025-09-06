@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { corsHeaders } from "../_shared/cors.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
@@ -147,111 +146,246 @@ function normalizeProxyPath(pathname: string): string {
   return out
 }
 
-// Função para testar conectividade com o gateway
-async function testGatewayConnectivity(): Promise<any> {
-  if (!parsedBase) {
-    return {
-      error: 'Invalid gateway base URL',
-      gateway_url: GATEWAY_BASE_URL,
-      origin: GATEWAY_ORIGIN,
-      has_token: !!GATEWAY_TOKEN
-    }
-  }
-
-  const tests = []
-  const healthUrl = new URL('/health', parsedBase).toString()
-
-  // Teste 1: Com Authorization + Origin
-  console.log('🧪 Testing with Authorization + Origin...')
+// Process events stream and store in Supabase
+async function processEventsStream(stream: ReadableStream, clientToken: string | null, clientApiKey: string | null) {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  
   try {
-    const headers1: Record<string, string> = {
-      'Origin': GATEWAY_ORIGIN,
-      'User-Agent': 'Supabase-WhatsApp-Proxy-Debug/1.0'
-    }
-    if (GATEWAY_TOKEN) {
-      headers1['Authorization'] = `Bearer ${GATEWAY_TOKEN}`
-    }
+    // Create Supabase client with service role for data writes
+    const supabase = createClient(
+      SUPABASE_URL,
+      SUPABASE_SERVICE_ROLE_KEY,
+      { auth: { persistSession: false } }
+    );
 
-    const response1 = await fetch(healthUrl, { method: 'GET', headers: headers1 })
-    const body1 = await response1.text().catch(() => '')
+    let buffer = '';
     
-    tests.push({
-      test: 'Authorization + Origin',
-      status: response1.status,
-      success: response1.ok,
-      body: body1.substring(0, 500),
-      headers_sent: headers1
-    })
-  } catch (error: any) {
-    tests.push({
-      test: 'Authorization + Origin',
-      error: error.message,
-      success: false
-    })
-  }
-
-  // Teste 2: Só com Origin
-  console.log('🧪 Testing with Origin only...')
-  try {
-    const headers2 = {
-      'Origin': GATEWAY_ORIGIN,
-      'User-Agent': 'Supabase-WhatsApp-Proxy-Debug/1.0'
-    }
-
-    const response2 = await fetch(healthUrl, { method: 'GET', headers: headers2 })
-    const body2 = await response2.text().catch(() => '')
-    
-    tests.push({
-      test: 'Origin only',
-      status: response2.status,
-      success: response2.ok,
-      body: body2.substring(0, 500),
-      headers_sent: headers2
-    })
-  } catch (error: any) {
-    tests.push({
-      test: 'Origin only',
-      error: error.message,
-      success: false
-    })
-  }
-
-  // Teste 3: Só com Authorization
-  if (GATEWAY_TOKEN) {
-    console.log('🧪 Testing with Authorization only...')
-    try {
-      const headers3 = {
-        'Authorization': `Bearer ${GATEWAY_TOKEN}`,
-        'User-Agent': 'Supabase-WhatsApp-Proxy-Debug/1.0'
-      }
-
-      const response3 = await fetch(healthUrl, { method: 'GET', headers: headers3 })
-      const body3 = await response3.text().catch(() => '')
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
       
-      tests.push({
-        test: 'Authorization only',
-        status: response3.status,
-        success: response3.ok,
-        body: body3.substring(0, 500),
-        headers_sent: headers3
-      })
-    } catch (error: any) {
-      tests.push({
-        test: 'Authorization only',
-        error: error.message,
-        success: false
-      })
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+      
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const eventData = JSON.parse(line.slice(6));
+            await handleWhatsAppEvent(eventData, supabase, clientToken);
+          } catch (error) {
+            console.error('❌ Error parsing event data:', error, 'Line:', line);
+          }
+        }
+      }
     }
+  } catch (error) {
+    console.error('❌ Error processing events stream:', error);
+  } finally {
+    reader.releaseLock();
   }
+}
 
-  return {
-    gateway_url: healthUrl,
-    gateway_base: GATEWAY_BASE_URL,
-    origin: GATEWAY_ORIGIN,
-    has_token: !!GATEWAY_TOKEN,
-    token_preview: GATEWAY_TOKEN ? `${GATEWAY_TOKEN.substring(0, 10)}...` : null,
-    tests,
-    timestamp: new Date().toISOString()
+// Handle individual WhatsApp events and store in database
+async function handleWhatsAppEvent(eventData: any, supabase: any, clientToken: string | null) {
+  console.log('📡 Processing WhatsApp event:', eventData.type || 'unknown', eventData);
+  
+  try {
+    const tenantId = await getTenantIdFromToken(clientToken, supabase);
+    if (!tenantId) {
+      console.warn('⚠️ No tenant ID found for event processing');
+      return;
+    }
+
+    switch (eventData.type) {
+      case 'connection.ready':
+      case 'connection.authenticated': {
+        if (eventData.connection_id && eventData.phone_number) {
+          await supabase
+            .from('whatsapp_connections')
+            .update({
+              status: 'connected',
+              phone_number: eventData.phone_number,
+              last_connected_at: new Date().toISOString()
+            })
+            .eq('id', eventData.connection_id)
+            .eq('tenant_id', tenantId);
+          
+          console.log('✅ Updated connection with phone number:', eventData.phone_number);
+        }
+        break;
+      }
+      
+      case 'contacts': {
+        if (eventData.contacts && Array.isArray(eventData.contacts)) {
+          for (const contact of eventData.contacts) {
+            await supabase
+              .from('whatsapp_contacts')
+              .upsert({
+                wa_id: contact.wa_id,
+                name: contact.name,
+                profile_pic_url: contact.profile_pic_url,
+                connection_id: eventData.connection_id,
+                tenant_id: tenantId,
+                updated_at: new Date().toISOString()
+              }, {
+                onConflict: 'wa_id,connection_id'
+              });
+          }
+          console.log('✅ Processed contacts:', eventData.contacts.length);
+        }
+        break;
+      }
+      
+      case 'chats': {
+        if (eventData.chats && Array.isArray(eventData.chats)) {
+          for (const chat of eventData.chats) {
+            // Find contact for this chat
+            const { data: contact } = await supabase
+              .from('whatsapp_contacts')
+              .select('id')
+              .eq('wa_id', chat.jid?.split('@')[0])
+              .eq('connection_id', eventData.connection_id)
+              .single();
+
+            await supabase
+              .from('whatsapp_chats')
+              .upsert({
+                jid: chat.jid,
+                name: chat.name,
+                type: chat.type || 'user',
+                unread_count: chat.unread_count || 0,
+                last_message_at: chat.last_message_at,
+                connection_id: eventData.connection_id,
+                contact_id: contact?.id,
+                tenant_id: tenantId,
+                updated_at: new Date().toISOString()
+              }, {
+                onConflict: 'jid,connection_id'
+              });
+          }
+          console.log('✅ Processed chats:', eventData.chats.length);
+        }
+        break;
+      }
+      
+      case 'messages': {
+        if (eventData.messages && Array.isArray(eventData.messages)) {
+          for (const message of eventData.messages) {
+            // Find chat for this message
+            const { data: chat } = await supabase
+              .from('whatsapp_chats')
+              .select('id')
+              .eq('jid', message.chat_jid)
+              .eq('connection_id', eventData.connection_id)
+              .single();
+
+            if (chat) {
+              await supabase
+                .from('whatsapp_messages')
+                .upsert({
+                  wa_message_id: message.id,
+                  chat_id: chat.id,
+                  connection_id: eventData.connection_id,
+                  tenant_id: tenantId,
+                  direction: message.direction || (message.from_me ? 'outbound' : 'inbound'),
+                  type: message.type || 'text',
+                  body: message.body,
+                  author_wa_id: message.author || message.from,
+                  status: message.status || 'delivered',
+                  timestamp: message.timestamp ? new Date(message.timestamp * 1000).toISOString() : new Date().toISOString(),
+                  media_url: message.media_url,
+                  media_mime_type: message.media_mime_type,
+                  media_size: message.media_size,
+                  updated_at: new Date().toISOString()
+                }, {
+                  onConflict: 'wa_message_id,connection_id'
+                });
+
+              // Update chat's last_message_at
+              await supabase
+                .from('whatsapp_chats')
+                .update({
+                  last_message_at: message.timestamp ? new Date(message.timestamp * 1000).toISOString() : new Date().toISOString()
+                })
+                .eq('id', chat.id);
+            }
+          }
+          console.log('✅ Processed messages:', eventData.messages.length);
+        }
+        break;
+      }
+      
+      case 'message': {
+        // Single message event
+        const message = eventData;
+        const { data: chat } = await supabase
+          .from('whatsapp_chats')
+          .select('id')
+          .eq('jid', message.chat_jid || message.from)
+          .eq('connection_id', eventData.connection_id)
+          .single();
+
+        if (chat) {
+          await supabase
+            .from('whatsapp_messages')
+            .upsert({
+              wa_message_id: message.id,
+              chat_id: chat.id,
+              connection_id: eventData.connection_id,
+              tenant_id: tenantId,
+              direction: message.direction || (message.from_me ? 'outbound' : 'inbound'),
+              type: message.type || 'text',
+              body: message.body,
+              author_wa_id: message.author || message.from,
+              status: message.status || 'delivered',
+              timestamp: message.timestamp ? new Date(message.timestamp * 1000).toISOString() : new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'wa_message_id,connection_id'
+            });
+
+          // Update chat's last_message_at
+          await supabase
+            .from('whatsapp_chats')
+            .update({
+              last_message_at: message.timestamp ? new Date(message.timestamp * 1000).toISOString() : new Date().toISOString()
+            })
+            .eq('id', chat.id);
+
+          console.log('✅ Processed single message:', message.id);
+        }
+        break;
+      }
+      
+      default:
+        console.log('📝 Unhandled event type:', eventData.type);
+    }
+  } catch (error) {
+    console.error('❌ Error handling WhatsApp event:', error);
+  }
+}
+
+// Extract tenant ID from client token
+async function getTenantIdFromToken(clientToken: string | null, supabase: any): Promise<string | null> {
+  if (!clientToken) return null;
+  
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser(clientToken);
+    if (error || !user) return null;
+    
+    // Get tenant ID using the same logic from the function
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('parent_user_id')
+      .eq('user_id', user.id)
+      .single();
+    
+    return profile?.parent_user_id || user.id;
+  } catch (error) {
+    console.error('❌ Error getting tenant ID from token:', error);
+    return null;
   }
 }
 
@@ -276,121 +410,6 @@ serve(async (req) => {
     console.log(`- Normalized path: ${path}`)
     console.log(`- Method: ${req.method}`)
     console.log(`🔐 Client auth - Token: ${clientToken ? 'Present' : 'Missing'}, ApiKey: ${clientApiKey ? 'Present' : 'Missing'}`)
-
-    // Endpoint de debug especial
-    if (path === '/_debug') {
-      console.log('🔍 Debug endpoint called')
-      const debugResult = await testGatewayConnectivity()
-      return new Response(JSON.stringify(debugResult, null, 2), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
-    
-    // Endpoint para testar QR stream (debug)
-    if (path.startsWith('/_debug/peek-qr')) {
-      console.log('🔍 QR Stream peek debug endpoint called')
-      const connectionId = url.searchParams.get('connection_id')
-      const tenantId = url.searchParams.get('tenant_id')
-      
-      if (!connectionId || !tenantId) {
-        return new Response(JSON.stringify({
-          error: 'Missing required parameters',
-          required: ['connection_id', 'tenant_id'],
-          received: { connection_id: connectionId, tenant_id: tenantId }
-        }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
-      }
-      
-      try {
-        // Tentar ler apenas os primeiros bytes do stream QR
-        const qrUrl = new URL(`/connections/${connectionId}/qr`, parsedBase!)
-        qrUrl.searchParams.append('tenant_id', tenantId)
-        
-        console.log(`🎯 Testing QR stream: ${qrUrl.toString()}`)
-        
-        const gatewayHeaders: Record<string, string> = {
-          'Origin': GATEWAY_ORIGIN,
-          'User-Agent': 'Supabase-WhatsApp-Proxy-Debug/1.0',
-          'Accept': 'text/event-stream',
-          'Cache-Control': 'no-cache'
-        }
-        
-        if (GATEWAY_TOKEN) {
-          gatewayHeaders['Authorization'] = `Bearer ${GATEWAY_TOKEN}`
-        }
-        
-        const response = await fetch(qrUrl.toString(), {
-          method: 'GET',
-          headers: gatewayHeaders,
-          signal: AbortSignal.timeout(5000) // 5s timeout
-        })
-        
-        if (!response.ok) {
-          const errorText = await response.text().catch(() => '')
-          return new Response(JSON.stringify({
-            status: response.status,
-            error: `Gateway QR stream error: ${response.status}`,
-            details: errorText.substring(0, 500),
-            url: qrUrl.toString()
-          }), {
-            status: response.status,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
-        }
-        
-        // Ler apenas os primeiros chunks
-        const reader = response.body?.getReader()
-        if (!reader) {
-          throw new Error('No response body reader available')
-        }
-        
-        let sampleData = ''
-        let chunkCount = 0
-        const maxChunks = 3
-        
-        try {
-          while (chunkCount < maxChunks) {
-            const { done, value } = await reader.read()
-            if (done) break
-            
-            const chunk = new TextDecoder().decode(value)
-            sampleData += chunk
-            chunkCount++
-            
-            // Se já temos dados suficientes, parar
-            if (sampleData.length > 1000) break
-          }
-        } finally {
-          reader.releaseLock()
-        }
-        
-        return new Response(JSON.stringify({
-          status: 200,
-          success: true,
-          chunks_read: chunkCount,
-          sample_data: sampleData.substring(0, 1000),
-          sample_length: sampleData.length,
-          has_qr_pattern: sampleData.includes('qr') || sampleData.includes('QR'),
-          has_event_stream: sampleData.includes('data:') || sampleData.includes('event:'),
-          timestamp: new Date().toISOString()
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
-        
-      } catch (error: any) {
-        console.error('❌ QR stream peek error:', error)
-        return new Response(JSON.stringify({
-          error: 'QR stream peek failed',
-          details: error.message,
-          timestamp: new Date().toISOString()
-        }), {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
-      }
-    }
 
     // Validar base antes de prosseguir
     if (!parsedBase) {
@@ -437,6 +456,195 @@ serve(async (req) => {
       console.log('✅ Authorization header added')
     } else {
       console.log('⚠️ WARNING: No WHATSAPP_GATEWAY_TOKEN configured')
+    }
+
+    // Handle SSE requests (QR Code stream, Events stream)
+    if (path.includes('/qr') || path.includes('/events')) {
+      console.log(`🔄 Handling SSE request for: ${path.includes('/qr') ? 'QR Code' : 'Events'}`);
+      
+      // Add client auth parameters to the query if available
+      const url = new URL(targetUrl);
+      if (clientToken) {
+        url.searchParams.set('client_token', clientToken);
+      }
+      if (clientApiKey) {
+        url.searchParams.set('client_apikey', clientApiKey);
+      }
+      
+      // For events endpoint, try /connections/:id/events first, then fallback to /events?connection_id=:id
+      let finalResponse;
+      const isEventsStream = path.includes('/events');
+      
+      try {
+        // First attempt with original URL
+        const response = await fetch(url.toString(), {
+          method: req.method,
+          headers: gatewayHeaders,
+        });
+        
+        console.log(`📡 SSE Response status:`, response.status);
+        
+        // If 404 on events endpoint, try fallback format
+        if (response.status === 404 && isEventsStream) {
+          console.log('🔄 Trying events endpoint fallback format...');
+          
+          // Extract connection ID from path /connections/:id/events
+          const connectionIdMatch = path.match(/\/connections\/([^\/]+)\/events/);
+          if (connectionIdMatch) {
+            const connectionId = connectionIdMatch[1];
+            const fallbackUrl = new URL(targetUrl);
+            fallbackUrl.pathname = '/events';
+            fallbackUrl.searchParams.set('connection_id', connectionId);
+            
+            const fallbackResponse = await fetch(fallbackUrl.toString(), {
+              method: req.method,
+              headers: gatewayHeaders,
+            });
+            
+            console.log(`📡 Fallback SSE Response status:`, fallbackResponse.status);
+            finalResponse = fallbackResponse;
+          } else {
+            finalResponse = response;
+          }
+        } else {
+          finalResponse = response;
+        }
+      } catch (error) {
+        console.error('❌ SSE Gateway connection error:', error);
+        return new Response(
+          JSON.stringify({ 
+            error: 'SSE Gateway connection error', 
+            details: error?.message || String(error)
+          }),
+          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      if (!finalResponse.ok) {
+        const errorText = await finalResponse.text();
+        console.error(`❌ SSE Gateway error: ${finalResponse.status} - ${errorText}`);
+        
+        return new Response(
+          JSON.stringify({ 
+            error: 'SSE Gateway error', 
+            status: finalResponse.status,
+            details: errorText 
+          }),
+          { status: finalResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // For events stream, we need to tee the stream to process and store events
+      if (isEventsStream && finalResponse.body) {
+        const readable = finalResponse.body;
+        const [stream1, stream2] = readable.tee();
+        
+        // Process events in background without blocking the response
+        processEventsStream(stream2, clientToken, clientApiKey).catch(error => {
+          console.error('❌ Error processing events stream:', error);
+        });
+        
+        // Return the original stream to client
+        return new Response(stream1, {
+          status: finalResponse.status,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+          }
+        });
+      }
+      
+      // Return the SSE stream directly for QR code streams
+      return new Response(finalResponse.body, {
+        status: finalResponse.status,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        }
+      });
+    }
+
+    // Handle POST /connections (com fallback de criação via Supabase)
+    if (req.method === 'POST' && path === '/connections') {
+      console.log('🔗 Handling connection creation request')
+      
+      const requestBody = await req.text()
+      console.log('📤 Request body:', requestBody)
+      
+      const response = await fetch(targetUrl, {
+        method: req.method,
+        headers: { ...gatewayHeaders, 'Content-Type': 'application/json' },
+        body: requestBody,
+      })
+      
+      console.log(`📥 Gateway response status: ${response.status}`)
+      
+      // Se sucesso, retornar resposta do gateway
+      if (response.ok) {
+        const responseBody = await response.text()
+        console.log('📄 Gateway response body (success):', responseBody.substring(0, 300))
+        return new Response(responseBody, {
+          status: response.status,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': response.headers.get('Content-Type') || 'application/json',
+          }
+        })
+      }
+      
+      // Se gateway falhou E temos autenticação do cliente, tentar fallback
+      const errorText = await response.text()
+      console.error(`❌ Gateway connection creation failed: ${response.status} - ${errorText}`)
+      
+      if (clientToken && clientApiKey) {
+        console.log('🔄 Gateway failed, attempting Supabase fallback...')
+        
+        try {
+          const connectionData = JSON.parse(requestBody)
+          const supabaseConnection = await createConnectionFallback(clientToken, clientApiKey, connectionData)
+          
+          console.log('✅ Supabase fallback successful:', supabaseConnection)
+          return new Response(JSON.stringify(supabaseConnection), {
+            status: 201,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+          
+        } catch (fallbackError: any) {
+          console.error('❌ Supabase fallback also failed:', fallbackError)
+          // Continue com o erro original do gateway se o fallback falhou
+        }
+      }
+      
+      // Mensagens de erro mais específicas
+      let errorHint = ''
+      if (response.status === 401) {
+        errorHint = 'Token de autenticação inválido ou expirado'
+      } else if (response.status === 403) {
+        errorHint = 'Origin não permitido no gateway ou token sem permissões'
+      } else if (response.status === 404) {
+        errorHint = 'Endpoint não encontrado no gateway'
+      } else if (response.status >= 500) {
+        errorHint = 'Erro interno do gateway - verifique se o serviço está online'
+      }
+
+      return new Response(
+        JSON.stringify({ 
+          error: 'Gateway error', 
+          status: response.status,
+          statusText: response.statusText,
+          details: errorText,
+          hint: errorHint,
+          timestamp: new Date().toISOString(),
+          target_url: targetUrl,
+          proxy_path: path,
+          original_url: req.url
+        }),
+        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
     // Handle POST /connections/:id/connect
@@ -489,136 +697,19 @@ serve(async (req) => {
       }
     }
 
-    // SSE para QR codes e eventos (chats, mensagens, contatos)
-    if ((path.includes('/qr') || path.includes('/events')) && req.method === 'GET') {
-      console.log('🔄 Handling SSE request for:', path.includes('/qr') ? 'QR codes' : 'Events')
-      gatewayHeaders['Accept'] = 'text/event-stream'
-      gatewayHeaders['Cache-Control'] = 'no-cache'
-
-      const response = await fetch(targetUrl, {
-        method: req.method,
-        headers: gatewayHeaders,
-      })
-
-      console.log(`📡 SSE Response status: ${response.status}`)
-
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => '')
-        console.error(`❌ SSE Gateway error: ${response.status} - ${errorText}`)
-        return new Response(
-          JSON.stringify({ 
-            error: 'SSE Gateway error', 
-            status: response.status,
-            statusText: response.statusText,
-            details: errorText,
-            timestamp: new Date().toISOString(),
-            target_url: targetUrl
-          }),
-          { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
-
-      const stream = new ReadableStream({
-        start(controller) {
-          const reader = response.body?.getReader()
-          if (!reader) {
-            console.error('❌ No reader available for SSE stream')
-            controller.close()
-            return
-          }
-          async function pump() {
-            try {
-              while (true) {
-                const { done, value } = await reader.read()
-                if (done) {
-                  console.log('✅ SSE stream completed')
-                  break
-                }
-                controller.enqueue(value)
-              }
-              controller.close()
-            } catch (error) {
-              console.error('❌ SSE Stream error:', error)
-              controller.error(error)
-            }
-          }
-          pump()
-        }
-      })
-
-      return new Response(stream, {
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive'
-        }
-      })
-    }
-
-    // Requisições HTTP regulares
-    const contentType = req.headers.get('content-type')
-    if (contentType) {
-      gatewayHeaders['Content-Type'] = contentType
-    }
-
-    const requestBody = req.method !== 'GET' && req.method !== 'HEAD' 
-      ? await req.text() 
-      : undefined
-
-    console.log(`📤 Request headers to gateway:`, gatewayHeaders)
-    if (requestBody) {
-      console.log(`📄 Request body:`, requestBody.substring(0, 200) + (requestBody.length > 200 ? '...' : ''))
-    }
-
+    // Handle general requests
     const response = await fetch(targetUrl, {
       method: req.method,
       headers: gatewayHeaders,
-      body: requestBody,
+      body: req.method !== 'GET' && req.method !== 'HEAD' ? await req.text() : undefined,
     })
 
     console.log(`📥 Gateway response status: ${response.status}`)
-    console.log(`📥 Gateway response headers:`, Object.fromEntries(response.headers.entries()))
+    console.log(`📥 Gateway response headers:`, JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2))
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => '')
-      console.error(`❌ Gateway error response: ${response.status} - ${errorText}`)
-      
-      // FALLBACK: Se for POST /connections que falhou (500), tentar Supabase
-      if (req.method === 'POST' && path === '/connections' && response.status >= 500) {
-        console.log('🔄 Gateway connection creation failed, attempting Supabase fallback...')
-        
-        try {
-          // Parsear dados da requisição
-          const connectionData = requestBody ? JSON.parse(requestBody) : {}
-          console.log('📋 Connection data from request:', connectionData)
-          
-          // Tentar criar no Supabase com autenticação do usuário
-          const supabaseConnection = await createConnectionFallback(clientToken, clientApiKey, connectionData)
-          
-          console.log('✅ Fallback successful - returning Supabase connection')
-          return new Response(JSON.stringify(supabaseConnection), {
-            status: 201,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
-          
-        } catch (fallbackError: any) {
-          console.error('❌ Supabase fallback also failed:', fallbackError)
-          // Continue com o erro original do gateway se o fallback falhou
-        }
-      }
-      
-      // Mensagens de erro mais específicas
-      let errorHint = ''
-      if (response.status === 401) {
-        errorHint = 'Token de autenticação inválido ou expirado'
-      } else if (response.status === 403) {
-        errorHint = 'Origin não permitido no gateway ou token sem permissões'
-      } else if (response.status === 404) {
-        errorHint = 'Endpoint não encontrado no gateway'
-      } else if (response.status >= 500) {
-        errorHint = 'Erro interno do gateway - verifique se o serviço está online'
-      }
+      const errorText = await response.text()
+      console.error(`❌ Gateway error: ${response.status} - ${errorText}`)
 
       return new Response(
         JSON.stringify({ 
@@ -626,7 +717,6 @@ serve(async (req) => {
           status: response.status,
           statusText: response.statusText,
           details: errorText,
-          hint: errorHint,
           timestamp: new Date().toISOString(),
           target_url: targetUrl,
           proxy_path: path,

@@ -100,17 +100,22 @@ export const ConnectionSettingsDialog: React.FC<ConnectionSettingsDialogProps> =
             <Label htmlFor="connection-name">Nome da Conexão</Label>
             <Input
               id="connection-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Digite o nome da conexão"
-              disabled={isUpdating}
+              value={connection.name}
+              readOnly
+              className="bg-muted"
             />
           </div>
 
           <div className="space-y-2">
             <Label>Informações</Label>
             <div className="text-sm text-muted-foreground space-y-1">
-              <p><strong>Telefone:</strong> {connection.phone_number || 'Não configurado'}</p>
+              <p><strong>Telefone:</strong> {
+                connection.phone_number || (
+                  connection.status === 'connected' ? 
+                    <span className="text-orange-600">Sincronizando...</span> : 
+                    'Não configurado'
+                )
+              }</p>
               <p><strong>Status:</strong> {connection.status}</p>
               {connection.last_connected_at && (
                 <p><strong>Última conexão:</strong> {new Date(connection.last_connected_at).toLocaleString('pt-BR')}</p>
@@ -124,27 +129,15 @@ export const ConnectionSettingsDialog: React.FC<ConnectionSettingsDialogProps> =
             onDelete={handleDelete}
             itemName={connection.name}
             itemType="conexão"
-            variant="destructive"
             size="default"
           />
           
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isUpdating}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={isUpdating || !name.trim()}
-              className="flex items-center gap-2"
-            >
-              <Save className="h-4 w-4" />
-              {isUpdating ? 'Salvando...' : 'Salvar'}
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+          >
+            Fechar
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

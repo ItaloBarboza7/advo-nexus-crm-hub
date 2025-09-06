@@ -309,51 +309,61 @@ export function AtendimentoContent() {
 
   const handleSendMessage = async (chatId: string, message: string) => {
     try {
-      const chat = chats.find(c => c.id === chatId);
-      if (!chat || activeConnections.length === 0) {
+      if (!activeConnections.length) {
         toast({
           title: "Erro",
           description: "Nenhuma conexão ativa encontrada",
-          variant: "destructive",
+          variant: "destructive"
         });
         return;
       }
 
-      // Use the first active connection
-      const connectionId = activeConnections[0].id;
-      const to = chat.contact.phone;
+      const connection = activeConnections[0];
+      
+      // Send via WhatsApp gateway
+      const chat = chats.find(c => c.id === chatId);
+      if (!chat) return;
+      
+      await whatsappGateway.sendText(connection.id, chat.contact.phone, message);
+      
+      // Save message to Supabase with proper user ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Usuário não autenticado');
+      }
 
-      console.log('[AtendimentoContent] 📤 Sending message:', { chatId, to, message: message.substring(0, 50) });
+      const newMessage = {
+        chat_id: chatId,
+        connection_id: connection.id,
+        tenant_id: user.id,
+        direction: 'outbound',
+        type: 'text',
+        body: message,
+        status: 'sent',
+        timestamp: new Date().toISOString(),
+        created_by_user_id: user.id,
+      };
 
-      // Send via WhatsApp Gateway
-      await whatsappGateway.sendText(connectionId, to, message);
-
-      // Save to Supabase (will be handled by the events stream, but we can add it directly too)
-      await supabase
+      const { error: insertError } = await supabase
         .from('whatsapp_messages')
-        .insert({
-          chat_id: chatId,
-          connection_id: connectionId,
-          tenant_id: await getTenantId(),
-          body: message,
-          type: 'text',
-          direction: 'outbound',
-          status: 'sent',
-          timestamp: new Date().toISOString(),
-          created_by_user_id: currentUser.id
-        });
+        .insert(newMessage);
+
+      if (insertError) {
+        console.error('Erro ao salvar mensagem:', insertError);
+        // Don't throw error here since message was sent successfully
+        // The Edge Function will handle persistence via SSE events
+      }
 
       toast({
-        title: "Mensagem Enviada",
-        description: "Mensagem enviada com sucesso!",
+        title: "Sucesso",
+        description: "Mensagem enviada com sucesso"
       });
-
-    } catch (error) {
-      console.error('[AtendimentoContent] ❌ Error sending message:', error);
+    } catch (error: any) {
+      console.error('Erro ao enviar mensagem:', error);
       toast({
         title: "Erro",
-        description: "Erro ao enviar mensagem",
-        variant: "destructive",
+        description: error.message || "Falha ao enviar mensagem",
+        variant: "destructive"
       });
     }
   };
