@@ -91,6 +91,9 @@ const getTenantId = async (): Promise<string> => {
   return user.id;
 };
 
+// Export getTenantId function for external use
+export { getTenantId };
+
 export const whatsappGateway = {
   async testHealth(): Promise<GatewayHealthStatus> {
     const baseUrl = getBaseUrl();
@@ -677,6 +680,188 @@ export const whatsappGateway = {
         throw error;
       }
       throw new Error('Erro inesperado ao excluir conexão');
+    }
+  },
+
+  // Open events stream for real-time WhatsApp data (chats, messages, contacts)
+  openEventsStream(connectionId: string, onEvent: (evt: GatewayEvent) => void): { close: () => void } {
+    console.log('[whatsappGateway] 🔄 Opening events stream for connection:', connectionId);
+    
+    let eventSource: EventSource | null = null;
+    
+    const startStream = async () => {
+      try {
+        const baseUrl = getQrStreamBaseUrl();
+        const tenantId = await getTenantId();
+        
+        // Get user authentication
+        const { data: { session } } = await supabase.auth.getSession();
+        const clientToken = session?.access_token;
+        const clientApiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsdHVnbm1qYmNvd3N1d3pra25pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4MDkyNjAsImV4cCI6MjA2NDM4NTI2MH0.g-dg8YF0mK0LkDBvTzUlW8po9tT0VC-s47PFbDScmN8';
+        
+        console.log('[whatsappGateway] 🔐 Events auth info:', {
+          hasToken: !!clientToken,
+          hasApiKey: !!clientApiKey,
+          tenantId,
+          connectionId
+        });
+        
+        const url = new URL(`${baseUrl}/connections/${connectionId}/events`);
+        url.searchParams.append('tenant_id', tenantId);
+        
+        // Pass authentication via query params (EventSource doesn't support custom headers)
+        if (clientToken) {
+          url.searchParams.append('client_token', clientToken);
+        }
+        if (clientApiKey) {
+          url.searchParams.append('client_apikey', clientApiKey);
+        }
+        
+        console.log('[whatsappGateway] 🔄 Opening events stream via EventSource:', url.toString().replace(clientToken || '', '[REDACTED]'));
+
+        eventSource = new EventSource(url.toString());
+        
+        eventSource.onopen = () => {
+          console.log('[whatsappGateway] ✅ Events stream connected successfully');
+          onEvent({ type: 'status', data: 'Events stream connected' });
+        };
+
+        eventSource.onmessage = (event) => {
+          console.log('[whatsappGateway] 📨 Events SSE message received:', event.data.substring(0, 100));
+          
+          try {
+            // Try to parse as JSON first
+            const data = JSON.parse(event.data);
+            
+            // Process different event types
+            if (data.type) {
+              console.log('[whatsappGateway] 📨 Events SSE event from JSON:', data.type);
+              onEvent(data as GatewayEvent);
+            } else {
+              // Generic event
+              onEvent({ type: 'message', data: event.data });
+            }
+          } catch (parseError) {
+            // Raw message
+            console.log('[whatsappGateway] 📨 Events SSE raw message:', event.data.substring(0, 100));
+            onEvent({ type: 'message', data: event.data });
+          }
+        };
+
+        // Listen to specific event types
+        eventSource.addEventListener('contact', (event) => {
+          console.log('[whatsappGateway] 👤 Contact event received');
+          onEvent({ type: 'contact', data: (event as MessageEvent).data });
+        });
+
+        eventSource.addEventListener('chat', (event) => {
+          console.log('[whatsappGateway] 💬 Chat event received');
+          onEvent({ type: 'chat', data: (event as MessageEvent).data });
+        });
+
+        eventSource.addEventListener('message', (event) => {
+          console.log('[whatsappGateway] 💬 Message event received');
+          onEvent({ type: 'message', data: (event as MessageEvent).data });
+        });
+
+        eventSource.addEventListener('sync_complete', (event) => {
+          console.log('[whatsappGateway] ✅ Sync complete event received');
+          onEvent({ type: 'sync_complete', data: (event as MessageEvent).data });
+        });
+
+        eventSource.onerror = (error) => {
+          console.error('[whatsappGateway] ❌ Events Stream Error:', error);
+          
+          if (eventSource?.readyState === EventSource.CLOSED) {
+            console.log('[whatsappGateway] 🔌 Events stream closed by server');
+            onEvent({ type: 'error', data: 'Conexão com o stream de eventos foi fechada pelo servidor' });
+          } else if (eventSource?.readyState === EventSource.CONNECTING) {
+            console.log('[whatsappGateway] 🔄 Events stream trying to reconnect...');
+            onEvent({ type: 'status', data: 'Tentando reconectar ao stream de eventos...' });
+          } else {
+            onEvent({ type: 'error', data: 'Erro na conexão com o stream de eventos. Verifique se o usuário está autenticado.' });
+          }
+        };
+
+      } catch (error) {
+        console.error('[whatsappGateway] ❌ Events stream initialization error:', error);
+        onEvent({ 
+          type: 'error', 
+          data: error instanceof Error ? error.message : 'Erro ao inicializar stream de eventos' 
+        });
+      }
+    };
+
+    startStream();
+
+    return {
+      close: () => {
+        console.log('[whatsappGateway] 🔌 Closing events stream');
+        if (eventSource) {
+          eventSource.close();
+          eventSource = null;
+        }
+      }
+    };
+  },
+
+  // Send text message via WhatsApp
+  async sendText(connectionId: string, to: string, text: string): Promise<any> {
+    const baseUrl = getBaseUrl();
+    
+    try {
+      const tenantId = await getTenantId();
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      const clientToken = session?.access_token;
+      const clientApiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsdHVnbm1qYmNvd3N1d3pra25pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4MDkyNjAsImV4cCI6MjA2NDM4NTI2MH0.g-dg8YF0mK0LkDBvTzUlW8po9tT0VC-s47PFbDScmN8';
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...getHeaders(),
+      };
+      
+      if (clientToken) {
+        headers['Authorization'] = `Bearer ${clientToken}`;
+      }
+      if (clientApiKey) {
+        headers['apikey'] = clientApiKey;
+      }
+      
+      const url = new URL(`${baseUrl}/connections/${connectionId}/send`);
+      url.searchParams.append('tenant_id', tenantId);
+      
+      const messageData = {
+        to,
+        type: 'text',
+        text: { body: text }
+      };
+      
+      console.log('[whatsappGateway] 📤 Sending text message:', { to, text: text.substring(0, 50) });
+      
+      const res = await fetch(url.toString(), {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(messageData),
+      });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('[whatsappGateway] ❌ Send message error:', res.status, errorText);
+        throw new Error(`Falha ao enviar mensagem: ${res.status} - ${errorText}`);
+      }
+      
+      const result = await res.json();
+      console.log('[whatsappGateway] ✅ Message sent successfully:', result);
+      
+      return result;
+      
+    } catch (error) {
+      console.error('[whatsappGateway] ❌ sendText error:', error);
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Erro inesperado ao enviar mensagem');
     }
   },
 };

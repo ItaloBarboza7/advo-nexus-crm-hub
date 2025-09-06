@@ -12,19 +12,22 @@ interface ChatWindowProps {
   users: User[];
   onTransferChat: (chatId: string, userId: string) => void;
   onAddTag: (chatId: string, tag: string) => void;
+  onSendMessage?: (chatId: string, message: string) => void;
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({ 
   chat, 
   users, 
   onTransferChat, 
-  onAddTag 
+  onAddTag,
+  onSendMessage 
 }) => {
   const [message, setMessage] = useState('');
 
   const handleSendMessage = () => {
-    if (message.trim()) {
+    if (message.trim() && onSendMessage) {
       console.log('Sending message:', message);
+      onSendMessage(chat.id, message);
       setMessage('');
     }
   };
@@ -116,8 +119,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           {/* Send Button - Round */}
           <Button 
             onClick={handleSendMessage}
-            disabled={!message.trim()}
-            className="rounded-full w-10 h-10 p-0 bg-green-500 hover:bg-green-600"
+            disabled={!message.trim() || !onSendMessage}
+            className="rounded-full w-10 h-10 p-0 bg-green-500 hover:bg-green-600 disabled:bg-gray-400"
           >
             <Send className="h-4 w-4" />
           </Button>

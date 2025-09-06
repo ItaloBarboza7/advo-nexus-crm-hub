@@ -489,9 +489,9 @@ serve(async (req) => {
       }
     }
 
-    // SSE para QR codes
-    if (path.includes('/qr') && req.method === 'GET') {
-      console.log('🔄 Handling SSE request for QR codes')
+    // SSE para QR codes e eventos (chats, mensagens, contatos)
+    if ((path.includes('/qr') || path.includes('/events')) && req.method === 'GET') {
+      console.log('🔄 Handling SSE request for:', path.includes('/qr') ? 'QR codes' : 'Events')
       gatewayHeaders['Accept'] = 'text/event-stream'
       gatewayHeaders['Cache-Control'] = 'no-cache'
 
