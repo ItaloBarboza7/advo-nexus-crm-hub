@@ -768,11 +768,11 @@ serve(async (req) => {
 
     console.log(`🎯 Target URL: ${targetUrl}`)
 
-    // Construir headers para o gateway usando origem dinâmica
+    // Construir headers para o gateway usando origem fixa
     const dynamicOrigin = getDynamicOrigin(req.headers.get('origin'))
     const gatewayHeaders: Record<string, string> = {
       'User-Agent': 'Supabase-WhatsApp-Proxy/1.2',
-      'Origin': dynamicOrigin,
+      'Origin': GATEWAY_ORIGIN_DEFAULT, // Use fixed origin, not dynamic '*'
     }
 
     if (GATEWAY_TOKEN) {
@@ -893,15 +893,46 @@ serve(async (req) => {
       try {
         const bodyText = await req.text();
         requestBody = bodyText ? JSON.parse(bodyText) : {};
+        console.log('📝 Parsed request body:', JSON.stringify(requestBody));
+        console.log('📝 Body keys:', Object.keys(requestBody));
       } catch (error) {
         console.error('❌ Error parsing request body:', error);
       }
 
+      // Validate required fields
+      const { name, tenant_id } = requestBody;
+      if (!name || !tenant_id) {
+        console.error('❌ Missing required fields:', { name, tenant_id });
+        const dynamicOrigin = getDynamicOrigin(req.headers.get('origin'));
+        return new Response(
+          JSON.stringify({ 
+            error: 'Missing required fields: name and tenant_id are required',
+            received: { name, tenant_id }
+          }),
+          {
+            status: 400,
+            headers: {
+              ...corsHeaders,
+              'Access-Control-Allow-Origin': dynamicOrigin,
+              'Content-Type': 'application/json',
+            }
+          }
+        );
+      }
+
       try {
         // First, try creating connection via gateway
+        const postHeaders = {
+          ...gatewayHeaders,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        };
+        
+        console.log('📤 Sending to gateway:', { url: targetUrl, headers: postHeaders, body: requestBody });
+        
         const gatewayResponse = await fetch(targetUrl, {
           method: req.method,
-          headers: gatewayHeaders,
+          headers: postHeaders,
           body: JSON.stringify(requestBody),
         });
 
@@ -922,10 +953,12 @@ serve(async (req) => {
             }
           });
         } else {
-          // Gateway failed, try Supabase fallback
+          // Gateway failed, try Supabase fallback only if body has required fields
           console.log('🔄 Gateway failed, attempting Supabase fallback...');
+          const gatewayErrorText = await gatewayResponse.text();
+          console.log('❌ Gateway error response:', gatewayErrorText);
           
-          if (clientToken && clientApiKey) {
+          if (clientToken && clientApiKey && name && tenant_id) {
             const fallbackConnection = await createConnectionFallback(clientToken, clientApiKey, requestBody);
             const dynamicOrigin = getDynamicOrigin(req.headers.get('origin'));
             
@@ -938,7 +971,7 @@ serve(async (req) => {
               }
             });
           } else {
-            throw new Error('Both gateway and fallback failed - no client authentication');
+            throw new Error(`Gateway failed and fallback not possible - Missing: ${!clientToken ? 'clientToken ' : ''}${!clientApiKey ? 'clientApiKey ' : ''}${!name ? 'name ' : ''}${!tenant_id ? 'tenant_id' : ''}`);
           }
         }
 
