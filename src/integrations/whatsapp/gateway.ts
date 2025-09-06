@@ -138,21 +138,70 @@ export const whatsappGateway = {
     
     try {
       const tenantId = await getTenantId();
-      const url = new URL(`${baseUrl}/connections`);
-      url.searchParams.append('tenant_id', tenantId);
       
-      const res = await fetch(url.toString(), {
-        method: 'GET',
-        headers: getHeaders(),
-      });
+      // First, get connections from Supabase (these are authoritative, especially for deletions)
+      console.log('[whatsappGateway] 📋 Fetching connections from Supabase...');
+      const { data: supabaseConnections, error: supabaseError } = await supabase
+        .from('whatsapp_connections')
+        .select('*')
+        .eq('tenant_id', tenantId);
       
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Falha ao listar conexões: ${res.status} ${text.substring(0, 200)}`);
+      if (supabaseError) {
+        console.warn('[whatsappGateway] ⚠️ Failed to fetch from Supabase:', supabaseError);
       }
       
-      const data = await res.json();
-      return Array.isArray(data) ? data : (data?.connections ?? []);
+      // Then, try to get connections from gateway
+      let gatewayConnections: any[] = [];
+      try {
+        const url = new URL(`${baseUrl}/connections`);
+        url.searchParams.append('tenant_id', tenantId);
+        
+        const res = await fetch(url.toString(), {
+          method: 'GET',
+          headers: getHeaders(),
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          gatewayConnections = Array.isArray(data) ? data : (data?.connections ?? []);
+          console.log('[whatsappGateway] 📋 Fetched connections from gateway:', gatewayConnections.length);
+        } else {
+          console.warn('[whatsappGateway] ⚠️ Gateway fetch failed:', res.status);
+        }
+      } catch (gatewayError) {
+        console.warn('[whatsappGateway] ⚠️ Gateway not available:', gatewayError);
+      }
+      
+      // Combine connections: prioritize Supabase data, supplement with gateway data
+      const supabaseMap = new Map();
+      const supabaseFormatted: GatewayConnection[] = (supabaseConnections || []).map(conn => {
+        const formatted = {
+          id: conn.id,
+          name: conn.name,
+          status: conn.status,
+          phone_number: conn.phone_number,
+          last_connected_at: conn.last_connected_at
+        };
+        supabaseMap.set(conn.id, formatted);
+        return formatted;
+      });
+      
+      // Add gateway connections that are not in Supabase (but only if they exist in Supabase didn't fail)
+      const result = [...supabaseFormatted];
+      if (!supabaseError) {
+        for (const gatewayConn of gatewayConnections) {
+          if (!supabaseMap.has(gatewayConn.id)) {
+            result.push(gatewayConn);
+          }
+        }
+      } else {
+        // If Supabase failed, fallback to gateway only
+        result.push(...gatewayConnections);
+      }
+      
+      console.log('[whatsappGateway] 📋 Final connections list:', result.length, 'connections');
+      return result;
+      
     } catch (error) {
       if (error instanceof TypeError && error.message.includes('fetch')) {
         throw new Error('Erro de conexão: Verifique se o gateway está ativo e configurado corretamente');
