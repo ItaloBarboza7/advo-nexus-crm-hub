@@ -47,7 +47,6 @@ function getDynamicOrigin(requestOrigin: string | null): string {
   console.log(`⚠️ Origin not in allowlist, allowing all: ${requestOrigin} -> *`);
   return '*';
 }
-}
 
 // Supabase configuration
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
