@@ -56,19 +56,37 @@ export function AgendaContent() {
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
 
-  // Create array of all days in the current month only
+  // Create proper calendar grid with correct week alignment
   const monthDays: Date[] = [];
+  const daysOfWeek = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  
+  // Start from the first day of the current month
   let day = monthStart;
+  
+  // Get the day of the week (0 = Sunday, 6 = Saturday)
+  const startDayOfWeek = day.getDay();
+  
+  // Add padding days from previous month if needed (to align with Sunday start)
+  for (let i = 0; i < startDayOfWeek; i++) {
+    const prevDay = addDays(monthStart, -(startDayOfWeek - i));
+    monthDays.push(prevDay);
+  }
+  
+  // Add all days of the current month
+  day = monthStart;
   while (day <= monthEnd) {
     monthDays.push(day);
     day = addDays(day, 1);
   }
+  
+  // Add padding days from next month if needed (to complete the last week)
+  const totalCells = Math.ceil(monthDays.length / 7) * 7;
+  while (monthDays.length < totalCells) {
+    monthDays.push(addDays(monthEnd, monthDays.length - (startDayOfWeek + monthEnd.getDate())));
+  }
 
   // Group days into weeks for grid display
   const weeks: Date[][] = [];
-  const daysOfWeek = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-  
-  // Create weeks from month days
   for (let i = 0; i < monthDays.length; i += 7) {
     weeks.push(monthDays.slice(i, i + 7));
   }
@@ -152,12 +170,17 @@ export function AgendaContent() {
               const key = dateKey(d);
               const dayTasks = tasksByDay[key] || [];
               const today = isToday(d);
+              const isCurrentMonth = d.getMonth() === currentMonth.getMonth() && d.getFullYear() === currentMonth.getFullYear();
 
               return (
                 <div key={d.toISOString()} className="space-y-1">
                   <div className="flex items-baseline justify-between pl-0.5">
                     <button
-                      className="text-lg md:text-xl font-bold leading-none text-foreground hover:text-[hsl(var(--brand-1))] transition-colors"
+                      className={`text-lg md:text-xl font-bold leading-none transition-colors ${
+                        isCurrentMonth 
+                          ? "text-foreground hover:text-[hsl(var(--brand-1))]" 
+                          : "text-muted-foreground/50 hover:text-muted-foreground"
+                      }`}
                       onClick={() => onAddTask(d)}
                       aria-label="Adicionar tarefa"
                     >
@@ -168,9 +191,11 @@ export function AgendaContent() {
                     )}
                   </div>
                   <Card
-                    className={
-                      "group relative min-h-[180px] p-3 border border-[hsl(var(--brand-1))]/10 hover:ring-1 hover:ring-[hsl(var(--brand-1))]/15 transition-all duration-300 rounded-lg elevation-soft hover:elevation-float bg-background"
-                    }
+                    className={`group relative min-h-[180px] p-3 border transition-all duration-300 rounded-lg elevation-soft hover:elevation-float ${
+                      isCurrentMonth 
+                        ? "border-[hsl(var(--brand-1))]/10 hover:ring-1 hover:ring-[hsl(var(--brand-1))]/15 bg-background" 
+                        : "border-muted/30 bg-muted/5 opacity-60"
+                    }`}
                     onDoubleClick={() => onAddTask(d)}
                   >
                     <div className="space-y-2">
