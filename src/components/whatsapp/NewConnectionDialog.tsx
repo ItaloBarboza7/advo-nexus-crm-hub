@@ -114,11 +114,11 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
     const connectionId = connection?.id || initialConnectionId;
     if (!connectionId) return;
 
-    // Set 12 second timeout for restart attempt
+    // Set 30 second timeout for restart attempt
     const restartTimeout = setTimeout(async () => {
       if (!qrData && !streamError && !connected) {
-        console.log('[NewConnectionDialog] 🔄 No QR after 12s, attempting restart...');
-        setStatus('Sem QR após 12s, tentando reiniciar...');
+        console.log('[NewConnectionDialog] 🔄 No QR after 30s, attempting restart...');
+        setStatus('Sem QR após 30s, tentando reiniciar...');
         try {
           await whatsappGateway.restartConnection(connectionId);
           setStatus('Reiniciado, aguardando novo QR...');
@@ -128,13 +128,13 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
           console.warn('[NewConnectionDialog] ⚠️ Restart failed:', error);
         }
       }
-    }, 12000);
+    }, 30000);
 
-    // Set 24 second timeout for force reset
+    // Set 60 second timeout for force reset
     const forceResetTimeout = setTimeout(async () => {
       if (!qrData && !streamError && !connected) {
-        console.log('[NewConnectionDialog] 💥 No QR after 24s, attempting force reset...');
-        setStatus('Sem QR após 24s, forçando reset da sessão...');
+        console.log('[NewConnectionDialog] 💥 No QR after 60s, attempting force reset...');
+        setStatus('Sem QR após 60s, forçando reset da sessão...');
         try {
           const result = await whatsappGateway.forceResetConnection(connectionId);
           if (result.success) {
@@ -149,7 +149,7 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
           setStatus('Force reset falhou, tente manualmente');
         }
       }
-    }, 24000);
+    }, 60000);
 
     // Cleanup timeouts if component unmounts or conditions change
     return () => {
