@@ -24,31 +24,29 @@ export type GatewayHealthStatus = {
   proxyUsed: boolean;
 };
 
-// Forçar base do proxy do Supabase (sem depender de VITE_*)
-// Project ref: xltugnmjbcowsuwzkkni
-const SUPABASE_EDGE_PROXY_BASE =
-  "https://xltugnmjbcowsuwzkkni.supabase.co/functions/v1/whatsapp-proxy";
-
-// Base direta do Render (mantida apenas como referência)
+// Conexão direta com o servidor Render (sem proxy do Supabase)
 const DIRECT_GATEWAY_BASE = "https://evojuris-whatsapp.onrender.com";
+const GATEWAY_AUTH_TOKEN = "h7ViAWZDn4ZMRcy4x0zUCyYEQ11H8a6F";
 
-// Sempre usar o proxy (inclusive para health/list/create) para evitar CORS
+// Usar conexão direta para evitar problemas com o proxy
 const getBaseUrl = () => {
-  return SUPABASE_EDGE_PROXY_BASE;
+  return DIRECT_GATEWAY_BASE;
 };
 
-// QR stream também sempre via proxy
+// QR stream também direto
 const getQrStreamBaseUrl = () => {
-  return SUPABASE_EDGE_PROXY_BASE;
+  return DIRECT_GATEWAY_BASE;
 };
 
 const isUsingProxy = () => {
-  return true;
+  return false;
 };
 
-// Remover Authorization header - o proxy já injeta o token via secret
+// Incluir Authorization header para conexão direta
 const getHeaders = () => {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = {
+    'Authorization': `Bearer ${GATEWAY_AUTH_TOKEN}`
+  };
   return headers;
 };
 
@@ -120,7 +118,7 @@ export const whatsappGateway = {
       
       return {
         status: 'ok',
-        message: 'Gateway is healthy (via Supabase proxy)',
+        message: 'Gateway is healthy (direct connection)',
         corsHeaders,
         proxyUsed,
         timestamp: new Date().toISOString()
@@ -219,30 +217,14 @@ export const whatsappGateway = {
       
       console.log('[whatsappGateway] Attempting to create connection via gateway...');
       
-      // Primeiro, tentar criar via POST no gateway (sem enviar phone_number)
+      // Primeiro, tentar criar via POST no gateway
       try {
-        // Obter autenticação do usuário para passar ao proxy
-        const { data: { session } } = await supabase.auth.getSession();
-        const clientToken = session?.access_token;
-        const clientApiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsdHVnbm1qYmNvd3N1d3pra25pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4MDkyNjAsImV4cCI6MjA2NDM4NTI2MH0.g-dg8YF0mK0LkDBvTzUlW8po9tT0VC-s47PFbDScmN8';
-        
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
           ...getHeaders(),
         };
         
-        // Adicionar autenticação para que o proxy possa usar no fallback
-        if (clientToken) {
-          headers['Authorization'] = `Bearer ${clientToken}`;
-        }
-        if (clientApiKey) {
-          headers['apikey'] = clientApiKey;
-        }
-        
-        console.log('[whatsappGateway] Creating connection with auth headers:', {
-          hasToken: !!clientToken,
-          hasApiKey: !!clientApiKey
-        });
+        console.log('[whatsappGateway] Creating connection with gateway auth');
         
         const res = await fetch(`${baseUrl}/connections`, {
           method: 'POST',
@@ -338,28 +320,15 @@ export const whatsappGateway = {
     try {
       const tenantId = await getTenantId();
       
-      // Obter autenticação do usuário
-      const { data: { session } } = await supabase.auth.getSession();
-      const clientToken = session?.access_token;
-      const clientApiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsdHVnbm1qYmNvd3N1d3pra25pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4MDkyNjAsImV4cCI6MjA2NDM4NTI2MH0.g-dg8YF0mK0LkDBvTzUlW8po9tT0VC-s47PFbDScmN8';
-      
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
+        ...getHeaders(),
       };
-      
-      // Adicionar autenticação nos headers
-      if (clientToken) {
-        headers['Authorization'] = `Bearer ${clientToken}`;
-      }
-      if (clientApiKey) {
-        headers['apikey'] = clientApiKey;
-      }
       
       console.log('[whatsappGateway] 🔗 Trying to connect existing connection:', {
         connectionId,
         tenantId,
-        hasToken: !!clientToken,
-        hasApiKey: !!clientApiKey
+        hasGatewayAuth: !!GATEWAY_AUTH_TOKEN
       });
       
       // Try multiple connect endpoints in order of preference
@@ -428,16 +397,11 @@ export const whatsappGateway = {
     
     const startStream = async () => {
       try {
+        // Obter tenant_id para autenticação
         const tenantId = await getTenantId();
         
-        // Obter autenticação do usuário
-        const { data: { session } } = await supabase.auth.getSession();
-        const clientToken = session?.access_token;
-        const clientApiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsdHVnbm1qYmNvd3N1d3pra25pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4MDkyNjAsImV4cCI6MjA2NDM4NTI2MH0.g-dg8YF0mK0LkDBvTzUlW8po9tT0VC-s47PFbDScmN8'; // Supabase anon key
-        
         console.log('[whatsappGateway] 🔐 Auth info for QR stream:', {
-          hasToken: !!clientToken,
-          hasApiKey: !!clientApiKey,
+          hasGatewayToken: !!GATEWAY_AUTH_TOKEN,
           tenantId,
           connectionId
         });
@@ -465,14 +429,10 @@ export const whatsappGateway = {
             });
             
             // Passar autenticação via query params (EventSource não suporta headers customizados)
-            if (clientToken) {
-              url.searchParams.append('client_token', clientToken);
-            }
-            if (clientApiKey) {
-              url.searchParams.append('client_apikey', clientApiKey);
-            }
+            // Para conexão direta, usar o token do gateway
+            url.searchParams.append('token', GATEWAY_AUTH_TOKEN);
             
-            const urlString = url.toString().replace(clientToken || '', '[REDACTED]');
+            const urlString = url.toString().replace(GATEWAY_AUTH_TOKEN, '[REDACTED]');
             console.log('[whatsappGateway] 🎯 Trying QR stream:', path, params, urlString.substring(0, 100) + '...');
 
             // Test if endpoint exists first
