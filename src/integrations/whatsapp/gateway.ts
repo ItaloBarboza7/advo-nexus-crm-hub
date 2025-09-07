@@ -678,25 +678,20 @@ export const whatsappGateway = {
     try {
       const tenantId = await getTenantId();
       
-      // Try deleting via gateway first
+      console.log('[whatsappGateway] 🗑️ Starting robust connection deletion:', {
+        connectionId,
+        tenantId
+      });
+      
+      // Try deleting via gateway first - this should handle most cleanup
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const clientToken = session?.access_token;
-        const clientApiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsdHVnbm1qYmNvd3N1d3pra25pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4MDkyNjAsImV4cCI6MjA2NDM4NTI2MH0.g-dg8YF0mK0LkDBvTzUlW8po9tT0VC-s47PFbDScmN8';
-        
         const headers: Record<string, string> = {
           ...getHeaders(),
         };
         
-        if (clientToken) {
-          headers['Authorization'] = `Bearer ${clientToken}`;
-        }
-        if (clientApiKey) {
-          headers['apikey'] = clientApiKey;
-        }
-        
         const url = new URL(`${baseUrl}/connections/${connectionId}`);
         url.searchParams.append('tenant_id', tenantId);
+        url.searchParams.append('force', 'true'); // Force deletion
         
         const res = await fetch(url.toString(), {
           method: 'DELETE',
@@ -704,28 +699,99 @@ export const whatsappGateway = {
         });
         
         if (res.ok) {
-          console.log('[whatsappGateway] ✅ Connection deleted via gateway');
-          return;
+          console.log('[whatsappGateway] ✅ Connection deleted via gateway (robust cleanup)');
         } else {
-          console.warn('[whatsappGateway] ⚠️ Gateway delete failed, falling back to Supabase');
+          console.warn('[whatsappGateway] ⚠️ Gateway delete failed, continuing with Supabase cleanup');
           throw new Error(`Gateway failed: ${res.status}`);
         }
       } catch (gatewayError) {
-        console.warn('[whatsappGateway] ⚠️ Gateway delete failed, falling back to Supabase:', gatewayError);
-        
-        // Fallback: delete directly from Supabase
-        const { error: supabaseError } = await supabase
-          .from('whatsapp_connections')
+        console.warn('[whatsappGateway] ⚠️ Gateway delete failed, performing manual cleanup:', gatewayError);
+      }
+      
+      // Always perform Supabase cleanup to ensure everything is removed
+      console.log('[whatsappGateway] 🧹 Performing comprehensive Supabase cleanup...');
+      
+      // Delete all related data in proper order (children first, then parent)
+      
+      // 1. Delete messages first
+      try {
+        const { error: messagesError } = await supabase
+          .from('whatsapp_messages')
           .delete()
-          .eq('id', connectionId)
+          .eq('connection_id', connectionId)
           .eq('tenant_id', tenantId);
         
-        if (supabaseError) {
-          throw new Error(`Falha ao excluir conexão: ${supabaseError.message}`);
+        if (messagesError) {
+          console.warn('[whatsappGateway] ⚠️ Error deleting messages:', messagesError);
+        } else {
+          console.log('[whatsappGateway] ✅ WhatsApp messages deleted');
         }
-        
-        console.log('[whatsappGateway] ✅ Connection deleted from Supabase (fallback)');
+      } catch (e) {
+        console.warn('[whatsappGateway] ⚠️ Messages deletion failed:', e);
       }
+      
+      // 2. Delete chats
+      try {
+        const { error: chatsError } = await supabase
+          .from('whatsapp_chats')
+          .delete()
+          .eq('connection_id', connectionId)
+          .eq('tenant_id', tenantId);
+        
+        if (chatsError) {
+          console.warn('[whatsappGateway] ⚠️ Error deleting chats:', chatsError);
+        } else {
+          console.log('[whatsappGateway] ✅ WhatsApp chats deleted');
+        }
+      } catch (e) {
+        console.warn('[whatsappGateway] ⚠️ Chats deletion failed:', e);
+      }
+      
+      // 3. Delete contacts
+      try {
+        const { error: contactsError } = await supabase
+          .from('whatsapp_contacts')
+          .delete()
+          .eq('connection_id', connectionId)
+          .eq('tenant_id', tenantId);
+        
+        if (contactsError) {
+          console.warn('[whatsappGateway] ⚠️ Error deleting contacts:', contactsError);
+        } else {
+          console.log('[whatsappGateway] ✅ WhatsApp contacts deleted');
+        }
+      } catch (e) {
+        console.warn('[whatsappGateway] ⚠️ Contacts deletion failed:', e);
+      }
+      
+      // 4. Delete sessions
+      try {
+        const { error: sessionsError } = await supabase
+          .from('whatsapp_sessions')
+          .delete()
+          .eq('connection_id', connectionId);
+        
+        if (sessionsError) {
+          console.warn('[whatsappGateway] ⚠️ Error deleting sessions:', sessionsError);
+        } else {
+          console.log('[whatsappGateway] ✅ WhatsApp sessions deleted');
+        }
+      } catch (e) {
+        console.warn('[whatsappGateway] ⚠️ Sessions deletion failed:', e);
+      }
+      
+      // 5. Finally delete the connection itself
+      const { error: connectionError } = await supabase
+        .from('whatsapp_connections')
+        .delete()
+        .eq('id', connectionId)
+        .eq('tenant_id', tenantId);
+      
+      if (connectionError) {
+        throw new Error(`Falha ao excluir conexão: ${connectionError.message}`);
+      }
+      
+      console.log('[whatsappGateway] ✅ Connection and all related data deleted successfully');
       
     } catch (error) {
       console.error('[whatsappGateway] ❌ deleteConnection error:', error);

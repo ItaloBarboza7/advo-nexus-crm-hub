@@ -215,7 +215,14 @@ export const ConnectionSettingsDialog: React.FC<ConnectionSettingsDialogProps> =
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex justify-between">
+          <DeleteButton
+            onDelete={handleDelete}
+            itemName={connection.name}
+            itemType="conexão"
+            variant="destructive"
+            size="sm"
+          />
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
