@@ -38,6 +38,11 @@ const getQrStreamBaseUrl = () => {
   return DIRECT_GATEWAY_BASE;
 };
 
+// WebSocket base URL for real-time communication
+const getWsBaseUrl = () => {
+  return "wss://evojuris-whatsapp.onrender.com";
+};
+
 const isUsingProxy = () => {
   return false;
 };
@@ -115,6 +120,90 @@ const getTenantId = async (): Promise<string> => {
 
 // Export getTenantId function for external use
 export { getTenantId };
+
+// WebSocket helper for handling JSON-based WebSocket connections
+const openJsonWebSocket = (url: string, onEvent: (evt: GatewayEvent) => void) => {
+  console.log('[whatsappGateway] 🔌 Opening WebSocket connection:', url);
+  
+  const ws = new WebSocket(url);
+  let isClosing = false;
+  let pingInterval: NodeJS.Timeout | null = null;
+  
+  ws.onopen = () => {
+    console.log('[whatsappGateway] ✅ WebSocket connected successfully');
+    
+    // Send ping every 25 seconds to keep connection alive
+    pingInterval = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'ping' }));
+        console.log('[whatsappGateway] 🏓 Ping sent to keep WebSocket alive');
+      }
+    }, 25000);
+  };
+  
+  ws.onmessage = (event) => {
+    try {
+      const message = JSON.parse(event.data);
+      console.log('[whatsappGateway] 📨 WebSocket message received:', message);
+      
+      // Handle different message formats
+      if (message.event && message.data !== undefined) {
+        // Format: {"event": "qr", "data": {"qr": "..."}}
+        const eventType = message.event;
+        const eventData = message.data;
+        
+        if (eventType === 'qr') {
+          const qrData = eventData.qr || eventData.qr_code || eventData.qrcode || eventData;
+          onEvent({ type: 'qr', data: qrData });
+        } else if (eventType === 'status') {
+          onEvent({ type: 'status', data: eventData.message || eventData });
+        } else if (eventType === 'connected') {
+          onEvent({ type: 'connected', data: eventData });
+        } else if (eventType === 'disconnected') {
+          onEvent({ type: 'disconnected', data: eventData });
+        } else {
+          onEvent({ type: eventType, data: eventData });
+        }
+      } else if (message.type) {
+        // Direct format: {"type": "qr", "data": "..."}
+        onEvent(message);
+      }
+    } catch (error) {
+      console.error('[whatsappGateway] ❌ Error parsing WebSocket message:', error, event.data);
+    }
+  };
+  
+  ws.onerror = (error) => {
+    console.error('[whatsappGateway] ❌ WebSocket error:', error);
+    onEvent({ type: 'error', data: 'WebSocket connection error' });
+  };
+  
+  ws.onclose = (event) => {
+    console.log('[whatsappGateway] 🔌 WebSocket closed:', event.code, event.reason);
+    if (pingInterval) {
+      clearInterval(pingInterval);
+      pingInterval = null;
+    }
+    
+    if (!isClosing) {
+      onEvent({ type: 'disconnected', data: 'WebSocket connection closed' });
+    }
+  };
+  
+  return {
+    close: () => {
+      console.log('[whatsappGateway] 🔌 Closing WebSocket connection');
+      isClosing = true;
+      if (pingInterval) {
+        clearInterval(pingInterval);
+        pingInterval = null;
+      }
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+        ws.close();
+      }
+    }
+  };
+};
 
 export const whatsappGateway = {
   async testHealth(): Promise<GatewayHealthStatus> {
@@ -416,263 +505,47 @@ export const whatsappGateway = {
   },
 
   openQrStream(connectionId: string, onEvent: (evt: GatewayEvent) => void) {
-    const baseUrl = getQrStreamBaseUrl();
-    let eventSource: EventSource | null = null;
-    let abortController: AbortController | null = null;
+    console.log('[whatsappGateway] 🔌 Opening QR WebSocket stream for connection:', connectionId);
+    
+    let wsConnection: { close: () => void } | null = null;
     
     const startStream = async () => {
       try {
         const tenantId = await getTenantId();
+        const wsBaseUrl = getWsBaseUrl();
         
-        console.log('[whatsappGateway] 🔐 Auth info for QR stream:', {
+        console.log('[whatsappGateway] 🔐 WebSocket auth info for QR stream:', {
           hasGatewayToken: !!GATEWAY_AUTH_TOKEN,
           tenantId,
-          connectionId
+          connectionId,
+          wsBaseUrl
         });
         
-        // Try multiple QR endpoints with different parameters
-        const qrEndpoints = [
-          { path: `/connections/${connectionId}/qr`, params: { start: '1' } },
-          { path: `/connections/${connectionId}/qr`, params: {} },
-          { path: `/connection/${connectionId}/qr`, params: { start: '1' } },
-          { path: `/connection/${connectionId}/qr`, params: {} },
-        ];
+        // Create WebSocket URL with required parameters
+        const wsUrl = new URL(wsBaseUrl);
+        wsUrl.searchParams.append('connectionId', connectionId);
+        wsUrl.searchParams.append('token', GATEWAY_AUTH_TOKEN);
+        wsUrl.searchParams.append('tenant_id', tenantId);
         
-        let streamStarted = false;
+        console.log('[whatsappGateway] 🚀 Connecting to QR WebSocket:', wsUrl.toString());
         
-        for (const { path, params } of qrEndpoints) {
-          if (streamStarted) break;
-          
-          // Try EventSource first (native SSE support)
-          try {
-            console.log('[whatsappGateway] 🎯 Trying EventSource for QR stream:', path, params);
-            
-            const url = new URL(`${baseUrl}${path}`);
-            url.searchParams.append('tenant_id', tenantId);
-            url.searchParams.append('token', GATEWAY_AUTH_TOKEN);
-            url.searchParams.append('auth', GATEWAY_AUTH_TOKEN);
-            url.searchParams.append('access_token', GATEWAY_AUTH_TOKEN);
-            
-            // Add additional parameters
-            Object.entries(params).forEach(([key, value]) => {
-              url.searchParams.append(key, value);
-            });
-            
-            eventSource = new EventSource(url.toString());
-            
-            let eventSourceTimeout: NodeJS.Timeout | null = setTimeout(() => {
-              console.warn('[whatsappGateway] ⏰ EventSource timeout, falling back to fetch');
-              if (eventSource) {
-                eventSource.close();
-                eventSource = null;
-              }
-            }, 3000);
-            
-            eventSource.onopen = () => {
-              console.log('[whatsappGateway] ✅ QR EventSource connected:', path);
-              streamStarted = true;
-              if (eventSourceTimeout) {
-                clearTimeout(eventSourceTimeout);
-                eventSourceTimeout = null;
-              }
-            };
-            
-            eventSource.onmessage = (event) => {
-              try {
-                const parsedData = JSON.parse(event.data);
-                
-                // Check for QR code in different formats
-                const qrData = parsedData.qr || parsedData.qr_code || parsedData.qrcode || parsedData.qrCode;
-                
-                if (qrData) {
-                  console.log('[whatsappGateway] 📱 QR code received via EventSource');
-                  onEvent({ type: 'qr', data: qrData });
-                } else if (parsedData.type) {
-                  console.log('[whatsappGateway] 📨 QR EventSource event:', parsedData.type);
-                  onEvent(parsedData as GatewayEvent);
-                } else {
-                  console.log('[whatsappGateway] 📨 QR EventSource message');
-                  onEvent({ type: 'message', data: parsedData });
-                }
-              } catch (parseError) {
-                console.log('[whatsappGateway] 📨 QR EventSource raw message:', event.data.substring(0, 100));
-                onEvent({ type: 'message', data: event.data });
-              }
-            };
-            
-            eventSource.onerror = (error) => {
-              console.warn('[whatsappGateway] ⚠️ EventSource error, trying fetch fallback:', error);
-              if (eventSourceTimeout) {
-                clearTimeout(eventSourceTimeout);
-                eventSourceTimeout = null;
-              }
-              if (eventSource) {
-                eventSource.close();
-                eventSource = null;
-              }
-            };
-            
-            // Wait a bit to see if EventSource works
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            if (streamStarted && eventSource && eventSource.readyState === EventSource.OPEN) {
-              console.log('[whatsappGateway] ✅ QR EventSource working, keeping connection');
-              return;
-            }
-            
-          } catch (eventSourceError) {
-            console.warn('[whatsappGateway] ⚠️ EventSource failed, trying fetch fallback:', eventSourceError);
-            if (eventSource) {
-              eventSource.close();
-              eventSource = null;
-            }
-          }
-          
-          // Fetch fallback with Authorization header
-          try {
-            console.log('[whatsappGateway] 🔄 Trying fetch fallback for QR stream:', path, params);
-            
-            abortController = new AbortController();
-            
-            const url = new URL(`${baseUrl}${path}`);
-            url.searchParams.append('tenant_id', tenantId);
-            
-            // Add additional parameters
-            Object.entries(params).forEach(([key, value]) => {
-              url.searchParams.append(key, value);
-            });
-            
-            const headers = {
-              'Accept': 'text/event-stream',
-              'Cache-Control': 'no-cache',
-              'Authorization': `Bearer ${GATEWAY_AUTH_TOKEN}`,
-            };
-            
-            const response = await fetch(url.toString(), {
-              method: 'GET',
-              headers,
-              signal: abortController.signal,
-            });
-            
-            if (response.status === 401 || response.status === 403) {
-              console.error('[whatsappGateway] ❌ Authentication failed for QR stream');
-              onEvent({ type: 'error', data: 'Falha de autenticação no stream - verifique o token' });
-              return;
-            }
-            
-            if (!response.ok) {
-              if (response.status === 404) {
-                console.log('[whatsappGateway] 🔄 QR endpoint not found:', path, 'trying next...');
-                continue;
-              }
-              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            
-            if (!response.body) {
-              throw new Error('No response body for SSE stream');
-            }
-            
-            streamStarted = true;
-            console.log('[whatsappGateway] ✅ QR fetch stream started with:', path);
-            
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let buffer = '';
-            
-            const processSSEData = (chunk: string) => {
-              const lines = chunk.split('\n');
-              
-              for (const line of lines) {
-                const trimmed = line.trim();
-                if (!trimmed) continue;
-                
-                if (trimmed.startsWith('event:')) {
-                  continue;
-                }
-                
-                if (trimmed.startsWith('data:')) {
-                  const data = trimmed.substring(5).trim();
-                  
-                  try {
-                    const parsedData = JSON.parse(data);
-                    
-                    const qrData = parsedData.qr || parsedData.qr_code || parsedData.qrcode || parsedData.qrCode;
-                    
-                    if (qrData) {
-                      console.log('[whatsappGateway] 📱 QR code received via fetch stream');
-                      onEvent({ type: 'qr', data: qrData });
-                    } else if (parsedData.type) {
-                      console.log('[whatsappGateway] 📨 QR fetch stream event:', parsedData.type);
-                      onEvent(parsedData as GatewayEvent);
-                    } else {
-                      console.log('[whatsappGateway] 📨 QR fetch stream message');
-                      onEvent({ type: 'message', data: parsedData });
-                    }
-                  } catch (parseError) {
-                    console.log('[whatsappGateway] 📨 QR fetch stream raw message:', data.substring(0, 100));
-                    onEvent({ type: 'message', data });
-                  }
-                }
-              }
-            };
-            
-            // Process stream
-            while (true) {
-              const { done, value } = await reader.read();
-              
-              if (done) {
-                console.log('[whatsappGateway] ✅ QR fetch stream completed');
-                break;
-              }
-              
-              buffer += decoder.decode(value, { stream: true });
-              
-              const messageEnd = buffer.indexOf('\n\n');
-              if (messageEnd !== -1) {
-                const message = buffer.substring(0, messageEnd);
-                buffer = buffer.substring(messageEnd + 2);
-                
-                processSSEData(message);
-              }
-            }
-            
-          } catch (fetchError) {
-            console.warn('[whatsappGateway] ⚠️ Fetch fallback error for endpoint:', path, fetchError);
-            if (fetchError instanceof Error && fetchError.name === 'AbortError') {
-              return;
-            }
-          }
-        }
-        
-        if (!streamStarted) {
-          console.error('[whatsappGateway] ❌ All QR stream methods failed');
-          onEvent({ type: 'error', data: 'Não foi possível conectar ao stream de QR' });
-        }
+        wsConnection = openJsonWebSocket(wsUrl.toString(), onEvent);
         
       } catch (error) {
-        console.error('[whatsappGateway] ❌ QR stream error:', error);
-        if (error instanceof Error && error.name === 'AbortError') {
-          return;
-        }
+        console.error('[whatsappGateway] ❌ QR WebSocket stream error:', error);
         onEvent({ type: 'error', data: error instanceof Error ? error.message : 'Erro inesperado no stream QR' });
       }
     };
     
-    // Start the stream
+    // Start the stream asynchronously
     startStream();
     
-    // Return close function
     return {
       close: () => {
-        if (eventSource) {
-          console.log('[whatsappGateway] 🔐 Closing QR EventSource');
-          eventSource.close();
-          eventSource = null;
-        }
-        if (abortController) {
-          console.log('[whatsappGateway] 🔐 Closing QR fetch stream');
-          abortController.abort();
-          abortController = null;
+        console.log('[whatsappGateway] 🔐 Closing QR WebSocket');
+        if (wsConnection) {
+          wsConnection.close();
+          wsConnection = null;
         }
       }
     };
@@ -887,226 +760,48 @@ export const whatsappGateway = {
 
   // Open events stream for real-time WhatsApp data (chats, messages, contacts)
   openEventsStream(connectionId: string, onEvent: (evt: GatewayEvent) => void): { close: () => void } {
-    console.log('[whatsappGateway] 🔄 Opening events stream for connection:', connectionId);
+    console.log('[whatsappGateway] 🔌 Opening events WebSocket stream for connection:', connectionId);
     
-    let eventSource: EventSource | null = null;
-    let abortController: AbortController | null = null;
+    let wsConnection: { close: () => void } | null = null;
     
     const startStream = async () => {
       try {
-        const baseUrl = getQrStreamBaseUrl();
         const tenantId = await getTenantId();
+        const wsBaseUrl = getWsBaseUrl();
         
-        console.log('[whatsappGateway] 🔐 Events auth info:', {
+        console.log('[whatsappGateway] 🔐 WebSocket auth info for events stream:', {
           hasGatewayToken: !!GATEWAY_AUTH_TOKEN,
           tenantId,
-          connectionId
+          connectionId,
+          wsBaseUrl
         });
         
-        // Try EventSource first (native SSE support)
-        try {
-          console.log('[whatsappGateway] 🎯 Trying EventSource for events stream');
-          
-          const url = new URL(`${baseUrl}/connections/${connectionId}/events`);
-          url.searchParams.append('tenant_id', tenantId);
-          url.searchParams.append('token', GATEWAY_AUTH_TOKEN);
-          url.searchParams.append('auth', GATEWAY_AUTH_TOKEN);
-          url.searchParams.append('access_token', GATEWAY_AUTH_TOKEN);
-          
-          eventSource = new EventSource(url.toString());
-          
-          let eventSourceTimeout: NodeJS.Timeout | null = setTimeout(() => {
-            console.warn('[whatsappGateway] ⏰ Events EventSource timeout, falling back to fetch');
-            if (eventSource) {
-              eventSource.close();
-              eventSource = null;
-            }
-          }, 3000);
-          
-          let streamConnected = false;
-          
-          eventSource.onopen = () => {
-            console.log('[whatsappGateway] ✅ Events EventSource connected');
-            streamConnected = true;
-            onEvent({ type: 'status', data: 'Events stream connected via EventSource' });
-            if (eventSourceTimeout) {
-              clearTimeout(eventSourceTimeout);
-              eventSourceTimeout = null;
-            }
-          };
-          
-          eventSource.onmessage = (event) => {
-            try {
-              const parsedData = JSON.parse(event.data);
-              
-              if (parsedData.type) {
-                console.log('[whatsappGateway] 📨 Events EventSource event:', parsedData.type);
-                onEvent(parsedData as GatewayEvent);
-              } else {
-                onEvent({ type: 'message', data: parsedData });
-              }
-            } catch (parseError) {
-              console.log('[whatsappGateway] 📨 Events EventSource raw message:', event.data.substring(0, 100));
-              onEvent({ type: 'message', data: event.data });
-            }
-          };
-          
-          eventSource.onerror = (error) => {
-            console.warn('[whatsappGateway] ⚠️ Events EventSource error, trying fetch fallback:', error);
-            if (eventSourceTimeout) {
-              clearTimeout(eventSourceTimeout);
-              eventSourceTimeout = null;
-            }
-            if (eventSource) {
-              eventSource.close();
-              eventSource = null;
-            }
-          };
-          
-          // Wait to see if EventSource works
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          if (streamConnected && eventSource && eventSource.readyState === EventSource.OPEN) {
-            console.log('[whatsappGateway] ✅ Events EventSource working, keeping connection');
-            return;
-          }
-          
-        } catch (eventSourceError) {
-          console.warn('[whatsappGateway] ⚠️ Events EventSource failed, trying fetch fallback:', eventSourceError);
-          if (eventSource) {
-            eventSource.close();
-            eventSource = null;
-          }
-        }
+        // Create WebSocket URL with required parameters
+        const wsUrl = new URL(wsBaseUrl);
+        wsUrl.searchParams.append('connectionId', connectionId);
+        wsUrl.searchParams.append('token', GATEWAY_AUTH_TOKEN);
+        wsUrl.searchParams.append('tenant_id', tenantId);
+        wsUrl.searchParams.append('events', 'true'); // Indicate this is for events stream
         
-        // Fetch fallback
-        console.log('[whatsappGateway] 🔄 Trying fetch fallback for events stream');
+        console.log('[whatsappGateway] 🚀 Connecting to events WebSocket:', wsUrl.toString());
         
-        abortController = new AbortController();
-        
-        const url = new URL(`${baseUrl}/connections/${connectionId}/events`);
-        url.searchParams.append('tenant_id', tenantId);
-        
-        const headers = {
-          'Accept': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Authorization': `Bearer ${GATEWAY_AUTH_TOKEN}`,
-        };
-
-        const response = await fetch(url.toString(), {
-          method: 'GET',
-          headers,
-          signal: abortController.signal,
-        });
-        
-        if (response.status === 401 || response.status === 403) {
-          console.error('[whatsappGateway] ❌ Authentication failed for events stream');
-          onEvent({ type: 'error', data: 'Falha de autenticação no stream - verifique o token' });
-          return;
-        }
-        
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        if (!response.body) {
-          throw new Error('No response body for SSE stream');
-        }
-        
-        console.log('[whatsappGateway] ✅ Events fetch stream connected successfully');
-        onEvent({ type: 'status', data: 'Events stream connected via fetch' });
-        
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-        
-        const processSSEData = (chunk: string) => {
-          const lines = chunk.split('\n');
-          let eventType = '';
-          
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed) continue;
-            
-            if (trimmed.startsWith('event:')) {
-              eventType = trimmed.substring(6).trim();
-              continue;
-            }
-            
-            if (trimmed.startsWith('data:')) {
-              const data = trimmed.substring(5).trim();
-              
-              try {
-                const parsedData = JSON.parse(data);
-                
-                if (parsedData.type) {
-                  console.log('[whatsappGateway] 📨 Events fetch stream event:', parsedData.type);
-                  onEvent(parsedData as GatewayEvent);
-                } else if (eventType) {
-                  console.log('[whatsappGateway] 📨 Events fetch stream event:', eventType);
-                  onEvent({ type: eventType, data: parsedData });
-                } else {
-                  onEvent({ type: 'message', data: parsedData });
-                }
-              } catch (parseError) {
-                console.log('[whatsappGateway] 📨 Events fetch stream raw message:', data.substring(0, 100));
-                if (eventType) {
-                  onEvent({ type: eventType, data });
-                } else {
-                  onEvent({ type: 'message', data });
-                }
-              }
-              
-              eventType = '';
-            }
-          }
-        };
-        
-        // Process stream
-        while (true) {
-          const { done, value } = await reader.read();
-          
-          if (done) {
-            console.log('[whatsappGateway] ✅ Events fetch stream completed');
-            break;
-          }
-          
-          buffer += decoder.decode(value, { stream: true });
-          
-          const messageEnd = buffer.indexOf('\n\n');
-          if (messageEnd !== -1) {
-            const message = buffer.substring(0, messageEnd);
-            buffer = buffer.substring(messageEnd + 2);
-            
-            processSSEData(message);
-          }
-        }
+        wsConnection = openJsonWebSocket(wsUrl.toString(), onEvent);
         
       } catch (error) {
-        if (error instanceof Error && error.name === 'AbortError') {
-          console.log('[whatsappGateway] 🔐 Events stream aborted');
-          return;
-        }
-        console.error('[whatsappGateway] ❌ Events stream error:', error);
+        console.error('[whatsappGateway] ❌ Events WebSocket stream error:', error);
         onEvent({ type: 'error', data: error instanceof Error ? error.message : 'Erro inesperado no stream de eventos' });
       }
     };
     
-    // Start the stream
+    // Start the stream asynchronously
     startStream();
     
-    // Return close function
     return {
       close: () => {
-        if (eventSource) {
-          console.log('[whatsappGateway] 🔐 Closing events EventSource');
-          eventSource.close();
-          eventSource = null;
-        }
-        if (abortController) {
-          console.log('[whatsappGateway] 🔐 Closing events fetch stream');
-          abortController.abort();
-          abortController = null;
+        console.log('[whatsappGateway] 🔐 Closing events WebSocket');
+        if (wsConnection) {
+          wsConnection.close();
+          wsConnection = null;
         }
       }
     };
