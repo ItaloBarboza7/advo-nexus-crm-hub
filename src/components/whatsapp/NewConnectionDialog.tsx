@@ -32,6 +32,8 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
   const [reloading, setReloading] = useState(false);
   const streamRef = useRef<{ close: () => void } | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const restartTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const forceResetTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -51,6 +53,16 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
+      
+      // Clear auto-recovery timers
+      if (restartTimerRef.current) {
+        clearTimeout(restartTimerRef.current);
+        restartTimerRef.current = null;
+      }
+      if (forceResetTimerRef.current) {
+        clearTimeout(forceResetTimerRef.current);
+        forceResetTimerRef.current = null;
+      }
     } else {
       if (streamRef.current) {
         streamRef.current.close();
@@ -59,6 +71,16 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
+      }
+      
+      // Clear auto-recovery timers
+      if (restartTimerRef.current) {
+        clearTimeout(restartTimerRef.current);
+        restartTimerRef.current = null;
+      }
+      if (forceResetTimerRef.current) {
+        clearTimeout(forceResetTimerRef.current);
+        forceResetTimerRef.current = null;
       }
     }
   }, [open]);
@@ -98,10 +120,14 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
         streamRef.current.close();
         streamRef.current = null;
       }
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
+        if (restartTimerRef.current) {
+          clearTimeout(restartTimerRef.current);
+          restartTimerRef.current = null;
+        }
+        if (forceResetTimerRef.current) {
+          clearTimeout(forceResetTimerRef.current);
+          forceResetTimerRef.current = null;
+        }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialConnectionId]);
@@ -110,6 +136,7 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
   useEffect(() => {
     if (!connection?.id && !initialConnectionId) return;
     if (connected || creating) return;
+    if (qrData) return; // Don't schedule auto-recovery if QR is already present
     
     const connectionId = connection?.id || initialConnectionId;
     if (!connectionId) return;
@@ -129,6 +156,7 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
         }
       }
     }, 30000);
+    restartTimerRef.current = restartTimeout;
 
     // Set 60 second timeout for force reset
     const forceResetTimeout = setTimeout(async () => {
@@ -150,11 +178,18 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
         }
       }
     }, 60000);
+    forceResetTimerRef.current = forceResetTimeout;
 
     // Cleanup timeouts if component unmounts or conditions change
     return () => {
-      clearTimeout(restartTimeout);
-      clearTimeout(forceResetTimeout);
+      if (restartTimerRef.current) {
+        clearTimeout(restartTimerRef.current);
+        restartTimerRef.current = null;
+      }
+      if (forceResetTimerRef.current) {
+        clearTimeout(forceResetTimerRef.current);
+        forceResetTimerRef.current = null;
+      }
     };
   }, [connection?.id, initialConnectionId, qrData, streamError, connected, creating]);
 
@@ -252,6 +287,18 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
         timeoutRef.current = null;
       }
       
+      // Clear auto-recovery timers when QR is successfully received
+      if (restartTimerRef.current) {
+        clearTimeout(restartTimerRef.current);
+        restartTimerRef.current = null;
+        console.log('[NewConnectionDialog] ✅ Cleared restart timer - QR received');
+      }
+      if (forceResetTimerRef.current) {
+        clearTimeout(forceResetTimerRef.current);
+        forceResetTimerRef.current = null;
+        console.log('[NewConnectionDialog] ✅ Cleared force reset timer - QR received');
+      }
+      
       let rawQrData = String(evt.data);
       console.log('[NewConnectionDialog] 📱 QR received, length:', rawQrData.length, 'first 50 chars:', rawQrData.substring(0, 50));
       
@@ -326,6 +373,19 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
+      
+      // Clear auto-recovery timers when connected
+      if (restartTimerRef.current) {
+        clearTimeout(restartTimerRef.current);
+        restartTimerRef.current = null;
+        console.log('[NewConnectionDialog] ✅ Cleared restart timer - connected');
+      }
+      if (forceResetTimerRef.current) {
+        clearTimeout(forceResetTimerRef.current);
+        forceResetTimerRef.current = null;
+        console.log('[NewConnectionDialog] ✅ Cleared force reset timer - connected');
+      }
+      
       setConnected(true);
       setStatus('Conectado com sucesso!');
       setStreamError(null);
