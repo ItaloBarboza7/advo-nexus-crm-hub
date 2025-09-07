@@ -971,6 +971,60 @@ export const whatsappGateway = {
     }
   },
 
+  // Force reset connection session - tries to clear stuck sessions
+  forceResetConnection: async (connectionId: string): Promise<{ success: boolean; message: string }> => {
+    const baseUrl = getBaseUrl();
+    
+    try {
+      const tenantId = await getTenantId();
+      
+      // Get authentication
+      const { data: { session } } = await supabase.auth.getSession();
+      const clientToken = session?.access_token;
+      const clientApiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsdHVnbm1qYmNvd3N1d3pra25pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4MDkyNjAsImV4cCI6MjA2NDM4NTI2MH0.g-dg8YF0mK0LkDBvTzUlW8po9tT0VC-s47PFbDScmN8';
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      // Add authentication headers
+      if (clientToken) {
+        headers['Authorization'] = `Bearer ${clientToken}`;
+      }
+      if (clientApiKey) {
+        headers['apikey'] = clientApiKey;
+      }
+      
+      console.log('[whatsappGateway] 💥 Force resetting connection session:', connectionId);
+      
+      const url = new URL(`${baseUrl}/force-reset-connection`);
+      url.searchParams.append('connection_id', connectionId);
+      url.searchParams.append('tenant_id', tenantId);
+      
+      const res = await fetch(url.toString(), {
+        method: 'POST',
+        headers,
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok && data.success) {
+        console.log('[whatsappGateway] ✅ Force reset completed successfully:', data.message);
+        return { success: true, message: data.message };
+      } else {
+        console.warn('[whatsappGateway] ⚠️ Force reset had issues:', data.message);
+        return { success: false, message: data.message || 'Force reset failed' };
+      }
+      
+    } catch (error) {
+      console.error('[whatsappGateway] ❌ forceResetConnection error:', error);
+      return { 
+        success: false, 
+        message: error instanceof Error ? error.message : 'Unknown error during force reset'
+      };
+    }
+  },
+
   // Refresh connection info
   refreshConnection: async (connectionId: string): Promise<void> => {
     console.log('🔄 Refreshing connection:', connectionId);

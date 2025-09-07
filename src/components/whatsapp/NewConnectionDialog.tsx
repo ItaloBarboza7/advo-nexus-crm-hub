@@ -106,6 +106,58 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialConnectionId]);
 
+  // Auto-recovery logic: implement timeouts and auto-restart
+  useEffect(() => {
+    if (!connection?.id && !initialConnectionId) return;
+    if (connected || creating) return;
+    
+    const connectionId = connection?.id || initialConnectionId;
+    if (!connectionId) return;
+
+    // Set 12 second timeout for restart attempt
+    const restartTimeout = setTimeout(async () => {
+      if (!qrData && !streamError && !connected) {
+        console.log('[NewConnectionDialog] 🔄 No QR after 12s, attempting restart...');
+        setStatus('Sem QR após 12s, tentando reiniciar...');
+        try {
+          await whatsappGateway.restartConnection(connectionId);
+          setStatus('Reiniciado, aguardando novo QR...');
+          // Re-open QR stream after restart
+          setTimeout(() => startQrStream(connectionId), 2000);
+        } catch (error) {
+          console.warn('[NewConnectionDialog] ⚠️ Restart failed:', error);
+        }
+      }
+    }, 12000);
+
+    // Set 24 second timeout for force reset
+    const forceResetTimeout = setTimeout(async () => {
+      if (!qrData && !streamError && !connected) {
+        console.log('[NewConnectionDialog] 💥 No QR after 24s, attempting force reset...');
+        setStatus('Sem QR após 24s, forçando reset da sessão...');
+        try {
+          const result = await whatsappGateway.forceResetConnection(connectionId);
+          if (result.success) {
+            setStatus('Sessão resetada, reconectando...');
+            // Re-open QR stream after force reset
+            setTimeout(() => startQrStream(connectionId), 3000);
+          } else {
+            setStatus(`Reset parcial: ${result.message}`);
+          }
+        } catch (error) {
+          console.warn('[NewConnectionDialog] ⚠️ Force reset failed:', error);
+          setStatus('Force reset falhou, tente manualmente');
+        }
+      }
+    }, 24000);
+
+    // Cleanup timeouts if component unmounts or conditions change
+    return () => {
+      clearTimeout(restartTimeout);
+      clearTimeout(forceResetTimeout);
+    };
+  }, [connection?.id, initialConnectionId, qrData, streamError, connected, creating]);
+
   const startQrStream = (connectionId: string) => {
     // Close any existing stream
     if (streamRef.current) {
@@ -176,7 +228,18 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
   const handleGatewayEvent = async (evt: GatewayEvent) => {
     console.log('[NewConnectionDialog] GatewayEvent:', evt.type, evt.data ? '(with data)' : '(no data)');
     
-    // Debug: mostrar primeiras mensagens cruas no status para facilitar diagnóstico
+    // Handle "session active" or "already connected" messages
+    if (evt.type === 'status' && evt.data) {
+      const message = String(evt.data).toLowerCase();
+      if (message.includes('session active') || message.includes('already connected') || message.includes('session exists')) {
+        console.log('[NewConnectionDialog] 🔥 Detected stuck session, suggesting force reset');
+        setStatus('Sessão existente detectada. Use "Forçar reset da sessão" se necessário.');
+        setStreamError('Sessão pode estar travada - tente force reset');
+        return;
+      }
+    }
+    
+    // Debug: show raw messages in status for diagnosis
     if (evt.type === 'status' && evt.data) {
       const rawMessage = String(evt.data).substring(0, 150);
       console.log('[NewConnectionDialog] 🐛 Raw SSE data preview:', rawMessage);

@@ -28,6 +28,8 @@ export const ConnectionSettingsDialog: React.FC<ConnectionSettingsDialogProps> =
   const [isRestarting, setIsRestarting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
 
+  const [isForceResetting, setIsForceResetting] = useState(false);
+
   const handleRefreshInfo = async () => {
     if (!connection) return;
 
@@ -94,6 +96,37 @@ export const ConnectionSettingsDialog: React.FC<ConnectionSettingsDialogProps> =
       });
     } finally {
       setIsDisconnecting(false);
+    }
+  };
+
+  const handleForceReset = async () => {
+    if (!connection) return;
+
+    setIsForceResetting(true);
+    try {
+      const result = await whatsappGateway.forceResetConnection(connection.id);
+      if (result.success) {
+        toast({
+          title: "Sucesso",
+          description: result.message || "Sessão da conexão foi forçadamente resetada"
+        });
+      } else {
+        toast({
+          title: "Aviso",
+          description: result.message || "Reset foi parcialmente bem-sucedido",
+          variant: "default"
+        });
+      }
+      onUpdated();
+    } catch (error: any) {
+      console.error('Erro ao fazer force reset:', error);
+      toast({
+        title: "Erro",
+        description: error.message || "Falha ao resetar a sessão da conexão",
+        variant: "destructive"
+      });
+    } finally {
+      setIsForceResetting(false);
     }
   };
 
@@ -167,44 +200,22 @@ export const ConnectionSettingsDialog: React.FC<ConnectionSettingsDialogProps> =
               </Button>
             )}
           </div>
+          
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="default"
+              onClick={handleForceReset}
+              disabled={isForceResetting}
+              className="flex items-center gap-2 text-orange-600 hover:text-orange-700"
+            >
+              <RotateCw className={`h-4 w-4 ${isForceResetting ? 'animate-spin' : ''}`} />
+              {isForceResetting ? "Resetando..." : "Forçar reset da sessão"}
+            </Button>
+          </div>
         </div>
 
-        <DialogFooter className="flex justify-between">
-          <div className="flex gap-2">
-            <DeleteButton
-              onDelete={handleDelete}
-              itemName={connection.name}
-              itemType="conexão"
-              size="default"
-            />
-            
-            {connection.status === 'connected' && (
-              <>
-                <Button
-                  variant="outline"
-                  size="default"
-                  onClick={handleRestart}
-                  disabled={isRestarting}
-                  className="flex items-center gap-2"
-                >
-                  <RotateCw className={`h-4 w-4 ${isRestarting ? 'animate-spin' : ''}`} />
-                  {isRestarting ? "Reiniciando..." : "Reiniciar"}
-                </Button>
-                
-                <Button
-                  variant="outline"
-                  size="default"
-                  onClick={handleDisconnect}
-                  disabled={isDisconnecting}
-                  className="flex items-center gap-2"
-                >
-                  <Power className="h-4 w-4" />
-                  {isDisconnecting ? "Desligando..." : "Desligar"}
-                </Button>
-              </>
-            )}
-          </div>
-          
+        <DialogFooter>
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}

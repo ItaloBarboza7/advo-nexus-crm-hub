@@ -582,6 +582,150 @@ async function handleBootstrapSync(req: Request, parsedBase: URL, gatewayToken: 
   }
 }
 
+// Force reset connection handler - tries multiple endpoints to clear stuck sessions
+async function handleForceResetConnection(req: Request, parsedBase: URL, gatewayToken: string, supabase: any) {
+  const url = new URL(req.url)
+  const connectionId = url.searchParams.get('connection_id')
+  const tenantId = url.searchParams.get('tenant_id')
+  
+  if (!connectionId || !tenantId) {
+    return new Response(JSON.stringify({ error: 'Missing connection_id or tenant_id' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
+  }
+
+  console.log(`🔄 Force resetting connection ${connectionId} for tenant ${tenantId}`)
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+  if (gatewayToken) {
+    headers['Authorization'] = `Bearer ${gatewayToken}`
+  }
+
+  // Try multiple reset/clear endpoints to force clear the session
+  const resetEndpoints = [
+    `/connections/${connectionId}/force-reset`,
+    `/connections/${connectionId}/clear-session`,
+    `/connections/${connectionId}/destroy`,
+    `/connection/${connectionId}/force-reset`,
+    `/connection/${connectionId}/clear-session`,
+    `/connection/${connectionId}/destroy`,
+    `/sessions/${connectionId}/destroy`,
+    `/sessions/${connectionId}/clear`,
+    `/session/${connectionId}/destroy`,
+    `/session/${connectionId}/clear`,
+    `/api/connections/${connectionId}/reset`,
+    `/api/sessions/${connectionId}/reset`,
+  ]
+
+  let successCount = 0
+  let errors: string[] = []
+
+  for (const endpoint of resetEndpoints) {
+    try {
+      const resetUrl = new URL(endpoint, parsedBase)
+      resetUrl.searchParams.append('tenant_id', tenantId)
+      
+      console.log(`🎯 Trying force reset endpoint: ${endpoint}`)
+      
+      const response = await fetch(resetUrl.toString(), {
+        method: 'DELETE',
+        headers,
+      })
+      
+      if (response.ok) {
+        console.log(`✅ Success on endpoint: ${endpoint}`)
+        successCount++
+      } else {
+        const text = await response.text()
+        const error = `${endpoint}: ${response.status} - ${text}`
+        errors.push(error)
+        console.log(`⚠️ Failed endpoint: ${error}`)
+      }
+    } catch (error) {
+      const errorMsg = `${endpoint}: ${error instanceof Error ? error.message : 'Unknown error'}`
+      errors.push(errorMsg)
+      console.log(`❌ Error on endpoint: ${errorMsg}`)
+    }
+  }
+
+  // Also try POST method for some endpoints
+  const postResetEndpoints = [
+    `/connections/${connectionId}/reset`,
+    `/connection/${connectionId}/reset`,
+    `/sessions/${connectionId}/reset`,
+    `/session/${connectionId}/reset`,
+  ]
+
+  for (const endpoint of postResetEndpoints) {
+    try {
+      const resetUrl = new URL(endpoint, parsedBase)
+      resetUrl.searchParams.append('tenant_id', tenantId)
+      
+      console.log(`🎯 Trying POST reset endpoint: ${endpoint}`)
+      
+      const response = await fetch(resetUrl.toString(), {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ force: true, clear_session: true })
+      })
+      
+      if (response.ok) {
+        console.log(`✅ Success on POST endpoint: ${endpoint}`)
+        successCount++
+      } else {
+        const text = await response.text()
+        const error = `POST ${endpoint}: ${response.status} - ${text}`
+        errors.push(error)
+        console.log(`⚠️ Failed POST endpoint: ${error}`)
+      }
+    } catch (error) {
+      const errorMsg = `POST ${endpoint}: ${error instanceof Error ? error.message : 'Unknown error'}`
+      errors.push(errorMsg)
+      console.log(`❌ Error on POST endpoint: ${errorMsg}`)
+    }
+  }
+
+  // Update connection status to disconnected in Supabase regardless of gateway response
+  try {
+    const { error: updateError } = await supabase
+      .from('whatsapp_connections')
+      .update({ 
+        status: 'disconnected',
+        qr_code: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', connectionId)
+      .eq('tenant_id', tenantId)
+
+    if (updateError) {
+      console.error('❌ Failed to update connection status in Supabase:', updateError)
+      errors.push(`Supabase update: ${updateError.message}`)
+    } else {
+      console.log('✅ Connection status reset in Supabase')
+      successCount++
+    }
+  } catch (supabaseError) {
+    console.error('❌ Error updating Supabase:', supabaseError)
+    errors.push(`Supabase error: ${supabaseError}`)
+  }
+
+  return new Response(JSON.stringify({ 
+    success: successCount > 0,
+    successCount,
+    totalAttempts: resetEndpoints.length + postResetEndpoints.length + 1, // +1 for Supabase
+    message: successCount > 0 
+      ? `Force reset completed. ${successCount} operations succeeded.`
+      : 'Force reset failed on all endpoints',
+    errors: errors.length > 5 ? errors.slice(0, 5).concat(['...more errors']) : errors
+  }), {
+    status: successCount > 0 ? 200 : 500,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  })
+}
+
 // Connection refresh handler
 async function handleRefreshConnection(req: Request, parsedBase: URL, gatewayToken: string, supabase: any) {
   const url = new URL(req.url)
@@ -722,6 +866,11 @@ serve(async (req) => {
     // Handle connection refresh endpoint
     if (path === '/refresh-connection' && req.method === 'GET') {
       return handleRefreshConnection(req, parsedBase, GATEWAY_TOKEN, supabase)
+    }
+
+    // Handle force reset connection endpoint
+    if (path === '/force-reset-connection' && req.method === 'POST') {
+      return handleForceResetConnection(req, parsedBase, GATEWAY_TOKEN, supabase)
     }
 
     // Extrair autenticação do cliente (via query params para EventSource ou headers)
