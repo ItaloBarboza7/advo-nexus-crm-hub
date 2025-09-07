@@ -50,6 +50,30 @@ const getHeaders = () => {
   return headers;
 };
 
+// Helper function to safely handle JSON responses
+const safeJsonResponse = async (response: Response): Promise<any> => {
+  const contentType = response.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    try {
+      return await response.json();
+    } catch {
+      const text = await response.text();
+      try {
+        return JSON.parse(text);
+      } catch {
+        return { message: text };
+      }
+    }
+  } else {
+    const text = await response.text();
+    try {
+      return JSON.parse(text);
+    } catch {
+      return { message: text };
+    }
+  }
+};
+
 // Ajuste: obter tenant_id via RPC e fallback em user_profiles
 const getTenantId = async (): Promise<string> => {
   console.log('[whatsappGateway] Resolving tenant_id...');
@@ -164,7 +188,7 @@ export const whatsappGateway = {
         });
         
         if (res.ok) {
-          const data = await res.json();
+          const data = await safeJsonResponse(res);
           gatewayConnections = Array.isArray(data) ? data : (data?.connections ?? []);
           console.log('[whatsappGateway] 📋 Fetched connections from gateway:', gatewayConnections.length);
         } else {
@@ -237,7 +261,7 @@ export const whatsappGateway = {
         });
         
         if (res.ok) {
-          const connection = await res.json();
+          const connection = await safeJsonResponse(res);
           console.log('[whatsappGateway] ✅ Connection created via gateway:', connection);
           
           // Ensure the connection is also saved in Supabase for consistency
@@ -265,8 +289,8 @@ export const whatsappGateway = {
           
           return connection;
         } else {
-          const text = await res.text();
-          console.warn('[whatsappGateway] ⚠️ Gateway creation failed:', res.status, text);
+          const errorData = await safeJsonResponse(res);
+          console.warn('[whatsappGateway] ⚠️ Gateway creation failed:', res.status, errorData);
           throw new Error(`Gateway failed: ${res.status}`);
         }
       } catch (gatewayError) {
@@ -360,8 +384,8 @@ export const whatsappGateway = {
             return;
           }
           
-          const text = await res.text();
-          lastError = `${res.status} - ${text}`;
+          const errorData = await safeJsonResponse(res);
+          lastError = `${res.status} - ${JSON.stringify(errorData)}`;
           
           // 404 means endpoint doesn't exist, try next one
           if (res.status === 404) {
@@ -370,7 +394,7 @@ export const whatsappGateway = {
           }
           
           // Other errors might indicate the endpoint exists but failed
-          console.warn('[whatsappGateway] ⚠️ Endpoint failed:', endpoint, res.status, text);
+          console.warn('[whatsappGateway] ⚠️ Endpoint failed:', endpoint, res.status, errorData);
           
         } catch (fetchError) {
           console.warn('[whatsappGateway] ⚠️ Fetch error for:', endpoint, fetchError);
@@ -393,6 +417,7 @@ export const whatsappGateway = {
 
   openQrStream(connectionId: string, onEvent: (evt: GatewayEvent) => void) {
     const baseUrl = getQrStreamBaseUrl();
+    let eventSource: EventSource | null = null;
     let abortController: AbortController | null = null;
     
     const startStream = async () => {
@@ -418,7 +443,95 @@ export const whatsappGateway = {
         for (const { path, params } of qrEndpoints) {
           if (streamStarted) break;
           
+          // Try EventSource first (native SSE support)
           try {
+            console.log('[whatsappGateway] 🎯 Trying EventSource for QR stream:', path, params);
+            
+            const url = new URL(`${baseUrl}${path}`);
+            url.searchParams.append('tenant_id', tenantId);
+            url.searchParams.append('token', GATEWAY_AUTH_TOKEN);
+            url.searchParams.append('auth', GATEWAY_AUTH_TOKEN);
+            url.searchParams.append('access_token', GATEWAY_AUTH_TOKEN);
+            
+            // Add additional parameters
+            Object.entries(params).forEach(([key, value]) => {
+              url.searchParams.append(key, value);
+            });
+            
+            eventSource = new EventSource(url.toString());
+            
+            let eventSourceTimeout: NodeJS.Timeout | null = setTimeout(() => {
+              console.warn('[whatsappGateway] ⏰ EventSource timeout, falling back to fetch');
+              if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+              }
+            }, 3000);
+            
+            eventSource.onopen = () => {
+              console.log('[whatsappGateway] ✅ QR EventSource connected:', path);
+              streamStarted = true;
+              if (eventSourceTimeout) {
+                clearTimeout(eventSourceTimeout);
+                eventSourceTimeout = null;
+              }
+            };
+            
+            eventSource.onmessage = (event) => {
+              try {
+                const parsedData = JSON.parse(event.data);
+                
+                // Check for QR code in different formats
+                const qrData = parsedData.qr || parsedData.qr_code || parsedData.qrcode || parsedData.qrCode;
+                
+                if (qrData) {
+                  console.log('[whatsappGateway] 📱 QR code received via EventSource');
+                  onEvent({ type: 'qr', data: qrData });
+                } else if (parsedData.type) {
+                  console.log('[whatsappGateway] 📨 QR EventSource event:', parsedData.type);
+                  onEvent(parsedData as GatewayEvent);
+                } else {
+                  console.log('[whatsappGateway] 📨 QR EventSource message');
+                  onEvent({ type: 'message', data: parsedData });
+                }
+              } catch (parseError) {
+                console.log('[whatsappGateway] 📨 QR EventSource raw message:', event.data.substring(0, 100));
+                onEvent({ type: 'message', data: event.data });
+              }
+            };
+            
+            eventSource.onerror = (error) => {
+              console.warn('[whatsappGateway] ⚠️ EventSource error, trying fetch fallback:', error);
+              if (eventSourceTimeout) {
+                clearTimeout(eventSourceTimeout);
+                eventSourceTimeout = null;
+              }
+              if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+              }
+            };
+            
+            // Wait a bit to see if EventSource works
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            if (streamStarted && eventSource && eventSource.readyState === EventSource.OPEN) {
+              console.log('[whatsappGateway] ✅ QR EventSource working, keeping connection');
+              return;
+            }
+            
+          } catch (eventSourceError) {
+            console.warn('[whatsappGateway] ⚠️ EventSource failed, trying fetch fallback:', eventSourceError);
+            if (eventSource) {
+              eventSource.close();
+              eventSource = null;
+            }
+          }
+          
+          // Fetch fallback with Authorization header
+          try {
+            console.log('[whatsappGateway] 🔄 Trying fetch fallback for QR stream:', path, params);
+            
             abortController = new AbortController();
             
             const url = new URL(`${baseUrl}${path}`);
@@ -435,8 +548,6 @@ export const whatsappGateway = {
               'Authorization': `Bearer ${GATEWAY_AUTH_TOKEN}`,
             };
             
-            console.log('[whatsappGateway] 🎯 Trying QR stream:', path, params);
-
             const response = await fetch(url.toString(), {
               method: 'GET',
               headers,
@@ -462,7 +573,7 @@ export const whatsappGateway = {
             }
             
             streamStarted = true;
-            console.log('[whatsappGateway] ✅ QR stream started with:', path);
+            console.log('[whatsappGateway] ✅ QR fetch stream started with:', path);
             
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
@@ -476,7 +587,6 @@ export const whatsappGateway = {
                 if (!trimmed) continue;
                 
                 if (trimmed.startsWith('event:')) {
-                  // Extract event type
                   continue;
                 }
                 
@@ -486,52 +596,21 @@ export const whatsappGateway = {
                   try {
                     const parsedData = JSON.parse(data);
                     
-                    // Check for QR code in different formats
                     const qrData = parsedData.qr || parsedData.qr_code || parsedData.qrcode || parsedData.qrCode;
-                    if (qrData && typeof qrData === 'string') {
-                      console.log('[whatsappGateway] 🎯 QR code found in JSON data');
+                    
+                    if (qrData) {
+                      console.log('[whatsappGateway] 📱 QR code received via fetch stream');
                       onEvent({ type: 'qr', data: qrData });
-                    } else if (parsedData.status) {
-                      console.log('[whatsappGateway] 📊 Status update from JSON:', parsedData.status);
-                      onEvent({ type: 'status', data: parsedData.status });
-                    } else if (parsedData.type === 'connected') {
-                      console.log('[whatsappGateway] ✅ Connected event from JSON');
-                      onEvent({ type: 'connected', data: parsedData });
-                    } else if (parsedData.type === 'disconnected') {
-                      console.log('[whatsappGateway] ❌ Disconnected event from JSON');
-                      onEvent({ type: 'disconnected', data: parsedData });
-                    } else if (parsedData.error) {
-                      console.log('[whatsappGateway] ❌ Error event from JSON:', parsedData.error);
-                      onEvent({ type: 'error', data: parsedData.error });
+                    } else if (parsedData.type) {
+                      console.log('[whatsappGateway] 📨 QR fetch stream event:', parsedData.type);
+                      onEvent(parsedData as GatewayEvent);
                     } else {
-                      console.log('[whatsappGateway] 📨 Generic JSON data:', parsedData);
-                      onEvent({ type: 'status', data: JSON.stringify(parsedData) });
+                      console.log('[whatsappGateway] 📨 QR fetch stream message');
+                      onEvent({ type: 'message', data: parsedData });
                     }
                   } catch (parseError) {
-                    // Handle raw text data
-                    if (data.includes('qr:')) {
-                      const qrMatch = data.match(/qr:\s*(.+)/);
-                      if (qrMatch) {
-                        console.log('[whatsappGateway] 🎯 QR code found in raw data');
-                        onEvent({ type: 'qr', data: qrMatch[1] });
-                        continue;
-                      }
-                    }
-                    
-                    if (data.includes('connected')) {
-                      console.log('[whatsappGateway] ✅ Connected event from raw data');
-                      onEvent({ type: 'connected', data: data });
-                      continue;
-                    }
-                    
-                    if (data.includes('disconnected')) {
-                      console.log('[whatsappGateway] ❌ Disconnected event from raw data');
-                      onEvent({ type: 'disconnected', data: data });
-                      continue;
-                    }
-                    
-                    console.log('[whatsappGateway] 📨 Raw SSE data:', data.substring(0, 100));
-                    onEvent({ type: 'status', data: data });
+                    console.log('[whatsappGateway] 📨 QR fetch stream raw message:', data.substring(0, 100));
+                    onEvent({ type: 'message', data });
                   }
                 }
               }
@@ -542,13 +621,12 @@ export const whatsappGateway = {
               const { done, value } = await reader.read();
               
               if (done) {
-                console.log('[whatsappGateway] ✅ QR stream completed');
+                console.log('[whatsappGateway] ✅ QR fetch stream completed');
                 break;
               }
               
               buffer += decoder.decode(value, { stream: true });
               
-              // Process complete messages
               const messageEnd = buffer.indexOf('\n\n');
               if (messageEnd !== -1) {
                 const message = buffer.substring(0, messageEnd);
@@ -558,25 +636,25 @@ export const whatsappGateway = {
               }
             }
             
-            break;
-            
-          } catch (endpointError) {
-            if (endpointError instanceof Error && endpointError.name === 'AbortError') {
-              console.log('[whatsappGateway] 🔐 QR stream aborted');
+          } catch (fetchError) {
+            console.warn('[whatsappGateway] ⚠️ Fetch fallback error for endpoint:', path, fetchError);
+            if (fetchError instanceof Error && fetchError.name === 'AbortError') {
               return;
             }
-            console.warn('[whatsappGateway] ⚠️ Failed to start QR stream with:', path, endpointError);
           }
         }
         
         if (!streamStarted) {
-          console.error('[whatsappGateway] ❌ All QR endpoints failed');
-          onEvent({ type: 'error', data: 'Nenhum endpoint de QR encontrado' });
+          console.error('[whatsappGateway] ❌ All QR stream methods failed');
+          onEvent({ type: 'error', data: 'Não foi possível conectar ao stream de QR' });
         }
         
       } catch (error) {
-        console.error('[whatsappGateway] ❌ QR Stream setup error:', error);
-        onEvent({ type: 'error', data: error instanceof Error ? error.message : 'Erro inesperado no stream de QR' });
+        console.error('[whatsappGateway] ❌ QR stream error:', error);
+        if (error instanceof Error && error.name === 'AbortError') {
+          return;
+        }
+        onEvent({ type: 'error', data: error instanceof Error ? error.message : 'Erro inesperado no stream QR' });
       }
     };
     
@@ -586,8 +664,13 @@ export const whatsappGateway = {
     // Return close function
     return {
       close: () => {
+        if (eventSource) {
+          console.log('[whatsappGateway] 🔐 Closing QR EventSource');
+          eventSource.close();
+          eventSource = null;
+        }
         if (abortController) {
-          console.log('[whatsappGateway] 🔐 Closing QR stream');
+          console.log('[whatsappGateway] 🔐 Closing QR fetch stream');
           abortController.abort();
           abortController = null;
         }
@@ -629,7 +712,7 @@ export const whatsappGateway = {
         });
         
         if (res.ok) {
-          const connection = await res.json();
+          const connection = await safeJsonResponse(res);
           console.log('[whatsappGateway] ✅ Connection updated via gateway:', connection);
           return connection;
         } else {
@@ -806,6 +889,7 @@ export const whatsappGateway = {
   openEventsStream(connectionId: string, onEvent: (evt: GatewayEvent) => void): { close: () => void } {
     console.log('[whatsappGateway] 🔄 Opening events stream for connection:', connectionId);
     
+    let eventSource: EventSource | null = null;
     let abortController: AbortController | null = null;
     
     const startStream = async () => {
@@ -819,6 +903,85 @@ export const whatsappGateway = {
           connectionId
         });
         
+        // Try EventSource first (native SSE support)
+        try {
+          console.log('[whatsappGateway] 🎯 Trying EventSource for events stream');
+          
+          const url = new URL(`${baseUrl}/connections/${connectionId}/events`);
+          url.searchParams.append('tenant_id', tenantId);
+          url.searchParams.append('token', GATEWAY_AUTH_TOKEN);
+          url.searchParams.append('auth', GATEWAY_AUTH_TOKEN);
+          url.searchParams.append('access_token', GATEWAY_AUTH_TOKEN);
+          
+          eventSource = new EventSource(url.toString());
+          
+          let eventSourceTimeout: NodeJS.Timeout | null = setTimeout(() => {
+            console.warn('[whatsappGateway] ⏰ Events EventSource timeout, falling back to fetch');
+            if (eventSource) {
+              eventSource.close();
+              eventSource = null;
+            }
+          }, 3000);
+          
+          let streamConnected = false;
+          
+          eventSource.onopen = () => {
+            console.log('[whatsappGateway] ✅ Events EventSource connected');
+            streamConnected = true;
+            onEvent({ type: 'status', data: 'Events stream connected via EventSource' });
+            if (eventSourceTimeout) {
+              clearTimeout(eventSourceTimeout);
+              eventSourceTimeout = null;
+            }
+          };
+          
+          eventSource.onmessage = (event) => {
+            try {
+              const parsedData = JSON.parse(event.data);
+              
+              if (parsedData.type) {
+                console.log('[whatsappGateway] 📨 Events EventSource event:', parsedData.type);
+                onEvent(parsedData as GatewayEvent);
+              } else {
+                onEvent({ type: 'message', data: parsedData });
+              }
+            } catch (parseError) {
+              console.log('[whatsappGateway] 📨 Events EventSource raw message:', event.data.substring(0, 100));
+              onEvent({ type: 'message', data: event.data });
+            }
+          };
+          
+          eventSource.onerror = (error) => {
+            console.warn('[whatsappGateway] ⚠️ Events EventSource error, trying fetch fallback:', error);
+            if (eventSourceTimeout) {
+              clearTimeout(eventSourceTimeout);
+              eventSourceTimeout = null;
+            }
+            if (eventSource) {
+              eventSource.close();
+              eventSource = null;
+            }
+          };
+          
+          // Wait to see if EventSource works
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          if (streamConnected && eventSource && eventSource.readyState === EventSource.OPEN) {
+            console.log('[whatsappGateway] ✅ Events EventSource working, keeping connection');
+            return;
+          }
+          
+        } catch (eventSourceError) {
+          console.warn('[whatsappGateway] ⚠️ Events EventSource failed, trying fetch fallback:', eventSourceError);
+          if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+          }
+        }
+        
+        // Fetch fallback
+        console.log('[whatsappGateway] 🔄 Trying fetch fallback for events stream');
+        
         abortController = new AbortController();
         
         const url = new URL(`${baseUrl}/connections/${connectionId}/events`);
@@ -829,8 +992,6 @@ export const whatsappGateway = {
           'Cache-Control': 'no-cache',
           'Authorization': `Bearer ${GATEWAY_AUTH_TOKEN}`,
         };
-        
-        console.log('[whatsappGateway] 🔄 Opening events stream with Authorization header');
 
         const response = await fetch(url.toString(), {
           method: 'GET',
@@ -852,8 +1013,8 @@ export const whatsappGateway = {
           throw new Error('No response body for SSE stream');
         }
         
-        console.log('[whatsappGateway] ✅ Events stream connected successfully');
-        onEvent({ type: 'status', data: 'Events stream connected' });
+        console.log('[whatsappGateway] ✅ Events fetch stream connected successfully');
+        onEvent({ type: 'status', data: 'Events stream connected via fetch' });
         
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -879,16 +1040,16 @@ export const whatsappGateway = {
                 const parsedData = JSON.parse(data);
                 
                 if (parsedData.type) {
-                  console.log('[whatsappGateway] 📨 Events SSE event from JSON:', parsedData.type);
+                  console.log('[whatsappGateway] 📨 Events fetch stream event:', parsedData.type);
                   onEvent(parsedData as GatewayEvent);
                 } else if (eventType) {
-                  console.log('[whatsappGateway] 📨 Events SSE event:', eventType);
+                  console.log('[whatsappGateway] 📨 Events fetch stream event:', eventType);
                   onEvent({ type: eventType, data: parsedData });
                 } else {
                   onEvent({ type: 'message', data: parsedData });
                 }
               } catch (parseError) {
-                console.log('[whatsappGateway] 📨 Events SSE raw message:', data.substring(0, 100));
+                console.log('[whatsappGateway] 📨 Events fetch stream raw message:', data.substring(0, 100));
                 if (eventType) {
                   onEvent({ type: eventType, data });
                 } else {
@@ -896,7 +1057,7 @@ export const whatsappGateway = {
                 }
               }
               
-              eventType = ''; // Reset event type after processing
+              eventType = '';
             }
           }
         };
@@ -906,13 +1067,12 @@ export const whatsappGateway = {
           const { done, value } = await reader.read();
           
           if (done) {
-            console.log('[whatsappGateway] ✅ Events stream completed');
+            console.log('[whatsappGateway] ✅ Events fetch stream completed');
             break;
           }
           
           buffer += decoder.decode(value, { stream: true });
           
-          // Process complete messages
           const messageEnd = buffer.indexOf('\n\n');
           if (messageEnd !== -1) {
             const message = buffer.substring(0, messageEnd);
@@ -938,8 +1098,13 @@ export const whatsappGateway = {
     // Return close function
     return {
       close: () => {
+        if (eventSource) {
+          console.log('[whatsappGateway] 🔐 Closing events EventSource');
+          eventSource.close();
+          eventSource = null;
+        }
         if (abortController) {
-          console.log('[whatsappGateway] 🔐 Closing events stream');
+          console.log('[whatsappGateway] 🔐 Closing events fetch stream');
           abortController.abort();
           abortController = null;
         }
@@ -988,12 +1153,12 @@ export const whatsappGateway = {
       });
       
       if (!res.ok) {
-        const errorText = await res.text();
-        console.error('[whatsappGateway] ❌ Send message error:', res.status, errorText);
-        throw new Error(`Falha ao enviar mensagem: ${res.status} - ${errorText}`);
+        const errorData = await safeJsonResponse(res);
+        console.error('[whatsappGateway] ❌ Send message error:', res.status, errorData);
+        throw new Error(`Falha ao enviar mensagem: ${res.status} - ${JSON.stringify(errorData)}`);
       }
       
-      const result = await res.json();
+      const result = await safeJsonResponse(res);
       console.log('[whatsappGateway] ✅ Message sent successfully:', result);
       
       return result;
@@ -1028,7 +1193,7 @@ export const whatsappGateway = {
         throw new Error(`Bootstrap sync failed: ${response.status}`);
       }
       
-      const result = await response.json();
+      const result = await safeJsonResponse(response);
       console.log('[whatsappGateway] ✅ Bootstrap sync completed:', result);
       
       return result;
@@ -1073,7 +1238,7 @@ export const whatsappGateway = {
         headers,
       });
       
-      const data = await res.json();
+      const data = await safeJsonResponse(res);
       
       if (res.ok && data.success) {
         console.log('[whatsappGateway] ✅ Force reset completed successfully:', data.message);
@@ -1093,90 +1258,113 @@ export const whatsappGateway = {
   },
 
   // Refresh connection info
-  refreshConnection: async (connectionId: string): Promise<void> => {
-    console.log('🔄 Refreshing connection:', connectionId);
-    const tenantId = await getTenantId();
+  async refreshConnection(connectionId: string): Promise<{ success: boolean; message: string }> {
+    const baseUrl = getBaseUrl();
     
-    const url = new URL('/refresh-connection', getBaseUrl());
-    url.searchParams.set('connection_id', connectionId);
-    url.searchParams.set('tenant_id', tenantId);
-
-    const response = await fetch(url.toString(), {
-      method: 'GET',
-      headers: getHeaders()
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to refresh connection: ${response.status} - ${errorText}`);
-    }
-
-    console.log('✅ Connection refreshed successfully');
-  },
-
-  // Restart connection
-  restartConnection: async (connectionId: string): Promise<void> => {
-    console.log('🔄 Restarting connection:', connectionId);
-    const tenantId = await getTenantId();
-    
-    const endpoints = [
-      `/connections/${connectionId}/restart`,
-      `/connection/${connectionId}/restart`,
-      `/api/connections/${connectionId}/restart`
-    ];
-
-    for (const endpoint of endpoints) {
-      try {
-        const url = new URL(endpoint, getBaseUrl());
-        url.searchParams.set('tenant_id', tenantId);
-
-        const response = await fetch(url.toString(), {
-          method: 'POST',
-          headers: getHeaders()
-        });
-
-        if (response.ok) {
-          console.log('✅ Connection restarted successfully');
-          return;
-        }
-      } catch (error) {
-        console.log(`❌ Restart endpoint ${endpoint} failed:`, error);
+    try {
+      const tenantId = await getTenantId();
+      
+      console.log('[whatsappGateway] 🔄 Refreshing connection:', connectionId);
+      
+      const url = new URL(`${baseUrl}/refresh-connection`);
+      url.searchParams.append('connection_id', connectionId);
+      url.searchParams.append('tenant_id', tenantId);
+      
+      const res = await fetch(url.toString(), {
+        method: 'POST',
+        headers: getHeaders(),
+      });
+      
+      const data = await safeJsonResponse(res);
+      
+      if (res.ok && data.success) {
+        console.log('[whatsappGateway] ✅ Connection refreshed successfully:', data.message);
+        return { success: true, message: data.message };
+      } else {
+        console.warn('[whatsappGateway] ⚠️ Connection refresh had issues:', data.message);
+        return { success: false, message: data.message || 'Connection refresh failed' };
       }
+      
+    } catch (error) {
+      console.error('[whatsappGateway] ❌ refreshConnection error:', error);
+      return { 
+        success: false, 
+        message: error instanceof Error ? error.message : 'Unknown error during connection refresh'
+      };
     }
-    
-    throw new Error('Failed to restart connection - no available endpoint');
   },
 
-  // Disconnect connection
-  disconnectConnection: async (connectionId: string): Promise<void> => {
-    console.log('🔄 Disconnecting connection:', connectionId);
-    const tenantId = await getTenantId();
+  // Restart a WhatsApp connection
+  async restartConnection(connectionId: string): Promise<{ success: boolean; message: string }> {
+    const baseUrl = getBaseUrl();
     
-    const endpoints = [
-      `/connections/${connectionId}/disconnect`,
-      `/connection/${connectionId}/disconnect`,
-      `/api/connections/${connectionId}/disconnect`
-    ];
-
-    for (const endpoint of endpoints) {
-      try {
-        const url = new URL(endpoint, getBaseUrl());
-        url.searchParams.set('tenant_id', tenantId);
-
-        const response = await fetch(url.toString(), {
-          method: 'POST',
-          headers: getHeaders()
-        });
-
-        if (response.ok) {
-          console.log('✅ Connection disconnected successfully');
-          return;
-        }
-      } catch (error) {
-        console.log(`❌ Disconnect endpoint ${endpoint} failed:`, error);
+    try {
+      const tenantId = await getTenantId();
+      
+      console.log('[whatsappGateway] 🔄 Restarting connection:', connectionId);
+      
+      const url = new URL(`${baseUrl}/restart-connection`);
+      url.searchParams.append('connection_id', connectionId);
+      url.searchParams.append('tenant_id', tenantId);
+      
+      const res = await fetch(url.toString(), {
+        method: 'POST',
+        headers: getHeaders(),
+      });
+      
+      const data = await safeJsonResponse(res);
+      
+      if (res.ok && data.success) {
+        console.log('[whatsappGateway] ✅ Connection restarted successfully:', data.message);
+        return { success: true, message: data.message };
+      } else {
+        console.warn('[whatsappGateway] ⚠️ Connection restart had issues:', data.message);
+        return { success: false, message: data.message || 'Connection restart failed' };
       }
+      
+    } catch (error) {
+      console.error('[whatsappGateway] ❌ restartConnection error:', error);
+      return { 
+        success: false, 
+        message: error instanceof Error ? error.message : 'Unknown error during connection restart'
+      };
     }
-    
-    throw new Error('Failed to disconnect connection - no available endpoint');
   },
+
+  // Disconnect a WhatsApp connection
+  async disconnectConnection(connectionId: string): Promise<{ success: boolean; message: string }> {
+    const baseUrl = getBaseUrl();
+    
+    try {
+      const tenantId = await getTenantId();
+      
+      console.log('[whatsappGateway] 🔌 Disconnecting connection:', connectionId);
+      
+      const url = new URL(`${baseUrl}/disconnect-connection`);
+      url.searchParams.append('connection_id', connectionId);
+      url.searchParams.append('tenant_id', tenantId);
+      
+      const res = await fetch(url.toString(), {
+        method: 'POST',
+        headers: getHeaders(),
+      });
+      
+      const data = await safeJsonResponse(res);
+      
+      if (res.ok && data.success) {
+        console.log('[whatsappGateway] ✅ Connection disconnected successfully:', data.message);
+        return { success: true, message: data.message };
+      } else {
+        console.warn('[whatsappGateway] ⚠️ Connection disconnect had issues:', data.message);
+        return { success: false, message: data.message || 'Connection disconnect failed' };
+      }
+      
+    } catch (error) {
+      console.error('[whatsappGateway] ❌ disconnectConnection error:', error);
+      return { 
+        success: false, 
+        message: error instanceof Error ? error.message : 'Unknown error during connection disconnect'
+      };
+    }
+  }
 };
