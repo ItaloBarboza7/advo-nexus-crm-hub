@@ -34,6 +34,12 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const restartTimerRef = useRef<NodeJS.Timeout | null>(null);
   const forceResetTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Refs to track current state values and prevent stale closures
+  const hasQrRef = useRef(false);
+  const connectedRef = useRef(false);
+  const reopenAfterRestartRef = useRef<NodeJS.Timeout | null>(null);
+  const reopenAfterForceResetRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -47,6 +53,10 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
       setConnected(false);
       setStreamError(null);
       setReloading(false);
+      
+      // Reset refs
+      hasQrRef.current = false;
+      connectedRef.current = false;
       
       // Clear any existing timeout
       if (timeoutRef.current) {
@@ -62,6 +72,16 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
       if (forceResetTimerRef.current) {
         clearTimeout(forceResetTimerRef.current);
         forceResetTimerRef.current = null;
+      }
+      
+      // Clear reopen timers
+      if (reopenAfterRestartRef.current) {
+        clearTimeout(reopenAfterRestartRef.current);
+        reopenAfterRestartRef.current = null;
+      }
+      if (reopenAfterForceResetRef.current) {
+        clearTimeout(reopenAfterForceResetRef.current);
+        reopenAfterForceResetRef.current = null;
       }
     } else {
       if (streamRef.current) {
@@ -81,6 +101,16 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
       if (forceResetTimerRef.current) {
         clearTimeout(forceResetTimerRef.current);
         forceResetTimerRef.current = null;
+      }
+      
+      // Clear reopen timers
+      if (reopenAfterRestartRef.current) {
+        clearTimeout(reopenAfterRestartRef.current);
+        reopenAfterRestartRef.current = null;
+      }
+      if (reopenAfterForceResetRef.current) {
+        clearTimeout(reopenAfterForceResetRef.current);
+        reopenAfterForceResetRef.current = null;
       }
     }
   }, [open]);
@@ -128,9 +158,26 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
           clearTimeout(forceResetTimerRef.current);
           forceResetTimerRef.current = null;
         }
+        if (reopenAfterRestartRef.current) {
+          clearTimeout(reopenAfterRestartRef.current);
+          reopenAfterRestartRef.current = null;
+        }
+        if (reopenAfterForceResetRef.current) {
+          clearTimeout(reopenAfterForceResetRef.current);
+          reopenAfterForceResetRef.current = null;
+        }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialConnectionId]);
+  
+  // Sync refs with state changes
+  useEffect(() => {
+    hasQrRef.current = !!qrData;
+  }, [qrData]);
+  
+  useEffect(() => {
+    connectedRef.current = connected;
+  }, [connected]);
 
   // Auto-recovery logic: implement timeouts and auto-restart
   useEffect(() => {
@@ -150,12 +197,14 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
           await whatsappGateway.restartConnection(connectionId);
           setStatus('Reiniciado, aguardando novo QR...');
           // Re-open QR stream after restart - only if we still don't have QR
-          setTimeout(() => {
-            if (!qrData && !connected) {
+          reopenAfterRestartRef.current = setTimeout(() => {
+            if (!hasQrRef.current && !connectedRef.current) {
+              console.log('[NewConnectionDialog] 🔄 Executing delayed restart QR stream...');
               startQrStream(connectionId);
             } else {
               console.log('[NewConnectionDialog] ✅ Skipping restart QR stream - already have QR or connected');
             }
+            reopenAfterRestartRef.current = null;
           }, 2000);
         } catch (error) {
           console.warn('[NewConnectionDialog] ⚠️ Restart failed:', error);
@@ -174,12 +223,14 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
           if (result.success) {
             setStatus('Sessão resetada, reconectando...');
             // Re-open QR stream after force reset - only if we still don't have QR
-            setTimeout(() => {
-              if (!qrData && !connected) {
+            reopenAfterForceResetRef.current = setTimeout(() => {
+              if (!hasQrRef.current && !connectedRef.current) {
+                console.log('[NewConnectionDialog] 🔄 Executing delayed force reset QR stream...');
                 startQrStream(connectionId);
               } else {
                 console.log('[NewConnectionDialog] ✅ Skipping force reset QR stream - already have QR or connected');
               }
+              reopenAfterForceResetRef.current = null;
             }, 3000);
           } else {
             setStatus(`Reset parcial: ${result.message}`);
@@ -201,6 +252,14 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
       if (forceResetTimerRef.current) {
         clearTimeout(forceResetTimerRef.current);
         forceResetTimerRef.current = null;
+      }
+      if (reopenAfterRestartRef.current) {
+        clearTimeout(reopenAfterRestartRef.current);
+        reopenAfterRestartRef.current = null;
+      }
+      if (reopenAfterForceResetRef.current) {
+        clearTimeout(reopenAfterForceResetRef.current);
+        reopenAfterForceResetRef.current = null;
       }
     };
   }, [connection?.id, initialConnectionId, qrData, streamError, connected, creating]);
@@ -311,6 +370,18 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
         console.log('[NewConnectionDialog] ✅ Cleared force reset timer - QR received');
       }
       
+      // Clear reopen timers when QR is received
+      if (reopenAfterRestartRef.current) {
+        clearTimeout(reopenAfterRestartRef.current);
+        reopenAfterRestartRef.current = null;
+        console.log('[NewConnectionDialog] ✅ Cleared reopen after restart timer - QR received');
+      }
+      if (reopenAfterForceResetRef.current) {
+        clearTimeout(reopenAfterForceResetRef.current);
+        reopenAfterForceResetRef.current = null;
+        console.log('[NewConnectionDialog] ✅ Cleared reopen after force reset timer - QR received');
+      }
+      
       let rawQrData = String(evt.data);
       console.log('[NewConnectionDialog] 📱 QR received, length:', rawQrData.length, 'first 50 chars:', rawQrData.substring(0, 50));
       
@@ -396,6 +467,18 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
         clearTimeout(forceResetTimerRef.current);
         forceResetTimerRef.current = null;
         console.log('[NewConnectionDialog] ✅ Cleared force reset timer - connected');
+      }
+      
+      // Clear reopen timers when connected
+      if (reopenAfterRestartRef.current) {
+        clearTimeout(reopenAfterRestartRef.current);
+        reopenAfterRestartRef.current = null;
+        console.log('[NewConnectionDialog] ✅ Cleared reopen after restart timer - connected');
+      }
+      if (reopenAfterForceResetRef.current) {
+        clearTimeout(reopenAfterForceResetRef.current);
+        reopenAfterForceResetRef.current = null;
+        console.log('[NewConnectionDialog] ✅ Cleared reopen after force reset timer - connected');
       }
       
       setConnected(true);
