@@ -149,8 +149,14 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
         try {
           await whatsappGateway.restartConnection(connectionId);
           setStatus('Reiniciado, aguardando novo QR...');
-          // Re-open QR stream after restart
-          setTimeout(() => startQrStream(connectionId), 2000);
+          // Re-open QR stream after restart - only if we still don't have QR
+          setTimeout(() => {
+            if (!qrData && !connected) {
+              startQrStream(connectionId);
+            } else {
+              console.log('[NewConnectionDialog] ✅ Skipping restart QR stream - already have QR or connected');
+            }
+          }, 2000);
         } catch (error) {
           console.warn('[NewConnectionDialog] ⚠️ Restart failed:', error);
         }
@@ -167,8 +173,14 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
           const result = await whatsappGateway.forceResetConnection(connectionId);
           if (result.success) {
             setStatus('Sessão resetada, reconectando...');
-            // Re-open QR stream after force reset
-            setTimeout(() => startQrStream(connectionId), 3000);
+            // Re-open QR stream after force reset - only if we still don't have QR
+            setTimeout(() => {
+              if (!qrData && !connected) {
+                startQrStream(connectionId);
+              } else {
+                console.log('[NewConnectionDialog] ✅ Skipping force reset QR stream - already have QR or connected');
+              }
+            }, 3000);
           } else {
             setStatus(`Reset parcial: ${result.message}`);
           }
