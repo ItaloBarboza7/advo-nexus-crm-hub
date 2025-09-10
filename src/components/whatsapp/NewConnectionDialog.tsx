@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, RefreshCw, AlertCircle } from "lucide-react";
+import { Loader2, RefreshCw, AlertCircle, CheckCircle2 } from "lucide-react";
 import { whatsappGateway, type GatewayConnection, type GatewayEvent } from "@/integrations/whatsapp/gateway";
 import { useToast } from "@/hooks/use-toast";
 import QRCode from 'qrcode';
@@ -495,8 +495,8 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
       setStreamError(null);
       toast({ title: 'Conexão ativa', description: 'O WhatsApp foi conectado.' });
       if (connection && onConnected) onConnected({ ...connection, status: 'connected' });
-      // Fecha em alguns segundos para UX suave
-      setTimeout(() => onOpenChange(false), 900);
+      // Give user time to see the success confirmation before auto-closing
+      setTimeout(() => onOpenChange(false), 2500);
     } else if (evt.type === 'disconnected') {
       setConnected(false);
       setStatus('Desconectado');
@@ -576,7 +576,20 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
             </div>
 
             <div className="flex flex-col items-center gap-3">
-              {qrImageSrc && !hasError ? (
+              {connected ? (
+                // Success state - show confirmation instead of QR
+                <div className="w-[320px] h-[320px] max-w-full rounded-md border bg-green-50/50 flex items-center justify-center">
+                  <div className="flex flex-col items-center gap-4 text-center">
+                    <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
+                      <CheckCircle2 className="h-8 w-8 text-green-600" />
+                    </div>
+                    <div>
+                      <div className="text-lg font-semibold text-green-900">Conexão realizada!</div>
+                      <div className="text-sm text-green-700 mt-1">WhatsApp conectado com sucesso</div>
+                    </div>
+                  </div>
+                </div>
+              ) : qrImageSrc && !hasError ? (
                 <img
                   src={qrImageSrc}
                   alt="QR Code para WhatsApp"
@@ -611,7 +624,7 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
             </div>
 
             <DialogFooter className="gap-2">
-              {(hasError || (!qrData && !isLoading)) && (
+              {!connected && (hasError || (!qrData && !isLoading)) && (
                 <Button variant="outline" onClick={handleReloadQr} disabled={reloading}>
                   {reloading ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -621,8 +634,8 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
                   Recarregar QR
                 </Button>
               )}
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Fechar
+              <Button variant={connected ? "default" : "outline"} onClick={() => onOpenChange(false)}>
+                {connected ? "Concluído" : "Fechar"}
               </Button>
             </DialogFooter>
           </div>
