@@ -200,9 +200,9 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
           reopenAfterRestartRef.current = setTimeout(() => {
             if (!hasQrRef.current && !connectedRef.current) {
               console.log('[NewConnectionDialog] 🔄 Executing delayed restart QR stream...');
-              startQrStream(connectionId);
+              startQrStream(connectionId, true); // Mark as automatic recovery
             } else {
-              console.log('[NewConnectionDialog] ✅ Skipping restart QR stream - already have QR or connected');
+              console.log('[NewConnectionDialog] ✅ Skip reopen: QR present or connected');
             }
             reopenAfterRestartRef.current = null;
           }, 2000);
@@ -226,9 +226,9 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
             reopenAfterForceResetRef.current = setTimeout(() => {
               if (!hasQrRef.current && !connectedRef.current) {
                 console.log('[NewConnectionDialog] 🔄 Executing delayed force reset QR stream...');
-                startQrStream(connectionId);
+                startQrStream(connectionId, true); // Mark as automatic recovery
               } else {
-                console.log('[NewConnectionDialog] ✅ Skipping force reset QR stream - already have QR or connected');
+                console.log('[NewConnectionDialog] ✅ Skip reopen: QR present or connected');
               }
               reopenAfterForceResetRef.current = null;
             }, 3000);
@@ -264,7 +264,7 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
     };
   }, [connection?.id, initialConnectionId, qrData, streamError, connected, creating]);
 
-  const startQrStream = (connectionId: string) => {
+  const startQrStream = (connectionId: string, isAutomaticRecovery = false) => {
     // Close any existing stream
     if (streamRef.current) {
       streamRef.current.close();
@@ -277,8 +277,11 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
       timeoutRef.current = null;
     }
     
-    setQrData(null);
-    setQrImageUrl(null);
+    // Only clear QR data for user-initiated actions, not automatic recovery
+    if (!isAutomaticRecovery) {
+      setQrData(null);
+      setQrImageUrl(null);
+    }
     setStreamError(null);
     setReloading(false);
     setStatus('Conectando ao stream de QR...');
@@ -352,6 +355,9 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
     }
     
     if (evt.type === 'qr') {
+      // CRITICAL: Set hasQrRef IMMEDIATELY to prevent race conditions
+      hasQrRef.current = true;
+      
       // Clear timeout when QR is received
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
@@ -451,6 +457,9 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
     } else if (evt.type === 'status') {
       setStatus(String(evt.data ?? 'Atualizando...'));
     } else if (evt.type === 'connected') {
+      // CRITICAL: Set connectedRef IMMEDIATELY to prevent race conditions
+      connectedRef.current = true;
+      
       // Clear timeout when connected
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
