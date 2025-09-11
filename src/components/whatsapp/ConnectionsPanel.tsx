@@ -7,6 +7,7 @@ import NewConnectionDialog from "./NewConnectionDialog";
 import GatewayDiagnostics from "./GatewayDiagnostics";
 import { ConnectionSettingsDialog } from "./ConnectionSettingsDialog";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const ConnectionsPanel: React.FC = () => {
   const { toast } = useToast();
@@ -77,8 +78,6 @@ const ConnectionsPanel: React.FC = () => {
     loadConnections();
     
     // Subscribe to real-time changes on whatsapp_connections
-    const { supabase } = require('@/integrations/supabase/client');
-    
     const channel = supabase
       .channel('whatsapp_connections_changes')
       .on(
