@@ -28,6 +28,9 @@ export type GatewayHealthStatus = {
 const DIRECT_GATEWAY_BASE = "https://evojuris-whatsapp.onrender.com";
 const GATEWAY_AUTH_TOKEN = "h7ViAWZDn4ZMRcy4x0zUCyYEQ11H8a6F";
 
+// Supabase Edge Function proxy for specific operations
+const PROXY_BASE = "https://xltugnmjbcowsuwzkkni.supabase.co/functions/v1/whatsapp-proxy";
+
 // Usar conexão direta para evitar problemas com o proxy
 const getBaseUrl = () => {
   return DIRECT_GATEWAY_BASE;
@@ -867,21 +870,36 @@ export const whatsappGateway = {
     }
   },
 
-  // Bootstrap sync for initial data fetch
+  // Bootstrap sync for initial data fetch - uses Supabase Edge Function
   async bootstrapSync(connectionId: string): Promise<{ success: boolean; message: string }> {
     try {
-      const baseUrl = getBaseUrl();
       const tenantId = await getTenantId();
       
       console.log('[whatsappGateway] 🔄 Starting bootstrap sync for connection:', connectionId);
       
-      const url = new URL(`${baseUrl}/bootstrap`);
+      // Get authentication headers for Supabase
+      const { data: { session } } = await supabase.auth.getSession();
+      const clientToken = session?.access_token;
+      const clientApiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsdHVnbm1qYmNvd3N1d3pra25pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4MDkyNjAsImV4cCI6MjA2NDM4NTI2MH0.g-dg8YF0mK0LkDBvTzUlW8po9tT0VC-s47PFbDScmN8';
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (clientToken) {
+        headers['Authorization'] = `Bearer ${clientToken}`;
+      }
+      if (clientApiKey) {
+        headers['apikey'] = clientApiKey;
+      }
+      
+      const url = new URL(`${PROXY_BASE}/bootstrap`);
       url.searchParams.append('connection_id', connectionId);
       url.searchParams.append('tenant_id', tenantId);
       
       const response = await fetch(url.toString(), {
         method: 'GET',
-        headers: getHeaders(),
+        headers,
       });
       
       if (!response.ok) {
@@ -898,14 +916,12 @@ export const whatsappGateway = {
     }
   },
 
-  // Force reset connection session - tries to clear stuck sessions
+  // Force reset connection session - uses Supabase Edge Function
   forceResetConnection: async (connectionId: string): Promise<{ success: boolean; message: string }> => {
-    const baseUrl = getBaseUrl();
-    
     try {
       const tenantId = await getTenantId();
       
-      // Get authentication
+      // Get authentication for Supabase
       const { data: { session } } = await supabase.auth.getSession();
       const clientToken = session?.access_token;
       const clientApiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsdHVnbm1qYmNvd3N1d3pra25pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4MDkyNjAsImV4cCI6MjA2NDM4NTI2MH0.g-dg8YF0mK0LkDBvTzUlW8po9tT0VC-s47PFbDScmN8';
@@ -914,7 +930,6 @@ export const whatsappGateway = {
         'Content-Type': 'application/json',
       };
       
-      // Add authentication headers
       if (clientToken) {
         headers['Authorization'] = `Bearer ${clientToken}`;
       }
@@ -924,7 +939,7 @@ export const whatsappGateway = {
       
       console.log('[whatsappGateway] 💥 Force resetting connection session:', connectionId);
       
-      const url = new URL(`${baseUrl}/force-reset-connection`);
+      const url = new URL(`${PROXY_BASE}/force-reset-connection`);
       url.searchParams.append('connection_id', connectionId);
       url.searchParams.append('tenant_id', tenantId);
       
@@ -952,22 +967,36 @@ export const whatsappGateway = {
     }
   },
 
-  // Refresh connection info
+  // Refresh connection info - uses Supabase Edge Function
   async refreshConnection(connectionId: string): Promise<{ success: boolean; message: string }> {
-    const baseUrl = getBaseUrl();
-    
     try {
       const tenantId = await getTenantId();
       
+      // Get authentication for Supabase
+      const { data: { session } } = await supabase.auth.getSession();
+      const clientToken = session?.access_token;
+      const clientApiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsdHVnbm1qYmNvd3N1d3pra25pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4MDkyNjAsImV4cCI6MjA2NDM4NTI2MH0.g-dg8YF0mK0LkDBvTzUlW8po9tT0VC-s47PFbDScmN8';
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (clientToken) {
+        headers['Authorization'] = `Bearer ${clientToken}`;
+      }
+      if (clientApiKey) {
+        headers['apikey'] = clientApiKey;
+      }
+      
       console.log('[whatsappGateway] 🔄 Refreshing connection:', connectionId);
       
-      const url = new URL(`${baseUrl}/refresh-connection`);
+      const url = new URL(`${PROXY_BASE}/refresh-connection`);
       url.searchParams.append('connection_id', connectionId);
       url.searchParams.append('tenant_id', tenantId);
       
       const res = await fetch(url.toString(), {
         method: 'POST',
-        headers: getHeaders(),
+        headers,
       });
       
       const data = await safeJsonResponse(res);
