@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, RefreshCw, AlertCircle, CheckCircle2 } from "lucide-react";
 import { whatsappGateway, type GatewayConnection, type GatewayEvent } from "@/integrations/whatsapp/gateway";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import QRCode from 'qrcode';
 
 type Props = {
@@ -40,6 +41,7 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
   const connectedRef = useRef(false);
   const reopenAfterRestartRef = useRef<NodeJS.Timeout | null>(null);
   const reopenAfterForceResetRef = useRef<NodeJS.Timeout | null>(null);
+  const supabaseChannelRef = useRef<any>(null);
 
   useEffect(() => {
     if (open) {
@@ -83,7 +85,18 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
         clearTimeout(reopenAfterForceResetRef.current);
         reopenAfterForceResetRef.current = null;
       }
+      
+      // Setup Supabase realtime fallback for connection status
+      if (initialConnectionId) {
+        setupSupabaseRealtimeFallback(initialConnectionId);
+      }
     } else {
+      // Cleanup Supabase subscription when dialog closes
+      if (supabaseChannelRef.current) {
+        supabase.removeChannel(supabaseChannelRef.current);
+        supabaseChannelRef.current = null;
+      }
+      
       if (streamRef.current) {
         streamRef.current.close();
         streamRef.current = null;
@@ -111,6 +124,12 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
       if (reopenAfterForceResetRef.current) {
         clearTimeout(reopenAfterForceResetRef.current);
         reopenAfterForceResetRef.current = null;
+      }
+      
+      // Cleanup Supabase subscription
+      if (supabaseChannelRef.current) {
+        supabase.removeChannel(supabaseChannelRef.current);
+        supabaseChannelRef.current = null;
       }
     }
   }, [open]);
@@ -141,6 +160,9 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
       // Sempre tenta abrir o stream de QR, independente do resultado do connect
       setStatus('Abrindo stream de QR para conexão existente...');
       startQrStream(initialConnectionId);
+      
+      // Setup Supabase realtime fallback for this connection
+      setupSupabaseRealtimeFallback(initialConnectionId);
     };
 
     initializeReconnection();
@@ -169,6 +191,60 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialConnectionId]);
+  
+  // Setup Supabase realtime fallback to catch connection status updates
+  const setupSupabaseRealtimeFallback = (connectionId: string) => {
+    // Clean up existing subscription
+    if (supabaseChannelRef.current) {
+      supabase.removeChannel(supabaseChannelRef.current);
+    }
+    
+    console.log('[NewConnectionDialog] 📡 Setting up Supabase realtime fallback for connection:', connectionId);
+    
+    const channel = supabase
+      .channel('whatsapp_connection_status_fallback')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'whatsapp_connections',
+          filter: `id=eq.${connectionId}`
+        },
+        (payload) => {
+          console.log('[NewConnectionDialog] 📡 Supabase realtime fallback triggered:', payload);
+          
+          if (payload.new && payload.new.status === 'connected') {
+            console.log('[NewConnectionDialog] 🔥 Fallback detected connection success!');
+            if (!connectedRef.current) {
+              setConnected(true);
+              setStatus('Conectado com sucesso (via realtime)!');
+              setStreamError(null);
+              toast({ 
+                title: 'Conexão ativa', 
+                description: 'O WhatsApp foi conectado com sucesso!' 
+              });
+              
+              if (connection && onConnected) {
+                onConnected({ ...connection, status: 'connected' });
+              } else if (initialConnectionId && onConnected) {
+                onConnected({ 
+                  id: initialConnectionId, 
+                  name: payload.new.name || 'Conexão ativa', 
+                  status: 'connected' 
+                });
+              }
+              
+              // Auto-close after success feedback
+              setTimeout(() => onOpenChange(false), 2500);
+            }
+          }
+        }
+      )
+      .subscribe();
+    
+    supabaseChannelRef.current = channel;
+  };
   
   // Sync refs with state changes
   useEffect(() => {
@@ -324,6 +400,9 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
       
       // Sempre tenta abrir o stream de QR, independente do resultado do connect
       startQrStream(conn.id);
+      
+      // Setup Supabase realtime fallback for new connection
+      setupSupabaseRealtimeFallback(conn.id);
     } catch (e: any) {
       console.error('[NewConnectionDialog] ❌ createConnection error', e);
       setStreamError(`Erro ao criar conexão: ${e?.message ?? 'Falha inesperada'}`);
@@ -341,9 +420,15 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
     if (evt.type === 'status' && evt.data) {
       const message = String(evt.data).toLowerCase();
       if (message.includes('session active') || message.includes('already connected') || message.includes('session exists')) {
-        console.log('[NewConnectionDialog] 🔥 Detected stuck session, suggesting force reset');
-        setStatus('Sessão existente detectada. Use "Forçar reset da sessão" se necessário.');
-        setStreamError('Sessão pode estar travada - tente force reset');
+        console.log('[NewConnectionDialog] ✅ Session active - treating as successful connection');
+        // Treat "session active" as a successful connection instead of an error
+        setConnected(true);
+        setStatus('Sessão ativa detectada - Conectado!');
+        setStreamError(null);
+        toast({ title: 'Conexão ativa', description: 'Sessão do WhatsApp já estava ativa.' });
+        if (connection && onConnected) onConnected({ ...connection, status: 'connected' });
+        // Give user time to see the success confirmation before auto-closing
+        setTimeout(() => onOpenChange(false), 2500);
         return;
       }
     }
@@ -498,8 +583,14 @@ const NewConnectionDialog: React.FC<Props> = ({ open, onOpenChange, onConnected,
       // Give user time to see the success confirmation before auto-closing
       setTimeout(() => onOpenChange(false), 2500);
     } else if (evt.type === 'disconnected') {
-      setConnected(false);
-      setStatus('Desconectado');
+      // Only update disconnected state if we're not already connected
+      // This prevents UI flickering when QR stream closes after successful connection
+      if (!connectedRef.current) {
+        setConnected(false);
+        setStatus('Desconectado');
+      } else {
+        console.log('[NewConnectionDialog] ℹ️ Ignoring disconnected event - already connected');
+      }
     } else if (evt.type === 'error') {
       setStreamError(String(evt.data ?? 'Erro no stream'));
       setStatus('Erro no stream de QR');

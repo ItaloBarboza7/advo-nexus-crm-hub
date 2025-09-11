@@ -159,17 +159,49 @@ const openJsonWebSocket = (url: string, onEvent: (evt: GatewayEvent) => void) =>
           const qrData = eventData.qr || eventData.qr_code || eventData.qrcode || eventData;
           onEvent({ type: 'qr', data: qrData });
         } else if (eventType === 'status') {
-          onEvent({ type: 'status', data: eventData.message || eventData });
-        } else if (eventType === 'connected') {
+          // Check if status message indicates connection success
+          const statusMessage = String(eventData.message || eventData).toLowerCase();
+          if (statusMessage.includes('connected') || statusMessage.includes('authenticated') || statusMessage.includes('ready')) {
+            onEvent({ type: 'connected', data: eventData });
+          } else {
+            onEvent({ type: 'status', data: eventData.message || eventData });
+          }
+        } else if (eventType === 'connected' || eventType === 'connection.ready' || eventType === 'authenticated') {
+          // Normalize all connection success events to 'connected'
           onEvent({ type: 'connected', data: eventData });
-        } else if (eventType === 'disconnected') {
+        } else if (eventType === 'disconnected' || eventType === 'connection.closed') {
+          // Normalize disconnection events
           onEvent({ type: 'disconnected', data: eventData });
+        } else if (eventType === 'connection.update') {
+          // Handle connection updates - these might contain QR or status changes
+          if (eventData.qr || eventData.qr_code || eventData.qrcode) {
+            const qrData = eventData.qr || eventData.qr_code || eventData.qrcode;
+            onEvent({ type: 'qr', data: qrData });
+          } else if (eventData.status) {
+            const statusMessage = String(eventData.status).toLowerCase();
+            if (statusMessage.includes('connected') || statusMessage.includes('authenticated')) {
+              onEvent({ type: 'connected', data: eventData });
+            } else {
+              onEvent({ type: 'status', data: eventData.status });
+            }
+          } else {
+            onEvent({ type: eventType, data: eventData });
+          }
         } else {
           onEvent({ type: eventType, data: eventData });
         }
       } else if (message.type) {
         // Direct format: {"type": "qr", "data": "..."}
-        onEvent(message);
+        const normalizedMessage = { ...message };
+        
+        // Normalize connection success events
+        if (message.type === 'connection.ready' || message.type === 'authenticated') {
+          normalizedMessage.type = 'connected';
+        } else if (message.type === 'connection.closed') {
+          normalizedMessage.type = 'disconnected';
+        }
+        
+        onEvent(normalizedMessage);
       }
     } catch (error) {
       console.error('[whatsappGateway] ❌ Error parsing WebSocket message:', error, event.data);
