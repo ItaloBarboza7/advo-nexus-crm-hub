@@ -201,7 +201,7 @@ export const ConnectionSettingsDialog: React.FC<ConnectionSettingsDialogProps> =
             )}
           </div>
           
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2">
             <Button
               variant="outline"
               size="default"
@@ -212,6 +212,19 @@ export const ConnectionSettingsDialog: React.FC<ConnectionSettingsDialogProps> =
               <RotateCw className={`h-4 w-4 ${isForceResetting ? 'animate-spin' : ''}`} />
               {isForceResetting ? "Resetando..." : "Forçar reset da sessão"}
             </Button>
+            
+            {connection.status === 'connected' && (
+              <Button
+                variant="outline"
+                size="default"
+                onClick={handleDisconnect}
+                disabled={isDisconnecting}
+                className="flex items-center gap-2 text-red-600 hover:text-red-700"
+              >
+                <Power className={`h-4 w-4`} />
+                {isDisconnecting ? "Desconectando..." : "Desligar conexão"}
+              </Button>
+            )}
           </div>
         </div>
 
