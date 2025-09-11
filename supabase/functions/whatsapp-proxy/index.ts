@@ -52,6 +52,67 @@ function getDynamicOrigin(requestOrigin: string | null): string {
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
+// ID/JID Normalization helpers
+function normalizeJid(rawJid: string): string {
+  if (!rawJid) return ''
+  
+  // Handle different JID formats: user@server, user@server/resource, serialized format, etc.
+  let jid = rawJid
+  
+  // Remove _serialized suffix if present
+  if (jid.endsWith('_serialized')) {
+    jid = jid.replace('_serialized', '')
+  }
+  
+  // Extract main part before any resource (/resource)
+  jid = jid.split('/')[0]
+  
+  // Ensure it has @c.us or @g.us format for WhatsApp
+  if (!jid.includes('@')) {
+    // If it's just a number, assume it's a user chat
+    if (/^\d+$/.test(jid)) {
+      jid = `${jid}@c.us`
+    }
+  }
+  
+  return jid
+}
+
+function getMessageChatJid(messageData: any): string {
+  // Try different possible JID fields from message data
+  const possibleJidFields = [
+    'chatId', 'chat_id', 'remoteJid', 'from', 'to', 'jid',
+    'chat', '_data.id.remote', 'id.remote'
+  ]
+  
+  for (const field of possibleJidFields) {
+    if (field.includes('.')) {
+      // Handle nested properties like '_data.id.remote'
+      const parts = field.split('.')
+      let value = messageData
+      for (const part of parts) {
+        if (value && typeof value === 'object') {
+          value = value[part]
+        } else {
+          value = null
+          break
+        }
+      }
+      if (value && typeof value === 'string') {
+        return normalizeJid(value)
+      }
+    } else {
+      const value = messageData[field]
+      if (value && typeof value === 'string') {
+        return normalizeJid(value)
+      }
+    }
+  }
+  
+  console.log(`⚠️ Could not extract chat JID from message:`, Object.keys(messageData))
+  return ''
+}
+
 // Função para criar cliente Supabase com autenticação do usuário
 function createSupabaseClientWithAuth(clientToken: string | null, clientApiKey: string | null) {
   if (!clientToken || !clientApiKey) {
@@ -169,11 +230,17 @@ async function ensureContact(contactData: any, connectionId: string, tenantId: s
   }
 }
 
-// Ensure chat exists in database
+// Ensure chat exists in database with normalized JID
 async function ensureChat(chatData: any, connectionId: string, tenantId: string, supabase: any) {
   try {
+    const normalizedJid = normalizeJid(chatData.jid || chatData.id || chatData.chatId || '')
+    if (!normalizedJid) {
+      console.log('⚠️ Cannot ensure chat without valid JID:', chatData)
+      return null
+    }
+
     // Find contact for this chat
-    const contactWaId = chatData.jid?.split('@')[0] || chatData.contact_id
+    const contactWaId = normalizedJid.split('@')[0]
     let contactId = null
     
     if (contactWaId) {
@@ -187,12 +254,12 @@ async function ensureChat(chatData: any, connectionId: string, tenantId: string,
       contactId = contact?.id
     }
 
-    const { error } = await supabase
+    const { data: chatResult, error } = await supabase
       .from('whatsapp_chats')
       .upsert({
-        jid: chatData.jid || chatData.id,
-        name: chatData.name || chatData.title,
-        type: chatData.type || 'user',
+        jid: normalizedJid,
+        name: chatData.name || chatData.title || contactWaId || 'Chat',
+        type: chatData.type || (normalizedJid.includes('@g.us') ? 'group' : 'user'),
         unread_count: chatData.unread_count || 0,
         last_message_at: chatData.last_message_at ? new Date(chatData.last_message_at).toISOString() : null,
         connection_id: connectionId,
@@ -203,14 +270,19 @@ async function ensureChat(chatData: any, connectionId: string, tenantId: string,
         onConflict: 'jid,connection_id',
         ignoreDuplicates: false
       })
+      .select('id')
+      .single()
 
     if (error) {
       console.error('❌ Error upserting chat:', error)
+      return null
     } else {
-      console.log('✅ Chat ensured:', chatData.name || chatData.jid)
+      console.log('✅ Chat ensured:', normalizedJid)
+      return chatResult
     }
   } catch (error) {
     console.error('❌ Error in ensureChat:', error)
+    return null
   }
 }
 
@@ -344,20 +416,53 @@ async function handleWhatsAppEvent(eventData: any, supabase: any, clientToken: s
         if (messages.length > 0 && finalConnectionId) {
           for (const message of messages) {
             if (message) {
-              // Find the chat for this message
-              const chatJid = message.chat_id || message.from || message.chatId
-              const chatResult = await supabase
+              // Get normalized chat JID from message
+              const normalizedChatJid = getMessageChatJid(message)
+              
+              if (!normalizedChatJid) {
+                console.log(`⚠️ Could not determine chat JID for message:`, message)
+                continue
+              }
+
+              // Find or create the chat for this message
+              let chatResult = await supabase
                 .from('whatsapp_chats')
                 .select('id')
-                .eq('jid', chatJid)
+                .eq('jid', normalizedChatJid)
                 .eq('connection_id', finalConnectionId)
                 .eq('tenant_id', finalTenantId)
                 .single()
 
+              if (!chatResult.data) {
+                console.log(`📝 Chat not found for message JID: ${normalizedChatJid}, creating it...`)
+                
+                // Create chat automatically for 1:1 conversations
+                if (normalizedChatJid.includes('@c.us')) {
+                  const contactWaId = normalizedChatJid.split('@')[0]
+                  
+                  // Ensure contact exists first
+                  await ensureContact({
+                    wa_id: contactWaId,
+                    name: message.author_name || message.pushname || contactWaId
+                  }, finalConnectionId, finalTenantId, supabase)
+                  
+                  // Create the chat
+                  const newChat = await ensureChat({
+                    jid: normalizedChatJid,
+                    name: message.author_name || message.pushname || contactWaId,
+                    type: 'user'
+                  }, finalConnectionId, finalTenantId, supabase)
+                  
+                  if (newChat) {
+                    chatResult.data = newChat
+                  }
+                }
+              }
+
               if (chatResult.data) {
                 await insertOrUpdateMessage(message, chatResult.data.id, finalConnectionId, finalTenantId, supabase)
               } else {
-                console.log(`⚠️ Chat not found for message: ${chatJid}`)
+                console.log(`❌ Could not create/find chat for message JID: ${normalizedChatJid}`)
               }
             }
           }
@@ -494,7 +599,7 @@ async function processEventsStream(stream: ReadableStream, clientToken: string |
 // Create a minimal Supabase client with service role
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
-// Bootstrap sync handler
+// Enhanced Bootstrap sync handler with better parsing and fallback endpoints
 async function handleBootstrapSync(req: Request, parsedBase: URL, gatewayToken: string, supabase: any) {
   const url = new URL(req.url)
   const connectionId = url.searchParams.get('connection_id')
@@ -507,7 +612,7 @@ async function handleBootstrapSync(req: Request, parsedBase: URL, gatewayToken: 
     })
   }
 
-  console.log(`🔄 Starting bootstrap sync for connection ${connectionId}`)
+  console.log(`🔄 Starting enhanced bootstrap sync for connection ${connectionId}`)
 
   try {
     const headers: Record<string, string> = {
@@ -517,7 +622,7 @@ async function handleBootstrapSync(req: Request, parsedBase: URL, gatewayToken: 
       headers['Authorization'] = `Bearer ${gatewayToken}`
     }
 
-    // Try multiple endpoint patterns for each resource type
+    // Enhanced endpoint patterns with more alternatives
     const endpointSets = [
       { 
         name: 'contacts', 
@@ -526,7 +631,9 @@ async function handleBootstrapSync(req: Request, parsedBase: URL, gatewayToken: 
           `/connection/${connectionId}/contacts`,
           `/api/connections/${connectionId}/contacts`,
           `/v1/connections/${connectionId}/contacts`,
-          `/contacts?connection_id=${connectionId}`
+          `/contacts?connection_id=${connectionId}`,
+          `/connections/${connectionId}/phonebook`,
+          `/connections/${connectionId}/addressbook`
         ]
       },
       { 
@@ -536,7 +643,9 @@ async function handleBootstrapSync(req: Request, parsedBase: URL, gatewayToken: 
           `/connection/${connectionId}/chats`,
           `/api/connections/${connectionId}/chats`,
           `/v1/connections/${connectionId}/chats`,
-          `/chats?connection_id=${connectionId}`
+          `/chats?connection_id=${connectionId}`,
+          `/connections/${connectionId}/conversations`,
+          `/connections/${connectionId}/dialogs`
         ]
       },
       { 
@@ -546,13 +655,51 @@ async function handleBootstrapSync(req: Request, parsedBase: URL, gatewayToken: 
           `/connection/${connectionId}/messages`,
           `/api/connections/${connectionId}/messages`,
           `/v1/connections/${connectionId}/messages`,
-          `/messages?connection_id=${connectionId}`
+          `/messages?connection_id=${connectionId}`,
+          `/connections/${connectionId}/history`,
+          `/connections/${connectionId}/recent`
         ]
       }
     ]
 
-    let syncedCount = 0
-    let totalItems = 0
+    let contactsSynced = 0
+    let chatsSynced = 0
+    let messagesSynced = 0
+    let resourcesSynced = 0
+
+    // Helper function to parse response data in various formats
+    function extractDataFromResponse(data: any, resourceType: string): any[] {
+      if (!data) return []
+      
+      // Direct array
+      if (Array.isArray(data)) {
+        console.log(`📦 Direct array: ${data.length} items`)
+        return data
+      }
+      
+      // Try common wrapper property names
+      const wrapperProps = [
+        resourceType,           // e.g., 'contacts', 'chats', 'messages'
+        'data', 'items', 'results', 'rows', 'list', 'content',
+        resourceType.slice(0, -1), // singular form: 'contact', 'chat', 'message'
+      ]
+      
+      for (const prop of wrapperProps) {
+        if (data[prop] && Array.isArray(data[prop])) {
+          console.log(`📦 Found ${data[prop].length} items in property '${prop}'`)
+          return data[prop]
+        }
+      }
+      
+      // Single object - wrap in array
+      if (typeof data === 'object' && !Array.isArray(data)) {
+        console.log(`📦 Single object wrapped in array`)
+        return [data]
+      }
+      
+      console.log(`⚠️ Could not extract ${resourceType} from response:`, Object.keys(data))
+      return []
+    }
 
     for (const endpointSet of endpointSets) {
       let resourceSynced = false
@@ -565,31 +712,30 @@ async function handleBootstrapSync(req: Request, parsedBase: URL, gatewayToken: 
           const response = await fetch(new URL(pattern, parsedBase).toString(), { headers })
 
           if (response.ok) {
-            const data = await response.json()
-            console.log(`📦 Got ${endpointSet.name} data from ${pattern}:`, Array.isArray(data) ? data.length : 'object')
+            const rawData = await response.json()
+            const dataArray = extractDataFromResponse(rawData, endpointSet.name)
             
-            // Process and store the data
-            if (Array.isArray(data) && data.length > 0) {
-              for (const item of data) {
-                await handleWhatsAppEvent({
-                  type: endpointSet.name.slice(0, -1), // remove 's' from plural
-                  data: item
-                }, supabase, null, tenantId, connectionId)
+            if (dataArray.length > 0) {
+              console.log(`📥 Processing ${dataArray.length} ${endpointSet.name} from ${pattern}`)
+              
+              // Process each item
+              for (const item of dataArray) {
+                if (item) {
+                  await handleWhatsAppEvent({
+                    type: endpointSet.name.slice(0, -1), // remove 's' from plural
+                    data: item
+                  }, supabase, null, tenantId, connectionId)
+                }
               }
-              syncedCount++
-              totalItems += data.length
+              
+              // Track counts by type
+              if (endpointSet.name === 'contacts') contactsSynced += dataArray.length
+              else if (endpointSet.name === 'chats') chatsSynced += dataArray.length  
+              else if (endpointSet.name === 'messages') messagesSynced += dataArray.length
+              
+              resourcesSynced++
               resourceSynced = true
-              console.log(`✅ Successfully synced ${data.length} ${endpointSet.name}`)
-            } else if (data) {
-              // Handle single object response
-              await handleWhatsAppEvent({
-                type: endpointSet.name.slice(0, -1),
-                data: data
-              }, supabase, null, tenantId, connectionId)
-              syncedCount++
-              totalItems += 1
-              resourceSynced = true
-              console.log(`✅ Successfully synced 1 ${endpointSet.name} item`)
+              console.log(`✅ Successfully synced ${dataArray.length} ${endpointSet.name}`)
             }
           } else {
             console.log(`❌ Bootstrap ${endpointSet.name} at ${pattern} failed: ${response.status}`)
@@ -604,12 +750,17 @@ async function handleBootstrapSync(req: Request, parsedBase: URL, gatewayToken: 
       }
     }
 
+    const totalItems = contactsSynced + chatsSynced + messagesSynced
     const dynamicOrigin = getDynamicOrigin(req.headers.get('origin'))
+    
     return new Response(JSON.stringify({ 
-      success: true, 
-      synced_endpoints: syncedCount,
+      success: true,
+      contacts_synced: contactsSynced,
+      chats_synced: chatsSynced,
+      messages_synced: messagesSynced,
+      synced_resources: resourcesSynced,
       total_items: totalItems,
-      message: `Bootstrap sync completed - ${totalItems} items from ${syncedCount} resource types`
+      message: `Bootstrap sync completed: ${contactsSynced} contatos, ${chatsSynced} chats, ${messagesSynced} mensagens`
     }), {
       headers: {
         ...corsHeaders,

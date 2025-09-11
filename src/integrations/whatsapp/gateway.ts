@@ -24,6 +24,17 @@ export type GatewayHealthStatus = {
   proxyUsed: boolean;
 };
 
+export type BootstrapSyncResult = {
+  success: boolean;
+  contacts_synced?: number;
+  chats_synced?: number;
+  messages_synced?: number;
+  synced_resources?: number;
+  total_items?: number;
+  message?: string;
+  error?: string;
+};
+
 // Conexão direta com o servidor Render (sem proxy do Supabase)
 const DIRECT_GATEWAY_BASE = "https://evojuris-whatsapp.onrender.com";
 const GATEWAY_AUTH_TOKEN = "h7ViAWZDn4ZMRcy4x0zUCyYEQ11H8a6F";
@@ -903,7 +914,7 @@ export const whatsappGateway = {
   },
 
   // Bootstrap sync for initial data fetch - uses Supabase Edge Function
-  async bootstrapSync(connectionId: string): Promise<{ success: boolean; message: string }> {
+  async bootstrapSync(connectionId: string): Promise<BootstrapSyncResult> {
     try {
       const tenantId = await getTenantId();
       

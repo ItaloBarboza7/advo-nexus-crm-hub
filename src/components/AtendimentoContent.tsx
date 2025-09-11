@@ -14,7 +14,7 @@ import SettingsPanel from "./whatsapp/SettingsPanel";
 import { Chat, User, Contact, Message } from "./whatsapp/types";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { whatsappGateway, getTenantId } from "@/integrations/whatsapp/gateway";
+import { whatsappGateway, getTenantId, BootstrapSyncResult } from "@/integrations/whatsapp/gateway";
 import { processWhatsAppEvent } from "@/integrations/whatsapp/store";
 import "./whatsapp/scope.css";
 
@@ -37,7 +37,7 @@ export function AtendimentoContent() {
   });
   const { toast } = useToast();
 
-  // Manual sync function
+  // Enhanced manual sync function with polling and detailed feedback
   const handleManualSync = async () => {
     if (activeConnections.length === 0) {
       toast({
@@ -55,12 +55,30 @@ export function AtendimentoContent() {
       const result = await whatsappGateway.bootstrapSync(activeConnections[0].id);
       
       if (result.success) {
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait a bit for data to sync
-        await loadChatsFromSupabase(); // Reload chats
+        // Show detailed success message
+        const { contacts_synced = 0, chats_synced = 0, messages_synced = 0 } = result;
         
         toast({
-          title: "Sucesso",
-          description: result.message || "Sincronização realizada com sucesso",
+          title: "Sincronização Iniciada",
+          description: `Processando: ${contacts_synced} contatos, ${chats_synced} chats, ${messages_synced} mensagens`,
+        });
+        
+        // Implement polling to ensure UI updates (3 attempts)
+        const pollForUpdates = async () => {
+          const delays = [500, 1000, 1500]; // Progressive delays
+          
+          for (let i = 0; i < delays.length; i++) {
+            await new Promise(resolve => setTimeout(resolve, delays[i]));
+            console.log(`[AtendimentoContent] 🔄 Polling attempt ${i + 1}...`);
+            await loadChatsFromSupabase();
+          }
+        };
+        
+        await pollForUpdates();
+        
+        toast({
+          title: "Sincronização Completa",
+          description: result.message || `${contacts_synced} contatos, ${chats_synced} chats, ${messages_synced} mensagens sincronizadas`,
         });
       } else {
         throw new Error('Sync failed');
@@ -210,19 +228,27 @@ export function AtendimentoContent() {
               title: "Nova mensagem",
               description: "Mensagem recebida no WhatsApp",
             });
-          } else if (event.type === 'connected') {
-            toast({
-              title: "WhatsApp conectado",
-              description: "Conexão com WhatsApp estabelecida com sucesso",
-            });
-            // Reload connections to update status
-            setActiveConnections(prev => 
-              prev.map(conn => 
-                conn.id === connectionId 
-                  ? { ...conn, status: 'connected' as any }
-                  : conn
-              )
-            );
+            // Auto-bootstrap sync on connection
+            console.log('[AtendimentoContent] 🔄 Auto-bootstrapping sync after connection...');
+            try {
+              const syncResult = await whatsappGateway.bootstrapSync(connectionId);
+              if (syncResult.success) {
+                const { contacts_synced = 0, chats_synced = 0, messages_synced = 0 } = syncResult;
+                console.log(`[AtendimentoContent] ✅ Auto-sync completed: ${contacts_synced} contatos, ${chats_synced} chats, ${messages_synced} mensagens`);
+                
+                // Reload chats after auto-sync
+                setTimeout(() => loadChatsFromSupabase(), 1000);
+                
+                if (contacts_synced + chats_synced + messages_synced > 0) {
+                  toast({
+                    title: "Dados Sincronizados",
+                    description: `${contacts_synced} contatos, ${chats_synced} chats, ${messages_synced} mensagens carregadas`,
+                  });
+                }
+              }
+            } catch (syncError) {
+              console.error('[AtendimentoContent] ❌ Auto-sync error:', syncError);
+            }
           } else if (event.type === 'disconnected') {
             toast({
               title: "WhatsApp desconectado", 
