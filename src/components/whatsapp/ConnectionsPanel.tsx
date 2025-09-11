@@ -75,6 +75,30 @@ const ConnectionsPanel: React.FC = () => {
 
   useEffect(() => {
     loadConnections();
+    
+    // Subscribe to real-time changes on whatsapp_connections
+    const { supabase } = require('@/integrations/supabase/client');
+    
+    const channel = supabase
+      .channel('whatsapp_connections_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'whatsapp_connections'
+        },
+        (payload: any) => {
+          console.log('[ConnectionsPanel] 🔄 Connection change detected:', payload);
+          // Reload connections when changes occur
+          loadConnections();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleNewConnection = () => {

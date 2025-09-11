@@ -201,6 +201,54 @@ export function AtendimentoContent() {
         try {
           // Process event and save to Supabase
           const result = await processWhatsAppEvent(event, connectionId, await getTenantId());
+          console.log('[AtendimentoContent] ✅ Event processed:', result);
+          
+          // Handle different event types
+          if (event.type === 'message' || event.type === 'messages') {
+            await loadChatsFromSupabase();
+            toast({
+              title: "Nova mensagem",
+              description: "Mensagem recebida no WhatsApp",
+            });
+          } else if (event.type === 'connected') {
+            toast({
+              title: "WhatsApp conectado",
+              description: "Conexão com WhatsApp estabelecida com sucesso",
+            });
+            // Reload connections to update status
+            setActiveConnections(prev => 
+              prev.map(conn => 
+                conn.id === connectionId 
+                  ? { ...conn, status: 'connected' as any }
+                  : conn
+              )
+            );
+          } else if (event.type === 'disconnected') {
+            toast({
+              title: "WhatsApp desconectado", 
+              description: "Conexão com WhatsApp foi encerrada",
+              variant: "destructive",
+            });
+            // Update local state
+            setActiveConnections(prev => 
+              prev.map(conn => 
+                conn.id === connectionId 
+                  ? { ...conn, status: 'disconnected' as any }
+                  : conn
+              )
+            );
+          } else if (event.type === 'status') {
+            const status = event.data?.status || event.data;
+            console.log('[AtendimentoContent] 📊 Status update:', status);
+            // Update connection status in local state
+            setActiveConnections(prev => 
+              prev.map(conn => 
+                conn.id === connectionId 
+                  ? { ...conn, status: status as any }
+                  : conn
+              )
+            );
+          }
           
           if (result.type === 'chats' || result.type === 'messages') {
             // Reload chats when new data comes in

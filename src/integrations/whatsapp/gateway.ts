@@ -995,7 +995,7 @@ export const whatsappGateway = {
       url.searchParams.append('tenant_id', tenantId);
       
       const res = await fetch(url.toString(), {
-        method: 'POST',
+        method: 'GET', 
         headers,
       });
       
@@ -1057,20 +1057,35 @@ export const whatsappGateway = {
 
   // Disconnect a WhatsApp connection
   async disconnectConnection(connectionId: string): Promise<{ success: boolean; message: string }> {
-    const baseUrl = getBaseUrl();
-    
     try {
       const tenantId = await getTenantId();
       
       console.log('[whatsappGateway] 🔌 Disconnecting connection:', connectionId);
       
-      const url = new URL(`${baseUrl}/disconnect-connection`);
+      // Get authentication for Supabase proxy
+      const { data: { session } } = await supabase.auth.getSession();
+      const clientToken = session?.access_token;
+      const clientApiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsdHVnbm1qYmNvd3N1d3pra25pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4MDkyNjAsImV4cCI6MjA2NDM4NTI2MH0.g-dg8YF0mK0LkDBvTzUlW8po9tT0VC-s47PFbDScmN8';
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (clientToken) {
+        headers['Authorization'] = `Bearer ${clientToken}`;
+      }
+      if (clientApiKey) {
+        headers['apikey'] = clientApiKey;
+      }
+      
+      // Use Supabase proxy for disconnect
+      const url = new URL(`${PROXY_BASE}/disconnect-connection`);
       url.searchParams.append('connection_id', connectionId);
       url.searchParams.append('tenant_id', tenantId);
       
       const res = await fetch(url.toString(), {
         method: 'POST',
-        headers: getHeaders(),
+        headers,
       });
       
       const data = await safeJsonResponse(res);
@@ -1080,15 +1095,12 @@ export const whatsappGateway = {
         return { success: true, message: data.message };
       } else {
         console.warn('[whatsappGateway] ⚠️ Connection disconnect had issues:', data.message);
-        return { success: false, message: data.message || 'Connection disconnect failed' };
+        throw new Error(data.message || 'Connection disconnect failed');
       }
       
     } catch (error) {
       console.error('[whatsappGateway] ❌ disconnectConnection error:', error);
-      return { 
-        success: false, 
-        message: error instanceof Error ? error.message : 'Unknown error during connection disconnect'
-      };
+      throw error;
     }
   }
 };

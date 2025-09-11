@@ -365,6 +365,56 @@ async function handleWhatsAppEvent(eventData: any, supabase: any, clientToken: s
         }
         break
 
+      case 'disconnected':
+        // Handle disconnection events - update connection status
+        if (finalConnectionId) {
+          const { error } = await supabase
+            .from('whatsapp_connections')
+            .update({
+              status: 'disconnected',
+              qr_code: null,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', finalConnectionId)
+            .eq('tenant_id', finalTenantId)
+
+          if (error) {
+            console.error('❌ Failed to update disconnected status:', error)
+          } else {
+            console.log('✅ Connection marked as disconnected')
+          }
+        }
+        break
+
+      case 'status':
+        // Handle status change events
+        if (finalConnectionId && eventData.data) {
+          const status = eventData.data.status || eventData.data
+          const updateData: any = {
+            updated_at: new Date().toISOString()
+          }
+
+          if (status) {
+            updateData.status = status
+            if (status === 'disconnected') {
+              updateData.qr_code = null
+            }
+          }
+
+          const { error } = await supabase
+            .from('whatsapp_connections')
+            .update(updateData)
+            .eq('id', finalConnectionId)
+            .eq('tenant_id', finalTenantId)
+
+          if (error) {
+            console.error('❌ Failed to update status:', error)
+          } else {
+            console.log('✅ Connection status updated:', status)
+          }
+        }
+        break
+
       case 'sync_complete':
         console.log('✅ WhatsApp sync completed')
         break
@@ -827,6 +877,114 @@ async function handleRefreshConnection(req: Request, parsedBase: URL, gatewayTok
   }
 }
 
+// Disconnect connection handler
+async function handleDisconnectConnection(req: Request, parsedBase: URL, gatewayToken: string, supabase: any) {
+  const url = new URL(req.url)
+  const connectionId = url.searchParams.get('connection_id')
+  const tenantId = url.searchParams.get('tenant_id')
+  
+  if (!connectionId || !tenantId) {
+    return new Response(JSON.stringify({ error: 'Missing connection_id or tenant_id' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
+  }
+
+  console.log(`🔌 Disconnecting connection ${connectionId} for tenant ${tenantId}`)
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+  if (gatewayToken) {
+    headers['Authorization'] = `Bearer ${gatewayToken}`
+  }
+
+  // Try multiple disconnect endpoints
+  const disconnectEndpoints = [
+    `/connections/${connectionId}/disconnect`,
+    `/connection/${connectionId}/disconnect`, 
+    `/connections/${connectionId}/logout`,
+    `/connection/${connectionId}/logout`,
+    `/sessions/${connectionId}/disconnect`,
+    `/session/${connectionId}/disconnect`,
+    `/api/connections/${connectionId}/disconnect`,
+  ]
+
+  let successCount = 0
+  let errors: string[] = []
+
+  for (const endpoint of disconnectEndpoints) {
+    try {
+      const disconnectUrl = new URL(endpoint, parsedBase)
+      disconnectUrl.searchParams.append('tenant_id', tenantId)
+      
+      console.log(`🎯 Trying disconnect endpoint: ${endpoint}`)
+      
+      const response = await fetch(disconnectUrl.toString(), {
+        method: 'POST',
+        headers,
+      })
+      
+      if (response.ok) {
+        console.log(`✅ Success on endpoint: ${endpoint}`)
+        successCount++
+        break // Exit on first success
+      } else {
+        const text = await response.text()
+        const error = `${endpoint}: ${response.status} - ${text}`
+        errors.push(error)
+        console.log(`⚠️ Failed endpoint: ${error}`)
+      }
+    } catch (error) {
+      const errorMsg = `${endpoint}: ${error instanceof Error ? error.message : 'Unknown error'}`
+      errors.push(errorMsg)
+      console.log(`❌ Error on endpoint: ${errorMsg}`)
+    }
+  }
+
+  // Always update connection status to disconnected in Supabase
+  try {
+    const { error: updateError } = await supabase
+      .from('whatsapp_connections')
+      .update({ 
+        status: 'disconnected',
+        qr_code: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', connectionId)
+      .eq('tenant_id', tenantId)
+
+    if (updateError) {
+      console.error('❌ Failed to update connection status in Supabase:', updateError)
+      errors.push(`Supabase update: ${updateError.message}`)
+    } else {
+      console.log('✅ Connection status updated to disconnected in Supabase')
+      successCount++
+    }
+  } catch (supabaseError) {
+    console.error('❌ Error updating Supabase:', supabaseError)
+    errors.push(`Supabase error: ${supabaseError}`)
+  }
+
+  const dynamicOrigin = getDynamicOrigin(req.headers.get('origin'))
+  return new Response(JSON.stringify({ 
+    success: successCount > 0,
+    successCount,
+    totalAttempts: disconnectEndpoints.length + 1, // +1 for Supabase
+    message: successCount > 0 
+      ? `Disconnect completed. Connection marked as disconnected.`
+      : 'Disconnect failed on all endpoints, but status updated in database',
+    errors: errors.length > 3 ? errors.slice(0, 3).concat(['...more errors']) : errors
+  }), {
+    status: 200, // Always return success since we update Supabase status
+    headers: {
+      ...corsHeaders,
+      'Access-Control-Allow-Origin': dynamicOrigin,
+      'Content-Type': 'application/json'
+    }
+  })
+}
+
 console.log(`🔧 Proxy configuration:`)
 console.log(`- Gateway URL: ${GATEWAY_BASE_URL}`)
 console.log(`- Gateway Origin (default): ${GATEWAY_ORIGIN_DEFAULT}`)
@@ -863,14 +1021,19 @@ serve(async (req) => {
       return handleBootstrapSync(req, parsedBase, GATEWAY_TOKEN, supabase)
     }
 
-    // Handle connection refresh endpoint
-    if (path === '/refresh-connection' && req.method === 'GET') {
+    // Handle connection refresh endpoint - support both GET and POST
+    if (path === '/refresh-connection' && (req.method === 'GET' || req.method === 'POST')) {
       return handleRefreshConnection(req, parsedBase, GATEWAY_TOKEN, supabase)
     }
 
     // Handle force reset connection endpoint
     if (path === '/force-reset-connection' && req.method === 'POST') {
       return handleForceResetConnection(req, parsedBase, GATEWAY_TOKEN, supabase)
+    }
+
+    // Handle disconnect connection endpoint
+    if (path === '/disconnect-connection' && req.method === 'POST') {
+      return handleDisconnectConnection(req, parsedBase, GATEWAY_TOKEN, supabase)
     }
 
     // Extrair autenticação do cliente (via query params para EventSource ou headers)

@@ -289,6 +289,47 @@ export async function processWhatsAppEvent(event: any, connectionId: string, ten
         
         return { type: 'messages', data: messageResults };
       
+      case 'connected':
+      case 'disconnected':
+      case 'status':
+        // Update connection status in Supabase
+        console.log('[WhatsAppStore] 🔄 Updating connection status:', event.type, event.data);
+        
+        try {
+          const { supabase } = await import('@/integrations/supabase/client');
+          const statusValue = event.type === 'status' ? event.data?.status || event.data : event.type;
+          
+          const updateData: any = {
+            status: statusValue,
+            updated_at: new Date().toISOString()
+          };
+          
+          if (statusValue === 'connected' && event.data?.phone_number) {
+            updateData.phone_number = event.data.phone_number;
+            updateData.last_connected_at = new Date().toISOString();
+          }
+          
+          if (statusValue === 'disconnected') {
+            updateData.qr_code = null;
+          }
+          
+          const { error } = await supabase
+            .from('whatsapp_connections')
+            .update(updateData)
+            .eq('id', connectionId)
+            .eq('tenant_id', tenantId);
+          
+          if (error) {
+            console.error('[WhatsAppStore] ❌ Error updating connection status:', error);
+          } else {
+            console.log('[WhatsAppStore] ✅ Connection status updated successfully');
+          }
+        } catch (error) {
+          console.error('[WhatsAppStore] ❌ Error updating connection:', error);
+        }
+        
+        return { type: event.type, data: event.data };
+
       case 'sync_complete':
         console.log('[WhatsAppStore] ✅ WhatsApp sync completed');
         return { type: 'sync_complete', data: event.data };

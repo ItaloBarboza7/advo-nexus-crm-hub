@@ -78,21 +78,31 @@ export const ConnectionSettingsDialog: React.FC<ConnectionSettingsDialogProps> =
 
   const handleDisconnect = async () => {
     if (!connection) return;
-
+    
     setIsDisconnecting(true);
     try {
-      await whatsappGateway.disconnectConnection(connection.id);
-      toast({
-        title: "Sucesso",
-        description: "Conexão desconectada com sucesso"
-      });
-      onUpdated();
+      const result = await whatsappGateway.disconnectConnection(connection.id);
+      
+      if (result.success) {
+        toast({
+          title: "Sucesso",
+          description: "Conexão desconectada com sucesso",
+        });
+        onUpdated();
+        onOpenChange(false); // Close the modal
+      } else {
+        toast({
+          title: "Erro",
+          description: result.message,
+          variant: "destructive",
+        });
+      }
     } catch (error: any) {
-      console.error('Erro ao desconectar conexão:', error);
+      console.error('Disconnect error:', error);
       toast({
         title: "Erro",
-        description: error.message || "Falha ao desconectar a conexão",
-        variant: "destructive"
+        description: error.message || "Erro ao desconectar",
+        variant: "destructive",
       });
     } finally {
       setIsDisconnecting(false);
